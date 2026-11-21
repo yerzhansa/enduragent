@@ -91,6 +91,13 @@ function startHistory(files: Readonly<Record<string, string>>): string {
   return commit("base");
 }
 
+type RecordedCounts = Record<string, Record<string, number>>;
+
+function everyRule(counts: RecordedCounts): RecordedCounts {
+  const empty: RecordedCounts = JSON.parse(serializeBaseline({}));
+  return { ...empty, ...counts };
+}
+
 function longFile(lines: number): string {
   return Array.from({ length: lines }, (_, index) => `export const line${index} = ${index};\n`).join("");
 }
@@ -447,22 +454,23 @@ describe("baseline comparison", () => {
       ),
     ).toEqual({
       kind: "updated",
-      baseline: { comment: { "a.ts": 2 }, "file-length": { "big.ts": 850 } },
+      baseline: everyRule({ comment: { "a.ts": 2 }, "file-length": { "big.ts": 850 } }),
     });
   });
 
-  it("serializes with sorted keys and rejects unknown rule ids", () => {
+  it("serializes every rule with sorted keys and rejects unknown rule ids", () => {
     const serialized = serializeBaseline({
       "no-empty": { "b.ts": 1, "c.ts": 3, "a.ts": 2 },
       comment: { "c.ts": 4 },
     });
-    expect(serialized).toBe(
-      '{\n  "comment": {\n    "c.ts": 4\n  },\n  "no-empty": {\n    "a.ts": 2,\n    "b.ts": 1,\n    "c.ts": 3\n  }\n}\n',
-    );
-    expect(parseBaseline(serialized)).toEqual({
+    const expected = everyRule({
       comment: { "c.ts": 4 },
       "no-empty": { "a.ts": 2, "b.ts": 1, "c.ts": 3 },
     });
+    expect(serialized).toBe(`${JSON.stringify(expected, null, 2)}\n`);
+    expect(Object.keys(expected)).toEqual(Object.keys(expected).sort());
+    expect(expected["loose-state-flags"]).toEqual({});
+    expect(parseBaseline(serialized)).toEqual(expected);
     expect(() => parseBaseline('{"made-up-rule": {"a.ts": 1}}')).toThrow();
   });
 });
@@ -495,7 +503,7 @@ describe("measure and main on a fixture repository", () => {
 
     const core = "packages/a/src/core.ts";
     const coreTest = "packages/a/tests/core.test.ts";
-    expect(measure(tempDir).counts).toEqual({
+    expect(measure(tempDir).counts).toEqual(everyRule({
       comment: { [core]: 2, [coreTest]: 2 },
       "no-empty": { [core]: 1, [coreTest]: 1 },
       "no-empty-function": { [core]: 1 },
@@ -504,14 +512,14 @@ describe("measure and main on a fixture repository", () => {
       "typescript/no-explicit-any": { [core]: 1, [coreTest]: 1 },
       "typescript/no-non-null-assertion": { [core]: 1 },
       "ui-restricted-api": { "apps/desktop-renderer/src/ui/View.tsx": 5 },
-    });
+    }));
   });
 
   it("fails without a baseline, creates one with --update, then passes", () => {
     initRepository({ "packages/a/src/core.ts": "// one\nexport const a = 1;\n" });
     expect(runMain([tempDir]).code).toBe(1);
     expect(runMain([tempDir, "--update"]).code).toBe(0);
-    expect(JSON.parse(readBaseline())).toEqual({ comment: { "packages/a/src/core.ts": 1 } });
+    expect(JSON.parse(readBaseline())).toEqual(everyRule({ comment: { "packages/a/src/core.ts": 1 } }));
     expect(runMain([tempDir])).toMatchObject({ code: 0, errors: [] });
   });
 
@@ -555,7 +563,7 @@ describe("measure and main on a fixture repository", () => {
     );
 
     expect(runMain([tempDir, "--update"]).code).toBe(0);
-    expect(JSON.parse(readBaseline())).toEqual({ comment: { "packages/a/src/kept.ts": 1 } });
+    expect(JSON.parse(readBaseline())).toEqual(everyRule({ comment: { "packages/a/src/kept.ts": 1 } }));
     expect(runMain([tempDir]).code).toBe(0);
   });
 
@@ -582,6 +590,16 @@ describe("changed files and the baseline guard", () => {
   const NOTED = "packages/a/src/noted.ts";
   const PLAIN = "packages/a/src/plain.ts";
   const LONG = "packages/a/src/long.ts";
+  const FLAGGED = "packages/a/src/flagged.ts";
+  const MOVED = "packages/a/src/moved.ts";
+  const pairOfFlags = (names: readonly string[]): string =>
+    [
+      "export class Flags {",
+      ...names.map((name) => `  private ${name} = false;`),
+      `  set() { ${names.map((name) => `this.${name} = true;`).join(" ")} }`,
+      "}",
+      "",
+    ].join("\n");
 
   function changedFileFailure(file: string): string {
     return `  ${file}  comment  1  ${COMMENT_GUIDANCE}; ${CHANGED_FILE_ACTION}`;
@@ -735,25 +753,97 @@ describe("changed files and the baseline guard", () => {
     ]);
   });
 
-  it("guards a merge-base baseline that still names a retired rule", () => {
+  it("refuses a change that stops checking a rule recorded at the merge-base", () => {
     initRepository({ [LONG]: longFile(900) });
     recordBaseline();
-    const recorded: unknown = JSON.parse(readBaseline());
-    expect(recorded).toEqual({ "file-length": { [LONG]: 900 } });
+    expect(JSON.parse(readBaseline())).toEqual(everyRule({ "file-length": { [LONG]: 900 } }));
     writeFileSync(
       join(tempDir, BASELINE),
-      JSON.stringify({ "file-length": { [LONG]: 900 }, "retired-rule": { [PLAIN]: 1 } }),
+      JSON.stringify({ ...everyRule({ "file-length": { [LONG]: 900 } }), "retired-rule": { [PLAIN]: 1 } }),
       "utf8",
     );
     const base = commit("baseline with a retired rule");
     recordBaseline();
-    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+    const retired = runMain([tempDir], { BASE_SHA: base });
+    expect(retired.code).toBe(1);
+    expect(retired.errors).toContain(
+      "  retired-rule  removing or renaming a rule weakens the gate; it needs the operator's approval",
+    );
 
     write(LONG, longFile(950));
     recordBaseline();
     const { code, errors } = runMain([tempDir], { BASE_SHA: base });
     expect(code).toBe(1);
     expect(errors).toContain(`  ${LONG}  file-length  900 -> 950  ${SHRINK_ONLY}`);
+  });
+
+  it("accepts the first counts of a rule the merge-base never recorded, then holds them", () => {
+    initRepository({ [LONG]: longFile(900) });
+    recordBaseline();
+    const withoutRule = everyRule({ "file-length": { [LONG]: 900 } });
+    delete withoutRule["loose-state-flags"];
+    writeFileSync(join(tempDir, BASELINE), `${JSON.stringify(withoutRule, null, 2)}\n`, "utf8");
+    const base = commit("baseline before loose-state-flags existed");
+    write(FLAGGED, pairOfFlags(["a", "b"]));
+    expect(runMain([tempDir, "--update"]).code).toBe(0);
+    expect(JSON.parse(readBaseline())["loose-state-flags"]).toEqual({ [FLAGGED]: 2 });
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+
+    const introduced = commit("record loose-state-flags");
+    write(FLAGGED, pairOfFlags(["a", "b", "c"]));
+    expect(runMain([tempDir, "--update"]).code).toBe(1);
+    const raised = everyRule({ "file-length": { [LONG]: 900 }, "loose-state-flags": { [FLAGGED]: 3 } });
+    writeFileSync(join(tempDir, BASELINE), `${JSON.stringify(raised, null, 2)}\n`, "utf8");
+    const { code, errors } = runMain([tempDir], { BASE_SHA: introduced });
+    expect(code).toBe(1);
+    expect(errors).toContain(`  (all files)  loose-state-flags  2 -> 3  ${SHRINK_ONLY}`);
+  });
+
+  it("lets flagged code move between files as long as the total does not grow", () => {
+    initRepository({ [FLAGGED]: pairOfFlags(["a", "b"]) });
+    recordBaseline();
+    const base = commit("flags in one file");
+    rmSync(join(tempDir, FLAGGED));
+    write(MOVED, pairOfFlags(["a", "b"]));
+    expect(runMain([tempDir, "--update"]).code).toBe(0);
+    expect(JSON.parse(readBaseline())["loose-state-flags"]).toEqual({ [MOVED]: 2 });
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+  });
+
+  it("refuses a baseline that erases a rule recorded at the merge-base", () => {
+    initRepository({ [FLAGGED]: pairOfFlags(["a", "b"]) });
+    recordBaseline();
+    const base = commit("flags recorded");
+    const erased = JSON.parse(readBaseline());
+    delete erased["copy-comparison"];
+    writeFileSync(join(tempDir, BASELINE), `${JSON.stringify(erased, null, 2)}\n`, "utf8");
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toContain(
+      "  copy-comparison  the baseline lost this rule's entry; run `pnpm check:code-quality --update` to restore it",
+    );
+  });
+
+  it("names a raised total and the file it grew in when flagged code moves", () => {
+    initRepository({ [FLAGGED]: pairOfFlags(["a", "b"]) });
+    recordBaseline();
+    commit("flags recorded");
+    rmSync(join(tempDir, FLAGGED));
+    write(MOVED, pairOfFlags(["a", "b", "c"]));
+    const { code, errors } = runMain([tempDir]);
+    expect(code).toBe(1);
+    expect(errors).toContain(
+      "  (all files)  loose-state-flags  2 -> 3  replace the flags with one discriminated union whose variants carry their data, changed in one transition function, like DesktopDaemonLifecycleState",
+    );
+    expect(errors).toContain(
+      `  ${FLAGGED}  loose-state-flags  2 -> 0  run \`pnpm check:code-quality --update\` to lock in the lower count`,
+    );
+    expect(errors).toContain(
+      `  ${MOVED}  loose-state-flags  0 -> 3  replace the flags with one discriminated union whose variants carry their data, changed in one transition function, like DesktopDaemonLifecycleState`,
+    );
+    const refused = runMain([tempDir, "--update"]);
+    expect(refused.code).toBe(1);
+    expect(refused.errors.some((line) => line.startsWith(`  ${MOVED}  loose-state-flags  0 -> 3`))).toBe(true);
   });
 
   it("skips the baseline guard when the merge-base has no baseline file", () => {
