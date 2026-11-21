@@ -1,5 +1,17 @@
 # @enduragent/desktop-renderer
 
+## 0.4.1
+
+### Patch Changes
+
+- 2b129f8: User-facing: When Intervals.icu stops accepting your sign-in, you can now disconnect it in the app as well as sign in again.
+
+  The Intervals.icu row in the "sign-in stopped working" state now offers Disconnect beside Sign in again. Disconnect uses the same confirmation, revoke attempt and local removal as the connected row, and afterwards the row, the Settings warning and the sidebar notice return to not connected.
+
+- 16539a7: User-facing: If you start a new chat while writing your own answer to a coach question, the message box now comes back instead of staying hidden until you restart the app.
+
+  The coach decision panel now reports its custom editor as closed when it unmounts, the same way the Plan editors do, so the chat view stops hiding the composer for an editor that no longer exists.
+
 ## 0.4.0
 
 ### Minor Changes
