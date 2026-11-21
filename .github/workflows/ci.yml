@@ -265,10 +265,62 @@ jobs:
           $languages = @($manifest.DocumentElement['Resources'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' } | ForEach-Object { $_.GetAttribute('Language') })
           if (($languages -join ',') -cne 'en-US') { throw 'Store package must declare only en-US' }
           $family = $manifest.DocumentElement['Dependencies']['TargetDeviceFamily']
-          if ($family.GetAttribute('Name') -cne 'Windows.Desktop' -or $family.GetAttribute('MinVersion') -cne '10.0.22000.0' -or $family.GetAttribute('MaxVersionTested') -cne '10.0.26100.0') { throw 'Store package device family mismatch' }
+          if ($family.GetAttribute('Name') -cne 'Windows.Desktop' -or $family.GetAttribute('MinVersion') -cne '10.0.19041.0' -or $family.GetAttribute('MaxVersionTested') -cne '10.0.26100.0') { throw 'Store package device family mismatch' }
           $applications = @($manifest.DocumentElement['Applications'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' })
           if ($applications.Count -ne 1 -or $applications[0].GetAttribute('Id') -cne 'Enduragent') { throw 'Store application id mismatch' }
           $capabilities = @($manifest.DocumentElement['Capabilities'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' } | ForEach-Object { $_.GetAttribute('Name') })
           if (($capabilities -join ',') -cne 'runFullTrust') { throw 'Store package must declare only runFullTrust' }
           if ($manifest.OuterXml -match 'windows\.startupTask') { throw 'Store package must not declare a startup task' }
           Write-Output "Store package manifest checked: $($packages[0].Name)"
+      - name: Upload unsigned x64 Microsoft Store package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-store-package
+          path: apps/desktop/dist/windows-store/*.appx
+          if-no-files-found: error
+          retention-days: 3
+
+  windows-store-package-before-windows-11:
+    needs: windows-desktop-package
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: windows-store-package
+          path: ${{ runner.temp }}/windows-store-package
+      - name: Register Microsoft Store package below Windows 11
+        id: register
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $build = [Environment]::OSVersion.Version.Build
+          if ($build -ge 22000) { throw "expected a Windows build below 22000, got $build" }
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-store-package') -Filter *.appx)
+          if ($packages.Count -ne 1) { throw 'expected exactly one Store package' }
+          $layout = Join-Path $env:RUNNER_TEMP 'windows-store-layout'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($packages[0].FullName, $layout)
+          $unlock = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+          New-Item -Path $unlock -Force | Out-Null
+          Set-ItemProperty -Path $unlock -Name AllowDevelopmentWithoutDevLicense -Value 1 -Type DWord
+          Add-AppxPackage -Register (Join-Path $layout 'AppxManifest.xml')
+          $package = Get-AppxPackage -Name '00000Synthetic.EnduragentCi'
+          if ($null -eq $package -or $package.Status -ne 'Ok') { throw 'Store package did not register' }
+          $executable = Join-Path $package.InstallLocation 'app\Enduragent.exe'
+          if (-not (Test-Path -LiteralPath $executable)) { throw 'Store package executable is missing' }
+          "executable=$executable" >> $env:GITHUB_OUTPUT
+          Write-Output "Registered $($package.PackageFullName) on Windows build $build"
+      - name: Run packaged self-test from the Store package
+        shell: pwsh
+        env:
+          ENDURAGENT_STORE_EXECUTABLE: ${{ steps.register.outputs.executable }}
+        run: node apps/desktop/scripts/verify-windows-packaged-self-test.mjs --executable $env:ENDURAGENT_STORE_EXECUTABLE
+      - name: Remove Microsoft Store package
+        if: always()
+        shell: pwsh
+        run: Get-AppxPackage -Name '00000Synthetic.EnduragentCi' | Remove-AppxPackage

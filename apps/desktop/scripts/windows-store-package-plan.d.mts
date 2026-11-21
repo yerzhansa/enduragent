@@ -42,7 +42,7 @@ export interface WindowsStorePackageBuilderOptions {
       readonly capabilities: readonly ["runFullTrust"];
       readonly electronUpdaterAware: false;
       readonly setBuildNumber: false;
-      readonly minVersion: "10.0.22000.0";
+      readonly minVersion: "10.0.19041.0";
       readonly maxVersionTested: "10.0.26100.0";
     };
   };
@@ -79,7 +79,7 @@ export const WINDOWS_STORE_PACKAGE_ARCH: "x64";
 export const WINDOWS_STORE_PACKAGE_TARGET: "appx";
 export const WINDOWS_STORE_PACKAGE_APPLICATION_ID: "Enduragent";
 export const WINDOWS_STORE_PACKAGE_LANGUAGES: readonly ["en-US"];
-export const WINDOWS_STORE_PACKAGE_MIN_VERSION: "10.0.22000.0";
+export const WINDOWS_STORE_PACKAGE_MIN_VERSION: "10.0.19041.0";
 export const WINDOWS_STORE_PACKAGE_MAX_VERSION_TESTED: "10.0.26100.0";
 export const WINDOWS_STORE_IDENTITY_ENVIRONMENT: {
   readonly identityName: "ENDURAGENT_STORE_IDENTITY_NAME";
