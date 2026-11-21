@@ -1259,6 +1259,37 @@ describe("coach operations", () => {
     await expect(read(signedIn)).resolves.toEqual(snapshot(true));
   });
 
+  it("backfills on a requested sync while intervals.icu rejects the sign-in", async () => {
+    const signedIn = encodeIntervalsOAuthCredential("fixture-rejected-sync-token");
+    recordIntervalsCredentialResponse(signedIn, 401);
+    const backfill = vi.fn(async () => ({
+      pages: 1,
+      artifacts: 1,
+      reports: [],
+      droppedActivityRows: {
+        sourceRestricted: 0,
+        other: 0,
+        datedLocalDates: [],
+        undatedCount: 0,
+      },
+    }));
+    const operations = createCoachOperations(
+      {
+        home,
+        context: context(),
+        runtime: operationRuntime(),
+        intervalsCredentials: intervalsCredentials(signedIn),
+        historyNewestDate: () => "1998-07-18",
+        calendarTimeZone: () => "UTC",
+        applyRuntimeConfig: async () => {},
+      },
+      { backfill },
+    );
+
+    await expect(operations.sync({})).resolves.toMatchObject({ backfill: "completed" });
+    expect(backfill).toHaveBeenCalledWith(expect.objectContaining({ apiKey: signedIn }));
+  });
+
   it("reports a refused offered intervals.icu sign-in until it is replaced or removed", async () => {
     const refusedOffer = encodeIntervalsOAuthCredential("fixture-refused-offer");
     const replacement = encodeIntervalsOAuthCredential("fixture-replacement-offer");

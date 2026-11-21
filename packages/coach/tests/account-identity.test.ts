@@ -7,10 +7,12 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { recordIntervalsCredentialResponse } from "@enduragent/core";
 import {
   assertRuntimeAthleteOwner,
   assertRuntimeAthleteOwnerFromEvidence,
   checkIntervalsStoreOwnerAtPath,
+  RuntimeAthleteOwnerRefusal,
   verifyIntervalsCredentialAtPath,
   verifyIntervalsCredentialAtPathWithEvidence,
 } from "../src/account-identity.js";
@@ -270,6 +272,45 @@ describe("account identity", () => {
       expect(resolveFingerprint).toHaveBeenCalledWith(
         expect.objectContaining({ apiKey: "candidate-key", athleteId: "0" }),
       );
+    } finally {
+      await value.store.close();
+    }
+  });
+
+  it("refuses an owner check for a rejected sign-in without sending it and checks its replacement", async () => {
+    const value = await fresh();
+    const requests: BackfillRequest[] = [];
+    const lookup = (apiKey: string) => ({
+      apiKey,
+      athleteId: "0",
+      historyNewestDate: "1900-12-31",
+      clock,
+      sleep: async () => {},
+      baseFetch: profileFetch("synthetic-owner", requests),
+    });
+    const rejected = "intervals-oauth:fixture-owner-check-rejected";
+    const replacement = "intervals-oauth:fixture-owner-check-replacement";
+    recordIntervalsCredentialResponse(rejected, 401);
+    try {
+      const refusal = await assertRuntimeAthleteOwner(value.store, {
+        current: lookup(rejected),
+        candidate: lookup(rejected),
+        signal: new AbortController().signal,
+      }).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      expect(refusal).toBeInstanceOf(RuntimeAthleteOwnerRefusal);
+      expect(refusal).toMatchObject({ reason: "credential-rejected", transient: false });
+      expect(requests).toEqual([]);
+
+      const pendingClaim = await assertRuntimeAthleteOwner(value.store, {
+        current: lookup(replacement),
+        candidate: lookup(replacement),
+        signal: new AbortController().signal,
+      });
+      expect(requests.map((request) => request.endpoint)).toEqual(["profile"]);
+      expect(pendingClaim).toBeDefined();
     } finally {
       await value.store.close();
     }

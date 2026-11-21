@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Config, ReferenceRuntime } from "@enduragent/core";
+import { recordIntervalsCredentialResponse, type Config, type ReferenceRuntime } from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { SqlReadStore } from "@enduragent/kernel/store";
@@ -455,6 +455,89 @@ describe("StoreRuntime", () => {
     expect(produce).not.toHaveBeenCalled();
     expect(reference.runScheduledOnce).not.toHaveBeenCalled();
     expect(runtime.currentSnapshot()).toBeUndefined();
+    await runtime.close();
+  });
+
+  it("skips scheduled refreshes while intervals.icu rejects the sign-in and resumes after a new one", async () => {
+    vi.useFakeTimers();
+    try {
+      const rejected = "intervals-oauth:fixture-rejected-before-schedule";
+      const replacement = "intervals-oauth:fixture-replacement-sign-in";
+      recordIntervalsCredentialResponse(rejected, 401);
+      let active: Config = { ...config, intervals: { apiKey: rejected, athleteId: "0" } };
+      const { root, runtime, capture, refreshCurves, produce, reference } = await makeRuntime(
+        active,
+        () => active,
+      );
+      runtime.startScheduler();
+
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).not.toHaveBeenCalled();
+      expect(refreshCurves).not.toHaveBeenCalled();
+      expect(produce).not.toHaveBeenCalled();
+      expect(reference.runScheduledOnce).not.toHaveBeenCalled();
+      const lines = (await readFile(join(root, "logs", "log.jsonl"), "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      expect(lines).toEqual([
+        expect.objectContaining({
+          level: "info",
+          component: "sync",
+          event: "scheduled_store_refresh_skipped",
+          reason: "credential-rejected",
+        }),
+        expect.objectContaining({ event: "scheduled_store_refresh_skipped" }),
+      ]);
+      expect(lines.map((line) => JSON.stringify(line)).join("\n")).not.toContain(
+        "fixture-rejected-before-schedule",
+      );
+
+      active = { ...active, intervals: { apiKey: replacement, athleteId: "0" } };
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).toHaveBeenCalledOnce();
+      expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey: replacement }));
+      expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+      await runtime.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps scheduled refreshes for an API key that intervals.icu refused", async () => {
+    vi.useFakeTimers();
+    try {
+      const apiKey = "fixture-refused-scheduled-api-key";
+      recordIntervalsCredentialResponse(apiKey, 401);
+      const { runtime, capture, reference } = await makeRuntime({
+        ...config,
+        intervals: { apiKey, athleteId: "0" },
+      });
+      runtime.startScheduler();
+
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).toHaveBeenCalledOnce();
+      expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey }));
+      expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+      await runtime.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still refreshes on request while intervals.icu rejects the sign-in", async () => {
+    const rejected = "intervals-oauth:fixture-rejected-before-sync-now";
+    recordIntervalsCredentialResponse(rejected, 401);
+    const { runtime, capture, reference } = await makeRuntime({
+      ...config,
+      intervals: { apiKey: rejected, athleteId: "0" },
+    });
+
+    const result = await runtime.runWindowAfter(async () => {});
+    expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey: rejected }));
+    expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+    expect(result.counts.totalRequests).toBeGreaterThan(0);
     await runtime.close();
   });
 

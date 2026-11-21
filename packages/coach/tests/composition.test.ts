@@ -1946,6 +1946,59 @@ describe("local coach composition", () => {
     await lifecycle.close();
   });
 
+  it.each([
+    { credential: "intervals-oauth:fixture-revoked-before-retry", retries: false },
+    { credential: "fixture-refused-api-key", retries: true },
+  ])(
+    "retries the deferred owner check after a 401 only for an API key: $credential",
+    async ({ credential, retries }) => {
+      vi.useFakeTimers();
+      try {
+        const home = await freshHome();
+        const requests: string[] = [];
+        const refusingFetch: typeof globalThis.fetch = async (input) => {
+          requests.push(new URL(input instanceof Request ? input.url : input.toString()).pathname);
+          return new Response("{}", { status: 401, headers: { "content-type": "application/json" } });
+        };
+        const lifecycle = await compose(
+          home,
+          {
+            bootstrap: async () => reference(),
+            createRuntime: () => runtime(),
+            createBackend: () => backend(),
+            createRepository: () => ({
+              insertIfAbsent: async () => false,
+              readCurrent: async () => undefined,
+            }),
+            createResolver: () => missingResolver(),
+            assertRuntimeAthleteOwner: (store, options) =>
+              assertRuntimeAthleteOwner(store, options, (lookup) =>
+                resolveIntervalsStoreOwnerFingerprint({ ...lookup, baseFetch: refusingFetch }),
+              ),
+          },
+          fakeContext(home),
+          undefined,
+          config(home, { apiKey: credential, athleteId: "0" }),
+          { ENDURAGENT_HOME: home.root },
+          true,
+        );
+
+        await expect(lifecycle.startInitialRefresh()).rejects.toThrow(
+          "training account owner unresolved",
+        );
+        const firstAttempt = requests.length;
+        expect(firstAttempt).toBeGreaterThan(0);
+
+        await vi.advanceTimersByTimeAsync(600_000);
+        if (retries) expect(requests.length).toBeGreaterThan(firstAttempt);
+        else expect(requests).toHaveLength(firstAttempt);
+        await lifecycle.close();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
   it("rechecks a same-value credential after deferred owner failure without capturing", async () => {
     const home = await freshHome();
     const failure = new RuntimeAthleteOwnerRefusal("candidate-unresolved");
