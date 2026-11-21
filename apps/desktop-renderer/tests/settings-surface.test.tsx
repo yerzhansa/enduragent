@@ -10,10 +10,12 @@ import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describeLanguage } from "@enduragent/i18n";
 import { Shell } from "../src/app/Shell";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
+import { createIntervalsSignInHealth } from "../src/intervals-sign-in-health";
 import type {
   CredentialDeleteResult,
   CredentialRecoveryStatus,
   CredentialResetResult,
+  IntervalsCredentialMutationResult,
   OnboardingLlmConfiguration,
   OnboardingLlmSelection,
   OnboardingLlmSelectionResult,
@@ -61,6 +63,7 @@ import { toManualSyncViewState } from "../src/training-context/manual-sync";
 import type { DesktopUpdateState } from "../src/update/controller";
 import { createDesktopUpdateController } from "../src/update/controller";
 import { SettingsView } from "../src/ui/settings/SettingsView";
+import { SyncChip } from "../src/ui/sidebar/SyncChip";
 import {
   clearTrainingRestrictionFocusRequest,
   requestTrainingRestrictionFocus,
@@ -269,6 +272,7 @@ interface HarnessOptions {
   readonly setSpendCap?: (value: number) => Promise<SpendSummary>;
   readonly telegram?: TelegramControlStatus;
   readonly codexAgentSupported?: boolean;
+  readonly wrapClients?: (clients: DesktopCoachClientProvider) => DesktopCoachClientProvider;
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -317,11 +321,12 @@ function createHarness(options: HarnessOptions = {}) {
       throw new TypeError(`unexpected rpc ${method}`);
     }),
   } as unknown as CoachClient;
-  const clients: DesktopCoachClientProvider = {
+  const directClients: DesktopCoachClientProvider = {
     getClient: async () => client,
     reconnect: async () => client,
     close: async () => {},
   };
+  const clients = options.wrapClients?.(directClients) ?? directClients;
 
   const restartToUpdate = vi.fn(async (): Promise<DesktopUpdateState> => ({
     status: "installing",
@@ -624,6 +629,7 @@ afterEach(() => {
     settings: EMPTY_SETTINGS_SURFACE,
     settingsPorts: null,
     sync: IDLE_MANUAL_SYNC,
+    intervalsSignInRejected: false,
   });
   clearTrainingRestrictionFocusRequest();
 });
@@ -2238,6 +2244,187 @@ describe("credential deletion", () => {
     });
     expect(harness.onReconciled).toHaveBeenCalledOnce();
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
+  });
+});
+
+describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
+  const REJECTED_HEADLINE = "Intervals.icu needs you to sign in again";
+
+  function intervalsRuntime(signedIn: () => boolean) {
+    return () =>
+      snapshot({
+        intervals: {
+          athlete_id: "i1",
+          credential_configured: signedIn(),
+          ...(signedIn() ? { credential_rejected: true } : {}),
+          managedByEnvironment: { athleteId: false },
+        },
+      });
+  }
+
+  function watchSignInHealth(clients: DesktopCoachClientProvider): DesktopCoachClientProvider {
+    return createIntervalsSignInHealth(clients, useEnduragentStore).clients;
+  }
+
+  function markIntervalsMissing(): void {
+    useEnduragentStore.setState((state) => ({
+      onboarding: {
+        ...state.onboarding,
+        wizard: {
+          ...state.onboarding.wizard,
+          credentialStatus: {
+            ...state.onboarding.wizard.credentialStatus,
+            "intervals-icu": "missing",
+          },
+        },
+      },
+    }));
+  }
+
+  function trainingRow(): HTMLElement {
+    const row = document.querySelector<HTMLElement>('[data-setup-row="training"]');
+    if (row === null) throw new Error("Intervals.icu row is missing");
+    return row;
+  }
+
+  function syncNotice(): HTMLElement {
+    const notice = document.querySelector<HTMLElement>("[data-sync-chip]");
+    if (notice === null) throw new Error("Sidebar sync notice is missing");
+    return notice;
+  }
+
+  it("offers Disconnect, revokes, and clears the warning in Settings and the sidebar", async () => {
+    const user = userEvent.setup();
+    let signedIn = true;
+    const deleting = deferred<CredentialDeleteResult>();
+    const subject = await renderSettings({
+      wrapClients: watchSignInHealth,
+      runtime: intervalsRuntime(() => signedIn),
+      deleteCredential: () => deleting.promise,
+      onDeleted: markIntervalsMissing,
+    });
+    await render(<SyncChip />);
+
+    await waitFor(() => {
+      expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    });
+    expect(syncNotice()).toHaveAttribute("data-status", "attention");
+    expect(syncNotice()).toHaveTextContent(REJECTED_HEADLINE);
+    const signInAgain = within(trainingRow()).getByRole("button", { name: "Sign in again" });
+    const disconnect = within(trainingRow()).getByRole("button", {
+      name: "Disconnect Intervals.icu",
+    });
+    expect(disconnect).toHaveTextContent("Disconnect");
+    expect(disconnect).toBeEnabled();
+    expect(signInAgain).toBeEnabled();
+
+    await user.click(disconnect);
+    expect(screen.getByText("Disconnect Intervals.icu?")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Enduragent’s access is revoked on Intervals.icu and the sign-in is removed from this Mac. Your synced rides and past chats stay on this Mac.",
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus());
+    expect(signInAgain).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(disconnect).toHaveFocus());
+    expect(screen.queryByText("Disconnect Intervals.icu?")).toBeNull();
+    expect(signInAgain).toBeEnabled();
+
+    await user.click(disconnect);
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Disconnecting…" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+    expect(disconnect).toBeDisabled();
+    expect(signInAgain).toBeDisabled();
+    expect(subject.deleteCredential).toHaveBeenCalledWith({ credential: "intervals-icu" });
+
+    signedIn = false;
+    await act(async () => {
+      deleting.resolve({
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: false,
+        revoke: "already-invalid",
+      });
+    });
+
+    const feedback = await screen.findByText(
+      "Disconnected. Enduragent’s access was revoked on Intervals.icu.",
+    );
+    expect(feedback).not.toHaveAttribute("data-tone");
+    expect(screen.queryByText(/Settings → Apps/u)).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Connect Intervals.icu" })).toHaveFocus();
+    });
+    expect(trainingRow()).toHaveAttribute("data-state", "pending");
+    expect(within(trainingRow()).queryByRole("button", { name: "Sign in again" })).toBeNull();
+    expect(
+      within(trainingRow()).queryByRole("button", { name: "Disconnect Intervals.icu" }),
+    ).toBeNull();
+    expect(syncNotice()).not.toHaveAttribute("data-status", "attention");
+    expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
+    expect(syncNotice().querySelector("[data-sync-sign-in-again]")).toBeNull();
+    expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
+  });
+
+  it("keeps Disconnect unavailable while signing in again", async () => {
+    const user = userEvent.setup();
+    const statuses = [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+      { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+    ] as const;
+    const signIn = deferred<IntervalsCredentialMutationResult>();
+    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.credentialStatuses.mockResolvedValue(statuses);
+    bridge.signInWithIntervals.mockImplementation(() => signIn.promise);
+    const onboardingView = createOnboardingViewAdapter({
+      publish: (next) => useEnduragentStore.getState().setOnboarding(next),
+    });
+    const onboarding = createOnboardingController({
+      bridge,
+      credentials: credentialDrafts,
+      view: onboardingView.view,
+      focusOpener: vi.fn(),
+      onComplete: vi.fn(),
+    });
+    useEnduragentStore.getState().bindOnboardingActions(onboarding);
+
+    try {
+      await act(async () => onboarding.open());
+      await renderSettings({
+        wrapClients: watchSignInHealth,
+        runtime: intervalsRuntime(() => true),
+      });
+      await waitFor(() => {
+        expect(trainingRow()).toHaveAttribute("data-state", "attention");
+      });
+      const disconnect = within(trainingRow()).getByRole("button", {
+        name: "Disconnect Intervals.icu",
+      });
+      expect(disconnect).toBeEnabled();
+
+      await user.click(within(trainingRow()).getByRole("button", { name: "Sign in again" }));
+      await waitFor(() => expect(bridge.signInWithIntervals).toHaveBeenCalledOnce());
+      expect(disconnect).toBeDisabled();
+      expect(within(trainingRow()).getByRole("button", { name: "Sign in again" })).toBeDisabled();
+
+      await act(async () => {
+        signIn.resolve({ outcome: "refused", reason: "sign-in-cancelled", current: statuses[1] });
+      });
+      await waitFor(() => expect(disconnect).toBeEnabled());
+      expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    } finally {
+      onboarding.dispose();
+      onboardingView.dispose();
+      useEnduragentStore.getState().bindOnboardingActions(null);
+    }
   });
 });
 

@@ -1,5 +1,6 @@
+import type { Message } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
   setupStatusKnown,
@@ -42,8 +43,46 @@ import {
   CredentialDeleteConfirmation,
 } from "../settings/CredentialsSection";
 import { SETUP_LINK_BUTTON } from "./SetupCard";
-import { SetupError, SetupRow, SetupSubPanel } from "./SetupRow";
+import { SetupError, SetupRow, SetupSubPanel, type SetupRowStatus } from "./SetupRow";
 import type { SetupPlacement } from "./OnboardingWizard";
+
+type TrainingRowState = "checking" | "missing" | "connected" | "rejected";
+
+type TrainingRowAction = "connect" | "disconnect" | "sign-in-again";
+
+const TRAINING_ROW_STATES: Readonly<
+  Record<
+    TrainingRowState,
+    {
+      readonly disc: SetupRowStatus;
+      readonly subtitle: Message;
+      readonly actions: readonly TrainingRowAction[];
+    }
+  >
+> = {
+  checking: { disc: "none", subtitle: SETUP_ROW_CHECKING_SUBTITLE, actions: [] },
+  missing: { disc: "pending", subtitle: TRAINING_ROW_SUBTITLES.missing, actions: ["connect"] },
+  connected: {
+    disc: "ready",
+    subtitle: TRAINING_ROW_SUBTITLES.connected,
+    actions: ["disconnect"],
+  },
+  rejected: {
+    disc: "attention",
+    subtitle: TRAINING_ROW_SUBTITLES.rejected,
+    actions: ["disconnect", "sign-in-again"],
+  },
+};
+
+function trainingRowState(
+  statusKnown: boolean,
+  connected: boolean,
+  rejected: boolean,
+): TrainingRowState {
+  if (!statusKnown) return "checking";
+  if (rejected) return "rejected";
+  return connected ? "connected" : "missing";
+}
 
 export function TrainingRow(props: {
   readonly surface: OnboardingSurfaceState;
@@ -122,18 +161,13 @@ export function TrainingRow(props: {
     focusHeadingAfterOpen.current = null;
   }, [credentialPort, open]);
 
-  const statusKnown = setupStatusKnown(surface);
-  const subtitle = !statusKnown
-    ? say(SETUP_ROW_CHECKING_SUBTITLE)
-    : rejected
-      ? say(TRAINING_ROW_SUBTITLES.rejected)
-      : connected
-        ? say(
-            athleteName === null
-              ? TRAINING_ROW_SUBTITLES.connected
-              : trainingConnectedAsSubtitle(athleteName),
-          )
-        : say(TRAINING_ROW_SUBTITLES.missing);
+  const rowState = trainingRowState(setupStatusKnown(surface), connected, rejected);
+  const row = TRAINING_ROW_STATES[rowState];
+  const subtitle = say(
+    rowState === "connected" && athleteName !== null
+      ? trainingConnectedAsSubtitle(athleteName)
+      : row.subtitle,
+  );
 
   const connect = (): void => {
     if (actions === null || controlsDisabled || importing) return;
@@ -141,11 +175,60 @@ export function TrainingRow(props: {
     actions.connectTrainingData();
   };
 
+  const actionButton = (action: TrainingRowAction): ReactElement | null => {
+    switch (action) {
+      case "disconnect":
+        return <CredentialDeleteButton credential="intervals-icu" buttonRef={deleteRef} />;
+      case "sign-in-again":
+        return (
+          <Button
+            ref={triggerRef}
+            type="button"
+            data-setup-trigger="training"
+            variant="default"
+            size="sm"
+            disabled={controlsDisabled || importing}
+            {...(open ? { "aria-controls": panelId } : {})}
+            onClick={connect}
+          >
+            {say(TRAINING_SIGN_IN_AGAIN_LABEL)}
+          </Button>
+        );
+      case "connect":
+        return (
+          <Button
+            ref={triggerRef}
+            type="button"
+            data-setup-trigger="training"
+            variant="outline"
+            size="sm"
+            disabled={controlsDisabled}
+            aria-expanded={open}
+            aria-label={say(TRAINING_TRIGGER_LABELS.disconnected)}
+            {...(open ? { "aria-controls": panelId } : {})}
+            onClick={() => {
+              if (open) {
+                setOpen(false);
+                return;
+              }
+              focusHeadingAfterOpen.current = "trigger";
+              setOpen(true);
+            }}
+          >
+            {say("setup.training.connect")}
+          </Button>
+        );
+    }
+  };
+  const rowActions = row.actions.map((action) => (
+    <Fragment key={action}>{actionButton(action)}</Fragment>
+  ));
+
   return (
     <>
       <SetupRow
         id="training"
-        status={!statusKnown ? "none" : rejected ? "attention" : connected ? "ready" : "pending"}
+        status={row.disc}
         title={TRAINING_ROW_TITLE}
         subtitle={subtitle}
         info={
@@ -156,43 +239,10 @@ export function TrainingRow(props: {
           />
         }
         trailing={
-          !statusKnown ? null : rejected ? (
-            <Button
-              ref={triggerRef}
-              type="button"
-              data-setup-trigger="training"
-              variant="default"
-              size="sm"
-              disabled={controlsDisabled || importing}
-              {...(open ? { "aria-controls": panelId } : {})}
-              onClick={connect}
-            >
-              {say(TRAINING_SIGN_IN_AGAIN_LABEL)}
-            </Button>
-          ) : connected ? (
-            <CredentialDeleteButton credential="intervals-icu" buttonRef={deleteRef} />
+          rowActions.length > 1 ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">{rowActions}</div>
           ) : (
-            <Button
-              ref={triggerRef}
-              type="button"
-              data-setup-trigger="training"
-              variant="outline"
-              size="sm"
-              disabled={controlsDisabled}
-              aria-expanded={open}
-              aria-label={say(TRAINING_TRIGGER_LABELS.disconnected)}
-              {...(open ? { "aria-controls": panelId } : {})}
-              onClick={() => {
-                if (open) {
-                  setOpen(false);
-                  return;
-                }
-                focusHeadingAfterOpen.current = "trigger";
-                setOpen(true);
-              }}
-            >
-              {say("setup.training.connect")}
-            </Button>
+            rowActions
           )
         }
       />

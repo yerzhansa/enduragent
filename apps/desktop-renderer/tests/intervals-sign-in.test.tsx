@@ -493,20 +493,23 @@ describe("Intervals.icu sign-in panel", () => {
       return value;
     }
 
-    function trainingRowButtons(): readonly string[] {
+    function trainingRowActions(): readonly string[] {
       return Array.from(
-        document.querySelectorAll('[data-setup-row="training"] button'),
-        (entry) => entry.textContent ?? "",
-      );
+        document.querySelectorAll<HTMLButtonElement>('[data-setup-row="training"] button'),
+        (entry) => entry,
+      )
+        .filter((entry) => entry.closest("[data-setup-row-title]") === null)
+        .map((entry) => entry.getAttribute("aria-label") ?? entry.textContent ?? "");
     }
 
     it.each(["gate", "settings"] as const)(
-      "shows the warning, subtitle and only Sign in again (%s)",
+      "shows the warning with Disconnect beside Sign in again (%s)",
       async (placement) => {
         const { bridge } = rejectedBridge();
         const wizard = mountWizard({ bridge, placement });
         await wizard.open();
         expect(rowState("training")).toBe("ready");
+        expect(trainingRowActions()).toEqual(["Disconnect Intervals.icu"]);
 
         act(() => {
           useEnduragentStore.getState().setIntervalsSignInRejected(true);
@@ -517,8 +520,7 @@ describe("Intervals.icu sign-in panel", () => {
           document.querySelector('[data-setup-row="training"] [data-setup-disc="attention"]'),
         ).toHaveTextContent("!");
         expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
-        expect(trainingRowButtons()).toContain(SIGN_IN_AGAIN);
-        expect(document.querySelector('[data-setup-delete="intervals-icu"]')).toBeNull();
+        expect(trainingRowActions()).toEqual(["Disconnect Intervals.icu", SIGN_IN_AGAIN]);
         expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
         wizard.controller.dispose();
       },
