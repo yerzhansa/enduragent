@@ -442,7 +442,11 @@ function replacePrivateFile(path: string, content: string | Uint8Array): void {
   } catch (error) {
     try {
       unlinkSync(temporaryPath);
-    } catch {}
+    } catch (cleanupError) {
+      if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") {
+        process.emitWarning("Could not remove a temporary runtime config file.");
+      }
+    }
     throw error;
   }
 }
@@ -1494,7 +1498,9 @@ export async function createLocalCoachComposition(
         let ownerState: Awaited<ReturnType<typeof readIntervalsStoreOwnerState>> | undefined;
         try {
           ownerState = await readIntervalsStoreOwnerState(input.context.store);
-        } catch {}
+        } catch (error) {
+          logger.warn("intervals_owner_state_read_failed", error);
+        }
         if (ownerState !== undefined) {
           const approval = intervalsCredentialApprovals.consume({
             approval: request.intervals.verification_approval,
@@ -1677,7 +1683,7 @@ export async function createLocalCoachComposition(
       );
       const timer = setTimeout(() => {
         if (initialRefreshRetryTimer === timer) initialRefreshRetryTimer = undefined;
-        if (!closing) void startInitialRefresh().catch(() => {});
+        if (!closing) void Promise.allSettled([startInitialRefresh()]);
       }, delay);
       timer.unref?.();
       initialRefreshRetryTimer = timer;
@@ -2064,8 +2070,8 @@ export async function createLocalCoachComposition(
               logger.warn("estimated_cp_mathematically_invalid");
             }
           }
-        } catch {
-          // Estimated CP is optional evidence; readiness remains available when it cannot load.
+        } catch (error) {
+          logger.warn("estimated_cp_load_failed", error);
         }
         return projectCyclingReadinessInput({
           today: civil(todayDateKey),
@@ -2330,7 +2336,7 @@ export async function createLocalCoachComposition(
           await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
           await attempt(() => runtime.close());
-          await initialRefreshPromise?.catch(() => {});
+          await Promise.allSettled([initialRefreshPromise]);
           if (failure !== undefined) throw failure.error;
         })();
         return closePromise;
