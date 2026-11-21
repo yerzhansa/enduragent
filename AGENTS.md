@@ -56,6 +56,7 @@ The Enduragent product repository: the Mac desktop app, the `cycling-coach` and 
 
 - Prioritize correctness, privacy, security, and user-visible behavior regressions over style-only feedback.
 - Treat missing tests or missing verification for changed behavior as review findings when the change is not obviously mechanical.
+- Treat a lifecycle encoded as loose booleans, nullable fields, busy flags shared by several operations, or comparisons against display copy as a review finding. Ask for one discriminated union whose variants carry their own data, changed in one transition function, like `DesktopDaemonLifecycleState` and its `transition()` in `apps/desktop/src/main/daemon-lifecycle.ts`. `pnpm check:code-quality` counts the common shapes as `loose-state-flags` and `copy-comparison` and refuses growth; treat a flag disguised to pass it (a number, an object property, `boolean | undefined`) as the same finding.
 - For athlete-facing changes, verify that a changeset exists and includes a `User-facing:` line when users should see the release note.
 - Watch fixtures, logs, and test data for real athlete identifiers or current-era dates that could expose private training data.
 - Check public language and metric names against the `Repository hygiene` requirements.

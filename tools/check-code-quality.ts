@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { countLooseStateFlags, isCopyComparison } from "./implicit-state.js";
 import { TS_EXTS, ext, nonFlagArgs, runGateCli } from "./lint-fs.js";
 
 const LINT_ROOTS = ["packages", "apps", "tools"] as const;
@@ -20,13 +21,17 @@ const DEFAULT_BASE = "origin/main";
 const FULL_HISTORY_HINT = "fetch full history, for example `actions/checkout` with `fetch-depth: 0`";
 const CHANGED_FILE_ACTION = "this PR changes the file, so remove every violation of this rule in it";
 const BASELINE_ONLY_SHRINKS = "the baseline may only shrink; fix the code instead";
+const RULE_REMOVAL_NEEDS_APPROVAL = "removing or renaming a rule weakens the gate; it needs the operator's approval";
+const ERASED_ENTRY = "the baseline lost this rule's entry; run `pnpm check:code-quality --update` to restore it";
 
 const RULE_IDS = [
   "comment",
+  "copy-comparison",
   "disguised-swallow",
   "double-assertion",
   "file-length",
   "lint-suppression",
+  "loose-state-flags",
   "no-empty",
   "no-empty-function",
   "no-warning-comments",
@@ -39,7 +44,11 @@ const RULE_IDS = [
 
 export type RuleId = (typeof RULE_IDS)[number];
 
-const CHANGED_FILE_RULES: readonly RuleId[] = RULE_IDS.filter((rule) => rule !== "file-length");
+const RETIRED_RULE_IDS: readonly string[] = [];
+const TOTAL_RATCHET_RULES: ReadonlySet<RuleId> = new Set(["copy-comparison", "loose-state-flags"]);
+const RATCHET_ONLY_RULES: ReadonlySet<RuleId> = new Set([...TOTAL_RATCHET_RULES, "file-length"]);
+const ALL_FILES = "(all files)";
+const CHANGED_FILE_RULES: readonly RuleId[] = RULE_IDS.filter((rule) => !RATCHET_ONLY_RULES.has(rule));
 
 type Scope = "all" | "non-test" | "hand-written-source" | "renderer-ui";
 
@@ -57,10 +66,19 @@ const RULES: Readonly<Record<RuleId, RuleSpec>> = {
     guidance:
       "move the rationale to the PR description or an ADR, and make the code say it through names and structure",
   },
+  "copy-comparison": {
+    scope: "hand-written-source",
+    guidance: "carry a typed code or flag instead of deciding behavior from display text",
+  },
   "disguised-swallow": { scope: "all", guidance: HANDLE_THE_ERROR },
   "double-assertion": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
   "file-length": { scope: "hand-written-source", guidance: "split the file before adding to it" },
   "lint-suppression": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
+  "loose-state-flags": {
+    scope: "hand-written-source",
+    guidance:
+      "replace the flags with one discriminated union whose variants carry their data, changed in one transition function, like DesktopDaemonLifecycleState",
+  },
   "no-empty": { scope: "all", guidance: HANDLE_THE_ERROR },
   "no-empty-function": { scope: "non-test", guidance: "remove the no-op or give it behavior" },
   "no-warning-comments": {
@@ -173,8 +191,7 @@ function normalize(counts: Counts): Counts {
   const normalized: Counts = {};
   for (const rule of [...RULE_IDS].sort()) {
     const byFile = counts[rule] ?? {};
-    const files = Object.keys(byFile).sort();
-    if (files.length > 0) normalized[rule] = Object.fromEntries(files.map((file) => [file, byFile[file]]));
+    normalized[rule] = Object.fromEntries(Object.keys(byFile).sort().map((file) => [file, byFile[file]]));
   }
   return normalized;
 }
@@ -349,7 +366,7 @@ function disguisesSwallow(handler: Handler): boolean {
   return body !== undefined && ts.isBlock(body) && dropsEveryError(body, handler.parameters[0]?.name, true);
 }
 
-function sameFileChecker(sourceFile: ts.SourceFile): ts.TypeChecker {
+export function sameFileChecker(sourceFile: ts.SourceFile): ts.TypeChecker {
   const options: ts.CompilerOptions = { noLib: true, noResolve: true, types: [] };
   const host: ts.CompilerHost = {
     ...ts.createCompilerHost(options),
@@ -418,9 +435,15 @@ export function scanSource(file: string, text: string): Counts {
     if (isSwallowedRejection(node, resolve)) add(counts, "swallowed-rejection", file);
     if (isDisguisedSwallow(node, sourceFile)) add(counts, "disguised-swallow", file);
     if (isDoubleAssertion(node)) add(counts, "double-assertion", file);
+    if (isCopyComparison(node)) add(counts, "copy-comparison", file);
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
+
+  if (appliesTo("loose-state-flags", file)) {
+    const looseFlags = countLooseStateFlags(sourceFile, () => (checker ??= sameFileChecker(sourceFile)));
+    if (looseFlags > 0) add(counts, "loose-state-flags", file, looseFlags);
+  }
 
   const lines = lineCount(text);
   if (lines > FILE_LENGTH_LIMIT) add(counts, "file-length", file, lines);
@@ -567,8 +590,21 @@ export function compareCounts(baseline: Counts, current: Counts): Drift[] {
   return drifts;
 }
 
+function totalOf(counts: Counts, rule: RuleId): number {
+  return Object.values(counts[rule] ?? {}).reduce((sum, count) => sum + count, 0);
+}
+
 function increasesFrom(before: Counts, after: Counts): Drift[] {
-  return compareCounts(before, after).filter((drift) => drift.current > drift.baseline);
+  const perFile = compareCounts(before, after).filter(
+    (drift) => !TOTAL_RATCHET_RULES.has(drift.rule) && before[drift.rule] !== undefined && drift.current > drift.baseline,
+  );
+  const totals = [...TOTAL_RATCHET_RULES].flatMap((rule) => {
+    if (before[rule] === undefined) return [];
+    const baseline = totalOf(before, rule);
+    const current = totalOf(after, rule);
+    return current > baseline ? [{ rule, file: ALL_FILES, baseline, current }] : [];
+  });
+  return [...perFile, ...totals];
 }
 
 export function updateBaseline(baseline: Counts, current: Counts): UpdateResult {
@@ -585,6 +621,18 @@ export function parseBaseline(json: string): Counts {
   return BaselineSchema.parse(JSON.parse(json));
 }
 
+function droppedRules(json: string, baseline: Counts): string[] {
+  const recorded = Object.keys(RecordedBaselineSchema.parse(JSON.parse(json)));
+  const known: ReadonlySet<string> = new Set(RULE_IDS);
+  const retired: ReadonlySet<string> = new Set(RETIRED_RULE_IDS);
+  const unchecked = recorded.filter((rule) => !known.has(rule) && !retired.has(rule));
+  const erased = RULE_IDS.filter((rule) => recorded.includes(rule) && baseline[rule] === undefined);
+  return [
+    ...unchecked.map((rule) => `  ${rule}  ${RULE_REMOVAL_NEEDS_APPROVAL}`),
+    ...erased.map((rule) => `  ${rule}  ${ERASED_ENTRY}`),
+  ].sort();
+}
+
 function parseRecordedBaseline(json: string): Counts {
   const recorded = RecordedBaselineSchema.parse(JSON.parse(json));
   const counts: Counts = {};
@@ -596,8 +644,12 @@ function parseRecordedBaseline(json: string): Counts {
 }
 
 export function formatDrift(drift: Drift): string {
+  return describeDrift(drift, drift.current > drift.baseline);
+}
+
+function describeDrift(drift: Drift, raised: boolean): string {
   const action =
-    drift.current > drift.baseline
+    raised
       ? RULES[drift.rule].guidance
       : "run `pnpm check:code-quality --update` to lock in the lower count";
   return `  ${drift.file}  ${drift.rule}  ${drift.baseline} -> ${drift.current}  ${action}`;
@@ -631,8 +683,12 @@ function checkWholeTree(baseline: Counts, { fileCount, counts }: Measurement): b
     console.log(`check-code-quality: ${fileCount} source file(s) within ${BASELINE_PATH}.`);
     return true;
   }
+  const totalRaises = increasesFrom(baseline, counts).filter((drift) => drift.file === ALL_FILES);
+  const raisedTotals = new Set(totalRaises.map((drift) => drift.rule));
+  const raised = (drift: Drift): boolean =>
+    drift.current > drift.baseline && (!TOTAL_RATCHET_RULES.has(drift.rule) || raisedTotals.has(drift.rule));
   console.error(`check-code-quality: ${drifts.length} count(s) differ from ${BASELINE_PATH}:`);
-  for (const drift of drifts) console.error(formatDrift(drift));
+  for (const drift of [...totalRaises, ...drifts]) console.error(describeDrift(drift, raised(drift)));
   return false;
 }
 
@@ -655,11 +711,17 @@ function guardBaseline(root: string, mergeBase: string, baseline: Counts): boole
     return true;
   }
   const recorded = gitOutput(root, ["show", `${mergeBase}:${BASELINE_PATH}`]);
+  const dropped = droppedRules(recorded, baseline);
   const raises = increasesFrom(parseRecordedBaseline(recorded), baseline);
-  if (raises.length === 0) return true;
-  console.error(`check-code-quality: ${raises.length} count(s) in ${BASELINE_PATH} rise above ${mergeBase}:`);
-  for (const raise of raises) console.error(formatRaise(raise));
-  return false;
+  if (dropped.length > 0) {
+    console.error(`check-code-quality: ${dropped.length} rule(s) recorded at ${mergeBase} are missing from this change:`);
+    for (const line of dropped) console.error(line);
+  }
+  if (raises.length > 0) {
+    console.error(`check-code-quality: ${raises.length} count(s) in ${BASELINE_PATH} rise above ${mergeBase}:`);
+    for (const raise of raises) console.error(formatRaise(raise));
+  }
+  return dropped.length === 0 && raises.length === 0;
 }
 
 function checkChanges(root: string, baseline: Counts, counts: Counts, env: Env): boolean {
@@ -700,7 +762,11 @@ export function main(argv: readonly string[], env: Env = process.env): number {
       return 0;
     }
     console.error(`check-code-quality: refusing to raise ${BASELINE_PATH}; fix these first:`);
-    for (const drift of result.increases) console.error(formatDrift(drift));
+    const raisedTotals = new Set(result.increases.filter((drift) => drift.file === ALL_FILES).map((drift) => drift.rule));
+    const fileRises = compareCounts(baseline, measurement.counts).filter(
+      (drift) => raisedTotals.has(drift.rule) && drift.current > drift.baseline,
+    );
+    for (const drift of [...result.increases, ...fileRises]) console.error(formatDrift(drift));
     return 1;
   }
 
