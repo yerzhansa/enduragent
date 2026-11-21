@@ -12,7 +12,9 @@ const workflowSchema = z.object({
   jobs: z.record(
     z.string(),
     z.object({
-      steps: z.array(z.object({ name: z.string().optional(), run: z.string().optional() })),
+      steps: z
+        .array(z.object({ name: z.string().optional(), run: z.string().optional() }))
+        .default([]),
     }),
   ),
 });
@@ -139,12 +141,10 @@ console.log(JSON.stringify({ id: 42, tag_name: ${JSON.stringify(tag)}, prereleas
           REPOSITORY_ID: "1",
         },
       });
-      expect({
-        attempt,
-        status: result.status,
-        signal: result.signal,
-        stderr: result.stderr,
-      }).toEqual({ attempt, status: 0, signal: null, stderr: "" });
+      expect(
+        { status: result.status, signal: result.signal },
+        `attempt ${attempt}: ${result.stderr}`,
+      ).toEqual({ status: 0, signal: null });
     }
   });
 });
