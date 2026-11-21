@@ -411,7 +411,7 @@ describe("past chats navigation", () => {
 it("reads past-chat labels from the selected language catalog", async () => {
   const settings = useEnduragentStore.getState().settings;
   useEnduragentStore.setState({
-    settings: { ...settings, language: { ...settings.language, value: "it" } },
+    settings: { ...settings, language: { status: "ready", value: "it" } },
     archive: LISTED,
     archiveActions: archiveActions(),
   });

@@ -863,7 +863,7 @@ describe("shell", () => {
 it("reads the startup status from the selected language catalog", async () => {
   const previous = useEnduragentStore.getState();
   useEnduragentStore.setState({
-    settings: { ...previous.settings, language: { ...previous.settings.language, value: "it" } },
+    settings: { ...previous.settings, language: { status: "ready", value: "it" } },
     onboarding: { ...CLOSED_ONBOARDING, initialized: false },
   });
   await renderWithCatalog(<Shell onReady={() => {}} />, {

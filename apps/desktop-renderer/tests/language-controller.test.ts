@@ -101,6 +101,48 @@ describe("language settings controller", () => {
     f.controller.dispose();
   });
 
+  it("keeps the confirmed language on screen while a refresh is in flight", async () => {
+    const f = fixture();
+    f.call.mockResolvedValueOnce({ value: "ja" });
+    await f.controller.start();
+    const confirmed = f.states.length;
+    const reread = deferred<{ value: LanguageTag | null }>();
+    f.call.mockReturnValueOnce(reread.promise);
+    const refresh = f.controller.refresh();
+    await vi.waitFor(() => expect(f.call).toHaveBeenCalledTimes(2));
+    expect(f.states.slice(confirmed)).toEqual([]);
+    reread.resolve({ value: "ja" });
+    await refresh;
+    expect(f.states.slice(confirmed)).toEqual([{ status: "ready", value: "ja" }]);
+    f.controller.dispose();
+  });
+
+  it("reports a failed operation to its caller and still runs the next one", async () => {
+    const client: Pick<CoachClient, "call"> = {
+      async call() {
+        throw new Error("Unexpected RPC call");
+      },
+    };
+    const call = vi.spyOn(client, "call");
+    const states: LanguagePreferenceViewState[] = [];
+    const controller = createLanguageSettingsController({
+      clients: { getClient: async () => client },
+      view: {
+        render: (state) => {
+          if (state.status === "saving") throw new Error("render failed");
+          states.push(state);
+        },
+      },
+    });
+    call.mockResolvedValueOnce({ value: "en" });
+    await controller.start();
+    await expect(controller.set("fr")).rejects.toThrow("render failed");
+    call.mockResolvedValueOnce({ value: "de" });
+    await controller.refresh();
+    expect(states.at(-1)).toEqual({ status: "ready", value: "de" });
+    controller.dispose();
+  });
+
   it("retains the last value when a refresh fails", async () => {
     const f = fixture();
     f.call.mockResolvedValueOnce({ value: "ko" });
