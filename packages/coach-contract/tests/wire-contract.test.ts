@@ -41,8 +41,6 @@ import {
   IntervalsCredentialVerificationRefusalReasonSchema,
   OperationProgressEventSchema,
   Protocol11AcceptedServerHandshakeFrameSchema,
-  SaveIntakeRpcParamsSchema,
-  SaveIntakeRpcResultSchema,
   SyncRpcParamsSchema,
   SyncRpcResultSchema,
   HasSessionRequestSchema,
@@ -280,19 +278,6 @@ describe("coach request and event projection", () => {
       { jsonrpc: "2.0", id: 4, method: "getAthleteState", params: {} },
       { jsonrpc: "2.0", id: 5, method: "importFiles", params: { paths: ["/synthetic/ride.fit"] } },
       { jsonrpc: "2.0", id: 6, method: "sync", params: {} },
-      {
-        jsonrpc: "2.0",
-        id: 7,
-        method: "saveIntake",
-        params: {
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "none",
-        },
-      },
       {
         jsonrpc: "2.0",
         id: 8,
@@ -788,64 +773,18 @@ describe("coach request and event projection", () => {
     );
   });
 
-  it("validates strict intake and runtime configuration round trips", () => {
-    const safeIntake = {
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      prior_bsi: false,
-      clinician_cleared: null,
-      injury_status: "none",
-    } as const;
-    const clearedIntake = {
-      ...safeIntake,
-      clinician_cleared: true,
-      injury_status: "returning",
-    } as const;
-    expect(SaveIntakeRpcParamsSchema.parse(safeIntake)).toEqual(safeIntake);
-    expect(SaveIntakeRpcParamsSchema.parse(clearedIntake)).toEqual(clearedIntake);
-    const historicalIntake = {
-      ...safeIntake,
-      prior_bsi: true,
-      clinician_cleared: true,
-    } as const;
-    expect(SaveIntakeRpcParamsSchema.parse(historicalIntake)).toEqual(historicalIntake);
-    const unclearedIntake = { ...clearedIntake, clinician_cleared: null } as const;
-    expect(SaveIntakeRpcParamsSchema.parse(unclearedIntake)).toEqual(unclearedIntake);
-    const priorBsiIntake = { ...safeIntake, prior_bsi: true } as const;
-    expect(SaveIntakeRpcParamsSchema.parse(priorBsiIntake)).toEqual(priorBsiIntake);
-    const { prior_bsi: _priorBsi, ...withoutPriorBsi } = safeIntake;
-    for (const invalid of [
-      withoutPriorBsi,
-      { ...safeIntake, swim_skill_floor: "novice" },
-      { ...safeIntake, extra: true },
-      { ...safeIntake, clinician_cleared: true },
-    ]) {
-      expect(SaveIntakeRpcParamsSchema.safeParse(invalid).success).toBe(false);
-    }
-    expect(SaveIntakeRpcResultSchema.parse({ schemaVersion: 1, saved: true })).toEqual({
-      schemaVersion: 1,
-      saved: true,
-    });
-    const setupStatus = {
-      schemaVersion: 1,
-      intake: clearedIntake,
-      durableTrainingData: true,
-    } as const;
+  it("validates strict setup status and runtime configuration round trips", () => {
+    const setupStatus = { schemaVersion: 1, durableTrainingData: true } as const;
     expect(GetSetupStatusRpcParamsSchema.parse({})).toEqual({});
     expect(GetSetupStatusRpcResultSchema.parse(setupStatus)).toEqual(setupStatus);
-    expect(
-      GetSetupStatusRpcResultSchema.parse({ ...setupStatus, intake: unclearedIntake }).intake
-        ?.clinician_cleared,
-    ).toBeNull();
     for (const invalid of [
       { ...setupStatus, apiKey: "must-not-cross-boundary" },
-      { ...setupStatus, intake: { ...setupStatus.intake, credential: "must-not-cross-boundary" } },
-      { ...setupStatus, intake: { ...safeIntake, clinician_cleared: true } },
+      { ...setupStatus, intake: null },
       { ...setupStatus, importedPaths: [] },
     ]) {
       expect(GetSetupStatusRpcResultSchema.safeParse(invalid).success).toBe(false);
     }
+    expect(Object.hasOwn(COACH_RPC_METHOD_REGISTRY, "saveIntake")).toBe(false);
 
     const llm = {
       provider: "openrouter",
@@ -1384,10 +1323,8 @@ describe("coach request and event projection", () => {
       }),
       getSetupStatus: async () => ({
         schemaVersion: 1,
-        intake: null,
         durableTrainingData: false,
       }),
-      saveIntake: async () => ({ schemaVersion: 1, saved: true }),
       configureRuntime: async ({ llm, intervals, session }) => ({
         schemaVersion: 3,
         status: "applied",
@@ -1572,12 +1509,6 @@ describe("coach request and event projection", () => {
       responseSchema: GetSetupStatusRpcResultSchema,
       eventSchema: NoRpcEventSchema,
     });
-    expect(COACH_RPC_METHOD_REGISTRY.saveIntake).toEqual({
-      wireName: "saveIntake",
-      requestSchema: SaveIntakeRpcParamsSchema,
-      responseSchema: SaveIntakeRpcResultSchema,
-      eventSchema: NoRpcEventSchema,
-    });
     expect(COACH_RPC_METHOD_REGISTRY.configureRuntime).toEqual({
       wireName: "configureRuntime",
       requestSchema: ConfigureRuntimeRpcParamsSchema,
@@ -1736,7 +1667,6 @@ describe("coach request and event projection", () => {
       "deleteArchivedConversation",
       "getArchivedTranscriptPage",
       "getAthleteState",
-      "saveIntake",
       "configureRuntime",
       "verify_intervals_credential",
       "getRuntimeConfig",
@@ -1996,7 +1926,7 @@ describe("coach request and event projection", () => {
 });
 
 describe("handshake", () => {
-  it("round trips a protocol-36 accepted frame with its authenticated home and renderer capability", () => {
+  it("round trips a protocol-37 accepted frame with its authenticated home and renderer capability", () => {
     const accepted = createAcceptedServerHandshakeFrame("service-managed", PROTOCOL_VERSION, {
       ...acceptedHandshakeBinding,
     });
@@ -2004,8 +1934,8 @@ describe("handshake", () => {
     expect(ServerHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(accepted)))).toEqual({
       type: "handshake",
       status: "accepted",
-      clientProtocolVersion: 36,
-      serverProtocolVersion: 36,
+      clientProtocolVersion: 37,
+      serverProtocolVersion: 37,
       owner: "service-managed",
       athleteHome: "/synthetic/athlete",
       rendererCapability: "A".repeat(43),
@@ -2014,7 +1944,7 @@ describe("handshake", () => {
 
   it("refuses a previous-protocol client with a version-mismatch frame instead of a parse error", () => {
     const previous = PROTOCOL_VERSION - 1;
-    expect(previous).toBe(35);
+    expect(previous).toBe(36);
     expect(() =>
       createAcceptedServerHandshakeFrame("service-managed", previous, {
         ...acceptedHandshakeBinding,
@@ -2087,9 +2017,9 @@ describe("handshake", () => {
     }
   });
 
-  it("accepts aligned protocol 36 peers and classifies mismatches in both directions", () => {
+  it("accepts aligned protocol 37 peers and classifies mismatches in both directions", () => {
     const client = createClientHandshakeFrame("synthetic-test-token");
-    expect(client.clientProtocolVersion).toBe(36);
+    expect(client.clientProtocolVersion).toBe(37);
     expect(ClientHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(client)))).toEqual(client);
     const accepted = createAcceptedServerHandshakeFrame(
       "service-managed",
@@ -2215,8 +2145,8 @@ describe("additive protocol signals", () => {
     expect(AgentErrorKindSchema.safeParse("aborted").success).toBe(false);
   });
 
-  it("uses protocol version 36", () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+  it("uses protocol version 37", () => {
+    expect(PROTOCOL_VERSION).toBe(37);
   });
 });
 

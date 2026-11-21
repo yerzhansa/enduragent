@@ -265,7 +265,6 @@ describe("coach operations", () => {
       expect(Number((await store.get("SELECT count(*) AS count FROM raw_file"))?.count)).toBe(3);
       await expect(operations.getSetupStatus?.({})).resolves.toEqual({
         schemaVersion: 1,
-        intake: null,
         durableTrainingData: true,
       });
       await store.close();
@@ -286,7 +285,6 @@ describe("coach operations", () => {
       });
       await expect(relaunchedOperations.getSetupStatus?.({})).resolves.toEqual({
         schemaVersion: 1,
-        intake: null,
         durableTrainingData: true,
       });
     } finally {
@@ -295,7 +293,7 @@ describe("coach operations", () => {
     }
   });
 
-  it("idempotently replaces one daemon-authored intake row", async () => {
+  it("leaves an intake row saved by an earlier version untouched and unread", async () => {
     const root = await mkdtemp(join(await realpath(tmpdir()), "coach-intake-"));
     const liveHome: AthleteHome = {
       root,
@@ -319,141 +317,21 @@ describe("coach operations", () => {
         calendarTimeZone: () => "UTC",
         applyRuntimeConfig: async () => {},
       });
-      await expect(
-        operations.saveIntake({
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "none",
-        }),
-      ).resolves.toEqual({ schemaVersion: 1, saved: true });
-      const first = await store.get("SELECT * FROM intake_flags");
-      await operations.saveIntake({
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: true,
-        clinician_cleared: true,
-        injury_status: "none",
-      });
-      const historical = await store.get("SELECT * FROM intake_flags");
-      expect(historical).toMatchObject({ clinician_cleared: null, injury_status: "none" });
-      expect(historical).not.toHaveProperty("prior_bsi");
-      await operations.saveIntake({
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: false,
-        clinician_cleared: false,
-        injury_status: "managing",
-      });
-      const second = await store.get("SELECT * FROM intake_flags");
-      expect(await store.all("SELECT id FROM intake_flags")).toHaveLength(1);
-      expect(second).toMatchObject({
-        clinician_cleared: 0,
-        injury_status: "managing",
-        device_id: first?.device_id,
-      });
-      expect(second?.id).not.toBe(first?.id);
-      expect(Number(second?.hlc_counter)).toBeGreaterThanOrEqual(Number(first?.hlc_counter));
-      await expect(
-        operations.saveIntake({
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "managing",
-        }),
-      ).resolves.toEqual({ schemaVersion: 1, saved: true });
-      expect(await store.get("SELECT * FROM intake_flags")).toMatchObject({
-        clinician_cleared: null,
-        injury_status: "managing",
-      });
+      await store.run(
+        "INSERT INTO intake_flags (id,swim_skill_floor,continuous_distance_capable,open_water_comfort,clinician_cleared,injury_status,device_id,hlc_physical_ms,hlc_counter) VALUES (?,?,?,?,?,?,?,?,?)",
+        ["0".repeat(26), null, null, null, 0, "managing", "device-a", 100, 0],
+      );
       await expect(operations.getSetupStatus?.({})).resolves.toEqual({
         schemaVersion: 1,
-        intake: {
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "managing",
-        },
         durableTrainingData: false,
       });
-      await expect(async () =>
-        operations.saveIntake({
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "none",
-          extra: true,
-        } as never),
-      ).rejects.toThrow();
-      await expect(
-        operations.saveIntake({
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "returning",
-        }),
-      ).resolves.toEqual({ schemaVersion: 1, saved: true });
-      expect(await store.get("SELECT * FROM intake_flags")).toMatchObject({
-        clinician_cleared: null,
-        injury_status: "returning",
-      });
-      await expect(async () =>
-        operations.saveIntake({
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: true,
-          injury_status: "none",
-        }),
-      ).rejects.toThrow();
+      expect(await store.all("SELECT id, injury_status FROM intake_flags")).toEqual([
+        { id: "0".repeat(26), injury_status: "managing" },
+      ]);
     } finally {
       await store.close();
       await rm(root, { recursive: true, force: true });
     }
-  });
-
-  it("rejects setup status when persisted intake is unreadable", async () => {
-    const unreadableStore = {
-      get: vi.fn(async () => ({ present: 1 })),
-    } as unknown as CoachStoreWriterContext["store"];
-    const operations = createCoachOperations(
-      {
-        home,
-        context: {
-          home,
-          store: unreadableStore,
-          listener: {} as CoachStoreWriterContext["listener"],
-        },
-        runtime: operationRuntime(),
-        intervalsCredentials: intervalsCredentials(),
-        historyNewestDate: () => "1998-07-18",
-        calendarTimeZone: () => "UTC",
-        applyRuntimeConfig: async () => {},
-      },
-      {
-        createIntakeRepository: () => ({
-          replace: async () => {},
-          read: async () => {
-            throw new TypeError("corrupt intake row");
-          },
-        }),
-      },
-    );
-
-    await expect(operations.getSetupStatus?.({})).rejects.toThrow("corrupt intake row");
   });
 
   it("rejects setup status when durable workout evidence is unreadable", async () => {
@@ -462,27 +340,19 @@ describe("coach operations", () => {
         throw new TypeError("corrupt workout store");
       }),
     } as unknown as CoachStoreWriterContext["store"];
-    const operations = createCoachOperations(
-      {
+    const operations = createCoachOperations({
+      home,
+      context: {
         home,
-        context: {
-          home,
-          store: unreadableStore,
-          listener: {} as CoachStoreWriterContext["listener"],
-        },
-        runtime: operationRuntime(),
-        intervalsCredentials: intervalsCredentials(),
-        historyNewestDate: () => "1998-07-18",
-        calendarTimeZone: () => "UTC",
-        applyRuntimeConfig: async () => {},
+        store: unreadableStore,
+        listener: {} as CoachStoreWriterContext["listener"],
       },
-      {
-        createIntakeRepository: () => ({
-          replace: async () => {},
-          read: async () => undefined,
-        }),
-      },
-    );
+      runtime: operationRuntime(),
+      intervalsCredentials: intervalsCredentials(),
+      historyNewestDate: () => "1998-07-18",
+      calendarTimeZone: () => "UTC",
+      applyRuntimeConfig: async () => {},
+    });
 
     await expect(operations.getSetupStatus?.({})).rejects.toThrow("corrupt workout store");
   });

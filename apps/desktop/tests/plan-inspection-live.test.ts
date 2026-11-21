@@ -338,7 +338,6 @@ describe("Plan inspection live fixture", () => {
     const script = createPlanInspectionFixtureScript();
     const setup = GetSetupStatusRpcResultSchema.parse(await result(script, "getSetupStatus"));
     expect(setup.durableTrainingData).toBe(true);
-    expect(setup.intake).not.toBeNull();
     expect(
       GetRuntimeConfigRpcResultSchema.parse(await result(script, "getRuntimeConfig")),
     ).toMatchObject({ llm: { provider: "codex-agent", credential_configured: true } });

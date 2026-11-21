@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Cette clé n’a pas pu être enregistrée. Essaie de la saisir à nouveau.",
       "credentialStatusUnavailable": "Cette clé a été enregistrée, mais son état n’a pas pu être actualisé. Vérifie à nouveau la zone de configuration.",
       "endpointInvalid": "Saisis un point de terminaison HTTPS valide, ou un point de terminaison HTTP de bouclage local.",
-      "intakeIncomplete": "Réponds aux questions de sécurité obligatoires pour continuer.",
-      "intakeSaveFailed": "Tes réponses n’ont pas pu être enregistrées. Réessaie.",
       "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que ce compte {{intervals}} correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
       "intervalsRuntimeUnavailable": "La connexion à {{intervals}} n’a pas pu être activée. Reconnecte-toi.",
       "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la connexion est active. Recharge l’état des données d’authentification avant de réessayer.",
@@ -733,15 +731,6 @@
       "importing": "Import des fichiers de sortie…",
       "unavailable": "Import dans la bibliothèque locale : {{imported}} importés. {{quarantined}} mis en quarantaine. L’accès du coach aux activités et aux séries de données est temporairement indisponible ; réessaie l’import.",
       "unconfirmed": "L’import dans la bibliothèque locale a échoué. Le résultat n’a pas pu être confirmé ; vérifie la bibliothèque avant de réessayer."
-    },
-    "intake": {
-      "managing": "Blessure en cours",
-      "none": "Aucune blessure actuelle",
-      "retrySave": "Réessayer d’enregistrer les réponses",
-      "returning": "Reprise après une blessure",
-      "select": "Sélectionner…",
-      "subtitle": "Enregistre le contexte de ta blessure actuelle ou de ta reprise.",
-      "title": "État actuel des blessures"
     },
     "requiredReady": "{{ready}} éléments obligatoires prêts sur {{total}}",
     "retrySavedKeys": "Réessayer les clés enregistrées",

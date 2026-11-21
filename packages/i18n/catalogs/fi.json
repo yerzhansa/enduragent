@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Avainta ei voitu tallentaa. Yritä antaa se uudelleen.",
       "credentialStatusUnavailable": "Avain tallennettiin, mutta sen tilaa ei voitu päivittää. Tarkista käyttöönotto-osio uudelleen.",
       "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
-      "intakeIncomplete": "Vastaa pakollisiin turvallisuuskysymyksiin jatkaaksesi.",
-      "intakeSaveFailed": "Vastauksiasi ei voitu tallentaa. Yritä uudelleen.",
       "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että tämä {{intervals}}-tili vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
       "intervalsRuntimeUnavailable": "{{intervals}}-kirjautumista ei voitu ottaa käyttöön. Kirjaudu uudelleen.",
       "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kirjautuminen käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
@@ -733,15 +731,6 @@
       "importing": "Tuodaan lenkkitiedostoja…",
       "unavailable": "Tuonti paikalliseen kirjastoon: {{imported}} tuotu. {{quarantined}} karanteenissa. Valmentaja ei tilapäisesti voi käyttää suorituksia ja niiden aikasarjoja. Yritä tuontia uudelleen.",
       "unconfirmed": "Tuonti paikalliseen kirjastoon epäonnistui. Tulosta ei voitu vahvistaa. Tarkista kirjasto ennen uutta yritystä."
-    },
-    "intake": {
-      "managing": "Minulla on hoidettava vamma",
-      "none": "Ei tämänhetkistä vammaa",
-      "retrySave": "Yritä vastausten tallennusta uudelleen",
-      "returning": "Palaan harjoitteluun vamman jälkeen",
-      "select": "Valitse…",
-      "subtitle": "Tallentaa tiedot tämänhetkisestä vammastasi tai harjoitteluun paluustasi.",
-      "title": "Vammatilanne juuri nyt"
     },
     "requiredReady": "{{ready}}/{{total}} pakollista kohtaa valmiina",
     "retrySavedKeys": "Yritä tallennettuja avaimia uudelleen",

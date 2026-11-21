@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Impossibile salvare la chiave. Prova a inserirla di nuovo.",
       "credentialStatusUnavailable": "La chiave è stata salvata, ma impossibile aggiornarne lo stato. Controlla di nuovo l’area di configurazione.",
       "endpointInvalid": "Inserisci un endpoint HTTPS valido o un endpoint HTTP di loopback.",
-      "intakeIncomplete": "Rispondi alle domande obbligatorie sulla sicurezza per continuare.",
-      "intakeSaveFailed": "Impossibile salvare le tue risposte. Riprova.",
       "intervalsOwnerUnavailable": "{{product}} non ha potuto confermare che questo account {{intervals}} corrisponda ai dati di allenamento su {{computer}}. Riprova quando i dati di allenamento saranno disponibili.",
       "intervalsRuntimeUnavailable": "Impossibile attivare l’accesso a {{intervals}}. Accedi di nuovo.",
       "intervalsRuntimeUncertain": "{{product}} non ha potuto confermare se l’accesso è attivo. Ricarica lo stato delle credenziali prima di riprovare.",
@@ -733,15 +731,6 @@
       "importing": "Importazione dei file delle uscite…",
       "unavailable": "Importazione nella raccolta locale: {{imported}} importati. {{quarantined}} in quarantena. L’accesso del coach alle attività e alle serie di dati è temporaneamente non disponibile; riprova l’importazione.",
       "unconfirmed": "Importazione nella raccolta locale non riuscita. Impossibile confermare il risultato; controlla la raccolta prima di riprovare."
-    },
-    "intake": {
-      "managing": "Ho un infortunio in corso",
-      "none": "Nessun infortunio attuale",
-      "retrySave": "Riprova a salvare le risposte",
-      "returning": "Sto riprendendo dopo un infortunio",
-      "select": "Seleziona…",
-      "subtitle": "Registra il contesto del tuo infortunio attuale o della ripresa.",
-      "title": "Stato attuale degli infortuni"
     },
     "requiredReady": "{{ready}} requisiti pronti su {{total}}",
     "retrySavedKeys": "Riprova chiavi salvate",

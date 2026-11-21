@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Nøkkelen kunne ikke lagres. Prøv å skrive den inn på nytt.",
       "credentialStatusUnavailable": "Nøkkelen ble lagret, men statusen kunne ikke oppdateres. Sjekk oppsettområdet igjen.",
       "endpointInvalid": "Skriv inn et gyldig HTTPS-endepunkt eller et lokalt HTTP-endepunkt med loopback-adresse.",
-      "intakeIncomplete": "Svar på de obligatoriske sikkerhetsspørsmålene for å fortsette.",
-      "intakeSaveFailed": "Svarene dine kunne ikke lagres. Prøv igjen.",
       "intervalsOwnerUnavailable": "{{product}} kunne ikke bekrefte at denne {{intervals}}-kontoen samsvarer med treningsdataene på {{computer}}. Prøv igjen når treningsdata er tilgjengelige.",
       "intervalsRuntimeUnavailable": "Påloggingen til {{intervals}} kunne ikke aktiveres. Logg på igjen.",
       "intervalsRuntimeUncertain": "{{product}} kunne ikke bekrefte om påloggingen er aktiv. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
@@ -733,15 +731,6 @@
       "importing": "Importerer turfiler…",
       "unavailable": "Import til lokalt bibliotek: {{imported}} importert. {{quarantined}} satt i karantene. Trenerens tilgang til aktiviteter og datastrømmer er midlertidig utilgjengelig. Prøv importen igjen.",
       "unconfirmed": "Import til lokalt bibliotek mislyktes. Resultatet kunne ikke bekreftes. Sjekk biblioteket før du prøver igjen."
-    },
-    "intake": {
-      "managing": "Håndterer en skade",
-      "none": "Ingen skade nå",
-      "retrySave": "Prøv å lagre svarene igjen",
-      "returning": "Tilbake etter en skade",
-      "select": "Velg…",
-      "subtitle": "Registrerer den nåværende skaden din eller situasjonen når du kommer tilbake etter en skade.",
-      "title": "Skadestatus akkurat nå"
     },
     "requiredReady": "{{ready}} av {{total}} påkrevde er klare",
     "retrySavedKeys": "Prøv lagrede nøkler igjen",

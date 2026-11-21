@@ -698,8 +698,6 @@
       "credentialSaveFailed": "無法儲存此金鑰。請嘗試重新輸入。",
       "credentialStatusUnavailable": "已儲存此金鑰，但無法更新其狀態。請再次檢查初始設定區。",
       "endpointInvalid": "請輸入有效的 HTTPS 端點，或本機回環 HTTP 端點。",
-      "intakeIncomplete": "請回答必填的安全問題以繼續。",
-      "intakeSaveFailed": "無法儲存回答。請重試。",
       "intervalsOwnerUnavailable": "{{product}} 無法確認此 {{intervals}} 帳號是否與 {{computer}} 上的訓練資料相符。請待訓練資料可用時再試。",
       "intervalsRuntimeUnavailable": "無法啟用 {{intervals}} 登入。請重新登入。",
       "intervalsRuntimeUncertain": "{{product}} 無法確認登入是否有效。請重新載入憑證狀態後再試。",
@@ -730,15 +728,6 @@
       "importing": "正在匯入騎乘檔案…",
       "unavailable": "本機資料庫匯入：已匯入 {{imported}} 個，已隔離 {{quarantined}} 個。教練暫時無法存取活動與資料串流；請重試匯入。",
       "unconfirmed": "本機資料庫匯入失敗。無法確認結果；請先檢查資料庫再重試。"
-    },
-    "intake": {
-      "managing": "目前有傷",
-      "none": "目前無傷",
-      "retrySave": "重試儲存回答",
-      "returning": "傷後恢復訓練",
-      "select": "選擇…",
-      "subtitle": "記錄目前傷勢或傷後恢復訓練的情況。",
-      "title": "目前傷勢狀態"
     },
     "requiredReady": "{{total}} 個必要項目中，{{ready}} 個已就緒",
     "retrySavedKeys": "重試已儲存的金鑰",

@@ -698,8 +698,6 @@
       "credentialSaveFailed": "无法保存该密钥。请重新输入。",
       "credentialStatusUnavailable": "该密钥已保存，但无法刷新其状态。请重新查看初始设置区域。",
       "endpointInvalid": "请输入有效的 HTTPS 端点，或使用回环地址的 HTTP 端点。",
-      "intakeIncomplete": "请回答必填的安全问题以继续。",
-      "intakeSaveFailed": "无法保存回答。请重试。",
       "intervalsOwnerUnavailable": "{{product}} 无法确认此 {{intervals}} 账号是否与 {{computer}} 上的训练数据匹配。请在训练数据可用后重试。",
       "intervalsRuntimeUnavailable": "无法启用 {{intervals}} 登录。请重新登录。",
       "intervalsRuntimeUncertain": "{{product}} 无法确认登录是否有效。请重新加载凭据状态后重试。",
@@ -730,15 +728,6 @@
       "importing": "正在导入骑行文件…",
       "unavailable": "本地资料库导入：已导入 {{imported}} 项，已隔离 {{quarantined}} 项。教练暂时无法访问活动及其数据流，请重试导入。",
       "unconfirmed": "本地资料库导入失败。无法确认结果，请检查资料库后重试。"
-    },
-    "intake": {
-      "managing": "正在处理伤病",
-      "none": "目前没有伤病",
-      "retrySave": "重试保存回答",
-      "returning": "伤后恢复训练",
-      "select": "选择…",
-      "subtitle": "记录当前伤病或伤后恢复训练的情况。",
-      "title": "当前伤病状态"
     },
     "requiredReady": "{{total}} 项必需设置中，{{ready}} 项已就绪",
     "retrySavedKeys": "重试已保存的密钥",

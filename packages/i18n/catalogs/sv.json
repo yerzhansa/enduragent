@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Nyckeln kunde inte sparas. Försök ange den igen.",
       "credentialStatusUnavailable": "Nyckeln sparades, men dess status kunde inte uppdateras. Kontrollera konfigurationen igen.",
       "endpointInvalid": "Ange en giltig HTTPS-slutpunkt eller en HTTP-slutpunkt med loopback-adress.",
-      "intakeIncomplete": "Svara på de obligatoriska säkerhetsfrågorna för att fortsätta.",
-      "intakeSaveFailed": "Dina svar kunde inte sparas. Försök igen.",
       "intervalsOwnerUnavailable": "{{product}} kunde inte bekräfta att det här {{intervals}}-kontot matchar träningsdata på {{computer}}. Försök igen när träningsdata är tillgängliga.",
       "intervalsRuntimeUnavailable": "Inloggningen till {{intervals}} kunde inte aktiveras. Logga in igen.",
       "intervalsRuntimeUncertain": "{{product}} kunde inte bekräfta om inloggningen är aktiv. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
@@ -733,15 +731,6 @@
       "importing": "Importerar filer från cykelturer…",
       "unavailable": "Import till lokalt bibliotek: {{imported}} importerade. {{quarantined}} i karantän. Tränarens åtkomst till aktiviteter och dataserier är tillfälligt otillgänglig. Försök importera igen.",
       "unconfirmed": "Importen till det lokala biblioteket misslyckades. Resultatet kunde inte bekräftas. Kontrollera biblioteket innan du försöker igen."
-    },
-    "intake": {
-      "managing": "Har en skada",
-      "none": "Ingen skada just nu",
-      "retrySave": "Försök spara svaren igen",
-      "returning": "På väg tillbaka efter en skada",
-      "select": "Välj…",
-      "subtitle": "Registrerar din nuvarande skada eller återgång efter skada.",
-      "title": "Skadestatus just nu"
     },
     "requiredReady": "{{ready}} av {{total}} obligatoriska delar klara",
     "retrySavedKeys": "Försök med sparade nycklar igen",

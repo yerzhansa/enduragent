@@ -539,7 +539,6 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "importFiles",
   "sync",
   "getSetupStatus",
-  "saveIntake",
   "configureRuntime",
   "getRuntimeConfig",
   "getLanguagePreference",
@@ -1523,16 +1522,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
                   eventFailure = { error };
                 }
               });
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
-          case "saveIntake":
-            try {
-              const request = COACH_RPC_METHOD_REGISTRY.saveIntake.requestSchema.parse(
-                generic.data.params,
-              );
-              result = await input.operations.saveIntake(request);
             } catch (error) {
               invocationFailure = { error };
             }

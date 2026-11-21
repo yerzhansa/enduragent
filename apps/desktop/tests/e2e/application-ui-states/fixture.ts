@@ -126,7 +126,6 @@ class ApplicationStateBackend {
   readonly calls: ScriptRequest[] = [];
   private readonly syncResult = deferred<readonly string[]>();
   private readonly athleteRequests: Array<Deferred<readonly string[]>> = [];
-  private intake: Record<string, unknown> | null = null;
   private durableTrainingData = false;
   private intervalsConfigured = false;
 
@@ -142,7 +141,6 @@ class ApplicationStateBackend {
       if (request.method === "getSetupStatus") {
         return response({
           schemaVersion: 1,
-          intake: this.intake,
           durableTrainingData: this.durableTrainingData,
         });
       }
@@ -198,10 +196,6 @@ class ApplicationStateBackend {
           today: { spend: 0, cap: null },
           routes: [],
         });
-      }
-      if (request.method === "saveIntake") {
-        this.intake = request.params as Record<string, unknown>;
-        return response({ schemaVersion: 1, saved: true });
       }
       if (request.method === "verify_intervals_credential") {
         return response({ approval: FIXTURE_APPROVAL });
@@ -347,8 +341,6 @@ export async function launchApplicationUiHarness(input: {
       `document.querySelector('[data-setup-row="training"] [data-setup-disc="ready"]') !== null`,
       "the connected training account",
     );
-    await clickSelector(fixture, "#onboarding-injury-status", "the injury status selector");
-    await clickExactText(fixture, '[role="option"]', "No current injury");
     await clickExactText(fixture, "button", "Start coaching");
     await evaluateWhen<boolean>(
       fixture,

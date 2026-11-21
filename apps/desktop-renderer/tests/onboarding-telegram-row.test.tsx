@@ -134,7 +134,7 @@ describe("setup gate Telegram row", () => {
       Array.from(setupCard().children)
         .map((child) => (child as HTMLElement).dataset.setupRow ?? "")
         .filter(Boolean),
-    ).toEqual(["ai", "training", "telegram", "injury-status"]);
+    ).toEqual(["ai", "training", "telegram"]);
     const row = setupRow("telegram");
     expect(row.querySelector("[data-setup-row-title]")).toHaveTextContent("Telegram");
     expect(row.querySelector("[data-telegram-optional]")).toHaveTextContent("Optional");

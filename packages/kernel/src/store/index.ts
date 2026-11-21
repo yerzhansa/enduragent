@@ -6,7 +6,6 @@ export * from "./anchor-repository.js";
 export * from "./source-repository.js";
 export * from "./repair-log-repository.js";
 export * from "./dedup-confirmation-repository.js";
-export * from "./intake-repository.js";
 export * from "./activity-repository.js";
 export * from "./canonical-activity-reader.js";
 export * from "./training-history-reader.js";

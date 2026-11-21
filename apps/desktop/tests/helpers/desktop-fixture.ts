@@ -419,11 +419,6 @@ export async function launchDesktopFixture(input: {
       for (const event of eventFrames(frames)) onEvent?.(event as OperationProgressEvent);
       return finalFrame(frames) as Awaited<ReturnType<CoachOperations["sync"]>>;
     },
-    async saveIntake(request) {
-      return finalFrame(await invoke("saveIntake", request)) as Awaited<
-        ReturnType<CoachOperations["saveIntake"]>
-      >;
-    },
     async getSetupStatus(request) {
       return finalFrame(await invoke("getSetupStatus", request)) as Awaited<
         ReturnType<NonNullable<CoachOperations["getSetupStatus"]>>

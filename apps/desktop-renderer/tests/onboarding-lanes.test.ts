@@ -190,8 +190,6 @@ describe("setup lanes", () => {
       "intervals-runtime-unavailable": { provider: "training", training: "training" },
       "intervals-runtime-uncertain": { provider: "training", training: "training" },
       "training-data-required": { provider: "training", training: "training" },
-      "intake-incomplete": { provider: "intake", training: "intake" },
-      "intake-save-failed": { provider: "intake", training: "intake" },
       "credential-save-failed": { provider: "provider", training: "training" },
       "invalid-input": { provider: "provider", training: "training" },
       "encryption-unavailable": { provider: "provider", training: "training" },

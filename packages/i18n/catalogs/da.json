@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Nøglen kunne ikke gemmes. Prøv at indtaste den igen.",
       "credentialStatusUnavailable": "Nøglen blev gemt, men dens status kunne ikke opdateres. Kontrollér opsætningsområdet igen.",
       "endpointInvalid": "Indtast et gyldigt HTTPS-slutpunkt eller et HTTP-loopbackslutpunkt.",
-      "intakeIncomplete": "Besvar de obligatoriske sikkerhedsspørgsmål for at fortsætte.",
-      "intakeSaveFailed": "Dine svar kunne ikke gemmes. Prøv igen.",
       "intervalsOwnerUnavailable": "{{product}} kunne ikke bekræfte, at denne {{intervals}}-konto passer til træningsdataene på {{computer}}. Prøv igen, når træningsdata er tilgængelige.",
       "intervalsRuntimeUnavailable": "Login til {{intervals}} kunne ikke aktiveres. Log ind igen.",
       "intervalsRuntimeUncertain": "{{product}} kunne ikke bekræfte, om login er aktivt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
@@ -733,15 +731,6 @@
       "importing": "Importerer turfiler…",
       "unavailable": "Import til lokalt bibliotek: {{imported}} importeret. {{quarantined}} sat i karantæne. Trænerens adgang til aktiviteter og dataserier er midlertidigt utilgængelig. Prøv importen igen.",
       "unconfirmed": "Import til lokalt bibliotek mislykkedes. Resultatet kunne ikke bekræftes. Kontrollér biblioteket, før du prøver igen."
-    },
-    "intake": {
-      "managing": "Jeg har en skade",
-      "none": "Ingen aktuel skade",
-      "retrySave": "Prøv at gemme svar igen",
-      "returning": "Jeg vender tilbage efter en skade",
-      "select": "Vælg…",
-      "subtitle": "Registrerer din aktuelle skade eller tilbagevenden efter en skade.",
-      "title": "Aktuel skadesstatus"
     },
     "requiredReady": "{{ready}} af {{total}} påkrævede dele klar",
     "retrySavedKeys": "Prøv gemte nøgler igen",

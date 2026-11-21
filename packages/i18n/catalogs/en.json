@@ -2222,8 +2222,6 @@
       "credentialSaveFailed": "That key could not be saved. Try entering it again.",
       "credentialStatusUnavailable": "That key was saved, but its status could not be refreshed. Check the setup area again.",
       "endpointInvalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
-      "intakeIncomplete": "Answer the required safety questions to continue.",
-      "intakeSaveFailed": "Your answers could not be saved. Please try again.",
       "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that this {{intervals}} account matches the training data on {{computer}}. Try again when training data is available.",
       "intervalsRuntimeUnavailable": "The {{intervals}} sign-in couldn’t be activated. Sign in again.",
       "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the sign-in is active. Reload credential status before trying again.",
@@ -2255,15 +2253,6 @@
       "importing": "Importing ride files…",
       "unavailable": "Local library import: {{imported}} imported. {{quarantined}} quarantined. Coaching access to activities and streams is temporarily unavailable; retry the import.",
       "unconfirmed": "Local library import failed. The result could not be confirmed; check the library before trying again."
-    },
-    "intake": {
-      "managing": "Managing an injury",
-      "none": "No current injury",
-      "retrySave": "Retry saving answers",
-      "returning": "Returning after an injury",
-      "select": "Select…",
-      "subtitle": "Records your current injury or return context.",
-      "title": "Injury status right now"
     },
     "requiredReady": "{{ready}} of {{total}} required ready",
     "retrySavedKeys": "Retry saved keys",

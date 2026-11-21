@@ -6,7 +6,6 @@ import {
   createAnchorRepository,
   createActivityRepository,
   createDedupConfirmationRepository,
-  createIntakeRepository,
   createRawFileRepository,
   createSourceRecordRepository,
   runMigrations,
@@ -393,39 +392,5 @@ describe("repository ports over real node:sqlite", () => {
       hlc_counter: 0,
     });
     expect((await repo.readAll()).slice(0, 2).map((row) => row.device_id)).toEqual(["z", "a"]);
-  });
-
-  it("replaces the authored intake row and validates its identity and conditional fields", async () => {
-    const repo = createIntakeRepository(store);
-    const first = {
-      id: "0".repeat(26),
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      clinician_cleared: null,
-      injury_status: "none" as const,
-      device_id: "device-a",
-      hlc_physical_ms: 100,
-      hlc_counter: 0,
-    };
-    const second = {
-      ...first,
-      id: "1".repeat(26),
-      clinician_cleared: true,
-      injury_status: "returning" as const,
-      hlc_counter: 1,
-    };
-    await repo.replace(first);
-    expect(await repo.read()).toEqual(first);
-    await repo.replace(second);
-    expect(await repo.read()).toEqual(second);
-    expect(await store.all("SELECT id FROM intake_flags")).toHaveLength(1);
-    await expect(repo.replace({ ...second, id: "invalid" })).rejects.toThrow("intake id");
-    const third = { ...second, id: "2".repeat(26), clinician_cleared: null, hlc_counter: 2 };
-    await repo.replace(third);
-    expect(await repo.read()).toEqual(third);
-    await expect(repo.replace({ ...first, clinician_cleared: true })).rejects.toThrow(
-      "clinician clearance",
-    );
   });
 });
