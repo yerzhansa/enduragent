@@ -1,5 +1,15 @@
 # @enduragent/coach
 
+## 0.1.8
+
+### Patch Changes
+
+- 50a36f2: User-facing: After you sign in to intervals.icu again, today's plan now reaches your intervals.icu calendar the next time your plan refreshes. Before, the calendar could keep showing "Calendar sync failed." after you signed in again.
+
+  While intervals.icu rejects the signed-in token, two calls that nobody asked for now wait for a working sign-in. Re-applying the same sign-in to a running coach no longer starts a store refresh, and the plan-calendar push leaves today's job untouched instead of using up its five attempts. Sync now still sends its requests, the first request after a coach start still detects the rejection, and a plain API key works as before.
+
+- 72e5255: While intervals.icu rejects the signed-in token, the six-hour store refresh skips its turn and logs `scheduled_store_refresh_skipped`. An owner check that is retried with a token already marked as rejected is refused without a request. That guards a daemon started with a signed-in token in its config or environment; the desktop app does not start its daemon that way. A new sign-in resumes the refresh, and Sync now still sends its requests. A plain API key syncs as before.
+
 ## 0.1.7
 
 ### Patch Changes
