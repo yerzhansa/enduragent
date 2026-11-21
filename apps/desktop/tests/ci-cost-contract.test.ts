@@ -103,7 +103,8 @@ describe("CI cost contract", () => {
     expect(store).toContain("if ($build -ge 22000)");
     expect(store).toContain("name: windows-store-package");
     expect(store).toContain("verify-windows-packaged-self-test.mjs --executable");
-    expect(store).not.toContain("pnpm install");
+    expect(store).toContain('pnpm --filter "@enduragent/coach..." build');
+    expect(store).toContain("Import-Module Appx -UseWindowsPowerShell");
     expect(store).not.toContain("package:win");
   });
 

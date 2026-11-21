@@ -286,9 +286,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the coach CLI the packaged self-test calls
+        run: pnpm --filter "@enduragent/coach..." build
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: windows-store-package
@@ -298,6 +303,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          & { $ProgressPreference = 'Ignore'; Import-Module Appx -UseWindowsPowerShell 3>$null }
           $build = [Environment]::OSVersion.Version.Build
           if ($build -ge 22000) { throw "expected a Windows build below 22000, got $build" }
           $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'windows-store-package') -Filter *.appx)
@@ -310,7 +316,7 @@ jobs:
           Set-ItemProperty -Path $unlock -Name AllowDevelopmentWithoutDevLicense -Value 1 -Type DWord
           Add-AppxPackage -Register (Join-Path $layout 'AppxManifest.xml')
           $package = Get-AppxPackage -Name '00000Synthetic.EnduragentCi'
-          if ($null -eq $package -or $package.Status -ne 'Ok') { throw 'Store package did not register' }
+          if ($null -eq $package -or "$($package.Status)" -ne 'Ok') { throw 'Store package did not register' }
           $executable = Join-Path $package.InstallLocation 'app\Enduragent.exe'
           if (-not (Test-Path -LiteralPath $executable)) { throw 'Store package executable is missing' }
           "executable=$executable" >> $env:GITHUB_OUTPUT
@@ -323,4 +329,6 @@ jobs:
       - name: Remove Microsoft Store package
         if: always()
         shell: pwsh
-        run: Get-AppxPackage -Name '00000Synthetic.EnduragentCi' | Remove-AppxPackage
+        run: |
+          & { $ProgressPreference = 'Ignore'; Import-Module Appx -UseWindowsPowerShell 3>$null }
+          Get-AppxPackage -Name '00000Synthetic.EnduragentCi' | Remove-AppxPackage
