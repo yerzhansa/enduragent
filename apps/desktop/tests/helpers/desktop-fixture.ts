@@ -787,6 +787,7 @@ export async function launchDesktopFixture(input: {
     if (mainDebuggerPort !== undefined) {
       const deadline = Date.now() + DESKTOP_FIXTURE_LAUNCH_TIMEOUT_MS;
       let mainDebuggerUrl: string | undefined;
+      let lastProbeError: unknown;
       while (Date.now() < deadline && mainDebuggerUrl === undefined) {
         try {
           const response = await fetch(`http://127.0.0.1:${mainDebuggerPort}/json/list`, {
@@ -799,12 +800,16 @@ export async function launchDesktopFixture(input: {
             const target = entries.find((entry) => typeof entry.webSocketDebuggerUrl === "string");
             if (target !== undefined) mainDebuggerUrl = target.webSocketDebuggerUrl as string;
           }
-        } catch {}
+        } catch (error) {
+          lastProbeError = error;
+        }
         if (mainDebuggerUrl === undefined) {
           await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
         }
       }
-      if (mainDebuggerUrl === undefined) throw new Error("timed out waiting for desktop main");
+      if (mainDebuggerUrl === undefined) {
+        throw new Error("timed out waiting for desktop main", { cause: lastProbeError });
+      }
       mainCdp = await connectCdp(mainDebuggerUrl, () => {});
       await mainCdp.call("Runtime.enable");
     }

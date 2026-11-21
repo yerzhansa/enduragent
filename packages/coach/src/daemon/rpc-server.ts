@@ -431,7 +431,7 @@ function enqueueSerialized(state: ClientState, serialized: string): Promise<void
       }
     });
   });
-  state.sendTail = step.catch(() => {});
+  state.sendTail = Promise.allSettled([step]).then(() => undefined);
   return state.sendTail;
 }
 
@@ -722,9 +722,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
   const restoreAfterDrainRefusal = (fence: AdmissionFence): boolean => {
     if (!fence.reopen()) return false;
     input.healthState?.setHealthy(true);
-    void Promise.resolve()
-      .then(() => input.afterInvocationDrainRefusal?.())
-      .catch(() => {});
+    void Promise.allSettled([Promise.resolve().then(() => input.afterInvocationDrainRefusal?.())]);
     return true;
   };
 
@@ -900,7 +898,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
         resolveShutdownRequested();
       })();
       state.requestTasks.add(task);
-      void task.finally(() => state.requestTasks.delete(task)).catch(() => {});
+      void Promise.allSettled([task]).then(() => state.requestTasks.delete(task));
       return;
     }
     if (!methodExists(generic.data.method)) {
@@ -1136,7 +1134,10 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
             break;
           case "enqueueChatMessage":
             try {
-              result = await input.engine.enqueueChatMessage!(
+              if (input.engine.enqueueChatMessage === undefined) {
+                throw new TypeError("Chat queue is unavailable.");
+              }
+              result = await input.engine.enqueueChatMessage(
                 COACH_RPC_METHOD_REGISTRY.enqueueChatMessage.requestSchema.parse(
                   generic.data.params,
                 ),
@@ -1147,7 +1148,10 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
             break;
           case "getChatQueue":
             try {
-              result = await input.engine.getChatQueue!(
+              if (input.engine.getChatQueue === undefined) {
+                throw new TypeError("Chat queue is unavailable.");
+              }
+              result = await input.engine.getChatQueue(
                 COACH_RPC_METHOD_REGISTRY.getChatQueue.requestSchema.parse(generic.data.params),
               );
             } catch (error) {
@@ -1156,7 +1160,10 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
             break;
           case "removeQueuedChatMessage":
             try {
-              result = await input.engine.removeQueuedChatMessage!(
+              if (input.engine.removeQueuedChatMessage === undefined) {
+                throw new TypeError("Chat queue is unavailable.");
+              }
+              result = await input.engine.removeQueuedChatMessage(
                 COACH_RPC_METHOD_REGISTRY.removeQueuedChatMessage.requestSchema.parse(
                   generic.data.params,
                 ),
@@ -1173,7 +1180,10 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               const request = COACH_RPC_METHOD_REGISTRY[method].requestSchema.parse(
                 generic.data.params,
               ) as never;
-              result = await input.engine[method]!(request, (event) => {
+              if (input.engine[method] === undefined) {
+                throw new TypeError("Chat queue is unavailable.");
+              }
+              result = await input.engine[method]?.(request, (event) => {
                 if (eventFailure !== undefined) return;
                 try {
                   const parsedEvent = COACH_RPC_METHOD_REGISTRY[method].eventSchema.parse(event);
@@ -2159,11 +2169,9 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       return;
     }
     state.requestTasks.add(task);
-    void task
-      .finally(() => {
-        state.requestTasks.delete(task);
-      })
-      .catch(() => {});
+    void Promise.allSettled([task]).then(() => {
+      state.requestTasks.delete(task);
+    });
   };
 
   const acceptClient = (ws: WebSocket): void => {
@@ -2178,8 +2186,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       }
       state.closed = true;
       state.resolveClosed();
-      void Promise.all(state.requestTasks)
-        .catch(() => {})
+      void Promise.allSettled(state.requestTasks)
         .then(() => state.sendTail)
         .finally(() => clients.delete(state));
     });
