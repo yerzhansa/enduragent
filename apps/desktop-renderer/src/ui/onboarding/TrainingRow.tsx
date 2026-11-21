@@ -84,6 +84,13 @@ function trainingRowState(
   return connected ? "connected" : "missing";
 }
 
+function useHeldWhile<T>(value: T, holding: boolean): T {
+  const [held, setHeld] = useState<{ readonly value: T } | null>(null);
+  if (holding && held === null) setHeld({ value });
+  if (!holding && held !== null) setHeld(null);
+  return holding && held !== null ? held.value : value;
+}
+
 export function TrainingRow(props: {
   readonly surface: OnboardingSurfaceState;
   readonly actions: OnboardingActions | null;
@@ -108,7 +115,10 @@ export function TrainingRow(props: {
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const importing = surface.rideImport.status === "running";
   const connected = wizard.credentialStatus["intervals-icu"] === "configured";
-  const signInRejected = useEnduragentStore(intervalsSignInNeedsRenewal);
+  const signInRejected = useHeldWhile(
+    useEnduragentStore(intervalsSignInNeedsRenewal),
+    credentialSettings.status === "deleting",
+  );
   const rejected = connected && signInRejected;
   const signInPhase = surface.intervalsSignIn.phase;
   const phaseCopy = signInPhase === "idle" ? null : TRAINING_SIGN_IN_PHASE_COPY[signInPhase];
@@ -175,7 +185,7 @@ export function TrainingRow(props: {
     actions.connectTrainingData();
   };
 
-  const actionButton = (action: TrainingRowAction): ReactElement | null => {
+  const actionButton = (action: TrainingRowAction): ReactElement => {
     switch (action) {
       case "disconnect":
         return <CredentialDeleteButton credential="intervals-icu" buttonRef={deleteRef} />;

@@ -10,7 +10,10 @@ import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describeLanguage } from "@enduragent/i18n";
 import { Shell } from "../src/app/Shell";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
-import { createIntervalsSignInHealth } from "../src/intervals-sign-in-health";
+import {
+  createIntervalsSignInHealth,
+  type IntervalsSignInHealth,
+} from "../src/intervals-sign-in-health";
 import type {
   CredentialDeleteResult,
   CredentialRecoveryStatus,
@@ -2371,6 +2374,65 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     expect(syncNotice()).not.toHaveAttribute("data-status", "attention");
     expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
     expect(syncNotice().querySelector("[data-sync-sign-in-again]")).toBeNull();
+    expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
+  });
+
+  it("keeps the warning, never Connected, until the disconnect finishes", async () => {
+    const user = userEvent.setup();
+    let signedIn = true;
+    let health: IntervalsSignInHealth | undefined;
+    const deleting = deferred<CredentialDeleteResult>();
+    const setupRefresh = deferred<void>();
+    await renderSettings({
+      wrapClients: (clients) => {
+        health = createIntervalsSignInHealth(clients, useEnduragentStore);
+        return health.clients;
+      },
+      runtime: intervalsRuntime(() => signedIn),
+      deleteCredential: () => deleting.promise,
+      onDeleted: async () => {
+        await setupRefresh.promise;
+        markIntervalsMissing();
+      },
+    });
+    await render(<SyncChip />);
+    await waitFor(() => {
+      expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    });
+
+    await user.click(
+      within(trainingRow()).getByRole("button", { name: "Disconnect Intervals.icu" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Disconnecting…" })).toBeInTheDocument();
+    });
+
+    signedIn = false;
+    await act(async () => {
+      await health?.refresh();
+    });
+    expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    expect(trainingRow()).not.toHaveTextContent("Connected");
+
+    await act(async () => {
+      deleting.resolve({
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: false,
+        revoke: "already-invalid",
+      });
+    });
+    expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    expect(trainingRow()).not.toHaveTextContent("Connected");
+
+    await act(async () => {
+      setupRefresh.resolve();
+    });
+    await waitFor(() => {
+      expect(trainingRow()).toHaveAttribute("data-state", "pending");
+    });
+    expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
     expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
   });
 
