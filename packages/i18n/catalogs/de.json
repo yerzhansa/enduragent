@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Dieser Schlüssel konnte nicht gespeichert werden. Versuche, ihn erneut einzugeben.",
       "credentialStatusUnavailable": "Dieser Schlüssel wurde gespeichert, aber sein Status konnte nicht aktualisiert werden. Prüfe den Einrichtungsbereich erneut.",
       "endpointInvalid": "Gib einen gültigen HTTPS-Endpunkt oder einen HTTP-Endpunkt mit Loopback-Adresse ein.",
-      "intakeIncomplete": "Beantworte die erforderlichen Sicherheitsfragen, um fortzufahren.",
-      "intakeSaveFailed": "Deine Antworten konnten nicht gespeichert werden. Bitte versuche es erneut.",
       "intervalsOwnerUnavailable": "{{product}} konnte nicht bestätigen, dass dieses {{intervals}}-Konto zu den Trainingsdaten auf {{computer}} gehört. Versuche es erneut, wenn Trainingsdaten verfügbar sind.",
       "intervalsRuntimeUnavailable": "Die {{intervals}}-Anmeldung konnte nicht aktiviert werden. Melde dich erneut an.",
       "intervalsRuntimeUncertain": "{{product}} konnte nicht bestätigen, ob die Anmeldung aktiv ist. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
@@ -733,15 +731,6 @@
       "importing": "Fahrtdateien werden importiert…",
       "unavailable": "Import in die lokale Bibliothek: {{imported}} importiert. {{quarantined}} in Quarantäne. Der Coach kann vorübergehend nicht auf Aktivitäten und Messreihen zugreifen; versuche den Import erneut.",
       "unconfirmed": "Import in die lokale Bibliothek fehlgeschlagen. Das Ergebnis konnte nicht bestätigt werden; prüfe die Bibliothek, bevor du es noch einmal versuchst."
-    },
-    "intake": {
-      "managing": "Aktuell verletzt",
-      "none": "Aktuell keine Verletzung",
-      "retrySave": "Antworten erneut speichern",
-      "returning": "Wiedereinstieg nach einer Verletzung",
-      "select": "Auswählen…",
-      "subtitle": "Erfasst deine aktuelle Verletzung oder deine Situation beim Wiedereinstieg.",
-      "title": "Aktueller Verletzungsstatus"
     },
     "requiredReady": "{{ready}} von {{total}} erforderlichen Schritten bereit",
     "retrySavedKeys": "Gespeicherte Schlüssel erneut versuchen",

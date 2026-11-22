@@ -222,23 +222,6 @@ export interface DedupConfirmationRepository {
   readAll(): Promise<readonly DedupConfirmationRow[]>;
 }
 
-export interface IntakeFlagsRow {
-  readonly id: string;
-  readonly swim_skill_floor: null;
-  readonly continuous_distance_capable: null;
-  readonly open_water_comfort: null;
-  readonly clinician_cleared: boolean | null;
-  readonly injury_status: "none" | "managing" | "returning";
-  readonly device_id: string;
-  readonly hlc_physical_ms: number;
-  readonly hlc_counter: number;
-}
-
-export interface IntakeRepository {
-  replace(row: IntakeFlagsRow): Promise<void>;
-  read(): Promise<IntakeFlagsRow | undefined>;
-}
-
 export interface RepairLogInsert {
   readonly rawSha256: string;
   readonly sessionKey: string;

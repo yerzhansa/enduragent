@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Die sleutel kon niet worden opgeslagen. Probeer deze opnieuw in te voeren.",
       "credentialStatusUnavailable": "Die sleutel is opgeslagen, maar de status kon niet worden vernieuwd. Controleer het configuratiegedeelte opnieuw.",
       "endpointInvalid": "Voer een geldig HTTPS-eindpunt of een HTTP-loopbackeindpunt in.",
-      "intakeIncomplete": "Beantwoord de verplichte veiligheidsvragen om door te gaan.",
-      "intakeSaveFailed": "Je antwoorden konden niet worden opgeslagen. Probeer het opnieuw.",
       "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat dit {{intervals}}-account bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
       "intervalsRuntimeUnavailable": "De aanmelding bij {{intervals}} kon niet worden geactiveerd. Meld je opnieuw aan.",
       "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de aanmelding actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
@@ -733,15 +731,6 @@
       "importing": "Ritbestanden importeren…",
       "unavailable": "Import in de lokale bibliotheek: {{imported}} geïmporteerd. {{quarantined}} in quarantaine geplaatst. De coach heeft tijdelijk geen toegang tot activiteiten en gegevensreeksen. Probeer de import opnieuw.",
       "unconfirmed": "Import in de lokale bibliotheek mislukt. Het resultaat kon niet worden bevestigd. Controleer de bibliotheek voordat je het opnieuw probeert."
-    },
-    "intake": {
-      "managing": "Ik heb een blessure",
-      "none": "Geen huidige blessure",
-      "retrySave": "Antwoorden opnieuw opslaan",
-      "returning": "Ik hervat de training na een blessure",
-      "select": "Selecteren…",
-      "subtitle": "Legt je huidige blessure of terugkeer na een blessure vast.",
-      "title": "Huidige blessurestatus"
     },
     "requiredReady": "{{ready}} van {{total}} vereiste onderdelen klaar",
     "retrySavedKeys": "Opgeslagen sleutels opnieuw proberen",

@@ -8,7 +8,6 @@ import {
   previousStep,
   selectedProviderReady,
   toOnboardingCompletion,
-  toDesktopIntakeFlags,
   withCredentialStatuses,
   withChatGptActivationPending,
   withChatGptActivationResult,
@@ -17,12 +16,11 @@ import {
   withChatGptProgress,
   withChatGptStatus,
   withClaudeCliStatus,
-  withIntake,
   withImportedRideFileCount,
 } from "../src/onboarding/machine";
 
 describe("desktop onboarding machine", () => {
-  it("keeps the four ordered steps and exact guards", () => {
+  it("keeps the three ordered steps and exact guards", () => {
     let state = createOnboardingState();
     expect(Object.keys(state).sort()).toEqual([
       "busy",
@@ -37,7 +35,6 @@ describe("desktop onboarding machine", () => {
       "credentialStatus",
       "fixedError",
       "importedRideFileCount",
-      "intake",
       "step",
     ]);
     expect(nextStep(state)).toMatchObject({
@@ -54,13 +51,6 @@ describe("desktop onboarding machine", () => {
       fixedError: "training-data-required",
     });
     state = withImportedRideFileCount(state, 1);
-    state = nextStep(state);
-    expect(state.step).toBe("safety-intake");
-    expect(nextStep(state)).toMatchObject({
-      step: "safety-intake",
-      fixedError: "intake-incomplete",
-    });
-    state = withIntake(state, { injuryStatus: "none" });
     state = nextStep(state);
     expect(state.step).toBe("ready");
   });
@@ -150,7 +140,7 @@ describe("desktop onboarding machine", () => {
 
     state = withImportedRideFileCount(state, 1);
     expect(hasTrainingData(state)).toBe(true);
-    expect(nextStep(state).step).toBe("safety-intake");
+    expect(nextStep(state).step).toBe("ready");
     expect(toOnboardingCompletion(state).requiresProviderSync).toBe(false);
   });
 
@@ -214,7 +204,6 @@ describe("desktop onboarding machine", () => {
     expect(toOnboardingCompletion(fileOnly)).toEqual({
       providerConfigured: true,
       trainingDataConfigured: true,
-      intakeSaved: true,
       requiresProviderSync: false,
     });
 
@@ -225,23 +214,5 @@ describe("desktop onboarding machine", () => {
 
     const mixed = withImportedRideFileCount(platformOnly, 1);
     expect(toOnboardingCompletion(mixed).requiresProviderSync).toBe(true);
-  });
-
-  it("maps every cycling intake branch to the landed strict DTO", () => {
-    expect(toDesktopIntakeFlags({ injuryStatus: "none" })).toEqual({
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      prior_bsi: false,
-      clinician_cleared: null,
-      injury_status: "none",
-    });
-    for (const injuryStatus of ["managing", "returning"] as const) {
-      expect(toDesktopIntakeFlags({ injuryStatus })).toMatchObject({
-        injury_status: injuryStatus,
-        clinician_cleared: null,
-      });
-    }
-    expect(() => toDesktopIntakeFlags({ injuryStatus: null })).toThrow(TypeError);
   });
 });

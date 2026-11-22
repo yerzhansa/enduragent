@@ -177,18 +177,6 @@ const rpcDeadlineCases = [
   ["importFiles", { paths: ["/synthetic/ride.fit"] }, 3_600_000],
   ["sync", {}, 86_400_000],
   ["getSetupStatus", {}, 30_000],
-  [
-    "saveIntake",
-    {
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      prior_bsi: false,
-      clinician_cleared: null,
-      injury_status: "none",
-    },
-    30_000,
-  ],
   ["configureRuntime", { llm: { provider: "openai" } }, 30_000],
   ["verify_intervals_credential", { api_key: "placeholder" }, 30_000],
   ["getRuntimeConfig", {}, 30_000],
@@ -1154,17 +1142,8 @@ describe("RPC receive and observers", () => {
         },
         getSetupStatus: {
           schemaVersion: 1,
-          intake: {
-            swim_skill_floor: null,
-            continuous_distance_capable: null,
-            open_water_comfort: null,
-            prior_bsi: false,
-            clinician_cleared: null,
-            injury_status: "none",
-          },
           durableTrainingData: true,
         },
-        saveIntake: { schemaVersion: 1, saved: true },
         configureRuntime: {
           schemaVersion: 3,
           status: "applied",
@@ -1373,26 +1352,8 @@ describe("RPC receive and observers", () => {
     await expect(client.call("sync", {})).resolves.toMatchObject({ schemaVersion: 1 });
     await expect(client.call("getSetupStatus", {})).resolves.toEqual({
       schemaVersion: 1,
-      intake: {
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: false,
-        clinician_cleared: null,
-        injury_status: "none",
-      },
       durableTrainingData: true,
     });
-    await expect(
-      client.call("saveIntake", {
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: false,
-        clinician_cleared: null,
-        injury_status: "none",
-      }),
-    ).resolves.toEqual({ schemaVersion: 1, saved: true });
     await expect(
       client.call("configureRuntime", {
         llm: { provider: "anthropic", model: "synthetic", api_key: "synthetic" },
@@ -1406,7 +1367,7 @@ describe("RPC receive and observers", () => {
       llm: { provider: "anthropic", model: "synthetic-model" },
     });
     expect(received.map((value) => (value as { id: number }).id)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
     ]);
     expect(received.map((value) => (value as { method: string }).method)).toEqual([
       "chat",
@@ -1425,7 +1386,6 @@ describe("RPC receive and observers", () => {
       "importFiles",
       "sync",
       "getSetupStatus",
-      "saveIntake",
       "configureRuntime",
       "getRuntimeConfig",
     ]);
@@ -1437,7 +1397,7 @@ describe("RPC receive and observers", () => {
       value: "imperial",
       source: "cycling",
     });
-    expect(received.slice(-2).map((value) => (value as { id: number }).id)).toEqual([20, 21]);
+    expect(received.slice(-2).map((value) => (value as { id: number }).id)).toEqual([19, 20]);
     expect(received.slice(-2).map((value) => (value as { method: string }).method)).toEqual([
       "getUnitsPreference",
       "setUnitsPreference",
@@ -1511,7 +1471,7 @@ describe("RPC receive and observers", () => {
     await expect(client.call("setDailySpendCap", { dailyCapUsd: 0.75 })).resolves.toMatchObject({
       dailyCapUsd: 0.75,
     });
-    expect(received.slice(-2).map((value) => (value as { id: number }).id)).toEqual([40, 41]);
+    expect(received.slice(-2).map((value) => (value as { id: number }).id)).toEqual([39, 40]);
     expect(received.slice(-2).map((value) => (value as { method: string }).method)).toEqual([
       "getSpendSummary",
       "setDailySpendCap",
@@ -1520,7 +1480,7 @@ describe("RPC receive and observers", () => {
       client.call("verify_intervals_credential", { api_key: "placeholder" }),
     ).resolves.toEqual({ approval: "a".repeat(64) });
     expect(received.at(-1)).toMatchObject({
-      id: 42,
+      id: 41,
       method: "verify_intervals_credential",
       params: { api_key: "placeholder" },
     });

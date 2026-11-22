@@ -23,7 +23,6 @@ import {
 const completion = {
   providerConfigured: true,
   trainingDataConfigured: true,
-  intakeSaved: true,
   requiresProviderSync: true,
 } as const;
 
@@ -123,12 +122,11 @@ describe("first sync controller", () => {
     const controller = createFirstSyncController(ports);
     for (const invalid of [
       {},
-      { ...completion, intakeSaved: false },
+      { ...completion, intakeSaved: true },
       { ...completion, requiresProviderSync: "yes" },
       {
         providerConfigured: true,
         trainingDataConfigured: true,
-        intakeSaved: true,
       },
       { ...completion, extra: true },
       null,

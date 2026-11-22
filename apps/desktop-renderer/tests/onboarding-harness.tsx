@@ -154,10 +154,6 @@ export function control<T extends HTMLElement>(id: string): T {
 }
 
 const SETUP_OPTION_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  "onboarding-injury-status": {
-    none: "No current injury",
-    returning: "Returning after an injury",
-  },
   "onboarding-llm-provider": {
     anthropic: "Anthropic",
     openrouter: "OpenRouter",
@@ -377,7 +373,6 @@ export type TestBridge = OnboardingBridge & {
   readonly importFiles: ReturnType<typeof vi.fn<OnboardingBridge["importFiles"]>>;
   readonly chooseImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["chooseImportFiles"]>>;
   readonly onDroppedImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["onDroppedImportFiles"]>>;
-  readonly saveIntake: ReturnType<typeof vi.fn<OnboardingBridge["saveIntake"]>>;
   emitChatGptProgress(progress: ChatGptLoginProgress): void;
   emitIntervalsSignInProgress(phase: IntervalsSignInPhase): void;
 };
@@ -461,7 +456,6 @@ export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): Test
       },
       publication: { scope: "activities-and-streams", status: "available" },
     })),
-    saveIntake: vi.fn<OnboardingBridge["saveIntake"]>(async () => {}),
     emitChatGptProgress(progress) {
       for (const listener of progressListeners) listener(progress);
     },

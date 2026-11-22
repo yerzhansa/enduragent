@@ -61,14 +61,6 @@ function makeScript(): DesktopFixtureScript {
       if (request.method === "getSetupStatus") {
         return response({
           schemaVersion: 1,
-          intake: {
-            swim_skill_floor: null,
-            continuous_distance_capable: null,
-            open_water_comfort: null,
-            prior_bsi: false,
-            clinician_cleared: null,
-            injury_status: "none",
-          },
           durableTrainingData: true,
         });
       }

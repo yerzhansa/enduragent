@@ -17,7 +17,7 @@ export const KEYLESS_SETUP_LANES = ["claude-cli", "openai-codex"] as const;
 
 export type SetupLane = (typeof KEYLESS_SETUP_LANES)[number] | "api-key";
 
-export type SetupErrorSection = "provider" | "training" | "intake" | "footer";
+export type SetupErrorSection = "provider" | "training" | "footer";
 
 export type SetupCommit = "provider" | "training" | null;
 
@@ -130,8 +130,6 @@ const ERROR_SECTIONS: Readonly<Record<OnboardingErrorCode, SectionRule>> = {
   "intervals-runtime-unavailable": "training",
   "intervals-runtime-uncertain": "training",
   "training-data-required": "training",
-  "intake-incomplete": "intake",
-  "intake-save-failed": "intake",
   "credential-save-failed": "commit",
   "invalid-input": "commit",
   "encryption-unavailable": "commit",

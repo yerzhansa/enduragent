@@ -1,5 +1,4 @@
 import { act, fireEvent, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   onboardingStatusRetryDelayMs,
@@ -15,19 +14,9 @@ import {
   mountWizard,
   readyTelegramSettings,
   resetOnboardingStore,
-  selectSetupOption,
   setTelegramSettings,
   testBridge,
 } from "./onboarding-harness";
-
-const savedIntake = {
-  swim_skill_floor: null,
-  continuous_distance_capable: null,
-  open_water_comfort: null,
-  prior_bsi: false,
-  clinician_cleared: false,
-  injury_status: "managing",
-} as const;
 
 const COLD_START_WINDOW_MS =
   ONBOARDING_STATUS_COLD_START_TIMEOUT_MS * ONBOARDING_STATUS_LOAD_ATTEMPTS +
@@ -50,27 +39,23 @@ function readinessDot(): HTMLElement {
 describe("authoritative setup readiness", () => {
   afterEach(() => resetOnboardingStore());
 
-  it("hydrates saved safety intake and accepts durable local rides without a training credential", async () => {
+  it("accepts durable local rides without a training credential", async () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: savedIntake,
       durableTrainingData: true,
     }));
     const wizard = mountWizard({ bridge });
 
     await wizard.open();
 
-    expect(wizard.controller.state().intake).toEqual({ injuryStatus: "managing" });
-    expect(control("onboarding-injury-status")).toHaveTextContent("Managing an injury");
-    expect(document.querySelector("#onboarding-clinician-cleared")).toBeNull();
+    expect(document.querySelector('[data-setup-row="injury-status"]')).toBeNull();
     expect(useEnduragentStore.getState().onboarding.readiness).toEqual({
       provider: true,
       trainingData: true,
-      intake: true,
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
-    expect(readinessBadge()).toHaveTextContent("3 of 3 required ready");
+    expect(readinessBadge()).toHaveTextContent("2 of 2 required ready");
     expect(readinessBadge()).toHaveAttribute("data-state", "ready");
     expect(readinessBadge()).toHaveAttribute("role", "status");
     expect(readinessBadge()).toHaveAttribute("aria-live", "polite");
@@ -84,41 +69,31 @@ describe("authoritative setup readiness", () => {
   it.each([
     {
       providerReady: true,
-      hasSavedIntake: true,
       durableTrainingData: true,
-      expectedCount: 3,
+      expectedCount: 2,
       expectedReady: true,
     },
     {
       providerReady: true,
-      hasSavedIntake: true,
       durableTrainingData: false,
-      expectedCount: 2,
+      expectedCount: 1,
       expectedReady: false,
     },
     {
       providerReady: false,
-      hasSavedIntake: false,
       durableTrainingData: true,
       expectedCount: 1,
       expectedReady: false,
     },
     {
       providerReady: false,
-      hasSavedIntake: false,
       durableTrainingData: false,
       expectedCount: 0,
       expectedReady: false,
     },
   ])(
-    "re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady, intake saved is $hasSavedIntake, and durable data is $durableTrainingData",
-    async ({
-      providerReady,
-      hasSavedIntake,
-      durableTrainingData,
-      expectedCount,
-      expectedReady,
-    }) => {
+    "re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady and durable data is $durableTrainingData",
+    async ({ providerReady, durableTrainingData, expectedCount, expectedReady }) => {
       const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
       bridge.chatGptStatus.mockResolvedValue({
         state: providerReady ? "configured" : "absent",
@@ -133,12 +108,10 @@ describe("authoritative setup readiness", () => {
         .fn()
         .mockResolvedValueOnce({
           schemaVersion: 1 as const,
-          intake: hasSavedIntake ? savedIntake : null,
           durableTrainingData: false,
         })
         .mockResolvedValueOnce({
           schemaVersion: 1 as const,
-          intake: hasSavedIntake ? savedIntake : null,
           durableTrainingData,
         });
       const wizard = mountWizard({ bridge });
@@ -146,7 +119,7 @@ describe("authoritative setup readiness", () => {
 
       expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
       expect(readinessBadge()).toHaveTextContent(
-        `${Number(providerReady) + Number(hasSavedIntake) + 1} of 3 required ready`,
+        `${Number(providerReady) + 1} of 2 required ready`,
       );
 
       await act(async () => wizard.controller.refresh());
@@ -160,7 +133,7 @@ describe("authoritative setup readiness", () => {
         durableTrainingData,
       );
       expect(setupReady(useEnduragentStore.getState())).toBe(expectedReady);
-      expect(readinessBadge()).toHaveTextContent(`${expectedCount} of 3 required ready`);
+      expect(readinessBadge()).toHaveTextContent(`${expectedCount} of 2 required ready`);
       expect(readinessBadge()).toHaveAttribute("data-state", expectedReady ? "ready" : "pending");
       expect(readinessBadge()).toHaveClass(
         expectedReady ? "border-ok/35" : "border-line-2",
@@ -180,14 +153,9 @@ describe("authoritative setup readiness", () => {
   );
 
   it("fails closed while the durable setup read is still loading", async () => {
-    let resolve!: (value: {
-      schemaVersion: 1;
-      intake: typeof savedIntake;
-      durableTrainingData: boolean;
-    }) => void;
+    let resolve!: (value: { schemaVersion: 1; durableTrainingData: boolean }) => void;
     const pending = new Promise<{
       schemaVersion: 1;
-      intake: typeof savedIntake;
       durableTrainingData: boolean;
     }>((settle) => {
       resolve = settle;
@@ -203,7 +171,7 @@ describe("authoritative setup readiness", () => {
     expect(useEnduragentStore.getState().onboarding.loading).toBe(true);
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
-    resolve({ schemaVersion: 1, intake: savedIntake, durableTrainingData: true });
+    resolve({ schemaVersion: 1, durableTrainingData: true });
     await act(async () => opening);
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
     wizard.controller.dispose();
@@ -228,7 +196,6 @@ describe("authoritative setup readiness", () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: savedIntake,
       durableTrainingData: true,
     }));
     const wizard = mountWizard({ bridge });
@@ -247,16 +214,13 @@ describe("authoritative setup readiness", () => {
     expect(useEnduragentStore.getState().onboarding.readiness).toEqual({
       provider: true,
       trainingData: true,
-      intake: true,
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
     expect(screen.getByRole("button", { name: "Start coaching" })).toBeEnabled();
     expect(document.querySelector('[data-setup-trigger="ai"]')).toBeEnabled();
     expect(document.querySelector('[data-setup-trigger="training"]')).toBeEnabled();
-    expect(control<HTMLButtonElement>("onboarding-injury-status")).toBeEnabled();
-    expect(document.querySelector("#onboarding-clinician-cleared")).toBeNull();
     expect(document.querySelector("[data-setup-readiness]")).toHaveTextContent(
-      "3 of 3 required ready",
+      "2 of 2 required ready",
     );
 
     act(() => {
@@ -272,12 +236,11 @@ describe("authoritative setup readiness", () => {
     expect(useEnduragentStore.getState().onboarding.readiness).toEqual({
       provider: true,
       trainingData: true,
-      intake: true,
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
     expect(screen.getByRole("button", { name: "Start coaching" })).toBeEnabled();
     expect(document.querySelector("[data-setup-readiness]")).toHaveTextContent(
-      "3 of 3 required ready",
+      "2 of 2 required ready",
     );
 
     act(() => {
@@ -300,14 +263,9 @@ describe("authoritative setup readiness", () => {
   });
 
   it("keeps setup controls inert and committed Chat readiness while status refreshes", async () => {
-    let resolveRefresh!: (value: {
-      schemaVersion: 1;
-      intake: typeof savedIntake;
-      durableTrainingData: boolean;
-    }) => void;
+    let resolveRefresh!: (value: { schemaVersion: 1; durableTrainingData: boolean }) => void;
     const refresh = new Promise<{
       schemaVersion: 1;
-      intake: typeof savedIntake;
       durableTrainingData: boolean;
     }>((settle) => {
       resolveRefresh = settle;
@@ -317,7 +275,6 @@ describe("authoritative setup readiness", () => {
       .fn()
       .mockResolvedValueOnce({
         schemaVersion: 1 as const,
-        intake: savedIntake,
         durableTrainingData: true,
       })
       .mockImplementationOnce(async () => refresh);
@@ -331,10 +288,8 @@ describe("authoritative setup readiness", () => {
     });
 
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
-    expect(readinessBadge()).toHaveTextContent("3 of 3 required ready");
+    expect(readinessBadge()).toHaveTextContent("2 of 2 required ready");
     expect(readinessBadge()).toHaveAttribute("data-state", "ready");
-    const injury = control<HTMLButtonElement>("onboarding-injury-status");
-    expect(injury).toBeDisabled();
     expect(control<HTMLButtonElement>("setup-panel-title").closest("section")).toHaveAttribute(
       "aria-busy",
       "true",
@@ -344,12 +299,9 @@ describe("authoritative setup readiness", () => {
       document.querySelector<HTMLButtonElement>('[data-setup-trigger="training"]'),
     ).toBeDisabled();
 
-    fireEvent.change(injury, { target: { value: "none" } });
-    expect(wizard.controller.state().intake).toEqual({ injuryStatus: "managing" });
-
-    resolveRefresh({ schemaVersion: 1, intake: savedIntake, durableTrainingData: true });
+    resolveRefresh({ schemaVersion: 1, durableTrainingData: true });
     await act(async () => refreshing);
-    expect(wizard.controller.state().intake).toEqual({ injuryStatus: "managing" });
+    expect(setupReady(useEnduragentStore.getState())).toBe(true);
     wizard.controller.dispose();
   });
 
@@ -357,7 +309,6 @@ describe("authoritative setup readiness", () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: savedIntake,
       durableTrainingData: true,
     }));
     const wizard = mountWizard({ bridge });
@@ -378,7 +329,7 @@ describe("authoritative setup readiness", () => {
       let setupReadFails = true;
       bridge.getSetupStatus = vi.fn(async () => {
         if (setupReadFails) throw new TypeError("synthetic setup read failure");
-        return { schemaVersion: 1 as const, intake: savedIntake, durableTrainingData: true };
+        return { schemaVersion: 1 as const, durableTrainingData: true };
       });
       const wizard = mountWizard({ bridge });
 
@@ -409,7 +360,6 @@ describe("authoritative setup readiness", () => {
       expect(document.querySelector("[data-setup-card]")).not.toBeNull();
       expect(document.querySelector('[data-setup-trigger="ai"]')).toBeNull();
       expect(document.querySelector('[data-setup-trigger="training"]')).toBeNull();
-      expect(control<HTMLButtonElement>("onboarding-injury-status")).toBeDisabled();
       expect(screen.queryByRole("button", { name: "Start coaching" })).toBeNull();
 
       setupReadFails = false;
@@ -426,7 +376,6 @@ describe("authoritative setup readiness", () => {
       expect(
         document.querySelector<HTMLButtonElement>('[data-setup-trigger="training"]'),
       ).toBeEnabled();
-      expect(control<HTMLButtonElement>("onboarding-injury-status")).toBeEnabled();
       wizard.controller.dispose();
     } finally {
       vi.useRealTimers();
@@ -440,7 +389,7 @@ describe("authoritative setup readiness", () => {
       let daemonStarting = true;
       const getSetupStatus = vi.fn(async () => {
         if (daemonStarting) throw new TypeError("coach daemon is still starting");
-        return { schemaVersion: 1 as const, intake: savedIntake, durableTrainingData: true };
+        return { schemaVersion: 1 as const, durableTrainingData: true };
       });
       bridge.getSetupStatus = getSetupStatus;
       const wizard = mountWizard({ bridge });
@@ -461,7 +410,7 @@ describe("authoritative setup readiness", () => {
       expect(document.body.textContent).not.toContain("Connect or import ride files.");
       expect(document.body.textContent).not.toContain("Required — Enduragent doesn't include one");
       expect(readinessBadge()).toHaveTextContent("Checking setup…");
-      expect(readinessBadge()).not.toHaveTextContent("0 of 3 required ready");
+      expect(readinessBadge()).not.toHaveTextContent("0 of 2 required ready");
 
       daemonStarting = false;
       await act(async () => {
@@ -471,7 +420,7 @@ describe("authoritative setup readiness", () => {
 
       expect(useEnduragentStore.getState().onboarding.loadUnavailable).toBe(false);
       expect(setupReady(useEnduragentStore.getState())).toBe(true);
-      expect(readinessBadge()).toHaveTextContent("3 of 3 required ready");
+      expect(readinessBadge()).toHaveTextContent("2 of 2 required ready");
       expect(screen.queryByRole("button", { name: "Retry setup status" })).toBeNull();
       expect(getSetupStatus.mock.calls.length).toBeGreaterThan(1);
       wizard.controller.dispose();
@@ -480,11 +429,10 @@ describe("authoritative setup readiness", () => {
     }
   });
 
-  it("retains unsaved provider and intake drafts across an unavailable refresh and retry", async () => {
+  it("retains unsaved provider drafts across an unavailable refresh and retry", async () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: savedIntake,
       durableTrainingData: true,
     }));
     const wizard = mountWizard({ bridge });
@@ -492,22 +440,18 @@ describe("authoritative setup readiness", () => {
     wizard.controller.selectProvider("openrouter");
     wizard.controller.selectModel("__custom__");
     wizard.controller.setCustomModel("vendor/unsaved-model");
-    wizard.controller.setIntake("injuryStatus", "none");
     const draftBeforeFailure = useEnduragentStore.getState().onboarding.draft;
-    const intakeBeforeFailure = wizard.controller.state().intake;
     bridge.llmConfiguration.mockRejectedValueOnce(new TypeError("synthetic catalogue failure"));
 
     await act(async () => wizard.controller.refresh());
 
     expect(useEnduragentStore.getState().onboarding.loadUnavailable).toBe(true);
     expect(useEnduragentStore.getState().onboarding.draft).toEqual(draftBeforeFailure);
-    expect(wizard.controller.state().intake).toEqual(intakeBeforeFailure);
 
     await act(async () => wizard.controller.refresh());
 
     expect(useEnduragentStore.getState().onboarding.loadUnavailable).toBe(false);
     expect(useEnduragentStore.getState().onboarding.draft).toEqual(draftBeforeFailure);
-    expect(wizard.controller.state().intake).toEqual(intakeBeforeFailure);
     wizard.controller.dispose();
   });
 
@@ -516,7 +460,6 @@ describe("authoritative setup readiness", () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: savedIntake,
       durableTrainingData: true,
     }));
     const wizard = mountWizard({
@@ -544,65 +487,34 @@ describe("authoritative setup readiness", () => {
     expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
     expect(bridge.chooseImportFiles).not.toHaveBeenCalled();
     expect(bridge.importFiles).not.toHaveBeenCalled();
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     expect(wizard.controller.ownsDroppedImportFiles()).toBe(false);
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
     wizard.controller.dispose();
   });
 
   it.each([
-    [false, true, true, "provider"],
-    [true, false, true, "trainingData"],
-    [true, true, false, "intake"],
-  ] as const)(
-    "stays locked when provider=%s training=%s intake=%s",
-    async (provider, training, intake, missing) => {
-      const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
-      bridge.chatGptStatus.mockResolvedValue({
-        state: provider ? "configured" : "absent",
-        runtimeReady: provider,
-      });
-      bridge.getSetupStatus = vi.fn(async () => ({
-        schemaVersion: 1 as const,
-        intake: intake ? savedIntake : null,
-        durableTrainingData: training,
-      }));
-      const wizard = mountWizard({ bridge });
-      await wizard.open();
-
-      expect(useEnduragentStore.getState().onboarding.readiness[missing]).toBe(false);
-      expect(setupReady(useEnduragentStore.getState())).toBe(false);
-      expect(readinessBadge()).toHaveTextContent("2 of 3 required ready");
-      expect(readinessBadge()).toHaveAttribute("data-state", "pending");
-      expect(readinessBadge()).toHaveClass("border-line-2", "bg-surface", "text-ink-2");
-      expect(readinessDot()).toHaveAttribute("data-setup-readiness-dot", "pending");
-      expect(readinessDot()).toHaveClass("bg-warn", "ring-warn/10");
-      wizard.controller.dispose();
-    },
-  );
-
-  it("counts an answered injury status before it is persisted, so the badge agrees with the primary action", async () => {
-    const user = userEvent.setup();
+    [false, true, "provider"],
+    [true, false, "trainingData"],
+  ] as const)("stays locked when provider=%s training=%s", async (provider, training, missing) => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
-    bridge.chatGptStatus.mockResolvedValue({ state: "configured", runtimeReady: true });
+    bridge.chatGptStatus.mockResolvedValue({
+      state: provider ? "configured" : "absent",
+      runtimeReady: provider,
+    });
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: null,
-      durableTrainingData: true,
+      durableTrainingData: training,
     }));
     const wizard = mountWizard({ bridge });
     await wizard.open();
 
-    expect(readinessBadge()).toHaveTextContent("2 of 3 required ready");
-    expect(screen.getByRole("button", { name: "Start coaching" })).toBeDisabled();
-
-    await selectSetupOption(user, "onboarding-injury-status", "none");
-
-    expect(useEnduragentStore.getState().onboarding.readiness.intake).toBe(false);
-    expect(readinessBadge()).toHaveTextContent("3 of 3 required ready");
-    expect(readinessBadge()).toHaveAttribute("data-state", "ready");
-    expect(readinessDot()).toHaveAttribute("data-setup-readiness-dot", "ready");
-    expect(screen.getByRole("button", { name: "Start coaching" })).toBeEnabled();
+    expect(useEnduragentStore.getState().onboarding.readiness[missing]).toBe(false);
+    expect(setupReady(useEnduragentStore.getState())).toBe(false);
+    expect(readinessBadge()).toHaveTextContent("1 of 2 required ready");
+    expect(readinessBadge()).toHaveAttribute("data-state", "pending");
+    expect(readinessBadge()).toHaveClass("border-line-2", "bg-surface", "text-ink-2");
+    expect(readinessDot()).toHaveAttribute("data-setup-readiness-dot", "pending");
+    expect(readinessDot()).toHaveClass("bg-warn", "ring-warn/10");
     wizard.controller.dispose();
   });
 });

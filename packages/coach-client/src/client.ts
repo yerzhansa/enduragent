@@ -161,7 +161,6 @@ const COACH_RPC_CALL_TIMEOUT_MS: Record<CoachRpcMethodName, number> = {
   importFiles: 60 * 60_000,
   sync: 24 * 60 * 60_000,
   getSetupStatus: 30_000,
-  saveIntake: 30_000,
   configureRuntime: 30_000,
   verify_intervals_credential: 30_000,
   getRuntimeConfig: 30_000,
@@ -272,11 +271,18 @@ function validateOptions(options: ConnectCoachClientOptions): ValidatedOptions {
   };
 }
 
+function runIsolated(action: () => void): void {
+  void Promise.allSettled([
+    new Promise<void>((resolve) => {
+      action();
+      resolve();
+    }),
+  ]);
+}
+
 function requestSocketClose(socket: WebSocket, code?: number, reason?: string): void {
   if (socket.readyState === 2 || socket.readyState === 3) return;
-  try {
-    socket.close(code, reason);
-  } catch {}
+  runIsolated(() => socket.close(code, reason));
 }
 
 function openCoachSocket(options: ValidatedOptions): Promise<WebSocket> {
@@ -504,7 +510,7 @@ class CoachClientRuntime {
         planOperationId: undefined,
       };
       this.pending.set(id, pending);
-      signal?.addEventListener("abort", onAbort!, { once: true });
+      if (onAbort !== undefined) signal?.addEventListener("abort", onAbort, { once: true });
       pending.timer = setTimeout(() => {
         this.latchTerminal(new CoachClientCallTimeoutError(method, timeoutMs));
       }, timeoutMs);
@@ -527,7 +533,8 @@ class CoachClientRuntime {
           await this.waitForLowWater();
           if (this.terminalCause !== undefined) break;
         }
-        const frame = this.sendQueue[0]!;
+        const frame = this.sendQueue[0];
+        if (frame === undefined) break;
         try {
           this.socket.send(frame.text);
         } catch {
@@ -601,12 +608,8 @@ class CoachClientRuntime {
 
     const onNotificationEnvelope = pending.onNotificationEnvelope;
     const onEvent = pending.onEvent;
-    try {
-      onNotificationEnvelope?.(envelope);
-    } catch {}
-    try {
-      onEvent?.(event);
-    } catch {}
+    runIsolated(() => onNotificationEnvelope?.(envelope));
+    runIsolated(() => onEvent?.(event));
   }
 
   private handleTerminal(
@@ -638,9 +641,7 @@ class CoachClientRuntime {
       }
       this.claimPending(envelope.id, pending);
       const observer = pending.onTerminalEnvelope;
-      try {
-        observer?.(envelope);
-      } catch {}
+      runIsolated(() => observer?.(envelope));
       pending.resolve(result);
       this.scheduleIdleClose();
       return;
@@ -653,9 +654,7 @@ class CoachClientRuntime {
     );
     this.claimPending(envelope.id, pending);
     const observer = pending.onTerminalEnvelope;
-    try {
-      observer?.(envelope);
-    } catch {}
+    runIsolated(() => observer?.(envelope));
     pending.reject(remoteError);
     this.scheduleIdleClose();
   }
@@ -706,9 +705,7 @@ class CoachClientRuntime {
     requestSocketClose(this.socket, closeCode, closeReason);
     const client = this.publicClient;
     if (client !== undefined) {
-      try {
-        this.options.onTerminal?.(client, error);
-      } catch {}
+      runIsolated(() => this.options.onTerminal?.(client, error));
     }
     this.scheduleIdleClose();
   }

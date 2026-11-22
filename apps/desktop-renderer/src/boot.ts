@@ -1,5 +1,4 @@
-import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
-import { SaveIntakeRpcParamsSchema } from "@enduragent/coach-contract";
+import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
 import { createRideAnalysisController } from "./activity-analysis/controller";
@@ -555,20 +554,6 @@ export function bootRenderer(): Disposer {
           { paths: [...validateImportPaths(paths)] },
           { onNotificationEnvelope: onProgress },
         );
-      } catch (error) {
-        if (error instanceof CoachClientDisconnectedError) {
-          onboardingNeedsReconnect = true;
-          onboardingFailedClient = client;
-        }
-        throw error;
-      }
-    },
-    async saveIntake(value) {
-      let client: DesktopCoachClient | undefined;
-      try {
-        client = await onboardingClient();
-        const result = await client.call("saveIntake", SaveIntakeRpcParamsSchema.parse(value));
-        if (!result.saved) throw new CoachClientProtocolError();
       } catch (error) {
         if (error instanceof CoachClientDisconnectedError) {
           onboardingNeedsReconnect = true;

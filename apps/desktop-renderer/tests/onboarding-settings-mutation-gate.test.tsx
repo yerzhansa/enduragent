@@ -6,20 +6,10 @@ import { useEnduragentStore } from "../src/state/store";
 import { SetupPanel } from "../src/ui/onboarding/OnboardingWizard";
 import { mountWizard, primaryButton, resetOnboardingStore, testBridge } from "./onboarding-harness";
 
-const SAVED_INTAKE = {
-  swim_skill_floor: null,
-  continuous_distance_capable: null,
-  open_water_comfort: null,
-  prior_bsi: false,
-  clinician_cleared: null,
-  injury_status: "none",
-} as const;
-
 function readyBridge() {
   const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
   bridge.getSetupStatus = vi.fn(async () => ({
     schemaVersion: 1 as const,
-    intake: SAVED_INTAKE,
     durableTrainingData: true,
   }));
   return bridge;
@@ -41,7 +31,7 @@ describe("onboarding settings mutation gate", () => {
   beforeEach(() => resetOnboardingStore());
   afterEach(() => resetOnboardingStore());
 
-  it("finishes setup without rewriting authoritative intake while Telegram saves", async () => {
+  it("finishes setup while Telegram saves", async () => {
     const user = userEvent.setup();
     const bridge = readyBridge();
     const onComplete = vi.fn();
@@ -55,11 +45,10 @@ describe("onboarding settings mutation gate", () => {
     await wizard.open();
 
     await waitFor(() => expect(primaryButton()).toBeEnabled());
-    expect(screen.getByText("3 of 3 required ready")).toBeVisible();
+    expect(screen.getByText("2 of 2 required ready")).toBeVisible();
     await user.click(primaryButton());
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
 
@@ -115,7 +104,6 @@ describe("onboarding settings mutation gate", () => {
     act(() => wizard.controller.finish());
     await act(async () => Promise.resolve());
 
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });

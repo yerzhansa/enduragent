@@ -5,7 +5,7 @@
 - `settings.setup.inventory`: required full-window gate; citation `apps/desktop-renderer/tests/onboarding-setup-card.test.tsx`. Setup-first Settings projection; citation `apps/desktop-renderer/tests/settings-surface.test.tsx`.
 - `settings.providers.lanes`: production-reported coach choices with the current lane identified, including the first Settings Setup row showing the in-use coach; citations `apps/desktop-renderer/tests/onboarding-setup-card.test.tsx`, `apps/desktop-renderer/tests/onboarding-lanes.test.ts`, and `apps/desktop-renderer/tests/settings-surface.test.tsx`.
 - `training.setup.intervals-clipboard-connect` and `training.setup.file-import-fallback`: copied-key connection or local ride import; citation `apps/desktop-renderer/tests/onboarding-setup-card.test.tsx`.
-- `settings.setup.readiness-gate`, `training.setup.readiness-sources`, and `training.setup.readiness-recovery`: provider, durable training data, and saved intake control readiness and recovery; citations `apps/desktop-renderer/tests/onboarding-setup-card.test.tsx` and `apps/desktop-renderer/tests/setup-readiness.test.tsx`.
+- `settings.setup.readiness-gate`, `training.setup.readiness-sources`, and `training.setup.readiness-recovery`: provider and durable training data control readiness and recovery; citations `apps/desktop-renderer/tests/onboarding-setup-card.test.tsx` and `apps/desktop-renderer/tests/setup-readiness.test.tsx`.
 
 Fixture profile: `first-run`. Deterministic placements: `gate` and `settings` from `apps/desktop-renderer/tests/onboarding-harness.tsx`. Supported executors: renderer `vitest` and the macOS Electron CDP fixture.
 
@@ -14,7 +14,7 @@ Fixture profile: `first-run`. Deterministic placements: `gate` and `settings` fr
 - On a first launch with no saved language, **Choose your language** replaces the rest of the app; after that, launch Enduragent before Setup is complete or when credential repair is required and the full-window Setup gate replaces app navigation.
 - After Setup is complete, choose **Settings** in Main navigation; **Setup** is the first section and its first row shows the coach in use.
 - From a Coach recovery prompt in Settings, choose **Review setup** to focus that section.
-- In the gate, choose what powers the coach, connect Intervals.icu or import ride files, answer injury status, then choose **Start coaching**.
+- In the gate, choose what powers the coach, connect Intervals.icu or import ride files, then choose **Start coaching**.
 
 ## Driving it with verify-enduragent
 

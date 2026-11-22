@@ -236,8 +236,8 @@ describe("exit codes", () => {
 });
 
 describe("protocol version", () => {
-  it("is 36", () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+  it("is 37", () => {
+    expect(PROTOCOL_VERSION).toBe(37);
   });
 
   it("requires Stop to name the exact active turn", () => {
@@ -585,9 +585,7 @@ describe("AthleteState", () => {
     const offMondayTrend = {
       kind: "computed",
       buckets: buckets.map((bucket, index) =>
-        index === 2
-          ? { ...bucket, window: { start: "1998-06-02", end: "1998-06-08" } }
-          : bucket,
+        index === 2 ? { ...bucket, window: { start: "1998-06-02", end: "1998-06-08" } } : bucket,
       ),
     };
     expect(RidingTimeTrendSchema.safeParse(offMondayTrend).success).toBe(false);
@@ -699,9 +697,7 @@ describe("AthleteState", () => {
   });
 
   it("requires callout windows to contain exactly 28 civil dates", () => {
-    expect(TrainingRideCalloutSchema.parse(trainingHistoryCallout)).toEqual(
-      trainingHistoryCallout,
-    );
+    expect(TrainingRideCalloutSchema.parse(trainingHistoryCallout)).toEqual(trainingHistoryCallout);
     expect(
       TrainingRideCalloutSchema.safeParse({
         ...trainingHistoryCallout,

@@ -44,15 +44,15 @@
       "expected": "Training-data readiness is satisfied by an active Intervals.icu connection or durable locally imported rides, while the visible Intervals.icu row continues to report its own connected or connectable state.",
       "automation": "deterministic",
       "tests": [
-        "apps/desktop-renderer/tests/setup-readiness.test.tsx > hydrates saved safety intake and accepts durable local rides without a training credential",
-        "apps/desktop-renderer/tests/setup-readiness.test.tsx > re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady, intake saved is $hasSavedIntake, and durable data is $durableTrainingData",
+        "apps/desktop-renderer/tests/setup-readiness.test.tsx > accepts durable local rides without a training credential",
+        "apps/desktop-renderer/tests/setup-readiness.test.tsx > re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady and durable data is $durableTrainingData",
         "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > keeps durable training ready while showing the exact first-time Intervals row"
       ]
     },
     {
       "id": "training.setup.readiness-recovery",
       "surface": "training-setup",
-      "expected": "Setup remains locked while authoritative readiness is loading, retries cold-start reads before reporting unavailable, blocks mutation controls when unavailable, and restores them through Retry only after a complete provider, training-data, and intake result.",
+      "expected": "Setup remains locked while authoritative readiness is loading, retries cold-start reads before reporting unavailable, blocks mutation controls when unavailable, and restores them through Retry only after a complete provider and training-data result.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/setup-readiness.test.tsx > fails closed while the durable setup read is still loading",
