@@ -22,6 +22,7 @@ import {
   readAcceptedInstallationCatalog,
   loadConfig,
   loadStoredProfileSnapshot,
+  recordIntervalsCredentialResponse,
   saveStoredProfile,
   type Config,
 } from "@enduragent/core";
@@ -472,6 +473,132 @@ async function intervalsApprovalFixture(
     { ENDURAGENT_HOME: home.root, ...options.env },
   );
   return { home, store, lifecycle, ownerGuard, fetchStub };
+}
+
+async function planCalendarFixture(credentials: {
+  readonly refused: string;
+  readonly accepted: string;
+}) {
+  const requests: {
+    readonly credential: string;
+    readonly method: string;
+    readonly path: string;
+  }[] = [];
+  const events: Record<string, unknown>[] = [];
+  const credentialOf = (authorization: string): string =>
+    [credentials.refused, credentials.accepted].find(
+      (credential) =>
+        authorization === `Bearer ${credential.replace(/^intervals-oauth:/u, "")}` ||
+        authorization === `Basic ${btoa(`API_KEY:${credential}`)}`,
+    ) ?? "unknown";
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    if (url.hostname !== "intervals.icu") throw new Error("unexpected request");
+    const credential = credentialOf(request.headers.get("authorization") ?? "");
+    requests.push({ credential, method: request.method, path: url.pathname });
+    const json = (status: number, body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      });
+    if (credential !== credentials.accepted) return json(401, { status: 401 });
+    if (!url.pathname.endsWith("/events")) return json(404, {});
+    if (request.method === "POST") {
+      const event = { ...((await request.json()) as object), id: events.length + 1 };
+      events.push(event);
+      return json(200, event);
+    }
+    const oldest = url.searchParams.get("oldest") ?? "";
+    const newest = url.searchParams.get("newest") ?? "";
+    return json(
+      200,
+      events.filter((event) => {
+        const date = String(event.start_date_local ?? event.startDateLocal).slice(0, 10);
+        return date >= oldest && date <= newest;
+      }),
+    );
+  });
+  const home = await freshHome();
+  await mkdir(home.storeDir, { recursive: true });
+  const store = openSqliteStorage(join(home.storeDir, "store.db"));
+  stores.push(store);
+  await runMigrations(store, MIGRATIONS);
+  const drains = vi.spyOn(calendarDrain, "createPlanCalendarDrain");
+  const lifecycle = await compose(
+    home,
+    {
+      bootstrap: async () => reference(),
+      createRuntime: () => runtime(),
+      createBackend: () => backend(),
+      now: () => Date.UTC(1998, 8, 2, 12),
+    },
+    { home, store, listener: inertWriterProtocolListener },
+  );
+  const [created] = drains.mock.results;
+  if (created?.type !== "return") throw new Error("Expected the plan calendar drain.");
+  const list = lifecycle.operations["plan.list"];
+  if (list === undefined) throw new Error("Expected plan.list");
+  const started = await lifecycle.operations["plan_creation.start"]({ commandId: "start" });
+  if (started.status !== "started") throw new Error("Expected Plan Creation");
+  let card = started.planCreation;
+  const answers: PlanCreationAnswerInput[] = [
+    { kind: "goal", goal: { kind: "fitness" } },
+    { kind: "plan-length", weeks: 4 },
+    { kind: "schedule-mode", mode: "fixed" },
+    {
+      kind: "availability",
+      mode: "fixed",
+      weeklyHoursLimit: 8,
+      longestWorkoutHours: 3,
+      usableWeekdays: [1, 2, 3, 4, 5, 6, 7],
+    },
+    { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+    { kind: "commitments", commitments: { kind: "none" } },
+    { kind: "baseline", baseline: "regular" },
+    { kind: "success", success: { kind: "fitness-choice", choice: "climb-stronger" } },
+    { kind: "restriction", restriction: { kind: "none" } },
+  ];
+  for (const [index, answer] of answers.entries()) {
+    const result = await lifecycle.operations["plan_creation.answer"]({
+      commandId: `answer-${index}`,
+      creationId: card.creationId,
+      expectedVersion: card.version,
+      answer,
+    });
+    if (result.status !== "answered") throw new Error("Expected answer");
+    card = result.planCreation;
+  }
+  const draft = await lifecycle.operations["plan_creation.preview"]({
+    commandId: "draft",
+    creationId: card.creationId,
+    expectedVersion: card.version,
+  });
+  if (draft.status !== "previewed") throw new Error("Expected Draft");
+  const activated = await lifecycle.operations["plan_creation.activate"]({
+    commandId: "activate",
+    creationId: card.creationId,
+    expectedVersion: draft.planCreation.version,
+    incumbent: null,
+  });
+  if (activated.planId === null) throw new Error("Expected active Plan");
+  return {
+    lifecycle,
+    requests,
+    async apply(apiKey: string) {
+      return lifecycle.operations.configureRuntime({ intervals: { api_key: apiKey } });
+    },
+    async listPlans() {
+      const result = await list({});
+      await created.value.idle();
+      return result;
+    },
+    async jobs() {
+      return store.all(
+        "SELECT kind, status, failure_count FROM plan_reconciliation_job ORDER BY created_at_ms",
+      );
+    },
+  };
 }
 
 async function compose(
@@ -1944,6 +2071,205 @@ describe("local coach composition", () => {
     expect(seenAuthorizations).toContain("Bearer fixture-revoked-at-startup");
     expect(JSON.stringify(snapshot)).not.toContain("fixture-revoked-at-startup");
     await lifecycle.close();
+  });
+
+  it.each([
+    { credential: "intervals-oauth:fixture-revoked-before-retry", retries: false },
+    { credential: "fixture-refused-api-key", retries: true },
+  ])(
+    "retries the deferred owner check after a 401 only for an API key: $credential",
+    async ({ credential, retries }) => {
+      vi.useFakeTimers();
+      try {
+        const home = await freshHome();
+        const requests: string[] = [];
+        const refusingFetch: typeof globalThis.fetch = async (input) => {
+          requests.push(new URL(input instanceof Request ? input.url : input.toString()).pathname);
+          return new Response("{}", {
+            status: 401,
+            headers: { "content-type": "application/json" },
+          });
+        };
+        const lifecycle = await compose(
+          home,
+          {
+            bootstrap: async () => reference(),
+            createRuntime: () => runtime(),
+            createBackend: () => backend(),
+            createRepository: () => ({
+              insertIfAbsent: async () => false,
+              readCurrent: async () => undefined,
+            }),
+            createResolver: () => missingResolver(),
+            assertRuntimeAthleteOwner: (store, options) =>
+              assertRuntimeAthleteOwner(store, options, (lookup) =>
+                resolveIntervalsStoreOwnerFingerprint({ ...lookup, baseFetch: refusingFetch }),
+              ),
+          },
+          fakeContext(home),
+          undefined,
+          config(home, { apiKey: credential, athleteId: "0" }),
+          { ENDURAGENT_HOME: home.root },
+          true,
+        );
+
+        await expect(lifecycle.startInitialRefresh()).rejects.toThrow(
+          "training account owner unresolved",
+        );
+        const firstAttempt = requests.length;
+        expect(firstAttempt).toBeGreaterThan(0);
+
+        await vi.advanceTimersByTimeAsync(600_000);
+        const failures = (await readFile(join(home.root, "logs", "log.jsonl"), "utf8"))
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as { event?: string; failure?: { transient?: boolean } })
+          .filter((line) => line.event === "initial_store_refresh_failed")
+          .map((line) => line.failure?.transient);
+        if (retries) {
+          expect(requests.length).toBeGreaterThan(firstAttempt);
+          expect(failures.length).toBeGreaterThan(2);
+          expect(new Set(failures)).toEqual(new Set([true]));
+        } else {
+          expect(requests).toHaveLength(firstAttempt);
+          expect(failures).toEqual([true, false]);
+        }
+        await lifecycle.close();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it.each([
+    {
+      kind: "OAuth sign-in",
+      credential: "intervals-oauth:fixture-reapplied-after-rejection",
+      replacement: "intervals-oauth:fixture-reapply-new-sign-in",
+      reapplyWindows: 0,
+    },
+    {
+      kind: "API key",
+      credential: "fixture-reapplied-key-after-rejection",
+      replacement: "fixture-reapply-new-key",
+      reapplyWindows: 2,
+    },
+  ])(
+    "refreshes after a re-applied key that intervals.icu rejected only for an API key: $kind",
+    async ({ credential, replacement, reapplyWindows }) => {
+      const home = await freshHome();
+      const windows: string[] = [];
+      let runtimeOptions: LocalStoreRuntimeOptions | undefined;
+      const selectedRuntime = runtime();
+      const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
+        await work(new AbortController().signal);
+        windows.push(runtimeOptions?.readConfig?.().intervals.apiKey ?? "");
+        return selectedRuntime.runWindow();
+      });
+      const backfill = vi.fn(async () => ({
+        pages: 1,
+        artifacts: 0,
+        reports: [],
+        droppedActivityRows: {
+          sourceRestricted: 0,
+          other: 0,
+          datedLocalDates: [],
+          undatedCount: 0,
+        },
+      }));
+      const lifecycle = await compose(home, {
+        bootstrap: async () => reference(),
+        createRuntime: (options) => {
+          runtimeOptions = options;
+          return { ...selectedRuntime, runWindowAfter };
+        },
+        createBackend: () => backend(),
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+        operationsDependencies: { backfill },
+      });
+      const apply = (apiKey: string) =>
+        lifecycle.operations.configureRuntime({ intervals: { api_key: apiKey } });
+
+      await expect(apply(credential)).resolves.toMatchObject({ status: "applied" });
+      expect(runWindowAfter).toHaveBeenCalledTimes(1);
+      recordIntervalsCredentialResponse(credential, 401);
+      await expect(apply(credential)).resolves.toMatchObject({ status: "applied" });
+      await expect(apply(credential)).resolves.toMatchObject({ status: "applied" });
+      expect(runWindowAfter).toHaveBeenCalledTimes(1 + reapplyWindows);
+
+      await expect(lifecycle.operations.sync({})).resolves.toMatchObject({
+        backfill: "completed",
+      });
+      expect(backfill).toHaveBeenCalledWith(expect.objectContaining({ apiKey: credential }));
+      await expect(apply(replacement)).resolves.toMatchObject({ status: "applied" });
+      await expect(apply(replacement)).resolves.toMatchObject({ status: "applied" });
+      await vi.waitFor(() =>
+        expect(windows).toEqual([
+          ...Array.from({ length: 2 + reapplyWindows }, () => credential),
+          replacement,
+          replacement,
+        ]),
+      );
+      await lifecycle.close();
+    },
+  );
+
+  it("holds today's calendar push while the sign-in is rejected and pushes after a new sign-in", async () => {
+    const refused = "intervals-oauth:fixture-calendar-rejected";
+    const accepted = "intervals-oauth:fixture-calendar-new-sign-in";
+    const fixture = await planCalendarFixture({ refused, accepted });
+    await expect(fixture.apply(refused)).resolves.toMatchObject({ status: "applied" });
+
+    await fixture.listPlans();
+    expect(fixture.requests).toEqual([
+      { credential: refused, method: "GET", path: "/api/v1/athlete/synthetic/events" },
+    ]);
+    for (let poll = 0; poll < 5; poll += 1) await fixture.listPlans();
+    expect(fixture.requests).toHaveLength(1);
+    await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "failed", failure_count: 1 },
+    ]);
+    await expect(fixture.listPlans()).resolves.toMatchObject({
+      active: { calendar: { status: "failed", error: "Calendar sync failed. Retry available." } },
+    });
+
+    await expect(fixture.apply(accepted)).resolves.toMatchObject({ status: "applied" });
+    await fixture.listPlans();
+    expect(fixture.requests.filter((request) => request.credential === accepted)).toContainEqual({
+      credential: accepted,
+      method: "POST",
+      path: "/api/v1/athlete/synthetic/events",
+    });
+    await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 1 },
+    ]);
+    await expect(fixture.listPlans()).resolves.toMatchObject({
+      active: { calendar: { status: "verified" } },
+    });
+    await fixture.lifecycle.close();
+  });
+
+  it("retries today's calendar push with a refused API key as before", async () => {
+    const refused = "fixture-calendar-refused-key";
+    const fixture = await planCalendarFixture({ refused, accepted: "fixture-calendar-other-key" });
+    await expect(fixture.apply(refused)).resolves.toMatchObject({ status: "applied" });
+
+    for (let poll = 0; poll < 6; poll += 1) await fixture.listPlans();
+    expect(fixture.requests).toEqual(
+      Array.from({ length: 5 }, () => ({
+        credential: refused,
+        method: "GET",
+        path: "/api/v1/athlete/synthetic/events",
+      })),
+    );
+    await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "failed", failure_count: 5 },
+    ]);
+    await fixture.lifecycle.close();
   });
 
   it("rechecks a same-value credential after deferred owner failure without capturing", async () => {

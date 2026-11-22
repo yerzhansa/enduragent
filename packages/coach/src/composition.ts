@@ -48,7 +48,6 @@ import {
   type CodexAgentRuntimeConfigPatch,
   type Config,
   type AcceptedModelCatalogRecord,
-  type ConversationStorePort,
   type ReferenceRuntime,
   type RuntimeConfigPatch,
   type StoredProfile,
@@ -104,11 +103,18 @@ import {
 } from "@enduragent/kernel-node/planning";
 import {
   createLegacyWriterFence,
+  createPlanConversationRepository,
+  createPlanCreationRepository,
   createPlanDraftBuildRepository,
   createPlanIntakeRepository,
+  createPlanLifecycleRepository,
+  createPlanningRequestIntakeRepository,
+  createPlanningRequestRepository,
+  createPlanRepository,
 } from "@enduragent/kernel/planning";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
+import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "./runtime-bundle.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -116,12 +122,6 @@ import {
   type CoachOperations,
   type ConfigureRuntimeRpcParams,
   type ConfigureRuntimeRpcRefusalReason,
-  type GetArchivedTranscriptPageRpcParams,
-  type GetArchivedTranscriptPageRpcResult,
-  type GetTranscriptPageRpcParams,
-  type GetTranscriptPageRpcResult,
-  type ListArchivedConversationsRpcParams,
-  type ListArchivedConversationsRpcResult,
   type GetRuntimeConfigRpcResult,
   type PlanningReadOperations,
   type CreatePlanningRequestPayload,
@@ -158,6 +158,7 @@ import {
   digestIntervalsCredential,
   normalizeIntervalsAthleteSelector,
 } from "./intervals-credential-approval.js";
+import { isIntervalsCredentialUsable } from "./intervals-credential-usable.js";
 import { createCoachEngineAdapter } from "./coach-engine-adapter.js";
 import { createPlanChangeOperations } from "./plan-change-operations.js";
 import { createPlanChangeEventSourceReader } from "./plan-change-event-source-reader.js";
@@ -218,14 +219,6 @@ import { createAttachmentComposerOperations } from "./attachment-composer-operat
 import { createPlanningReadService } from "./planning-read-service.js";
 import { createPlanningRequestDeliveryService } from "./planning-request-delivery.js";
 import { createPlanningRequestSourceCleanup } from "./planning-request-source-cleanup.js";
-import {
-  createPlanConversationRepository,
-  createPlanCreationRepository,
-  createPlanLifecycleRepository,
-  createPlanningRequestIntakeRepository,
-  createPlanningRequestRepository,
-  createPlanRepository,
-} from "@enduragent/kernel/planning";
 import {
   createPlanningRequestIntakeService,
   createPlanningRequestPremiseReader,
@@ -448,7 +441,11 @@ function replacePrivateFile(path: string, content: string | Uint8Array): void {
   } catch (error) {
     try {
       unlinkSync(temporaryPath);
-    } catch {}
+    } catch (cleanupError) {
+      if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") {
+        process.emitWarning("Could not remove a temporary runtime config file.");
+      }
+    }
     throw error;
   }
 }
@@ -598,136 +595,6 @@ function runtimeConfigSnapshot(
   };
 }
 
-interface RuntimeBundle {
-  readonly intentTranslator?: IntentTranslationPort;
-  readonly engine: CoachEngine;
-  readonly memory: Memory;
-  readonly chatStore: ConversationStorePort;
-  readonly spendMeter: SpendMeterService;
-  readonly timezone: string;
-  readonly confirmations: ConfirmationGate;
-}
-
-function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
-  readonly intentTranslator: IntentTranslationPort;
-  readonly engine: CoachEngine;
-  readonly spendMeter: SpendMeterService;
-  readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
-  readonly getTranscriptPage: (
-    request: GetTranscriptPageRpcParams,
-  ) => Promise<GetTranscriptPageRpcResult>;
-  readonly listArchivedConversations: (
-    request: ListArchivedConversationsRpcParams,
-  ) => Promise<ListArchivedConversationsRpcResult>;
-  readonly getArchivedTranscriptPage: (
-    request: GetArchivedTranscriptPageRpcParams,
-  ) => Promise<GetArchivedTranscriptPageRpcResult>;
-  readonly withChatStore: <T>(
-    operation: (store: ConversationStorePort) => Promise<T>,
-  ) => Promise<T>;
-  replace<T>(
-    prepare: () => T | Promise<T>,
-    commit: (prepared: T) => RuntimeBundle | Promise<RuntimeBundle>,
-  ): Promise<void>;
-} {
-  let active = initial;
-  let admission = Promise.resolve();
-  let activeCalls = 0;
-  let pendingReplacements = 0;
-  const drainWaiters = new Set<() => void>();
-
-  const run = async <T>(operation: (bundle: RuntimeBundle) => Promise<T>): Promise<T> => {
-    await admission;
-    activeCalls += 1;
-    const selected = active;
-    try {
-      return await operation(selected);
-    } finally {
-      activeCalls -= 1;
-      if (activeCalls === 0) {
-        for (const resolve of drainWaiters) resolve();
-        drainWaiters.clear();
-      }
-    }
-  };
-
-  return {
-    intentTranslator: {
-      translateIntent: (text, schema, context) =>
-        run(
-          async (bundle) => bundle.intentTranslator?.translateIntent(text, schema, context) ?? null,
-        ),
-    },
-    engine: {
-      chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),
-      stopChat: (request) =>
-        run(async (bundle) => bundle.engine.stopChat?.(request) ?? { stopped: false }),
-      enqueueChatMessage: (request) => run((bundle) => bundle.engine.enqueueChatMessage!(request)),
-      getChatQueue: (request) => run((bundle) => bundle.engine.getChatQueue!(request)),
-      removeQueuedChatMessage: (request) =>
-        run((bundle) => bundle.engine.removeQueuedChatMessage!(request)),
-      resumeChatQueue: (request, onEvent) =>
-        run((bundle) => bundle.engine.resumeChatQueue!(request, onEvent)),
-      runQueuedCommand: (request, onEvent) =>
-        run((bundle) => bundle.engine.runQueuedCommand!(request, onEvent)),
-      retryQueuedTurn: (request, onEvent) =>
-        run((bundle) => bundle.engine.retryQueuedTurn!(request, onEvent)),
-      getCoachDecision: (request) => run((bundle) => bundle.engine.getCoachDecision(request)),
-      answerCoachDecision: (request, onEvent) =>
-        run((bundle) => bundle.engine.answerCoachDecision(request, onEvent)),
-      skipCoachDecision: (request) => run((bundle) => bundle.engine.skipCoachDecision(request)),
-      resumeCoachDecision: (request, onEvent) =>
-        run((bundle) => bundle.engine.resumeCoachDecision(request, onEvent)),
-      resetSession: (request) => run((bundle) => bundle.engine.resetSession(request)),
-      settle: (request) => run(async (bundle) => bundle.engine.settle?.(request)),
-      hasSession: (request) => run((bundle) => bundle.engine.hasSession(request)),
-      getAthleteState: () => run((bundle) => bundle.engine.getAthleteState()),
-    },
-    spendMeter: {
-      getSpendSummary: () => run((bundle) => bundle.spendMeter.getSpendSummary()),
-      setDailySpendCap: (dailyCapUsd) =>
-        run((bundle) => bundle.spendMeter.setDailySpendCap(dailyCapUsd)),
-    },
-    confirmations: {
-      peek: (chatId, phrasebook) =>
-        pendingReplacements === 0 ? active.confirmations.peek(chatId, phrasebook) : undefined,
-      confirm: (chatId, nonce, phrasebook) =>
-        run((bundle) => bundle.confirmations.confirm(chatId, nonce, phrasebook)),
-      cancel: (chatId, nonce) =>
-        pendingReplacements === 0 ? active.confirmations.cancel(chatId, nonce) : "none",
-    },
-    getTranscriptPage: (request) =>
-      run(async (bundle) => bundle.chatStore.readCurrentConversationPage("desktop", request)),
-    listArchivedConversations: () =>
-      run(async (bundle) => bundle.chatStore.listArchivedConversations("desktop")),
-    getArchivedTranscriptPage: ({ boundaryRef, ...request }) =>
-      run(async (bundle) =>
-        bundle.chatStore.readArchivedConversationPage("desktop", boundaryRef, request),
-      ),
-    withChatStore: (operation) => run((bundle) => operation(bundle.chatStore)),
-    async replace(prepare, commit) {
-      pendingReplacements += 1;
-      const previousAdmission = admission;
-      let release!: () => void;
-      const barrier = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      admission = previousAdmission.then(() => barrier);
-      await previousAdmission;
-      try {
-        const prepared = await prepare();
-        if (activeCalls > 0) {
-          await new Promise<void>((resolve) => drainWaiters.add(resolve));
-        }
-        active = await commit(prepared);
-      } finally {
-        pendingReplacements -= 1;
-        release();
-      }
-    },
-  };
-}
-
 function readReferenceState(dataDir: string): ReferenceStateSnapshot {
   const referenceDir = join(dataDir, "data");
   const read = <T>(
@@ -759,25 +626,24 @@ function readLatestReference(dataDir: string) {
   }
 }
 
+function isOAuthCredential(value: unknown): value is OAuthCredential {
+  return (
+    isRecord(value) &&
+    value.type === "oauth" &&
+    typeof value.access === "string" &&
+    value.access.length > 0 &&
+    typeof value.refresh === "string" &&
+    value.refresh.length > 0 &&
+    typeof value.expires === "number" &&
+    Number.isFinite(value.expires) &&
+    (value.accountId === undefined || typeof value.accountId === "string") &&
+    (value.email === undefined || typeof value.email === "string")
+  );
+}
+
 function credential(value: unknown): OAuthCredential {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TypeError("OAuth profile is invalid.");
-  }
-  const candidate = value as Record<string, unknown>;
-  if (
-    candidate.type !== "oauth" ||
-    typeof candidate.access !== "string" ||
-    candidate.access.length === 0 ||
-    typeof candidate.refresh !== "string" ||
-    candidate.refresh.length === 0 ||
-    typeof candidate.expires !== "number" ||
-    !Number.isFinite(candidate.expires) ||
-    (candidate.accountId !== undefined && typeof candidate.accountId !== "string") ||
-    (candidate.email !== undefined && typeof candidate.email !== "string")
-  ) {
-    throw new TypeError("OAuth profile is invalid.");
-  }
-  return candidate as unknown as OAuthCredential;
+  if (!isOAuthCredential(value)) throw new TypeError("OAuth profile is invalid.");
+  return value;
 }
 
 function createAccessTokenReader(configDir: string): EngineHostPorts["getAccessToken"] {
@@ -1050,8 +916,8 @@ export async function createLocalCoachComposition(
       }),
     };
   };
-  let runtime: LocalStoreRuntime | undefined;
-  let reference: LocalReferenceRuntime | undefined;
+  let startedRuntime: LocalStoreRuntime | undefined;
+  let startedReference: LocalReferenceRuntime | undefined;
   let catalogSession = CatalogSession.live(input.catalog);
   let currentEngineConfig: EngineConfig | undefined;
   const catalogForRebuild = (): AcceptedModelCatalogRecord =>
@@ -1080,7 +946,7 @@ export async function createLocalCoachComposition(
       await startupOwnerClaim?.claim();
       intervalsOwnerReady = true;
     }
-    reference = await (dependencies.bootstrap ?? bootstrapReference)({
+    const reference = await (dependencies.bootstrap ?? bootstrapReference)({
       dataDir: input.home.root,
       intervals: approvedConfig().intervals,
       readIntervals: () => approvedConfig().intervals,
@@ -1088,11 +954,12 @@ export async function createLocalCoachComposition(
       sport: cyclingSport,
       startScheduler: false,
       attemptLedgerForRun: () => {
-        if (runtime === undefined)
+        if (startedRuntime === undefined)
           throw new Error("Store runtime has not started its paired window.");
-        return runtime.attemptLedgerForRun();
+        return startedRuntime.attemptLedgerForRun();
       },
     });
+    startedReference = reference;
     const runtimeOptions: LocalStoreRuntimeOptions = {
       env: input.env,
       config: approvedConfig(),
@@ -1103,13 +970,14 @@ export async function createLocalCoachComposition(
       dependencies: dependencies.runtimeDependencies,
       ...(dependencies.platform === undefined ? {} : { platform: dependencies.platform }),
     };
-    runtime =
+    const runtime =
       dependencies.createRuntime === undefined
         ? createStoreRuntime({
             ...runtimeOptions,
             reference: reference as ReferenceRuntime,
           })
         : dependencies.createRuntime(runtimeOptions);
+    startedRuntime = runtime;
     if (!input.deferInitialRefresh) {
       await runtime.runWindow();
       if (unapprovedConfig.intervals.apiKey.length > 0) {
@@ -1133,8 +1001,8 @@ export async function createLocalCoachComposition(
     const coachLanguage = createCoachLanguage({
       phrasebooks: createPhrasebook,
       store: asLanguagePreferenceStore({
-        get: () => runtime!.runExclusive(() => languagePreference.get()),
-        set: (value) => runtime!.runExclusive(() => languagePreference.set(value)),
+        get: () => runtime.runExclusive(() => languagePreference.get()),
+        set: (value) => runtime.runExclusive(() => languagePreference.set(value)),
       }),
       surface: {
         language:
@@ -1170,7 +1038,7 @@ export async function createLocalCoachComposition(
         store: input.context.store,
       }),
       store: input.context.store,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const workoutLimits = {
@@ -1194,7 +1062,7 @@ export async function createLocalCoachComposition(
         },
       }),
       limits: workoutLimits,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const documentMediaAttachmentOperations = createDocumentMediaAttachmentOperations({
@@ -1232,13 +1100,13 @@ export async function createLocalCoachComposition(
           parserOldGenerationMiB: CHAT_ATTACHMENT_LIMITS.parserOldGenerationMiB,
         },
       }),
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const attachmentOperations = createManagedChatAttachmentOperations({
       repository: attachmentRepository,
       objects: attachmentObjects,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
       observe: observeAttachment,
       beforeConversationCleanup: async (conversationId) => {
@@ -1350,7 +1218,7 @@ export async function createLocalCoachComposition(
       trainingHistorySource: trainingHistory,
       sourceOwner: () => approvedConfig().intervals.athleteId,
       calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
-      droppedActivitiesSource: () => runtime!.currentDroppedActivities(),
+      droppedActivitiesSource: () => runtime.currentDroppedActivities(),
     });
     const buildBundle = async (
       config: Config,
@@ -1506,7 +1374,7 @@ export async function createLocalCoachComposition(
         secrets: { resolve: resolveSecretRef },
         platform: {
           legacyClient,
-          athleteData: runtime!.athleteData,
+          athleteData: runtime.athleteData,
           calendarMutations:
             legacyClient === null
               ? createMissingPlatformCalendarMutations()
@@ -1566,7 +1434,7 @@ export async function createLocalCoachComposition(
     const persistConfig = dependencies.persistRuntimeConfig ?? persistRuntimeConfig;
     const ensureSchedulerStarted = (): void => {
       if (schedulerStarted || closing) return;
-      runtime!.startScheduler();
+      runtime.startScheduler();
       schedulerStarted = true;
     };
     const applyRuntimeConfig = async (
@@ -1629,7 +1497,9 @@ export async function createLocalCoachComposition(
         let ownerState: Awaited<ReturnType<typeof readIntervalsStoreOwnerState>> | undefined;
         try {
           ownerState = await readIntervalsStoreOwnerState(input.context.store);
-        } catch {}
+        } catch (error) {
+          logger.warn("intervals_owner_state_read_failed", error);
+        }
         if (ownerState !== undefined) {
           const approval = intervalsCredentialApprovals.consume({
             approval: request.intervals.verification_approval,
@@ -1791,8 +1661,9 @@ export async function createLocalCoachComposition(
       if (request.intervals !== undefined && candidate.intervals.apiKey.length > 0) {
         if (initialRefreshStarted && initialRefreshConfigCaptured && intervalsOwnerReady) {
           ensureSchedulerStarted();
+          if (!isIntervalsCredentialUsable(approvedConfig().intervals.apiKey)) return;
           const refreshRevision = intervalsConfigRevision;
-          void runtime!
+          void runtime
             .runWindowAfter(() => Promise.resolve())
             .catch((error) =>
               logger.error("runtime_intervals_refresh_failed", undefined, {
@@ -1812,7 +1683,7 @@ export async function createLocalCoachComposition(
       );
       const timer = setTimeout(() => {
         if (initialRefreshRetryTimer === timer) initialRefreshRetryTimer = undefined;
-        if (!closing) void startInitialRefresh().catch(() => {});
+        if (!closing) void Promise.allSettled([startInitialRefresh()]);
       }, delay);
       timer.unref?.();
       initialRefreshRetryTimer = timer;
@@ -1846,7 +1717,7 @@ export async function createLocalCoachComposition(
       let ownerSucceeded = false;
       initialRefreshPromise = initialPlanCompletion
         .then(() =>
-          runtime!.runWindowAfter(async (signal) => {
+          runtime.runWindowAfter(async (signal) => {
             const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
             initializationSignal.throwIfAborted();
             initialRefreshConfigCaptured = true;
@@ -1933,7 +1804,7 @@ export async function createLocalCoachComposition(
       archive: analysisImport.archive,
       store: input.context.store,
       sources: analysisSources,
-      runExclusive: <T>(work: () => Promise<T>) => runtime!.runExclusive(work),
+      runExclusive: <T>(work: () => Promise<T>) => runtime.runExclusive(work),
       now,
     };
     const providerStreams = createProviderActivityStreamReader({
@@ -1976,7 +1847,7 @@ export async function createLocalCoachComposition(
         }),
         powerHeartRate: createPowerHeartRateAnalyzer({ provider: providerPowerHeartRate }),
       },
-      runCacheWrite: (work) => runtime!.runExclusive(work),
+      runCacheWrite: (work) => runtime.runExclusive(work),
       now,
     });
     const trainingExport = createTrainingExportService({
@@ -2137,7 +2008,7 @@ export async function createLocalCoachComposition(
     const drain = createPlanCalendarDrain({
       store: input.context.store,
       calendar: planCalendar,
-      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+      calendarConnected: () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey),
       identity: planningIdentity,
       todayDateKey: planningDateKey,
       now,
@@ -2199,8 +2070,8 @@ export async function createLocalCoachComposition(
               logger.warn("estimated_cp_mathematically_invalid");
             }
           }
-        } catch {
-          // Estimated CP is optional evidence; readiness remains available when it cannot load.
+        } catch (error) {
+          logger.warn("estimated_cp_load_failed", error);
         }
         return projectCyclingReadinessInput({
           today: civil(todayDateKey),
@@ -2461,19 +2332,19 @@ export async function createLocalCoachComposition(
             }
           };
           await attempt(() => dependencies.closeHostAdapters?.());
-          await attempt(() => reference!.scheduler.stop());
+          await attempt(() => reference.scheduler.stop());
           await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
-          await attempt(() => runtime!.close());
-          await initialRefreshPromise?.catch(() => {});
+          await attempt(() => runtime.close());
+          await Promise.allSettled([initialRefreshPromise]);
           if (failure !== undefined) throw failure.error;
         })();
         return closePromise;
       },
     };
   } catch (error) {
-    reference?.scheduler.stop();
-    if (runtime !== undefined) await runtime.close();
+    startedReference?.scheduler.stop();
+    if (startedRuntime !== undefined) await startedRuntime.close();
     throw error;
   }
 }

@@ -5,7 +5,11 @@ import type {
   ReferenceRuntime,
   SubsystemLogger,
 } from "@enduragent/core";
-import { createStoreAthleteDataReader, createSubsystemLogger } from "@enduragent/core";
+import {
+  createStoreAthleteDataReader,
+  createSubsystemLogger,
+  isIntervalsCredentialRejected,
+} from "@enduragent/core";
 import { resolveUserTimezone } from "@enduragent/engine/sport";
 import {
   createCanonicalActivityReader,
@@ -28,13 +32,14 @@ import {
   laneStanding,
   type CaptureReport,
 } from "@enduragent/sync-intervals-icu";
-import {
-  EMPTY_DROPPED_ACTIVITIES,
-  type DroppedActivities,
-} from "@enduragent/coach-contract";
+import { EMPTY_DROPPED_ACTIVITIES, type DroppedActivities } from "@enduragent/coach-contract";
 import { join } from "node:path";
 import { runAnalyticsCurveRefresh } from "./analytics-curves.js";
-import { referenceCaptureRunError, ReplacedCaptureNotReplayableError, runReferenceCapture } from "./capture.js";
+import {
+  referenceCaptureRunError,
+  ReplacedCaptureNotReplayableError,
+  runReferenceCapture,
+} from "./capture.js";
 import { createLocalBundleProducer } from "./local-bundle-producer.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import {
@@ -165,7 +170,7 @@ export class StoreRuntime {
     this.scheduler = createWallClockScheduler({
       cadenceMs: STORE_REFRESH_INTERVAL_MS,
       run: async () => {
-        await this.runWindow();
+        await this.runScheduledWindow();
       },
       onError: (error) => {
         this.logger.error("scheduled_store_refresh_failed", error);
@@ -199,6 +204,18 @@ export class StoreRuntime {
   startScheduler(): void {
     if (this.closed) return;
     this.scheduler.start();
+  }
+
+  private async runScheduledWindow(): Promise<void> {
+    if (isIntervalsCredentialRejected(this.currentConfig().intervals.apiKey)) {
+      this.logger.info("scheduled_store_refresh_skipped", { reason: "credential-rejected" });
+      return;
+    }
+    await this.runWindow();
+  }
+
+  private currentConfig(): Config {
+    return this.options.readConfig?.() ?? this.options.config;
   }
 
   runWindow(): Promise<StoreWindowResult> {
@@ -408,7 +425,7 @@ LIMIT 1`,
 
   private async runWindowInternal(admissionSignal: AbortSignal): Promise<StoreWindowResult> {
     admissionSignal.throwIfAborted();
-    const config = this.options.readConfig?.() ?? this.options.config;
+    const config = this.currentConfig();
     const calendarTimeZone = resolveUserTimezone(config.session.timezone);
     if (config.intervals.apiKey.length === 0) {
       return Object.freeze({
@@ -497,7 +514,9 @@ LIMIT 1`,
       if (captureResult.status === "rejected") {
         const refusal = referenceCaptureRunError(captureResult.reason)?.cause;
         if (refusal instanceof ReplacedCaptureNotReplayableError) {
-          this.logger.error("capture_replacement_refused", undefined, { replacesCaptureId: refusal.replacesCaptureId });
+          this.logger.error("capture_replacement_refused", undefined, {
+            replacesCaptureId: refusal.replacesCaptureId,
+          });
         }
         throw captureResult.reason;
       }
@@ -526,8 +545,12 @@ LIMIT 1`,
     const health = captureHealth(report);
     for (const lane of CAPTURE_LANES) {
       if (health.lanes[lane] === "ok") continue;
-      const fields = { lane, fetched: report[lane].fetched, landed: report[lane].landed,
-        drops: judgedDrops(report[lane]).slice(0, LOGGED_DROPS_PER_LANE).map(formatRowDrop) };
+      const fields = {
+        lane,
+        fetched: report[lane].fetched,
+        landed: report[lane].landed,
+        drops: judgedDrops(report[lane]).slice(0, LOGGED_DROPS_PER_LANE).map(formatRowDrop),
+      };
       if (health.lanes[lane] === "lost") this.logger.error("capture_lane_lost", undefined, fields);
       else this.logger.warn("capture_lane_partial", undefined, fields);
     }

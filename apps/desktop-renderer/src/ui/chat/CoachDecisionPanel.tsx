@@ -106,6 +106,7 @@ export function CoachDecisionPanel(props: {
       restoreCustomTriggerFocus.current = false;
       customTrigger.current?.focus();
     }
+    return () => props.onCustomOpenChange(false);
   }, [customOpen, props.onCustomOpenChange]);
 
   useEffect(() => {

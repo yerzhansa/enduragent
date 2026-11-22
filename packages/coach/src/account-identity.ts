@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
+import { isIntervalsCredentialRejected } from "@enduragent/core";
 import type { ArchiveManager, ArchiveWriteResult } from "@enduragent/kernel/archive";
-import type { PhysicalRequestLedger, SqlStore, SyncBudget } from "@enduragent/kernel/store";
+import type {
+  PhysicalRequestLedger,
+  SqlReadStore,
+  SqlStore,
+  SyncBudget,
+} from "@enduragent/kernel/store";
 import { openReadonlySqliteStorage } from "@enduragent/kernel-node/sqlite";
 import {
   IntervalsHttpError,
@@ -46,6 +52,7 @@ export type RuntimeAthleteOwnerRefusalReason =
   | "current-credential-missing"
   | "current-unresolved"
   | "candidate-unresolved"
+  | "credential-rejected"
   | "mismatch";
 
 export class RuntimeAthleteOwnerRefusal extends Error {
@@ -269,6 +276,9 @@ export async function assertRuntimeAthleteOwner(
       "current-unresolved" | "candidate-unresolved"
     >,
   ): Promise<string> => {
+    if (isIntervalsCredentialRejected(selected.apiKey)) {
+      throw new RuntimeAthleteOwnerRefusal("credential-rejected");
+    }
     let fingerprint: string | null;
     try {
       signal.throwIfAborted();
@@ -434,26 +444,32 @@ export async function checkIntervalsStoreOwnerAtPath(
       return "unowned";
     }
   } catch {
-    await store?.close().catch(() => undefined);
-    return "store-unavailable";
+    return closeOwnerCheckStore(store, "store-unavailable");
   }
   let fingerprint: string | null;
   try {
     fingerprint = await resolveIntervalsStoreOwnerFingerprint(options);
   } catch {
-    await store.close().catch(() => undefined);
-    return "unresolved";
+    return closeOwnerCheckStore(store, "unresolved");
   }
-  if (fingerprint === null) {
-    await store.close().catch(() => undefined);
-    return "unresolved";
-  }
+  if (fingerprint === null) return closeOwnerCheckStore(store, "unresolved");
   try {
     const ownership = await compareStoreOwner(store, fingerprint);
     await store.close();
     return ownership;
   } catch {
-    await store?.close().catch(() => undefined);
+    return closeOwnerCheckStore(store, "store-unavailable");
+  }
+}
+
+async function closeOwnerCheckStore<Result extends StoreOwnerCheckResult>(
+  store: SqlReadStore | undefined,
+  result: Result,
+): Promise<Result | "store-unavailable"> {
+  try {
+    await store?.close();
+    return result;
+  } catch {
     return "store-unavailable";
   }
 }
@@ -470,15 +486,9 @@ async function compareIntervalsStoreOwnerFingerprintAtPath(
     if (timeout?.timeout !== STORE_OWNER_CHECK_BUSY_TIMEOUT_MS) throw new TypeError();
     comparison = await compareStoreOwner(store, fingerprint);
   } catch {
-    await store?.close().catch(() => undefined);
-    return "store-unavailable";
+    return closeOwnerCheckStore(store, "store-unavailable");
   }
-  try {
-    await store.close();
-    return comparison;
-  } catch {
-    return "store-unavailable";
-  }
+  return closeOwnerCheckStore(store, comparison);
 }
 
 function abortableIntervalsCredentialFetch(
