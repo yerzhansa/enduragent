@@ -1,5 +1,39 @@
 # @enduragent/desktop
 
+## 0.6.1
+
+### Patch Changes
+
+- 50a36f2: User-facing: After you sign in to intervals.icu again, today's plan now reaches your intervals.icu calendar the next time your plan refreshes. Before, the calendar could keep showing "Calendar sync failed." after you signed in again.
+
+  While intervals.icu rejects the signed-in token, two calls that nobody asked for now wait for a working sign-in. Re-applying the same sign-in to a running coach no longer starts a store refresh, and the plan-calendar push leaves today's job untouched instead of using up its five attempts. Sync now still sends its requests, the first request after a coach start still detects the rejection, and a plain API key works as before.
+
+- 2b129f8: User-facing: When Intervals.icu stops accepting your sign-in, you can now disconnect it in the app as well as sign in again.
+
+  The Intervals.icu row in the "sign-in stopped working" state now offers Disconnect beside Sign in again. Disconnect uses the same confirmation, revoke attempt and local removal as the connected row, and afterwards the row, the Settings warning and the sidebar notice return to not connected.
+
+- 2fd6f2e: User-facing: Setup and Settings no longer ask for your injury status, so you can start coaching as soon as your AI and training data are connected.
+
+  The `injury-status` Setup row, its intake draft and persistence in the onboarding controller, the `saveIntake` RPC, the `intake` field of `getSetupStatus`, the kernel intake repository, and the `setup.intake.*` and intake error catalog keys are removed. Setup now has two required items. `PROTOCOL_VERSION` moves from 36 to 37. The `intake_flags` table and any row an earlier version saved stay in the store untouched; nothing reads or writes them anymore, and no migration runs.
+
+- 16539a7: User-facing: If you start a new chat while writing your own answer to a coach question, the message box now comes back instead of staying hidden until you restart the app.
+
+  The coach decision panel now reports its custom editor as closed when it unmounts, the same way the Plan editors do, so the chat view stops hiding the composer for an editor that no longer exists.
+
+- 72e5255: While intervals.icu rejects the signed-in token, the six-hour store refresh skips its turn and logs `scheduled_store_refresh_skipped`. An owner check that is retried with a token already marked as rejected is refused without a request. That guards a daemon started with a signed-in token in its config or environment; the desktop app does not start its daemon that way. A new sign-in resumes the refresh, and Sync now still sends its requests. A plain API key syncs as before.
+- 759c8d9: User-facing: The Windows app in the Microsoft Store now installs on Windows 10 as well as Windows 11.
+
+  The Store package's minimum Windows version drops from `10.0.22000.0` to `10.0.19041.0`. CI now registers the Store package on a Windows Server 2022 runner (build 20348, below Windows 11) and runs the packaged self-test against its executable.
+
+- Updated dependencies [50a36f2]
+- Updated dependencies [2fd6f2e]
+- Updated dependencies [72e5255]
+  - @enduragent/coach@0.1.8
+  - @enduragent/coach-contract@0.1.7
+  - @enduragent/coach-client@0.1.7
+  - @enduragent/i18n@0.2.5
+  - @enduragent/core@0.1.11
+
 ## 0.6.0
 
 ### Minor Changes

@@ -1,5 +1,26 @@
 # @enduragent/desktop-renderer
 
+## 0.4.1
+
+### Patch Changes
+
+- 2b129f8: User-facing: When Intervals.icu stops accepting your sign-in, you can now disconnect it in the app as well as sign in again.
+
+  The Intervals.icu row in the "sign-in stopped working" state now offers Disconnect beside Sign in again. Disconnect uses the same confirmation, revoke attempt and local removal as the connected row, and afterwards the row, the Settings warning and the sidebar notice return to not connected.
+
+- 2fd6f2e: User-facing: Setup and Settings no longer ask for your injury status, so you can start coaching as soon as your AI and training data are connected.
+
+  The `injury-status` Setup row, its intake draft and persistence in the onboarding controller, the `saveIntake` RPC, the `intake` field of `getSetupStatus`, the kernel intake repository, and the `setup.intake.*` and intake error catalog keys are removed. Setup now has two required items. `PROTOCOL_VERSION` moves from 36 to 37. The `intake_flags` table and any row an earlier version saved stay in the store untouched; nothing reads or writes them anymore, and no migration runs.
+
+- 16539a7: User-facing: If you start a new chat while writing your own answer to a coach question, the message box now comes back instead of staying hidden until you restart the app.
+
+  The coach decision panel now reports its custom editor as closed when it unmounts, the same way the Plan editors do, so the chat view stops hiding the composer for an editor that no longer exists.
+
+- Updated dependencies [2fd6f2e]
+  - @enduragent/coach-contract@0.1.7
+  - @enduragent/coach-client@0.1.7
+  - @enduragent/i18n@0.2.5
+
 ## 0.4.0
 
 ### Minor Changes
