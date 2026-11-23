@@ -1,6 +1,6 @@
 {
   "name": "running-coach",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "private": true,
   "description": "AI running coaching agent — BYOK + intervals.icu + Telegram.",
   "type": "module",

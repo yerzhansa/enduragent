@@ -1,5 +1,15 @@
 # @enduragent/core
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies [2fd6f2e]
+  - @enduragent/coach-contract@0.1.7
+  - @enduragent/kernel@0.1.4
+  - @enduragent/i18n@0.2.5
+  - @enduragent/engine@0.0.9
+
 ## 0.1.10
 
 ### Patch Changes
