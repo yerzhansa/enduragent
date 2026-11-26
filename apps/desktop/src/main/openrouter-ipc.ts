@@ -50,8 +50,10 @@ function operationIdOf(value: Record<string, unknown>): string {
 
 export function parseOpenRouterSignInSelection(value: unknown): OnboardingLlmSelection {
   const selection = parseOnboardingLlmSelection(value);
-  if (selection.provider !== "openrouter") throw new TypeError();
-  return { ...selection, endpoint: { mode: "default" } };
+  if (selection.provider !== "openrouter" || selection.endpoint.mode !== "default") {
+    throw new TypeError();
+  }
+  return selection;
 }
 
 export function openRouterStoreOutcome(result: CredentialWriteResult): OpenRouterStoreOutcome {

@@ -72,6 +72,13 @@ function parseProgress(value: unknown): OpenRouterSignInProgress | undefined {
     : undefined;
 }
 
+function defaultEndpointSelection(value: unknown): unknown {
+  if (!record(value) || !record(value.endpoint) || value.endpoint.mode !== "default") {
+    throw new TypeError();
+  }
+  return value;
+}
+
 function parseBoolean(value: unknown): boolean {
   if (typeof value !== "boolean") throw new TypeError();
   return value;
@@ -103,7 +110,8 @@ export function createOpenRouterSignInBridge(
   const start = async (channel: string, input: unknown) => {
     if (!record(input) || !exactKeys(input, ["operationId", "selection"])) throw new TypeError();
     const operationId = operationIdOf(input.operationId);
-    const request = { operationId, selection: parseSelection(input.selection) };
+    const selection = defaultEndpointSelection(parseSelection(input.selection));
+    const request = { operationId, selection };
     return invokeParsed(ipc, channel, [request], (value) =>
       parseOpenRouterSignInResult(value, operationId),
     );

@@ -1713,7 +1713,7 @@ describe("desktop onboarding IPC", () => {
 });
 
 describe("desktop OpenRouter sign-in IPC", () => {
-  const selection = (endpoint: unknown = { mode: "automatic" }) => ({
+  const selection = (endpoint: unknown = { mode: "default" }) => ({
     catalogRevision: CATALOG_REVISION,
     provider: "openrouter",
     model: "athlete-model",
@@ -1725,14 +1725,14 @@ describe("desktop OpenRouter sign-in IPC", () => {
     await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const result = await subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
       operationId: "or-1",
-      selection: selection({ mode: "custom", value: "https://elsewhere.example/v1" }),
+      selection: selection(),
     });
     expect(result).toEqual({ status: "connected", operationId: "or-1", credit: "never-paid" });
     expect(subject.vault.writeCredential).toHaveBeenCalledOnce();
     expect(subject.vault.writeCredential).toHaveBeenCalledWith({
       slot: "openrouter",
       value: OPENROUTER_KEY,
-      selection: selection({ mode: "default" }),
+      selection: selection(),
       catalogSnapshot: LOCAL_CATALOG.snapshot,
     });
     expect(subject.progressSend.mock.calls).toEqual([
@@ -1764,6 +1764,30 @@ describe("desktop OpenRouter sign-in IPC", () => {
     expect(calls).toHaveLength(2);
     expect(calls.map((call) => call.length)).toEqual([1, 1]);
     expect({ ...calls[0]?.[0], value: "" }).toEqual({ ...calls[1]?.[0], value: "" });
+  });
+
+  it.each([
+    [DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, { mode: "automatic" }],
+    [DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, { mode: "custom", value: "https://elsewhere.example/v1" }],
+    [DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL, { mode: "automatic" }],
+    [
+      DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL,
+      { mode: "custom", value: "https://elsewhere.example/v1" },
+    ],
+  ])("rejects %s with the endpoint %o instead of rewriting it", async (channel, endpoint) => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    await expect(
+      Promise.resolve().then(() =>
+        subject.invoke(channel, subject.trustedEvent, {
+          operationId: "or-1",
+          selection: selection(endpoint),
+        }),
+      ),
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(subject.openRouter.ports.signIn).not.toHaveBeenCalled();
+    expect(subject.openRouter.ports.startCodeSignIn).not.toHaveBeenCalled();
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
   });
 
   it("refuses a selection whose catalog was not pinned before opening the browser", async () => {

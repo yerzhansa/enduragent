@@ -1057,7 +1057,7 @@ describe("desktop preload ChatGPT auth", () => {
       catalogRevision: 7,
       provider: "openrouter",
       model: "athlete-model",
-      endpoint: { mode: "automatic" },
+      endpoint: { mode: "default" },
     };
     mocks.invoke
       .mockResolvedValueOnce({ status: "connected", operationId: "or-1", credit: "never-paid" })
@@ -1105,13 +1105,21 @@ describe("desktop preload ChatGPT auth", () => {
       catalogRevision: 7,
       provider: "openrouter",
       model: "athlete-model",
-      endpoint: { mode: "automatic" },
+      endpoint: { mode: "default" },
     };
     const key = `sk-or-v1-${"9".repeat(64)}`;
     for (const input of [
       { operationId: "or-1", selection, code: "synthetic-code" },
       { operationId: "or 1", selection },
       { operationId: "or-1" },
+      { operationId: "or-1", selection: { ...selection, endpoint: { mode: "automatic" } } },
+      {
+        operationId: "or-1",
+        selection: {
+          ...selection,
+          endpoint: { mode: "custom", value: "https://elsewhere.example/v1" },
+        },
+      },
     ]) {
       await expect(bridge.openRouterSignIn(input)).rejects.toBeInstanceOf(TypeError);
     }
