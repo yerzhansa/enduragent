@@ -1,7 +1,7 @@
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Config, ReferenceRuntime } from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
@@ -106,9 +106,20 @@ function answersWhileSyncWaits<T>(call: Promise<T>): Promise<T> {
   ]).finally(() => clearTimeout(timer));
 }
 
+const DIRECT_REQUEST = "the sync called intervals.icu without the store runtime's fetch";
+
 describe("store work during a sync that waits on intervals.icu", () => {
   const roots: string[] = [];
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error(DIRECT_REQUEST);
+      }),
+    );
+  });
   afterEach(() => {
+    vi.unstubAllGlobals();
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   });
 
@@ -203,7 +214,14 @@ describe("store work during a sync that waits on intervals.icu", () => {
     const coach = await syncingCoach();
     try {
       const sync = coach.operations.sync({});
-      const finished = sync.then(() => "finished" as const);
+      const finished = sync.then(
+        () => "finished" as const,
+        (error: unknown) => {
+          throw vi.mocked(globalThis.fetch).mock.calls.length > 0
+            ? new Error(DIRECT_REQUEST)
+            : error;
+        },
+      );
       const endpoints: string[] = [];
       for (;;) {
         const request = await Promise.race([coach.provider.nextRequest(), finished]);
@@ -225,6 +243,7 @@ describe("store work during a sync that waits on intervals.icu", () => {
         request.answer();
       }
       expect(endpoints).toEqual(["profile", "activities"]);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
       await expect(sync).resolves.toMatchObject({ schemaVersion: 1, backfill: "completed" });
     } finally {
       await coach.close();
