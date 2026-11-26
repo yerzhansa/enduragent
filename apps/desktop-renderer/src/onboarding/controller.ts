@@ -15,6 +15,12 @@ import type {
 import { CUSTOM_MODEL_SELECTION, DESKTOP_CREDENTIAL_SLOTS } from "./constants";
 import { handoffCredential, type CredentialDraftPort } from "./credentials";
 import { intervalsMutationError, type IntervalsSignInSurface } from "./intervals-sign-in";
+import {
+  createOpenRouterSignIn,
+  openRouterSignInBusy,
+  type OpenRouterSignInActions,
+  type OpenRouterSignInView,
+} from "./openrouter-sign-in";
 import type { SetupCommit } from "./lanes";
 import {
   chatGptSignedIn,
@@ -46,6 +52,7 @@ import {
   llmSelectionFromDraft,
   type LlmSelectionDraft,
 } from "./selection";
+import { afterNextPaint, settleWithin } from "./timing";
 
 export interface OnboardingReadiness {
   readonly provider: boolean;
@@ -69,6 +76,7 @@ export interface OnboardingSurfaceState {
   readonly lastCommit: SetupCommit;
   readonly actionStatus: OnboardingActionStatus;
   readonly intervalsSignIn: IntervalsSignInSurface;
+  readonly openRouter: OpenRouterSignInView;
 }
 
 export function onboardingCredentialMutationActive(surface: OnboardingSurfaceState): boolean {
@@ -78,6 +86,7 @@ export function onboardingCredentialMutationActive(surface: OnboardingSurfaceSta
     surface.wizard.busy ||
     surface.wizard.chatGptLoginPhase !== "idle" ||
     surface.wizard.chatGptRuntimeState === "activating" ||
+    openRouterSignInBusy(surface.openRouter) ||
     surface.rideImport.status === "running"
   );
 }
@@ -99,6 +108,7 @@ export interface OnboardingActions {
   connectTrainingData(): void;
   cancelIntervalsSignIn(): void;
   reopenIntervalsSignIn(): void;
+  readonly openRouter: OpenRouterSignInActions;
   finish(): void;
   dismiss(): void;
   retrySavedKeys(): void;
@@ -166,47 +176,6 @@ export function setupStatusKnown(
   surface: Pick<OnboardingSurfaceState, "initialized" | "loadUnavailable">,
 ): boolean {
   return surface.initialized && !surface.loadUnavailable;
-}
-
-type BoundedResult<T> =
-  | { readonly status: "fulfilled"; readonly value: T }
-  | { readonly status: "rejected" };
-
-async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<BoundedResult<T>> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise.then<BoundedResult<T>, BoundedResult<T>>(
-        (value) => ({ status: "fulfilled", value }),
-        () => ({ status: "rejected" }),
-      ),
-      new Promise<BoundedResult<T>>((resolve) => {
-        timer = setTimeout(() => resolve({ status: "rejected" }), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-function afterNextPaint(callback: () => void): () => void {
-  if (typeof requestAnimationFrame !== "function") {
-    const timer = setTimeout(callback, 0);
-    return () => clearTimeout(timer);
-  }
-  let secondFrame: number | undefined;
-  let cancelled = false;
-  const firstFrame = requestAnimationFrame(() => {
-    if (cancelled) return;
-    secondFrame = requestAnimationFrame(() => {
-      if (!cancelled) callback();
-    });
-  });
-  return () => {
-    cancelled = true;
-    cancelAnimationFrame(firstFrame);
-    if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
-  };
 }
 
 type CredentialWriteFailureReason = Extract<
@@ -313,6 +282,7 @@ export function createOnboardingController(
       lastCommit,
       actionStatus,
       intervalsSignIn,
+      openRouter: openRouter.view(),
     });
   };
 
@@ -365,6 +335,23 @@ export function createOnboardingController(
     };
   };
 
+  const openRouter = createOpenRouterSignIn({
+    bridge: options.bridge,
+    createOperationId,
+    publish,
+    configuration: () => llmConfiguration,
+    draft: () => llmDraft,
+    canMutate: () =>
+      presenting && !setupStatusBlocksMutations() && !state.busy && !credentialMutationsBlocked(),
+    active: () =>
+      llmConfiguration?.active?.provider === "openrouter" &&
+      state.credentialStatus.openrouter === "configured",
+    sync: async (selection) => {
+      if ((await refreshStatuses(visit)) && selection !== null) recordActiveSelection(selection);
+    },
+    fail: setFixedError,
+  });
+
   const cancelActiveIntervalsSignIn = (): void => {
     if (intervalsSignIn.phase !== "waiting-for-browser") return;
     void options.bridge.cancelIntervalsSignIn().catch(() => false);
@@ -373,6 +360,7 @@ export function createOnboardingController(
   const close = (): void => {
     cancelActiveChatGptLogin();
     cancelActiveIntervalsSignIn();
+    openRouter.reset();
     clearProgressDetailTimer();
     clearScheduledActivation();
     authGeneration += 1;
@@ -874,6 +862,7 @@ export function createOnboardingController(
     setRideImportPresentation(true);
     focusTitle();
     publish();
+    openRouter.refreshCredit();
     opening = false;
   };
 
@@ -895,6 +884,7 @@ export function createOnboardingController(
     dispose(): void {
       cancelActiveChatGptLogin();
       cancelActiveIntervalsSignIn();
+      openRouter.dispose();
       clearProgressDetailTimer();
       clearScheduledActivation();
       disposed = true;
@@ -942,6 +932,7 @@ export function createOnboardingController(
       if (disposed || intervalsSignIn.phase !== "waiting-for-browser") return;
       void options.bridge.reopenIntervalsSignIn().catch(() => false);
     },
+    openRouter: openRouter.actions,
     finish(): void {
       void finishSetup();
     },

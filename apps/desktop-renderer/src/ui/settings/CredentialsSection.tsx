@@ -19,7 +19,10 @@ import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { SetupRow } from "../onboarding/SetupRow";
 import { InlineConfirmation } from "@enduragent/ui";
-import { INTERVALS_DISCONNECT_COPY } from "../../settings/credential-delete-copy";
+import {
+  INTERVALS_DISCONNECT_COPY,
+  deleteDetailMessage,
+} from "../../settings/credential-delete-copy";
 import { credentialRuntimeLabel, credentialFeedbackMessages, credentialKindMessage } from "./copy";
 
 export const SETUP_CREDENTIAL_EDIT_EVENT = "enduragent:edit-credential";
@@ -164,10 +167,7 @@ export function CredentialDeleteConfirmation(props: {
               intervals: "Intervals.icu",
               computer: PLATFORM_COPY.computer,
             })
-          : say("settings.credentials.delete.detail", {
-              product: "Enduragent",
-              computer: PLATFORM_COPY.computer,
-            })
+          : say(deleteDetailMessage(entry.credential))
       }
       confirmLabel={
         !intervals

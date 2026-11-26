@@ -368,6 +368,7 @@ describe("setup card", () => {
     expect(laneItems().map((item) => item.dataset.lane)).toEqual([
       "claude-cli",
       "openai-codex",
+      "openrouter",
       "api-key",
     ]);
     expect(laneItems().filter((item) => item.getAttribute("aria-checked") === "true").length).toBe(
@@ -872,6 +873,7 @@ describe("setup card", () => {
     expect(laneItems().map((item) => item.dataset.lane)).toEqual([
       "claude-cli",
       "openai-codex",
+      "openrouter",
       "api-key",
     ]);
     for (const item of laneItems()) {

@@ -36,6 +36,7 @@ import { useEnduragentStore, type EnduragentState } from "./state/store";
 import { setupReady, setupSurfaceOnScreen } from "./state/onboarding-slice";
 import { nonTelegramSettingsMutationActive } from "./state/settings-slice";
 import { validateImportPaths, type OnboardingBridge } from "./onboarding/bridge";
+import { openRouterSignInBridge } from "./onboarding/openrouter-sign-in";
 import { createOnboardingCompletionController } from "./onboarding/completion";
 import {
   createOnboardingController,
@@ -535,6 +536,7 @@ export function bootRenderer(): Disposer {
     reopenIntervalsSignIn: () => window.enduragentAuth.reopenIntervalsSignIn(),
     onIntervalsSignInProgress: (listener) =>
       window.enduragentAuth.onIntervalsSignInProgress(listener),
+    ...openRouterSignInBridge(window.enduragentAuth),
     llmConfiguration: () => window.enduragentAuth.llmConfiguration(),
     applyLlmSelection: (value) => window.enduragentAuth.applyLlmSelection(value),
     chatGptStatus: () => window.enduragentAuth.chatgptStatus(),

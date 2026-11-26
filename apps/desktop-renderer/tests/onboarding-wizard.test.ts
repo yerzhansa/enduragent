@@ -42,6 +42,7 @@ const BANNED_TRAINING_TERMS = [
 
 const PROVIDER_WORD_ALLOWLIST = [
   "{{providers}} providers · pay per use",
+  "Sign in · pay per use, many models",
   "Created in the provider's console",
 ] as const;
 

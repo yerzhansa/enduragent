@@ -991,6 +991,11 @@ describe("settings setup inventory", () => {
     );
 
     await waitFor(() =>
+      expect(document.querySelector('[data-setup-panel="openrouter"]')).not.toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "Sign in with OpenRouter" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Paste a key instead" }));
+    await waitFor(() =>
       expect(document.querySelector('[data-setup-panel="api-key"]')).not.toBeNull(),
     );
     expect(document.querySelector('[data-setup-menu="ai"]')).toBeNull();
@@ -1850,6 +1855,7 @@ describe("credential deletion", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Change the OpenRouter credential" }));
+    await user.click(await screen.findByRole("button", { name: "Paste a key instead" }));
     const secret = await screen.findByLabelText("OpenRouter API key");
     await user.type(secret, "synthetic-openrouter-secret");
     expect(secret).toHaveValue("synthetic-openrouter-secret");
