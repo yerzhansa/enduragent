@@ -47,7 +47,7 @@ export interface OpenRouterSignInPorts {
   readonly openExternal: (url: string) => Promise<void>;
   readonly signIn: (options: OpenRouterSignInOptions) => Promise<string>;
   readonly startCodeSignIn: () => OpenRouterCodeSignIn;
-  readonly readCreditStatus: (key: string) => Promise<OpenRouterCreditStatus>;
+  readonly readCreditStatus: (key: string, signal?: AbortSignal) => Promise<OpenRouterCreditStatus>;
 }
 
 export interface OpenRouterAuthDependencies {
@@ -127,26 +127,28 @@ function failureOf(
 }
 
 type ClipboardRead =
-  | { readonly status: "read"; readonly code: string | null }
+  | { readonly status: "read"; readonly text: string; readonly code: string | null }
   | { readonly status: "unavailable" };
 
 async function readClipboardCode(clipboard: Pick<Clipboard, "readText">): Promise<ClipboardRead> {
   try {
     const text: unknown = await clipboard.readText();
     return typeof text === "string"
-      ? { status: "read", code: parseOpenRouterCode(text) }
+      ? { status: "read", text, code: parseOpenRouterCode(text) }
       : { status: "unavailable" };
   } catch {
     return { status: "unavailable" };
   }
 }
 
-function clearClipboard(clipboard: Pick<Clipboard, "clear">): boolean {
+async function clearClipboardIfUnchanged(
+  clipboard: Pick<Clipboard, "readText" | "clear">,
+  text: string,
+): Promise<void> {
   try {
-    clipboard.clear();
-    return true;
+    if ((await clipboard.readText()) === text) clipboard.clear();
   } catch {
-    return false;
+    return;
   }
 }
 
@@ -173,9 +175,10 @@ export function createOpenRouterAuth(
   ): Promise<OpenRouterSignInResult> => {
     if (lifetime.signal.aborted) return refused(operationId, "cancelled");
     const stored = await store(key).catch((): OpenRouterStoreOutcome => "not-saved");
+    if (lifetime.signal.aborted) return refused(operationId, "cancelled");
     if (stored !== "connected") return refused(operationId, stored);
     const credit = await dependencies.ports
-      .readCreditStatus(key)
+      .readCreditStatus(key, lifetime.signal)
       .catch((): OpenRouterCreditStatus => "unknown");
     return { status: "connected", operationId, credit };
   };
@@ -243,14 +246,13 @@ export function createOpenRouterAuth(
       } catch (error) {
         if (!owns(operationId, "browser")) return refused(operationId, "cancelled");
         attempt = NO_ATTEMPT;
-        if (lifetime.signal.aborted) return refused(operationId, "cancelled");
+        if (browserFailed) return refused(operationId, "not-finished");
+        if (lifetime.signal.aborted || abort.signal.aborted)
+          return refused(operationId, "cancelled");
         if (error instanceof OpenRouterSignInError && error.reason === "callback-unavailable") {
           return beginCode(operationId, store);
         }
-        return refused(
-          operationId,
-          browserFailed ? "not-finished" : failureOf(error, BROWSER_FAILURES),
-        );
+        return refused(operationId, failureOf(error, BROWSER_FAILURES));
       }
       try {
         if (!owns(operationId, "browser")) return refused(operationId, "cancelled");
@@ -289,15 +291,20 @@ export function createOpenRouterAuth(
           read.status === "unavailable" ? "clipboard-unavailable" : "clipboard-no-code",
         );
       }
-      clearClipboard(dependencies.clipboard);
       onPhase("completing-sign-in");
       let key: string;
       try {
         key = await current.exchange(read.code, lifetime.signal);
       } catch (error) {
-        release(operationId, "code");
-        return refused(operationId, failureOf(error, CODE_FAILURES));
+        const reason = failureOf(error, CODE_FAILURES);
+        if (reason === "unreachable" && attempt === reading && !lifetime.signal.aborted) {
+          attempt = current;
+        } else {
+          release(operationId, "code");
+        }
+        return refused(operationId, reason);
       }
+      await clearClipboardIfUnchanged(dependencies.clipboard, read.text);
       try {
         if (!owns(operationId, "code")) return refused(operationId, "cancelled");
         return await finish(operationId, key, current.store);
@@ -309,7 +316,7 @@ export function createOpenRouterAuth(
       if (attempt.kind === "none" || attempt.operationId !== operationId) return false;
       if (attempt.phase === "completing-sign-in") return false;
       if (attempt.kind === "browser") attempt.abort.abort();
-      else attempt = NO_ATTEMPT;
+      attempt = NO_ATTEMPT;
       return true;
     },
     reopen(operationId) {
@@ -317,6 +324,10 @@ export function createOpenRouterAuth(
         return Promise.resolve(false);
       }
       if (attempt.phase === "completing-sign-in" || attempt.authorizeUrl === null) {
+        return Promise.resolve(false);
+      }
+      if (attempt.kind === "code" && now() > attempt.expiresAt) {
+        attempt = NO_ATTEMPT;
         return Promise.resolve(false);
       }
       return dependencies.ports.openExternal(attempt.authorizeUrl).then(
@@ -331,9 +342,9 @@ export function createOpenRouterAuth(
       } catch {
         return "unknown";
       }
-      if (key === undefined) return "unknown";
+      if (key === undefined || lifetime.signal.aborted) return "unknown";
       return dependencies.ports
-        .readCreditStatus(key)
+        .readCreditStatus(key, lifetime.signal)
         .catch((): OpenRouterCreditStatus => "unknown");
     },
     openPage(page) {

@@ -67,6 +67,23 @@ describe("OpenRouter sign-in ports", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it("passes the caller's abort signal to the credit read", async () => {
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      init?.signal?.throwIfAborted();
+      return Response.json({ data: { is_free_tier: false } });
+    });
+    const ports = openRouterSignInPorts({
+      app: { isPackaged: true },
+      hidden: false,
+      environment: {},
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    const abort = new AbortController();
+    abort.abort();
+    await expect(ports.readCreditStatus("sk-or-v1-real", abort.signal)).resolves.toBe("unknown");
+    await expect(ports.readCreditStatus("sk-or-v1-real")).resolves.toBe("paid");
+  });
+
   it("logs the consent page and answers with a synthetic key in an acceptance run", async () => {
     const log = join(await scratch(), "authorize.log");
     const ports = openRouterSignInPorts({

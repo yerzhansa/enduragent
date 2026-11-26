@@ -241,7 +241,7 @@ function harness(
         authorizeUrl: OPENROUTER_HEADLESS_URL,
         exchange: vi.fn(async (_text: string, _signal?: AbortSignal) => OPENROUTER_KEY),
       })),
-      readCreditStatus: vi.fn(async (_key: string) => "never-paid" as const),
+      readCreditStatus: vi.fn(async (_key: string, _signal?: AbortSignal) => "never-paid" as const),
     },
     clipboard: { readText: vi.fn(async () => OPENROUTER_CODE), clear: vi.fn() },
     readStoredKey: vi.fn(async (): Promise<string | undefined> => OPENROUTER_KEY),
@@ -1832,7 +1832,10 @@ describe("desktop OpenRouter sign-in IPC", () => {
     await expect(
       subject.invoke(DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL, subject.trustedEvent),
     ).resolves.toBe("never-paid");
-    expect(subject.openRouter.ports.readCreditStatus).toHaveBeenCalledWith(OPENROUTER_KEY);
+    expect(subject.openRouter.ports.readCreditStatus).toHaveBeenCalledWith(
+      OPENROUTER_KEY,
+      expect.any(AbortSignal),
+    );
     await expect(
       subject.invoke(DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL, subject.trustedEvent, { page: "keys" }),
     ).resolves.toBe(true);

@@ -57,7 +57,7 @@ function harness(options: { readonly clipboardText?: string | (() => string) } =
       return result.promise;
     }),
     startCodeSignIn: vi.fn(() => ({ authorizeUrl: HEADLESS_URL, exchange })),
-    readCreditStatus: vi.fn(async (_key: string) => "paid" as const),
+    readCreditStatus: vi.fn(async (_key: string, _signal?: AbortSignal) => "paid" as const),
   };
   const readStoredKey = vi.fn(async (): Promise<string | undefined> => KEY);
   const auth = createOpenRouterAuth({ ports, clipboard, readStoredKey, now: () => clock });
@@ -108,7 +108,7 @@ describe("OpenRouter sign-in controller", () => {
       credit: "paid",
     });
     expect(subject.store).toHaveBeenCalledWith(KEY);
-    expect(subject.ports.readCreditStatus).toHaveBeenCalledWith(KEY);
+    expect(subject.ports.readCreditStatus).toHaveBeenCalledWith(KEY, expect.any(AbortSignal));
     expect(subject.phases).toEqual(["waiting-for-browser", "completing-sign-in"]);
     expect(JSON.stringify(subject.results)).not.toContain(KEY);
   });
@@ -208,15 +208,14 @@ describe("OpenRouter sign-in controller", () => {
     expect(subject.ports.openExternal).toHaveBeenLastCalledWith(HEADLESS_URL);
   });
 
-  it("reads the copied code, clears the clipboard, then exchanges and stores", async () => {
+  it("reads the copied code, exchanges it, then clears the clipboard and stores", async () => {
     const subject = harness({ clipboardText: `  ${CODE}\n` });
     subject.auth.startCodeSignIn("op-code", subject.store);
     const phases: OpenRouterSignInPhase[] = [];
     const result = await subject.auth.useCopiedCode("op-code", (phase) => phases.push(phase));
     expect(result).toEqual({ status: "connected", operationId: "op-code", credit: "paid" });
-    expect(subject.clipboard.readText).toHaveBeenCalledOnce();
     expect(subject.clipboard.clear).toHaveBeenCalledOnce();
-    expect(subject.clipboard.readText.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(subject.exchange.mock.invocationCallOrder[0]).toBeLessThan(
       subject.clipboard.clear.mock.invocationCallOrder[0] ?? 0,
     );
     expect(subject.exchange).toHaveBeenCalledWith(CODE, expect.any(AbortSignal));
@@ -242,6 +241,44 @@ describe("OpenRouter sign-in controller", () => {
     await expect(subject.auth.useCopiedCode("op-code", vi.fn())).resolves.toMatchObject({
       status: "connected",
     });
+  });
+
+  it("clears the clipboard only after a successful exchange and only if it still holds the code", async () => {
+    let text = CODE;
+    const subject = harness({ clipboardText: () => text });
+    subject.exchange.mockRejectedValueOnce(new OpenRouterSignInError("code-rejected"));
+    subject.auth.startCodeSignIn("op-rejected", subject.store);
+    await expect(subject.auth.useCopiedCode("op-rejected", vi.fn())).resolves.toMatchObject({
+      reason: "code-expired",
+    });
+    expect(subject.clipboard.clear).not.toHaveBeenCalled();
+
+    subject.exchange.mockImplementationOnce(async () => {
+      text = "something the rider copied meanwhile";
+      return KEY;
+    });
+    subject.auth.startCodeSignIn("op-copied", subject.store);
+    await expect(subject.auth.useCopiedCode("op-copied", vi.fn())).resolves.toMatchObject({
+      status: "connected",
+    });
+    expect(subject.clipboard.clear).not.toHaveBeenCalled();
+  });
+
+  it("keeps the code attempt and the clipboard when OpenRouter does not answer", async () => {
+    const subject = harness();
+    subject.exchange.mockRejectedValueOnce(new OpenRouterSignInError("unreachable"));
+    subject.auth.startCodeSignIn("op-code", subject.store);
+    await expect(subject.auth.useCopiedCode("op-code", vi.fn())).resolves.toEqual({
+      status: "refused",
+      operationId: "op-code",
+      reason: "unreachable",
+    });
+    expect(subject.clipboard.clear).not.toHaveBeenCalled();
+    await expect(subject.auth.useCopiedCode("op-code", vi.fn())).resolves.toMatchObject({
+      status: "connected",
+    });
+    expect(subject.exchange).toHaveBeenCalledTimes(2);
+    expect(subject.clipboard.clear).toHaveBeenCalledOnce();
   });
 
   it("keeps the code sign-in open when the clipboard cannot be read", async () => {
@@ -270,6 +307,55 @@ describe("OpenRouter sign-in controller", () => {
     held.resolve(KEY);
     await expect(first).resolves.toMatchObject({ status: "connected" });
     expect(subject.exchange).toHaveBeenCalledOnce();
+  });
+
+  it("frees a cancelled browser attempt at once so a new sign-in can start", async () => {
+    const subject = harness();
+    const cancelled = subject.startBrowser("op-cancel");
+    await subject.approve();
+    expect(subject.auth.cancel("op-cancel")).toBe(true);
+    await expect(subject.auth.reopen("op-cancel")).resolves.toBe(false);
+    const next = subject.startBrowser("op-next");
+    await expect(cancelled).resolves.toMatchObject({ reason: "cancelled" });
+    subject.browser.result?.resolve(KEY);
+    await expect(next).resolves.toMatchObject({ status: "connected", operationId: "op-next" });
+    expect(subject.ports.openExternal).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to a code sign-in for a cancelled browser attempt", async () => {
+    const subject = harness();
+    const listener = deferred<string>();
+    subject.ports.signIn.mockReturnValueOnce(listener.promise);
+    const pending = subject.startBrowser("op-cancel");
+    expect(subject.auth.cancel("op-cancel")).toBe(true);
+    listener.reject(new OpenRouterSignInError("callback-unavailable"));
+    await expect(pending).resolves.toMatchObject({ reason: "cancelled" });
+    expect(subject.ports.startCodeSignIn).not.toHaveBeenCalled();
+    expect(subject.ports.openExternal).not.toHaveBeenCalled();
+  });
+
+  it("drops an expired code attempt instead of reopening its page", async () => {
+    const subject = harness();
+    subject.auth.startCodeSignIn("op-code", subject.store);
+    subject.advance(OPENROUTER_CODE_ATTEMPT_LIFETIME_MS + 1);
+    await expect(subject.auth.reopen("op-code")).resolves.toBe(false);
+    expect(subject.ports.openExternal).toHaveBeenCalledOnce();
+    expect(subject.auth.cancel("op-code")).toBe(false);
+  });
+
+  it("stops before reading credits with the key once disposed during the vault write", async () => {
+    const subject = harness();
+    const stored = deferred<OpenRouterStoreOutcome>();
+    subject.store.mockReturnValueOnce(stored.promise);
+    const pending = subject.startBrowser();
+    subject.browser.result?.resolve(KEY);
+    await vi.waitFor(() => expect(subject.store).toHaveBeenCalledOnce());
+    subject.auth.dispose();
+    stored.resolve("connected");
+    await expect(pending).resolves.toMatchObject({ reason: "cancelled" });
+    expect(subject.ports.readCreditStatus).not.toHaveBeenCalled();
+    await expect(subject.auth.readCreditStatus()).resolves.toBe("unknown");
+    expect(subject.ports.readCreditStatus).not.toHaveBeenCalled();
   });
 
   it("reports a rejected code as expired and drops the attempt", async () => {
@@ -333,7 +419,7 @@ describe("OpenRouter sign-in controller", () => {
   it("reads the credit status of the stored key and answers unknown without one", async () => {
     const subject = harness();
     await expect(subject.auth.readCreditStatus()).resolves.toBe("paid");
-    expect(subject.ports.readCreditStatus).toHaveBeenCalledWith(KEY);
+    expect(subject.ports.readCreditStatus).toHaveBeenCalledWith(KEY, expect.any(AbortSignal));
     subject.readStoredKey.mockResolvedValueOnce(undefined);
     await expect(subject.auth.readCreditStatus()).resolves.toBe("unknown");
     subject.readStoredKey.mockRejectedValueOnce(new Error("vault locked"));

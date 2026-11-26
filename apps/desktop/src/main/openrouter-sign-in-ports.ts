@@ -43,7 +43,12 @@ export function openRouterSignInPorts(input: {
     openExternal,
     signIn: (options) => signInWithOpenRouter({ ...options, ...withFetch }),
     startCodeSignIn: () => startOpenRouterCodeSignIn(withFetch),
-    readCreditStatus: (key) => readOpenRouterCreditStatus({ key, ...withFetch }),
+    readCreditStatus: (key, signal) =>
+      readOpenRouterCreditStatus({
+        key,
+        ...withFetch,
+        ...(signal === undefined ? {} : { signal }),
+      }),
   };
 }
 
