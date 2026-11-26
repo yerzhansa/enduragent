@@ -345,7 +345,11 @@ export function createProviderModelSettingsController(input: {
           input.codexAgentSupported ?? true,
         ),
       });
-      input.onSaved?.(selection);
+      try {
+        input.onSaved?.(selection);
+      } catch {
+        console.error("desktop-coach-on-saved-failed");
+      }
     }
     if (disposed) return;
     const latest = editableState(currentState);

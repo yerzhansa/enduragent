@@ -236,6 +236,25 @@ describe("provider and model settings refresh", () => {
       }),
     );
   });
+
+  it("finishes the save when the dependent refresh throws", async () => {
+    const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { controller, subject } = createSubject({
+      onSaved: () => {
+        throw new Error("dependent refresh failed");
+      },
+    });
+    await controller.activate();
+    subject.model("claude-opus");
+
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(formState(controller)).toMatchObject({
+      active: { model: "claude-opus" },
+      dirty: false,
+    });
+    expect(report).toHaveBeenCalledExactlyOnceWith("desktop-coach-on-saved-failed");
+    report.mockRestore();
+  });
 });
 
 describe("provider and model settings controller", () => {
