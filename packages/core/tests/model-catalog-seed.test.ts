@@ -147,7 +147,7 @@ describe("bundled model catalog seed", () => {
     );
 
     const retired = {
-      anthropic: ["claude-haiku-4-5-20251001", "claude-opus-5", "claude-fable-5-1"],
+      anthropic: ["claude-opus-5", "claude-fable-5-1"],
       google: ["gemini-3.7-flash", "gemini-3.1-pro-preview"],
       deepseek: ["deepseek-v4-flash"],
       qwen: ["qwen3.7-max", "qwen3.8-max"],
@@ -166,7 +166,8 @@ describe("bundled model catalog seed", () => {
     for (const [lane, models] of Object.entries(retired)) {
       for (const model of models) expect(ids[lane], `${lane} ${model}`).not.toContain(model);
     }
-    expect(ids.openai?.filter((model) => model.startsWith("gpt-5.6-"))).toEqual([]);
+    expect(ids.openai?.filter((model) => model.startsWith("gpt-5.6-"))).toEqual(["gpt-5.6-sol"]);
+    expect(ids.anthropic).toContain("claude-haiku-4-5-20251001");
 
     expect(ids["openai-codex"]).not.toContain("gpt-6-astra");
     expect(ids["codex-agent"]).not.toContain("gpt-6-astra");
