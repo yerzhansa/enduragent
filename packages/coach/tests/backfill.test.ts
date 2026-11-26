@@ -454,6 +454,9 @@ FROM training_history_backfill_checkpoint`,
           async runExclusive(work) {
             return work(new AbortController().signal);
           },
+          async runOutsideWindow(work) {
+            return work(new AbortController().signal);
+          },
           async runActivityWrite(work) {
             return {
               value: await work(new AbortController().signal),
@@ -461,7 +464,7 @@ FROM training_history_backfill_checkpoint`,
             };
           },
           async runWindowAfter(work) {
-            await work(new AbortController().signal);
+            await work(new AbortController().signal, globalThis.fetch);
             return {
               published: true,
               legacySucceeded: true,

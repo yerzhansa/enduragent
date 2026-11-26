@@ -127,6 +127,7 @@ async function makeRuntime(
     },
   );
   const produce = vi.fn(async () => produced);
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response("{}"));
   const openReadonlyStore = vi.fn(() => readonlyStore);
   runtime = createStoreRuntime({
     env: {},
@@ -144,6 +145,7 @@ async function makeRuntime(
       capture,
       refreshCurves,
       produce,
+      fetch,
       now: () => new Date("1998-07-18T12:00:00.000Z"),
       monotonicNow: () => 1,
       openReadonlyStore,
@@ -155,6 +157,7 @@ async function makeRuntime(
     capture,
     refreshCurves,
     produce,
+    fetch,
     reference,
     readonlyStore,
     openReadonlyStore,
@@ -971,6 +974,235 @@ describe("StoreRuntime", () => {
       "write:after-window",
     ]);
     await runtime.close();
+  });
+
+  it("admits store work while a window's provider request is in flight, never beside its store steps", async () => {
+    const { runtime, capture, fetch } = await makeRuntime();
+    const trace: string[] = [];
+    let answerProvider!: (response: Response) => void;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          answerProvider = resolve;
+        }),
+    );
+    capture.mockImplementationOnce(async (options) => {
+      trace.push("window:request");
+      await options.baseFetch!("https://intervals.icu/synthetic");
+      trace.push("window:store");
+      return { manifest };
+    });
+    const window = runtime.runWindow();
+    await expect(
+      runtime.runExclusive(async () => {
+        trace.push("read");
+        return "read";
+      }),
+    ).resolves.toBe("read");
+    expect(trace).toEqual(["window:request", "read"]);
+
+    let finishWrite!: () => void;
+    const write = runtime.runExclusive(async () => {
+      trace.push("write:start");
+      await new Promise<void>((resolve) => {
+        finishWrite = resolve;
+      });
+      trace.push("write:end");
+    });
+    answerProvider(new Response("{}"));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(trace).toEqual(["window:request", "read", "write:start"]);
+    finishWrite();
+    await write;
+    await expect(window).resolves.toMatchObject({ published: true });
+    expect(trace).toEqual(["window:request", "read", "write:start", "write:end", "window:store"]);
+    await runtime.close();
+  });
+
+  it("keeps the store lane free until the whole response body has arrived", async () => {
+    const { runtime, capture, fetch } = await makeRuntime();
+    const trace: string[] = [];
+    let sendBody!: () => void;
+    fetch.mockImplementationOnce(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              sendBody = () => {
+                controller.enqueue(new TextEncoder().encode('{"rides":3}'));
+                controller.close();
+              };
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+    capture.mockImplementationOnce(async (options) => {
+      const response = await options.baseFetch!("https://intervals.icu/synthetic");
+      trace.push(`window:${response.status}:${await response.text()}`);
+      return { manifest };
+    });
+    const window = runtime.runWindow();
+    while (sendBody === undefined) await new Promise((resolve) => setImmediate(resolve));
+    await runtime.runExclusive(async () => {
+      trace.push("read:before-body");
+    });
+    sendBody();
+    await window;
+    expect(trace).toEqual(["read:before-body", 'window:200:{"rides":3}']);
+    await runtime.close();
+  });
+
+  it("passes a response without a body through the off-lane fetch", async () => {
+    const { runtime, capture, fetch } = await makeRuntime();
+    fetch.mockImplementationOnce(async () => new Response(null, { status: 304 }));
+    let status: number | undefined;
+    capture.mockImplementationOnce(async (options) => {
+      status = (await options.baseFetch!("https://intervals.icu/synthetic")).status;
+      return { manifest };
+    });
+    await runtime.runWindow();
+    expect(status).toBe(304);
+    await runtime.close();
+  });
+
+  it("admits store work while pre-window work, the curve refresh and the legacy refresh wait on the provider", async () => {
+    const { runtime, reference, refreshCurves, fetch } = await makeRuntime();
+    const trace: string[] = [];
+    const pending: Array<(response: Response) => void> = [];
+    fetch.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    const nextRequest = async (): Promise<(response: Response) => void> => {
+      while (pending.length === 0) await new Promise((resolve) => setImmediate(resolve));
+      return pending.shift()!;
+    };
+    let answerLegacy!: (value: Awaited<ReturnType<ReferenceRuntime["runScheduledOnce"]>>) => void;
+    vi.mocked(reference.runScheduledOnce).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answerLegacy = resolve;
+        }),
+    );
+    refreshCurves.mockImplementationOnce(async (options) => {
+      await options.baseFetch!("https://intervals.icu/synthetic-curves");
+      trace.push("curves:store");
+      return {
+        kind: "promoted" as const,
+        generationId: "a".repeat(64),
+        frozenAt: options.frozenAt.toISOString(),
+        physicalRequests: 4 as const,
+        decodedBytes: 0,
+      };
+    });
+    const window = runtime.runWindowAfter(async (_signal, fetchOffStoreLane) => {
+      await fetchOffStoreLane("https://intervals.icu/synthetic-backfill");
+      trace.push("backfill:store");
+    });
+
+    const answerBackfill = await nextRequest();
+    await runtime.runExclusive(async () => {
+      trace.push("read:during-backfill");
+    });
+    answerBackfill(new Response("{}"));
+
+    while (answerLegacy === undefined) await new Promise((resolve) => setImmediate(resolve));
+    await runtime.runExclusive(async () => {
+      trace.push("read:during-legacy");
+    });
+    answerLegacy({
+      kind: "ran",
+      lastSyncAt: "1998-07-18T12:00:00.000Z",
+      refreshed: [],
+      droppedActivities: {
+        overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+        recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+      },
+    });
+
+    const answerCurves = await nextRequest();
+    await runtime.runExclusive(async () => {
+      trace.push("read:during-curves");
+    });
+    answerCurves(new Response("{}"));
+
+    await expect(window).resolves.toMatchObject({ published: true, legacySucceeded: true });
+    expect(trace).toEqual([
+      "read:during-backfill",
+      "backfill:store",
+      "read:during-legacy",
+      "read:during-curves",
+      "curves:store",
+    ]);
+    await runtime.close();
+  });
+
+  it("keeps windows, activity writes and outside-window work behind a window whose request is in flight", async () => {
+    const { runtime, capture, fetch } = await makeRuntime();
+    const trace: string[] = [];
+    let answerProvider!: (response: Response) => void;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          answerProvider = resolve;
+        }),
+    );
+    capture.mockImplementationOnce(async (options) => {
+      trace.push("window:request");
+      await options.baseFetch!("https://intervals.icu/synthetic");
+      trace.push("window:store");
+      return { manifest };
+    });
+    const window = runtime.runWindow();
+    const write = runtime.runActivityWrite(
+      async () => {
+        trace.push("write");
+        return "written";
+      },
+      () => [],
+    );
+    const outside = runtime.runOutsideWindow(async () => {
+      trace.push("outside");
+    });
+    const after = runtime.runWindowAfter(async () => {
+      trace.push("after");
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(trace).toEqual(["window:request"]);
+    answerProvider(new Response("{}"));
+    await Promise.all([window, write, outside, after]);
+    expect(trace).toEqual(["window:request", "window:store", "write", "outside", "after"]);
+    await runtime.close();
+  });
+
+  it("aborts and drains a window whose request is in flight when closed", async () => {
+    const { runtime, capture, fetch } = await makeRuntime();
+    let signal!: AbortSignal;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise<Response>((_, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        }),
+    );
+    capture.mockImplementationOnce(async (options) => {
+      signal = options.budget!.signal;
+      await options.baseFetch!("https://intervals.icu/synthetic");
+      return { manifest };
+    });
+    const window = runtime.runWindow();
+    while (signal === undefined) await Promise.resolve();
+    const behindWindow = runtime.runOutsideWindow(async () => "late");
+    const rejectedWindow = expect(window).rejects.toThrow("Store runtime closed.");
+    const rejectedLate = expect(behindWindow).rejects.toThrow("Store runtime is closed.");
+    await expect(runtime.close()).resolves.toBeUndefined();
+    await rejectedWindow;
+    await rejectedLate;
+    await expect(runtime.runExclusive(async () => "after")).rejects.toThrow(
+      "Store runtime is closed.",
+    );
   });
 
   it("does not let failed work poison a later exclusive admission", async () => {

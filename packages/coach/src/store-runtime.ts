@@ -82,10 +82,33 @@ export interface StoreWriteResult<T> {
   readonly activityReadAvailable: boolean;
 }
 
+interface Lane {
+  held: boolean;
+  readonly waiting: Array<() => void>;
+}
+
+type OffStoreLane = <T>(wait: () => Promise<T>) => Promise<T>;
+
+const BODILESS_STATUSES: ReadonlySet<number> = new Set([204, 205, 304]);
+
+async function fetchWholeResponse(
+  fetch: typeof globalThis.fetch,
+  ...request: Parameters<typeof globalThis.fetch>
+): Promise<Response> {
+  const response = await fetch(...request);
+  const body = await response.arrayBuffer();
+  return new Response(BODILESS_STATUSES.has(response.status) ? null : body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 export interface StoreRuntimeDependencies {
   readonly capture?: (...input: Parameters<typeof runReferenceCapture>) => Promise<WindowCapture>;
   readonly refreshCurves?: typeof runAnalyticsCurveRefresh;
   readonly produce?: (manifest: ReferenceCaptureManifest) => Promise<ProducedLocalBundle>;
+  readonly fetch?: typeof globalThis.fetch;
   readonly now?: () => Date;
   readonly monotonicNow?: () => number;
   readonly openReadonlyStore?: (path: string) => SqlReadStore;
@@ -119,20 +142,22 @@ export class StoreRuntime {
   private readonlyStore: SqlReadStore | undefined;
   private readonly canonicalActivities: CanonicalActivityReader;
   private readonly dependencies: Required<
-    Pick<StoreRuntimeDependencies, "capture" | "refreshCurves" | "produce" | "now" | "monotonicNow">
+    Pick<
+      StoreRuntimeDependencies,
+      "capture" | "refreshCurves" | "produce" | "fetch" | "now" | "monotonicNow"
+    >
   >;
   private readonly logger: SubsystemLogger;
   private readonly scheduler: WallClockScheduler;
   private published: PublishedCapture | undefined;
   private activeLedger: PhysicalRequestLedger | undefined;
   private activeController: AbortController | undefined;
-  private activeBeforeWindowController: AbortController | undefined;
   private activeWindow: Promise<StoreWindowResult> | undefined;
   private droppedActivitiesValue = EMPTY_DROPPED_ACTIVITIES;
-  private admissionActive = false;
-  private readonly admissionQueue: Array<() => void> = [];
+  private readonly windowLane: Lane = { held: false, waiting: [] };
+  private readonly storeLane: Lane = { held: false, waiting: [] };
+  private readonly admissionControllers = new Set<AbortController>();
   private readonly admissionDrainWaiters = new Set<() => void>();
-  private activeAdmissionController: AbortController | undefined;
   private closePromise: Promise<void> | undefined;
   private closed = false;
 
@@ -157,6 +182,7 @@ export class StoreRuntime {
             storePath: join(options.home.storeDir, "store.db"),
             archiveRoot: options.home.archiveDir,
           }).produce(manifest)),
+      fetch: dependencies.fetch ?? ((...request) => globalThis.fetch(...request)),
       now,
       monotonicNow: dependencies.monotonicNow ?? (() => performance.now()),
     };
@@ -221,27 +247,31 @@ export class StoreRuntime {
   runWindow(): Promise<StoreWindowResult> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
     if (this.activeWindow !== undefined) return this.activeWindow;
-    const task = this.runExclusive((signal) => this.runWindowInternal(signal));
+    const task = this.admit([this.windowLane, this.storeLane], (signal, offStoreLane) =>
+      this.runWindowInternal(signal, offStoreLane),
+    );
     this.installActiveWindow(task);
     return task;
   }
 
-  runWindowAfter(work: (signal: AbortSignal) => Promise<void>): Promise<StoreWindowResult> {
+  runWindowAfter(
+    work: (signal: AbortSignal, fetchOffStoreLane: typeof globalThis.fetch) => Promise<void>,
+  ): Promise<StoreWindowResult> {
     if (typeof work !== "function")
       return Promise.reject(new TypeError("Window work must be a function."));
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
-    const task = this.runExclusive(async (signal) => {
-      this.activeBeforeWindowController = this.activeAdmissionController;
-      try {
-        await work(signal);
-        signal.throwIfAborted();
-        return await this.runWindowInternal(signal);
-      } finally {
-        this.activeBeforeWindowController = undefined;
-      }
+    const task = this.admit([this.windowLane, this.storeLane], async (signal, offStoreLane) => {
+      await work(signal, this.fetchOffStoreLane(offStoreLane));
+      signal.throwIfAborted();
+      return await this.runWindowInternal(signal, offStoreLane);
     });
     this.installActiveWindow(task);
     return task;
+  }
+
+  private fetchOffStoreLane(offStoreLane: OffStoreLane): typeof globalThis.fetch {
+    return (...request) =>
+      offStoreLane(() => fetchWholeResponse(this.dependencies.fetch, ...request));
   }
 
   currentDroppedActivities(): DroppedActivities {
@@ -252,48 +282,100 @@ export class StoreRuntime {
     if (typeof work !== "function") {
       return Promise.reject(new TypeError("Exclusive work must be a function."));
     }
+    return this.admit([this.storeLane], (signal) => work(signal));
+  }
+
+  runOutsideWindow<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    if (typeof work !== "function") {
+      return Promise.reject(new TypeError("Exclusive work must be a function."));
+    }
+    return this.admit([this.windowLane, this.storeLane], (signal) => work(signal));
+  }
+
+  private admit<T>(
+    lanes: readonly Lane[],
+    work: (signal: AbortSignal, offStoreLane: OffStoreLane) => Promise<T>,
+  ): Promise<T> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
     return new Promise<T>((resolve, reject) => {
-      const run = (): void => {
-        if (this.closed) {
-          reject(new Error("Store runtime is closed."));
-          this.advanceAdmission();
-          return;
+      const held: Lane[] = [];
+      let settled = false;
+      let offLane = false;
+      const leaveHeld = (): void => {
+        settled = true;
+        for (const lane of held.splice(0).reverse()) this.leave(lane);
+      };
+      const offStoreLane: OffStoreLane = async (wait) => {
+        if (offLane || settled || held.at(-1) !== this.storeLane) return wait();
+        offLane = true;
+        held.pop();
+        this.leave(this.storeLane);
+        try {
+          return await wait();
+        } finally {
+          await new Promise<void>((resume) => this.enter(this.storeLane, resume));
+          offLane = false;
+          if (settled) this.leave(this.storeLane);
+          else held.push(this.storeLane);
         }
-        this.admissionActive = true;
+      };
+      const run = (): void => {
         const controller = new AbortController();
-        this.activeAdmissionController = controller;
+        this.admissionControllers.add(controller);
         let task: Promise<T>;
         try {
-          task = Promise.resolve(work(controller.signal));
+          task = Promise.resolve(work(controller.signal, offStoreLane));
         } catch (error) {
           task = Promise.reject(error);
         }
         void task.then(resolve, reject).finally(() => {
-          if (this.activeAdmissionController === controller) {
-            this.activeAdmissionController = undefined;
-          }
-          this.advanceAdmission();
+          this.admissionControllers.delete(controller);
+          leaveHeld();
         });
       };
-      if (this.admissionActive) this.admissionQueue.push(run);
-      else run();
+      const enterNext = (): void => {
+        const lane = lanes[held.length];
+        if (lane === undefined) {
+          run();
+          return;
+        }
+        this.enter(lane, () => {
+          held.push(lane);
+          if (this.closed) {
+            reject(new Error("Store runtime is closed."));
+            leaveHeld();
+            return;
+          }
+          enterNext();
+        });
+      };
+      enterNext();
     });
   }
 
-  private advanceAdmission(): void {
-    this.admissionActive = false;
-    const next = this.admissionQueue.shift();
+  private enter(lane: Lane, proceed: () => void): void {
+    if (lane.held) {
+      lane.waiting.push(proceed);
+      return;
+    }
+    lane.held = true;
+    proceed();
+  }
+
+  private leave(lane: Lane): void {
+    const next = lane.waiting.shift();
     if (next !== undefined) {
       next();
       return;
     }
+    lane.held = false;
+    if (this.windowLane.held || this.storeLane.held) return;
     for (const resolve of this.admissionDrainWaiters) resolve();
     this.admissionDrainWaiters.clear();
   }
 
   private drainAdmissions(): Promise<void> {
-    if (!this.admissionActive && this.admissionQueue.length === 0) return Promise.resolve();
+    if (!this.windowLane.held && !this.storeLane.held) return Promise.resolve();
     return new Promise((resolve) => this.admissionDrainWaiters.add(resolve));
   }
 
@@ -401,7 +483,7 @@ LIMIT 1`,
     work: (signal: AbortSignal) => Promise<T>,
     workoutKeys: (value: T) => readonly string[],
   ): Promise<StoreWriteResult<T>> {
-    return this.runExclusive(async (signal) => {
+    return this.runOutsideWindow(async (signal) => {
       const value = await work(signal);
       signal.throwIfAborted();
       let activityReadAvailable = false;
@@ -423,7 +505,10 @@ LIMIT 1`,
     void task.then(clear, clear);
   }
 
-  private async runWindowInternal(admissionSignal: AbortSignal): Promise<StoreWindowResult> {
+  private async runWindowInternal(
+    admissionSignal: AbortSignal,
+    offStoreLane: OffStoreLane,
+  ): Promise<StoreWindowResult> {
     admissionSignal.throwIfAborted();
     const config = this.currentConfig();
     const calendarTimeZone = resolveUserTimezone(config.session.timezone);
@@ -450,6 +535,7 @@ LIMIT 1`,
     else admissionSignal.addEventListener("abort", abortWindow, { once: true });
     this.activeLedger = ledger;
     this.activeController = controller;
+    const baseFetch = this.fetchOffStoreLane(offStoreLane);
     const now = this.dependencies.now();
     const monotonicStart = this.dependencies.monotonicNow();
     const budget: SyncBudget = {
@@ -477,13 +563,14 @@ LIMIT 1`,
           : { replacesCaptureId: this.published.bundle.captureId }),
         budget,
         attemptLedger: ledger,
+        baseFetch,
         ...(this.options.platform === undefined ? {} : { platform: this.options.platform }),
       });
       const legacyPromise = this.options.reference.runScheduledOnce(controller.signal);
-      const [captureResult, legacyResult] = await Promise.allSettled([
-        capturePromise,
-        legacyPromise,
-      ]);
+      const captureSettled = Promise.allSettled([capturePromise]);
+      const legacySettled = Promise.allSettled([legacyPromise]);
+      const [captureResult] = await captureSettled;
+      const [legacyResult] = await offStoreLane(() => legacySettled);
       controller.signal.throwIfAborted();
       let published = false;
       if (captureResult.status === "fulfilled" && captureResult.value !== undefined) {
@@ -501,6 +588,7 @@ LIMIT 1`,
             frozenOn: manifest.plan.frozenNow.slice(0, 10),
             budget,
             attemptLedger: ledger,
+            baseFetch,
           });
         } catch (error) {
           this.logger.warn("analytics_curve_refresh_failed", error);
@@ -560,8 +648,7 @@ LIMIT 1`,
     this.closePromise ??= (async () => {
       this.closed = true;
       const reason = new Error("Store runtime closed.");
-      this.activeAdmissionController?.abort(reason);
-      this.activeBeforeWindowController?.abort(reason);
+      for (const controller of this.admissionControllers) controller.abort(reason);
       this.activeController?.abort(reason);
       let failure: unknown;
       try {

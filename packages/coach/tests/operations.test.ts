@@ -71,7 +71,10 @@ function operationRuntime(
       counts: requestCounts(0, 0),
     };
   },
-): Pick<LocalStoreRuntime, "runWindowAfter" | "runExclusive" | "runActivityWrite"> {
+): Pick<
+  LocalStoreRuntime,
+  "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "runActivityWrite"
+> {
   let tail = Promise.resolve();
   const runExclusive: LocalStoreRuntime["runExclusive"] = (work) => {
     const run = () => work(new AbortController().signal);
@@ -84,13 +87,14 @@ function operationRuntime(
   };
   return {
     runExclusive,
+    runOutsideWindow: runExclusive,
     runActivityWrite: async (work) => ({
       value: await runExclusive(work),
       activityReadAvailable: true,
     }),
     runWindowAfter: (work) =>
       runExclusive(async () => {
-        const result = await runWindowAfter(work);
+        const result = await runWindowAfter((signal) => work(signal, globalThis.fetch));
         return {
           ...result,
           droppedActivities: result.droppedActivities ?? EMPTY_DROPPED_ACTIVITIES,
@@ -635,6 +639,7 @@ describe("coach operations", () => {
       historyNewestDate: "1998-07-18",
       calendarTimeZone: "UTC",
       signal: expect.any(AbortSignal),
+      baseFetch: expect.any(Function),
     });
     expect(result).toEqual({
       schemaVersion: 1,

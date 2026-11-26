@@ -339,10 +339,11 @@ function runtime(
       droppedActivities: EMPTY_DROPPED_ACTIVITIES,
     }),
     async runWindowAfter(work) {
-      await work(new AbortController().signal);
+      await work(new AbortController().signal, globalThis.fetch);
       return { ...(await runWindow()), droppedActivities: EMPTY_DROPPED_ACTIVITIES };
     },
     runExclusive,
+    runOutsideWindow: runExclusive,
     async runActivityWrite(work) {
       return {
         value: await runExclusive(work),
@@ -1943,7 +1944,7 @@ describe("local coach composition", () => {
     }).snapshot();
     const selectedRuntime = runtime(trace);
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
-      await work(new AbortController().signal);
+      await work(new AbortController().signal, globalThis.fetch);
       const current = runtimeOptions?.readConfig?.();
       if (current === undefined) throw new Error("Expected live runtime configuration.");
       windows.push({ ...current.intervals });
@@ -2162,7 +2163,7 @@ describe("local coach composition", () => {
       let runtimeOptions: LocalStoreRuntimeOptions | undefined;
       const selectedRuntime = runtime();
       const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
-        await work(new AbortController().signal);
+        await work(new AbortController().signal, globalThis.fetch);
         windows.push(runtimeOptions?.readConfig?.().intervals.apiKey ?? "");
         return selectedRuntime.runWindow();
       });
@@ -2477,7 +2478,7 @@ describe("local coach composition", () => {
     const selectedRuntime = runtime(trace);
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>((work) =>
       selectedRuntime.runExclusive(async (signal) => {
-        await work(signal);
+        await work(signal, globalThis.fetch);
         const current = runtimeOptions?.readConfig?.();
         if (current === undefined) throw new Error("Expected live runtime configuration.");
         windows.push({ ...current.intervals });
@@ -2571,7 +2572,7 @@ describe("local coach composition", () => {
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>((work) => {
       windowController = new AbortController();
       activeWindow = (async () => {
-        await work(windowController!.signal);
+        await work(windowController!.signal, globalThis.fetch);
         return {
           published: true,
           counts,
@@ -6120,7 +6121,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
       const previous = active;
       if (previous !== undefined) await Promise.allSettled([previous]);
-      await work(new AbortController().signal);
+      await work(new AbortController().signal, globalThis.fetch);
       return launchWindow();
     });
     const baseRuntime = runtime();
@@ -7165,6 +7166,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       historyNewestDate: "1998-07-19",
       calendarTimeZone: "Asia/Almaty",
       signal: expect.any(AbortSignal),
+      baseFetch: expect.any(Function),
     });
     expect(backfill).not.toHaveBeenCalledWith(
       expect.objectContaining({ apiKey: String.fromCharCode(111, 108, 100) }),

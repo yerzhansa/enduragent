@@ -82,7 +82,10 @@ export interface CreateCoachOperationsInput {
   readonly languagePreference?: LanguagePreferenceService;
   readonly home: AthleteHome;
   readonly context: CoachStoreWriterContext;
-  readonly runtime: Pick<LocalStoreRuntime, "runWindowAfter" | "runExclusive" | "runActivityWrite">;
+  readonly runtime: Pick<
+    LocalStoreRuntime,
+    "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "runActivityWrite"
+  >;
   readonly intervalsCredentials: Readonly<{
     read(): Promise<Readonly<{ apiKey: string; athleteId: string }>>;
   }>;
@@ -244,7 +247,7 @@ export function createCoachOperations(
       deliver(onEvent, { phase: "started", completed: 0, total: 1 });
       let backfillOutcome: SyncRpcResult["backfill"] = "completed";
       return input.runtime
-        .runWindowAfter(async (signal) => {
+        .runWindowAfter(async (signal, fetchOffStoreLane) => {
           const credentials = await input.intervalsCredentials.read();
           if (credentials.apiKey.length === 0) {
             backfillOutcome =
@@ -261,6 +264,7 @@ export function createCoachOperations(
             historyNewestDate: input.historyNewestDate(),
             calendarTimeZone: input.calendarTimeZone(),
             signal,
+            baseFetch: fetchOffStoreLane,
           });
         })
         .then((window) => {
@@ -378,7 +382,9 @@ export function createCoachOperations(
             },
           });
         };
-        return parsedRequest.intervals === undefined ? apply() : input.runtime.runExclusive(apply);
+        return parsedRequest.intervals === undefined
+          ? apply()
+          : input.runtime.runOutsideWindow(apply);
       });
     },
     verify_intervals_credential(

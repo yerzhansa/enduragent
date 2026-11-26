@@ -2237,8 +2237,8 @@ describe("disconnect, close, and send bounds", () => {
         method,
         timeoutMs,
       });
-      expect(terminals).toEqual([{ client, cause: error }]);
-      expect(socket.closeCalls).toHaveLength(1);
+      expect(terminals).toEqual([]);
+      expect(socket.closeCalls).toEqual([]);
     },
   );
 
@@ -2300,8 +2300,8 @@ describe("disconnect, close, and send bounds", () => {
       JSON.stringify({ jsonrpc: "2.0", id: 1, result: { hasSession: true } }),
     );
     expect(timeout).toBeInstanceOf(CoachClientCallTimeoutError);
-    expect(terminal).toHaveBeenCalledExactlyOnceWith(exactClient, timeout);
-    expect(exact.socket.closeCalls).toHaveLength(1);
+    expect(terminal).not.toHaveBeenCalled();
+    expect(exact.socket.closeCalls).toEqual([]);
   });
 
   it("does not slide the self-test deadline when valid progress keeps arriving", async () => {
@@ -2330,7 +2330,7 @@ describe("disconnect, close, and send bounds", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     await expect(call).resolves.toBeInstanceOf(CoachClientCallTimeoutError);
     expect(progress).toHaveBeenCalledTimes(3);
-    expect(socket.closeCalls).toHaveLength(1);
+    expect(socket.closeCalls).toEqual([]);
   });
 
   it("latches one mid-flight abort across pending and future calls without replay", async () => {
@@ -2378,46 +2378,131 @@ describe("disconnect, close, and send bounds", () => {
     expect(socket.sent).toHaveLength(2);
   });
 
-  it("clears queued sends and fans one timeout cause to all pending and future calls", async () => {
+  it("rejects only the call that timed out and keeps the connection for the others", async () => {
     vi.useFakeTimers();
     const observer = vi.fn();
     const { socket, connecting } = acceptedSocket("service-managed", { onTerminal: observer });
     const client = await connecting;
     socket.sent.length = 0;
-    socket.bufferedAmount = 1_048_576;
-    const firstController = new AbortController();
-    const secondController = new AbortController();
-    const firstRemove = vi.spyOn(firstController.signal, "removeEventListener");
-    const secondRemove = vi.spyOn(secondController.signal, "removeEventListener");
-    const first = client
-      .call("hasSession", { chatId: "chat-1" }, { signal: firstController.signal })
-      .catch((error: unknown) => error);
-    const second = client
-      .call(
-        "chat",
-        { chatId: "chat-2", message: "queued" },
-        {
-          signal: secondController.signal,
-        },
-      )
+    socket.sendHook = () => {};
+    const progress = vi.fn();
+    const sync = client.call("sync", {}, { onEvent: progress });
+    const stalled = client
+      .call("saveChatAttachmentDraftText", { chatId: "chat-1", text: "draft" })
       .catch((error: unknown) => error);
 
     await vi.advanceTimersByTimeAsync(30_000);
-    const [a, b] = await Promise.all([first, second]);
 
-    expect(a).toBeInstanceOf(CoachClientCallTimeoutError);
-    expect(a).toMatchObject({ method: "hasSession", timeoutMs: 30_000 });
-    expect(b).toBe(a);
-    await expect(client.call("hasSession", { chatId: "future" })).rejects.toBe(a);
-    expect(observer).toHaveBeenCalledExactlyOnceWith(client, a);
-    expect(firstRemove).toHaveBeenCalledWith("abort", expect.any(Function));
-    expect(secondRemove).toHaveBeenCalledWith("abort", expect.any(Function));
-    expect(socket.closeCalls).toHaveLength(1);
+    const timeout = await stalled;
+    expect(timeout).toBeInstanceOf(CoachClientCallTimeoutError);
+    expect(timeout).toMatchObject({ method: "saveChatAttachmentDraftText", timeoutMs: 30_000 });
+    expect(observer).not.toHaveBeenCalled();
+    expect(socket.closeCalls).toEqual([]);
+
+    const later = client.call("hasSession", { chatId: "chat-1" });
+    expect(socket.sent).toHaveLength(3);
+    socket.emitMessage(JSON.stringify({ jsonrpc: "2.0", id: 3, result: { hasSession: true } }));
+    await expect(later).resolves.toEqual({ hasSession: true });
+
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({
+        jsonrpc: "2.0",
+        method: "coach.operationProgress",
+        params: {
+          requestId: 1,
+          requestMethod: "sync",
+          event: { phase: "started", completed: 0, total: 1 },
+        },
+      }),
+    );
+    socket.emitMessage(
+      JSON.stringify({ jsonrpc: "2.0", id: 2, error: { code: -32000, message: "late" } }),
+    );
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({
+        jsonrpc: "2.0",
+        method: "coach.operationProgress",
+        params: {
+          requestId: 1,
+          requestMethod: "sync",
+          event: { phase: "completed", completed: 1, total: 1 },
+        },
+      }),
+    );
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          schemaVersion: 1,
+          backfill: "completed",
+          published: true,
+          referenceSucceeded: true,
+          requests: { store: 1, reference: 1, total: 2 },
+          droppedActivities: {
+            overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+            recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+          },
+        },
+      }),
+    );
+    await expect(sync).resolves.toMatchObject({ backfill: "completed", published: true });
+    expect(progress).toHaveBeenCalledTimes(2);
+    expect(observer).not.toHaveBeenCalled();
+    expect(socket.closeCalls).toEqual([]);
+    socket.closeSynchronously = true;
+    await client.close();
+  });
+
+  it("answers a timed-out call once: a second reply to it is a protocol fault", async () => {
+    vi.useFakeTimers();
+    const observer = vi.fn();
+    const { socket, connecting } = acceptedSocket("service-managed", { onTerminal: observer });
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const stalled = client
+      .call("hasSession", { chatId: "chat-1" })
+      .catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(stalled).resolves.toBeInstanceOf(CoachClientCallTimeoutError);
+
+    socket.emitMessage(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { hasSession: true } }));
+    expect(observer).not.toHaveBeenCalled();
+    socket.emitMessage(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { hasSession: true } }));
+    expect(observer).toHaveBeenCalledExactlyOnceWith(client, expect.any(CoachClientProtocolError));
+    expect(socket.closeCalls).toEqual([{ code: 1002, reason: undefined }]);
+  });
+
+  it("never sends the frame of a call that timed out while it was queued", async () => {
+    vi.useFakeTimers();
+    const observer = vi.fn();
+    const { socket, connecting } = acceptedSocket("service-managed", { onTerminal: observer });
+    const client = await connecting;
+    socket.sent.length = 0;
+    socket.sendHook = () => {};
+    socket.bufferedAmount = 1_048_576;
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const queued = client
+      .call("hasSession", { chatId: "chat-1" }, { signal: controller.signal })
+      .catch((error: unknown) => error);
+    const turn = client.call("chat", { chatId: "chat-2", message: "queued" });
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await expect(queued).resolves.toBeInstanceOf(CoachClientCallTimeoutError);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    expect(observer).not.toHaveBeenCalled();
+    expect(socket.closeCalls).toEqual([]);
     socket.bufferedAmount = 0;
     await vi.advanceTimersByTimeAsync(100);
-    expect(socket.sent).toEqual([]);
+    expect(socket.sent.map((text) => (JSON.parse(text) as { method: string }).method)).toEqual([
+      "chat",
+    ]);
+    socket.emitMessage(JSON.stringify({ jsonrpc: "2.0", id: 2, result: { text: "answer" } }));
+    await expect(turn).resolves.toEqual({ text: "answer" });
     socket.emitMessage(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { hasSession: true } }));
-    expect(observer).toHaveBeenCalledTimes(1);
+    expect(observer).toHaveBeenCalledExactlyOnceWith(client, expect.any(CoachClientProtocolError));
   });
 
   it.each(["success", "remote-error"] as const)(
