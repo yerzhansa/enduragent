@@ -94,7 +94,7 @@ function fakeView() {
 function createSubject(input: {
   readonly load?: () => Promise<OnboardingLlmConfiguration>;
   readonly apply?: (selection: OnboardingLlmSelection) => Promise<OnboardingLlmSelectionResult>;
-  readonly onSaved?: () => Promise<void> | void;
+  readonly onSaved?: () => void;
   readonly openSetup?: () => void;
   readonly codexAgentSupported?: boolean;
 }) {
@@ -670,11 +670,9 @@ describe("provider and model settings controller", () => {
     });
   });
 
-  it("keeps successful persistence visible when dependent refresh rejects", async () => {
+  it("shows the saved route without waiting for the dependent refresh", async () => {
     const { controller, subject, apply } = createSubject({
-      onSaved: async () => {
-        throw new Error("refresh unavailable");
-      },
+      onSaved: () => new Promise<void>(() => undefined),
     });
     await controller.activate();
     subject.model("claude-opus");

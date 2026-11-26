@@ -653,7 +653,7 @@ export function bootRenderer(): Disposer {
   const providerModelSettingsController = createProviderModelSettingsController({
     load: () => window.enduragentAuth.llmConfiguration(),
     apply: (selection) => window.enduragentAuth.applyLlmSelection(selection),
-    onSaved: () => chatController.refreshAttachments(),
+    onSaved: () => void chatController.refreshAttachments(),
     openSetup: openSetupFromSettings,
     beginMutation: () => store.getState().beginSettingsMutation("provider-model"),
     codexAgentSupported: platform.capabilities.codexAgent,

@@ -148,7 +148,7 @@ function editableState(state: ProviderModelSettingsState): EditableState | null 
 export function createProviderModelSettingsController(input: {
   readonly load: () => Promise<OnboardingLlmConfiguration>;
   readonly apply: (selection: OnboardingLlmSelection) => Promise<OnboardingLlmSelectionResult>;
-  readonly onSaved?: (selection: OnboardingLlmSelection) => Promise<void> | void;
+  readonly onSaved?: (selection: OnboardingLlmSelection) => void;
   readonly openSetup: () => void;
   readonly view: ProviderModelSettingsView;
   readonly beginMutation?: () => (() => void) | null;
@@ -340,9 +340,7 @@ export function createProviderModelSettingsController(input: {
           input.codexAgentSupported ?? true,
         ),
       });
-      await Promise.resolve()
-        .then(() => input.onSaved?.(selection))
-        .catch(() => undefined);
+      input.onSaved?.(selection);
     }
     if (disposed) return;
     const latest = editableState(currentState);
@@ -374,7 +372,7 @@ export function createProviderModelSettingsController(input: {
       endpoint: { mode: "automatic" },
     };
     if (saveOperation !== undefined) return;
-    const releaseMutation = input.beginMutation === undefined ? () => {} : input.beginMutation();
+    const releaseMutation = input.beginMutation?.();
     if (releaseMutation === null) {
       queuedSelection = undefined;
       return;
@@ -388,7 +386,7 @@ export function createProviderModelSettingsController(input: {
       } finally {
         saveOperation = undefined;
         if (!visible) currentState = { status: "closed" };
-        releaseMutation();
+        releaseMutation?.();
       }
     });
     saveOperation = pending;
