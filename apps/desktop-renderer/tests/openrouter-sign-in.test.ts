@@ -11,7 +11,7 @@ import {
   type OpenRouterSignInView,
 } from "../src/onboarding/openrouter-sign-in";
 import { CUSTOM_MODEL_SELECTION } from "../src/onboarding/constants";
-import { draftForProvider } from "../src/onboarding/selection";
+import { draftForProvider, type LlmSelectionDraft } from "../src/onboarding/selection";
 import { openRouterTestBridge } from "./openrouter-test-bridge";
 
 const CONFIGURATION: OnboardingLlmConfiguration = {
@@ -52,7 +52,7 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness() {
+function harness(options: { readonly draft?: LlmSelectionDraft } = {}) {
   let active = false;
   let canMutate = true;
   let operation = 0;
@@ -74,7 +74,7 @@ function harness() {
     createOperationId: () => `op-${++operation}`,
     publish: () => views.push(signIn.view()),
     configuration: () => CONFIGURATION,
-    draft: () => undefined,
+    draft: () => options.draft,
     canMutate: () => canMutate,
     active: () => active,
     sync,
@@ -124,6 +124,7 @@ describe("OpenRouter sign-in surface", () => {
       signIn: { phase: "idle" },
       credit: "never-paid",
       activating: false,
+      readingCode: false,
     });
   });
 
@@ -152,6 +153,21 @@ describe("OpenRouter sign-in surface", () => {
       endpoint: { mode: "default" },
     });
     signIn.dispose();
+  });
+
+  it.each([
+    ["an unfinished custom endpoint", { endpointMode: "custom", customEndpoint: "https://" }],
+    ["an empty custom model", { modelChoice: CUSTOM_MODEL_SELECTION, customModel: " " }],
+  ] as const)("signs in with the default endpoint despite %s in the draft", (_case, change) => {
+    const subject = harness({
+      draft: { ...draftForProvider(CONFIGURATION.providers[0]!, 11), ...change },
+    });
+    subject.signIn.actions.start();
+    expect(subject.fail).not.toHaveBeenCalled();
+    expect(subject.bridge.openRouterSignIn).toHaveBeenCalledWith({
+      operationId: "op-1",
+      selection: SELECTION,
+    });
   });
 
   it("returns to the idle panel with no error after Cancel sign-in", async () => {
@@ -209,6 +225,103 @@ describe("OpenRouter sign-in surface", () => {
     subject.signIn.actions.useCopiedCode();
     await settle();
     expect(subject.view().signIn).toEqual({ phase: "awaiting-code", operationId: "op-1", problem });
+  });
+
+  it("keeps the code attempt open when OpenRouter does not answer the copied code", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    subject.bridge.useCopiedOpenRouterCode.mockResolvedValueOnce({
+      status: "refused",
+      operationId: "op-1",
+      reason: "unreachable",
+    });
+    subject.signIn.actions.useCopiedCode();
+    await settle();
+    expect(subject.view().signIn).toEqual({
+      phase: "awaiting-code",
+      operationId: "op-1",
+      problem: "unreachable",
+    });
+    subject.signIn.actions.useCopiedCode();
+    await settle();
+    expect(subject.bridge.useCopiedOpenRouterCode).toHaveBeenLastCalledWith("op-1");
+    expect(subject.view()).toMatchObject({ signIn: { phase: "idle" }, credit: "paid" });
+  });
+
+  it("does not cancel or replace a code attempt while main reads the copied code", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    const read = deferred<OpenRouterSignInResult>();
+    subject.bridge.useCopiedOpenRouterCode.mockReturnValueOnce(read.promise);
+    subject.signIn.actions.useCopiedCode();
+    expect(subject.view().readingCode).toBe(true);
+    expect(openRouterSignInBusy(subject.view())).toBe(true);
+    subject.signIn.actions.cancel();
+    subject.signIn.actions.dismiss();
+    subject.signIn.actions.enterCode();
+    subject.signIn.actions.reopen();
+    expect(subject.bridge.cancelOpenRouterSignIn).not.toHaveBeenCalled();
+    expect(subject.bridge.startOpenRouterCodeSignIn).toHaveBeenCalledOnce();
+    expect(subject.bridge.reopenOpenRouterSignIn).not.toHaveBeenCalled();
+    expect(subject.view().signIn).toMatchObject({ phase: "awaiting-code", operationId: "op-1" });
+    read.resolve({ status: "connected", operationId: "op-1", credit: "paid" });
+    await settle();
+    expect(subject.sync).toHaveBeenCalledWith(SELECTION);
+    expect(subject.view()).toMatchObject({ signIn: { phase: "idle" }, readingCode: false });
+  });
+
+  it("lets a new code attempt use its copied code while an older read is still pending", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    const stale = deferred<OpenRouterSignInResult>();
+    subject.bridge.useCopiedOpenRouterCode.mockReturnValueOnce(stale.promise);
+    subject.signIn.actions.useCopiedCode();
+    subject.signIn.reset();
+    subject.signIn.actions.enterCode();
+    await settle();
+    expect(subject.view()).toMatchObject({
+      signIn: { phase: "awaiting-code", operationId: "op-2" },
+      readingCode: false,
+    });
+    subject.signIn.actions.useCopiedCode();
+    expect(subject.bridge.useCopiedOpenRouterCode).toHaveBeenLastCalledWith("op-2");
+    stale.resolve({ status: "connected", operationId: "op-1", credit: "paid" });
+    await settle();
+    expect(subject.view().signIn).toMatchObject({ phase: "idle" });
+  });
+
+  it("ignores a second Enter a code instead while the first code attempt is open", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    subject.signIn.actions.enterCode();
+    await settle();
+    expect(subject.bridge.startOpenRouterCodeSignIn).toHaveBeenCalledOnce();
+    expect(subject.view().signIn).toMatchObject({ operationId: "op-1", problem: null });
+  });
+
+  it("shows Get a new code when main no longer holds the code attempt to reopen", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    subject.bridge.reopenOpenRouterSignIn.mockResolvedValueOnce(false);
+    subject.signIn.actions.reopen();
+    await settle();
+    expect(subject.view().signIn).toEqual({
+      phase: "awaiting-code",
+      operationId: "op-1",
+      problem: "code-expired",
+    });
+
+    subject.bridge.openRouterSignIn.mockReturnValueOnce(new Promise(() => undefined));
+    subject.signIn.reset();
+    subject.signIn.actions.start();
+    subject.bridge.reopenOpenRouterSignIn.mockResolvedValueOnce(false);
+    subject.signIn.actions.reopen();
+    await settle();
+    expect(subject.view().signIn).toEqual({ phase: "waiting-for-browser", operationId: "op-2" });
   });
 
   it("starts a fresh code attempt from Get a new code and connects with the copied code", async () => {
@@ -296,7 +409,30 @@ describe("OpenRouter sign-in surface", () => {
       signIn: { phase: "idle" },
       credit: "never-paid",
       activating: false,
+      readingCode: false,
     });
+  });
+
+  it("re-enables the panel when refreshing setup after a retried activation fails", async () => {
+    const subject = harness();
+    subject.bridge.openRouterSignIn.mockResolvedValueOnce({
+      status: "refused",
+      operationId: "op-1",
+      reason: "saved-not-active",
+    });
+    subject.signIn.actions.start();
+    await settle();
+    subject.sync.mockRejectedValueOnce(new TypeError());
+    const published = subject.views.length;
+    subject.signIn.actions.retryActivation();
+    await settle();
+    expect(subject.view()).toMatchObject({
+      signIn: { phase: "failed", reason: "saved-not-active" },
+      activating: false,
+    });
+    expect(subject.views.at(-1)?.activating).toBe(false);
+    expect(subject.views.length).toBeGreaterThan(published + 1);
+    expect(openRouterSignInBusy(subject.view())).toBe(false);
   });
 
   it("stays on the activation failure when the retry is refused", async () => {
@@ -339,6 +475,54 @@ describe("OpenRouter sign-in surface", () => {
     expect(subject.bridge.openRouterCreditStatus).toHaveBeenCalledTimes(2);
     subject.setActive(false);
     expect(subject.view().credit).toBeNull();
+  });
+
+  it("forgets the credit of the previous key before reading the new one", async () => {
+    const subject = harness();
+    subject.setActive(true);
+    subject.bridge.openRouterCreditStatus.mockResolvedValueOnce("never-paid");
+    subject.signIn.refreshCredit();
+    await settle();
+    expect(subject.view().credit).toBe("never-paid");
+
+    const recheck = deferred<"never-paid" | "paid" | "unknown">();
+    subject.bridge.openRouterCreditStatus.mockReturnValueOnce(recheck.promise);
+    subject.signIn.actions.checkCredits();
+    expect(subject.view().credit).toBe("never-paid");
+    recheck.resolve("never-paid");
+    await settle();
+
+    const fresh = deferred<"never-paid" | "paid" | "unknown">();
+    subject.bridge.openRouterCreditStatus.mockReturnValueOnce(fresh.promise);
+    subject.signIn.refreshCredit();
+    expect(subject.view().credit).toBeNull();
+    expect(subject.views.at(-1)?.credit).toBeNull();
+    fresh.resolve("paid");
+    await settle();
+    expect(subject.view().credit).toBe("paid");
+  });
+
+  it("drops a stale sign-in state and re-reads credits when a key connects OpenRouter", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    subject.setActive(true);
+    subject.bridge.openRouterCreditStatus.mockResolvedValueOnce("never-paid");
+    subject.signIn.connectedByKey();
+    expect(subject.bridge.cancelOpenRouterSignIn).toHaveBeenCalledWith("op-1");
+    expect(subject.view().signIn).toEqual({ phase: "idle" });
+    await settle();
+    expect(subject.view().credit).toBe("never-paid");
+
+    subject.bridge.openRouterSignIn.mockResolvedValueOnce({
+      status: "refused",
+      operationId: "op-2",
+      reason: "saved-not-active",
+    });
+    subject.signIn.actions.start();
+    await settle();
+    subject.signIn.connectedByKey();
+    expect(subject.view().signIn).toEqual({ phase: "idle" });
   });
 
   it("opens the fixed OpenRouter pages by name", () => {

@@ -16,6 +16,7 @@ export type OpenRouterPanelState =
   | "no-credits"
   | "code"
   | "code-problem"
+  | "code-unreachable"
   | "code-expired"
   | "not-finished"
   | "unreachable"
@@ -83,6 +84,11 @@ const PANEL_CONTENT: Readonly<Record<OpenRouterPanelState, PanelContent>> = {
     status: { copy: COPY.codeNoCode, danger: true },
     buttons: CODE_BUTTONS,
   },
+  "code-unreachable": {
+    ...CODE,
+    status: { copy: COPY.unreachable, danger: true },
+    buttons: CODE_BUTTONS,
+  },
   "code-expired": {
     ...CODE,
     status: { copy: COPY.codeExpired, danger: true },
@@ -118,6 +124,7 @@ export function openRouterPanelState(
       return "completing";
     case "awaiting-code":
       if (signIn.problem === null) return "code";
+      if (signIn.problem === "unreachable") return "code-unreachable";
       return signIn.problem === "code-expired" ? "code-expired" : "code-problem";
     case "failed":
       return signIn.reason;
@@ -137,17 +144,16 @@ export function OpenRouterPanel(props: {
 }): ReactElement {
   const { say } = usePhrasebook();
   const content = PANEL_CONTENT[props.state];
-  const activating = props.surface.openRouter.activating;
+  const { activating, readingCode } = props.surface.openRouter;
   const run = (handler: Handler | undefined): void => {
-    if (handler === "revert") {
-      props.actions?.openRouter.dismiss();
-      props.onRevert();
-    } else if (handler === "pasteKey") props.onPasteKey();
+    if (handler === "revert") props.onRevert();
+    else if (handler === "pasteKey") props.onPasteKey();
     else if (handler !== undefined) props.actions?.openRouter[handler]();
   };
   const disabled = (action: PanelAction): boolean =>
     action.run === undefined ||
     props.actions === null ||
+    readingCode ||
     (action.run === "cancel" ? false : props.controlsDisabled || activating);
   return (
     <SetupSubPanel name="openrouter">

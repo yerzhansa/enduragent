@@ -321,7 +321,12 @@ export function createOnboardingController(
       llmConfiguration?.active?.provider === "openrouter" &&
       state.credentialStatus.openrouter === "configured",
     sync: async (selection) => {
-      if ((await refreshStatuses(visit)) && selection !== null) recordActiveSelection(selection);
+      const syncVisit = visit;
+      const refreshed = await refreshStatuses(syncVisit);
+      if (refreshed && selection !== null) recordActiveSelection(selection);
+      if (refreshed || selection === null || visit !== syncVisit || !presenting) return;
+      lastCommit = "provider";
+      state = { ...state, fixedError: "credential-status-unavailable" };
     },
     fail: setFixedError,
   });
@@ -516,6 +521,7 @@ export function createOnboardingController(
     state = withBusy(state, false);
     if (saveError !== null) state = withError(state, saveError);
     else if (!selectedProviderIsReady()) state = withError(state, "model-runtime-unavailable");
+    else if (parsedSelection.selection.provider === "openrouter") openRouter.connectedByKey();
     focusTitle();
     publish();
   };

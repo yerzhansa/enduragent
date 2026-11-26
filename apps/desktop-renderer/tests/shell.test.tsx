@@ -679,7 +679,7 @@ describe("shell", () => {
         },
         onboardingActions: {
           finish,
-          openRouter: { checkCredits: () => undefined },
+          openRouter: { checkCredits: () => undefined, dismiss: () => undefined },
         } as unknown as OnboardingController,
       });
       await renderWithLanguage(<Shell onReady={() => {}} />);
@@ -780,6 +780,7 @@ describe("shell", () => {
     });
     useEnduragentStore.getState().bindOnboardingActions({
       requireCompletion,
+      openRouter: { dismiss: () => undefined },
     } as unknown as OnboardingController);
     await renderWithLanguage(<Shell onReady={() => {}} />);
 

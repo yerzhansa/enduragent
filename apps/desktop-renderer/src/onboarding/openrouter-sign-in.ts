@@ -9,7 +9,11 @@ import type {
 import type { OnboardingErrorCode } from "./machine";
 import { draftForProvider, llmSelectionFromDraft, type LlmSelectionDraft } from "./selection";
 
-export type OpenRouterCodeProblem = "clipboard-no-code" | "clipboard-unavailable" | "code-expired";
+export type OpenRouterCodeProblem =
+  | "clipboard-no-code"
+  | "clipboard-unavailable"
+  | "code-expired"
+  | "unreachable";
 
 export type OpenRouterSignInFailure =
   | "not-finished"
@@ -34,6 +38,7 @@ export interface OpenRouterSignInView {
   readonly signIn: OpenRouterSignInSurface;
   readonly credit: OpenRouterCreditStatus | null;
   readonly activating: boolean;
+  readonly readingCode: boolean;
 }
 
 export interface OpenRouterSignInActions {
@@ -66,6 +71,7 @@ export interface OpenRouterSignIn {
   readonly actions: OpenRouterSignInActions;
   view(): OpenRouterSignInView;
   refreshCredit(): void;
+  connectedByKey(): void;
   reset(): void;
   dispose(): void;
 }
@@ -76,11 +82,13 @@ export const IDLE_OPENROUTER_SIGN_IN: OpenRouterSignInView = Object.freeze({
   signIn: IDLE,
   credit: null,
   activating: false,
+  readingCode: false,
 });
 
 export function openRouterSignInBusy(view: OpenRouterSignInView): boolean {
   return (
     view.activating ||
+    view.readingCode ||
     view.signIn.phase === "waiting-for-browser" ||
     view.signIn.phase === "completing-sign-in"
   );
@@ -114,7 +122,7 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
   let chosen: OnboardingLlmSelection | null = null;
   let credit: OpenRouterCreditStatus | null = null;
   let activating = false;
-  let readingCode = false;
+  let readingOperationId: string | null = null;
   let creditGeneration = 0;
   let disposed = false;
 
@@ -123,25 +131,34 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
     host.publish();
   };
 
+  const reading = (): boolean =>
+    readingOperationId !== null && readingOperationId === operationOf(signIn);
+
   const selection = (): OnboardingLlmSelection | null => {
     const configuration = host.configuration();
     const provider = configuration?.providers.find((entry) => entry.provider === "openrouter");
     if (configuration === undefined || provider === undefined) return null;
+    const fallback = draftForProvider(provider, configuration.catalogRevision);
     const current = host.draft();
     const parsed = llmSelectionFromDraft(
       current?.provider.provider === "openrouter"
-        ? current
-        : draftForProvider(provider, configuration.catalogRevision),
+        ? { ...current, endpointMode: "default", customEndpoint: "" }
+        : fallback,
     );
-    return parsed.error === null ? { ...parsed.selection, endpoint: { mode: "default" } } : null;
+    const usable = parsed.error === null ? parsed : llmSelectionFromDraft(fallback);
+    return usable.error === null ? { ...usable.selection, endpoint: { mode: "default" } } : null;
   };
 
-  const refreshCredit = (): void => {
+  const readCredit = (clearShown: boolean): void => {
     const generation = ++creditGeneration;
     if (disposed) return;
     if (!host.active()) {
       credit = null;
       return;
+    }
+    if (clearShown && credit !== null) {
+      credit = null;
+      host.publish();
     }
     void host.bridge
       .openRouterCreditStatus()
@@ -152,6 +169,8 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
         host.publish();
       });
   };
+
+  const refreshCredit = (): void => readCredit(true);
 
   const current = (operationId: string): boolean =>
     !disposed && operationOf(signIn) === operationId;
@@ -225,7 +244,7 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
 
   const cancel = (): void => {
     const operationId = operationOf(signIn);
-    if (operationId === null || signIn.phase === "completing-sign-in") return;
+    if (operationId === null || signIn.phase === "completing-sign-in" || reading()) return;
     if (signIn.phase === "awaiting-code") show(IDLE);
     void host.bridge.cancelOpenRouterSignIn(operationId).catch(() => false);
   };
@@ -238,29 +257,42 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
   });
 
   const removeFocus = (host.onWindowFocus ?? windowFocus)(() => {
-    if (!disposed && credit === "never-paid" && host.active()) refreshCredit();
+    if (!disposed && credit === "never-paid" && host.active()) readCredit(false);
   });
+
+  const dismiss = (): void => {
+    if (signIn.phase === "failed") show(IDLE);
+    else cancel();
+  };
 
   const actions: OpenRouterSignInActions = {
     start() {
       if (signIn.phase === "idle" || signIn.phase === "failed") begin("browser");
     },
     cancel,
-    dismiss() {
-      if (signIn.phase === "failed") show(IDLE);
-      else cancel();
-    },
+    dismiss,
     reopen() {
       if (signIn.phase !== "waiting-for-browser" && signIn.phase !== "awaiting-code") return;
-      void host.bridge.reopenOpenRouterSignIn(signIn.operationId).catch(() => false);
+      if (reading()) return;
+      const operationId = signIn.operationId;
+      void host.bridge
+        .reopenOpenRouterSignIn(operationId)
+        .catch(() => false)
+        .then((opened) => {
+          if (opened || signIn.phase !== "awaiting-code" || !current(operationId)) return;
+          show({ phase: "awaiting-code", operationId, problem: "code-expired" });
+        });
     },
     enterCode() {
-      if (signIn.phase !== "completing-sign-in") begin("code");
+      if (signIn.phase === "completing-sign-in" || reading()) return;
+      if (signIn.phase === "awaiting-code" && signIn.problem !== "code-expired") return;
+      begin("code");
     },
     useCopiedCode() {
-      if (disposed || signIn.phase !== "awaiting-code" || readingCode) return;
+      if (disposed || signIn.phase !== "awaiting-code" || reading()) return;
       const operationId = signIn.operationId;
-      readingCode = true;
+      readingOperationId = operationId;
+      host.publish();
       void host.bridge
         .useCopiedOpenRouterCode(operationId)
         .catch((): OpenRouterSignInResult => ({
@@ -269,8 +301,12 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
           reason: "unreachable",
         }))
         .then((result) => {
-          readingCode = false;
-          return settle(operationId, result);
+          if (readingOperationId === operationId) readingOperationId = null;
+          if (result.status !== "refused" || result.reason !== "unreachable") {
+            void settle(operationId, result);
+          } else if (current(operationId)) {
+            show({ phase: "awaiting-code", operationId, problem: "unreachable" });
+          }
         });
     },
     retryActivation() {
@@ -283,6 +319,13 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
       }
       activating = true;
       host.publish();
+      const finish = (applied: boolean): void => {
+        activating = false;
+        if (disposed) return;
+        if (applied) signIn = IDLE;
+        host.publish();
+        if (applied) refreshCredit();
+      };
       void host.bridge
         .applyLlmSelection(next)
         .then(
@@ -291,14 +334,11 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
         )
         .then(async (applied) => {
           if (applied) await host.sync(next);
-          activating = false;
-          if (disposed) return;
-          if (applied) signIn = IDLE;
-          host.publish();
-          if (applied) refreshCredit();
-        });
+          return applied;
+        })
+        .then(finish, () => finish(false));
     },
-    checkCredits: refreshCredit,
+    checkCredits: () => readCredit(false),
     addCredits() {
       void host.bridge.openOpenRouterPage("credits").catch(() => false);
     },
@@ -309,8 +349,17 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
 
   return {
     actions,
-    view: () => ({ signIn, credit: host.active() ? credit : null, activating }),
+    view: () => ({
+      signIn,
+      credit: host.active() ? credit : null,
+      activating,
+      readingCode: reading(),
+    }),
     refreshCredit,
+    connectedByKey() {
+      dismiss();
+      refreshCredit();
+    },
     reset() {
       cancel();
       signIn = IDLE;

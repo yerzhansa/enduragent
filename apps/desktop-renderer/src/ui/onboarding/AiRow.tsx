@@ -164,6 +164,7 @@ export function AiRow(props: {
   const openRouterStored = wizard.credentialStatus.openrouter === "configured";
   const previousOpenRouterPhase = useRef(openRouter.signIn.phase);
   const closePanel = (): void => {
+    actions?.openRouter.dismiss();
     setPanelLane(null);
     setPicked(null);
     setRestoreDraft(null);
@@ -303,7 +304,8 @@ export function AiRow(props: {
   };
 
   const choose = (next: SetupLane): void => {
-    const reactivatesOpenRouter = next === "openrouter" && openRouterStored && !openRouterConnected;
+    if (next !== "openrouter") actions?.openRouter.dismiss();
+    const reactivatesOpenRouter = next === "openrouter" && lane !== next && openRouterStored;
     const opensPanel =
       next === "api-key" ||
       (next === "openai-codex" && !chatGptIsReady) ||

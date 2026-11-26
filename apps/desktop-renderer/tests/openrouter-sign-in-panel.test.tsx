@@ -19,6 +19,9 @@ import {
   resetOnboardingStore,
   rowState,
   rowSubtitle,
+  saveModelKey,
+  seedSecret,
+  selectSetupOption,
   setupRow,
   testBridge,
   type TestBridge,
@@ -35,6 +38,9 @@ const INACTIVE = {
   state: "configured",
   runtimeState: "stored-inactive",
 } as const;
+const PASTED_KEY = `sk-or-v1-${"3".repeat(64)}`;
+const STATUS_UNAVAILABLE =
+  "That key was saved, but its status could not be refreshed. Check the setup area again.";
 const SELECTION = {
   catalogRevision: TEST_LLM_CONFIGURATION.catalogRevision,
   provider: "openrouter",
@@ -478,6 +484,206 @@ describe("OpenRouter sign-in panel", () => {
     );
     expect(bridge.openRouterSignIn).not.toHaveBeenCalled();
     expect(panel("openrouter")).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("shows a status error when the setup status cannot be refreshed after sign-in", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await chooseLane(user, "openrouter");
+    bridge.credentialStatuses.mockRejectedValue(new TypeError());
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(setupRow("ai").parentElement).toHaveTextContent(STATUS_UNAVAILABLE));
+    expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    wizard.controller.dispose();
+  });
+
+  it("disables the code panel while main reads the copied code", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const read = pending();
+    bridge.useCopiedOpenRouterCode.mockReturnValueOnce(read.promise);
+    bridge.openRouterSignIn.mockReturnValueOnce(pending().promise);
+    const wizard = await openIdlePanel(user, bridge);
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(panelState()).toBe("waiting"));
+    await click(user, "Enter a code instead");
+    await waitFor(() => expect(panelState()).toBe("code"));
+    await click(user, "Use copied code");
+    await waitFor(() =>
+      expect(buttons()).toEqual([
+        { name: "Cancel sign-in", disabled: true },
+        { name: "Open sign-in page", disabled: true },
+        { name: "Use copied code", disabled: true },
+      ]),
+    );
+    expect(document.querySelector<HTMLButtonElement>('[data-setup-trigger="ai"]')?.disabled).toBe(
+      true,
+    );
+    const operationId = bridge.startOpenRouterCodeSignIn.mock.calls[0]?.[0].operationId ?? "";
+    bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+    read.resolve({ status: "connected", operationId, credit: "paid" });
+    await waitFor(() => expect(panel("openrouter")).toBeNull());
+    expect(bridge.cancelOpenRouterSignIn).not.toHaveBeenCalled();
+    wizard.controller.dispose();
+  });
+
+  it("keeps the code panel open with the no-answer status when OpenRouter does not answer", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const wizard = await openIdlePanel(user, bridge);
+    bridge.startOpenRouterCodeSignIn.mockImplementationOnce(async ({ operationId }) => {
+      bridge.useCopiedOpenRouterCode.mockResolvedValueOnce({
+        status: "refused",
+        operationId,
+        reason: "unreachable",
+      });
+      return { status: "awaiting-code", operationId };
+    });
+    bridge.openRouterSignIn.mockReturnValueOnce(pending().promise);
+    await click(user, SIGN_IN);
+    await click(user, "Enter a code instead");
+    await waitFor(() => expect(panelState()).toBe("code"));
+    await click(user, "Use copied code");
+    await waitFor(() => expect(panelState()).toBe("code-unreachable"));
+    expect(within(openRouterPanel()).getByRole("status")).toHaveTextContent(
+      "OpenRouter did not answer, so nothing was saved. Try again in a minute.",
+    );
+    expect(buttons().map((entry) => entry.name)).toEqual([
+      "Cancel sign-in",
+      "Open sign-in page",
+      "Use copied code",
+    ]);
+    wizard.controller.dispose();
+  });
+
+  it("cancels a code sign-in when the rider pastes an OpenRouter key instead", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    bridge.openRouterSignIn.mockReturnValueOnce(pending().promise);
+    const wizard = await openIdlePanel(user, bridge);
+    await click(user, SIGN_IN);
+    await click(user, "Enter a code instead");
+    await waitFor(() => expect(panelState()).toBe("code"));
+    const operationId = bridge.startOpenRouterCodeSignIn.mock.calls[0]?.[0].operationId ?? "";
+
+    await chooseLane(user, "api-key");
+    expect(bridge.cancelOpenRouterSignIn).toHaveBeenCalledWith(operationId);
+    await waitFor(() => expect(panel("api-key")).not.toBeNull());
+    await selectSetupOption(user, "onboarding-llm-provider", "openrouter");
+    bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+    seedSecret("openrouter", PASTED_KEY);
+    await saveModelKey(user);
+    await waitFor(() => expect(panel("api-key")).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(panel("openrouter")).toBeNull();
+    expect(rowTitle()).toBe("OpenRouter");
+    expect(rowState("ai")).toBe("ready");
+    expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    wizard.controller.dispose();
+  });
+
+  it("clears an activation failure when another lane is picked, then reactivates from it", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const wizard = await openIdlePanel(user, bridge);
+    bridge.credentialStatuses.mockResolvedValue([INACTIVE]);
+    bridge.openRouterSignIn.mockImplementationOnce(async ({ operationId }) => ({
+      status: "refused",
+      operationId,
+      reason: "saved-not-active",
+    }));
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(panelState()).toBe("saved-not-active"));
+
+    await chooseLane(user, "api-key");
+    expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+    await chooseLane(user, "openrouter");
+    await waitFor(() => expect(rowState("ai")).toBe("ready"));
+    expect(bridge.applyLlmSelection).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "openrouter" }),
+    );
+    expect(panel("openrouter")).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("drops the sign-in state when a credential repair closes the panel", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    bridge.openRouterSignIn.mockReturnValueOnce(pending().promise);
+    const wizard = await openIdlePanel(user, bridge);
+    await click(user, SIGN_IN);
+    await click(user, "Enter a code instead");
+    await waitFor(() => expect(panelState()).toBe("code"));
+    act(() => {
+      useEnduragentStore.getState().patchSettings({
+        credentials: { status: "closed", repairCredential: "anthropic" },
+      });
+    });
+    await waitFor(() => expect(panel("openrouter")).toBeNull());
+    expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    expect(bridge.cancelOpenRouterSignIn).toHaveBeenCalled();
+    wizard.controller.dispose();
+  });
+
+  it("opens the sign-in panel when OpenRouter is already the lane but its key does not work", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith({ active: "openrouter", statuses: [INACTIVE] });
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await waitFor(() => expect(rowTitle()).toBe("OpenRouter"));
+    expect(rowState("ai")).toBe("pending");
+    await chooseLane(user, "openrouter");
+    await waitFor(() => expect(panelState()).toBe("idle"));
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+    expect(buttons().map((entry) => entry.name)).toEqual(["Cancel", SIGN_IN, PASTE]);
+    wizard.controller.dispose();
+  });
+
+  it("reads the credit of a pasted OpenRouter key and forgets the credit of the old key", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const wizard = await openIdlePanel(user, bridge);
+    bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+    bridge.openRouterSignIn.mockImplementationOnce(async ({ operationId }) => ({
+      status: "connected",
+      operationId,
+      credit: "never-paid",
+    }));
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(rowState("ai")).toBe("attention"));
+
+    let answerRecheck!: (status: "never-paid") => void;
+    bridge.openRouterCreditStatus.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerRecheck = resolve;
+      }),
+    );
+    await click(user, "Check again");
+    expect(bridge.openRouterCreditStatus).toHaveBeenCalledOnce();
+    expect(panelState()).toBe("no-credits");
+    expect(rowState("ai")).toBe("attention");
+    act(() => answerRecheck("never-paid"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(panelState()).toBe("no-credits");
+
+    bridge.openRouterCreditStatus.mockResolvedValue("paid");
+    await chooseLane(user, "api-key");
+    seedSecret("openrouter", PASTED_KEY);
+    await saveModelKey(user);
+    await waitFor(() => expect(bridge.openRouterCreditStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(rowState("ai")).toBe("ready"));
+    expect(panel("openrouter")).toBeNull();
+
+    bridge.openRouterCreditStatus.mockResolvedValue("never-paid");
+    await chooseLane(user, "api-key");
+    seedSecret("openrouter", PASTED_KEY);
+    await saveModelKey(user);
+    await waitFor(() => expect(rowState("ai")).toBe("attention"));
+    expect(panelState()).toBe("no-credits");
     wizard.controller.dispose();
   });
 
