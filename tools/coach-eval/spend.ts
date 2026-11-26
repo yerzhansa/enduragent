@@ -67,10 +67,10 @@ export interface SpendSnapshot {
   readonly refusedCalls: number;
 }
 
-export class SpendLimitReachedError extends Error {
+export class RunStoppedError extends Error {
   constructor(reason: string) {
     super(reason);
-    this.name = "SpendLimitReachedError";
+    this.name = "RunStoppedError";
   }
 }
 
@@ -80,6 +80,7 @@ export class SpendMeter {
   private unpriced = 0;
   private failed = 0;
   private refused = 0;
+  private haltReason: string | undefined;
 
   constructor(readonly limitUsd: number) {}
 
@@ -97,7 +98,12 @@ export class SpendMeter {
     this.failed++;
   }
 
+  halt(reason: string): void {
+    this.haltReason ??= reason;
+  }
+
   stopReason(): string | undefined {
+    if (this.haltReason !== undefined) return this.haltReason;
     if (this.unpriced > 0) {
       return `${this.unpriced} model call(s) reported no cost, so the spend limit cannot be enforced`;
     }
@@ -107,11 +113,11 @@ export class SpendMeter {
     return undefined;
   }
 
-  assertBelowLimit(): void {
+  assertCanCall(): void {
     const reason = this.stopReason();
     if (reason === undefined) return;
     this.refused++;
-    throw new SpendLimitReachedError(reason);
+    throw new RunStoppedError(reason);
   }
 
   snapshot(): SpendSnapshot {

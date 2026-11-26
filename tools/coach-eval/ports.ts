@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { asSchema, jsonSchema, type Tool, type ToolSet } from "ai";
+import { APICallError, asSchema, jsonSchema, type Tool, type ToolSet } from "ai";
 import { IntervalsClient } from "intervals-icu-api";
 import type {
   AthleteDataReaderPort,
@@ -77,6 +77,14 @@ export class CaseRecorder {
   }
 }
 
+const KEY_REJECTED_STATUS: ReadonlySet<number> = new Set([401, 402, 403]);
+
+function keyRejection(error: unknown): string | undefined {
+  if (!APICallError.isInstance(error) || error.statusCode === undefined) return undefined;
+  if (!KEY_REJECTED_STATUS.has(error.statusCode)) return undefined;
+  return `the model provider refused the key in OPENROUTER_API_KEY (HTTP ${error.statusCode}: ${error.message})`;
+}
+
 function recordAttempts(name: string, tool: Tool, recorder: CaseRecorder): Tool {
   const schema = asSchema(tool.inputSchema);
   return {
@@ -100,7 +108,7 @@ export function recordingDecorator(
 ): ModelTransportDecorator {
   return (next) => ({
     generate: async (request) => {
-      meter.assertBelowLimit();
+      meter.assertCanCall();
       const tools = request.options.tools;
       if (tools !== undefined) recorder.offer(Object.keys(tools));
       const recordedTools: ToolSet | undefined =
@@ -116,6 +124,8 @@ export function recordingDecorator(
         });
       } catch (error) {
         meter.recordFailedCall();
+        const rejection = keyRejection(error);
+        if (rejection !== undefined) meter.halt(rejection);
         throw error;
       }
     },

@@ -146,11 +146,11 @@ async function main(): Promise<void> {
 
   const reports: CaseReport[] = [];
   for (const evalCase of cases) {
-    const stopReason = meter.stopReason();
+    const reason = meter.stopReason();
     const report =
-      stopReason === undefined
+      reason === undefined
         ? await runCase(evalCase, options, apiKey, meter, today)
-        : skippedCase(evalCase, stopReason);
+        : skippedCase(evalCase, reason);
     reports.push(report);
     printCase(report);
   }
@@ -171,8 +171,10 @@ async function main(): Promise<void> {
     `\npass rate ${passed}/${summary.total} (${Math.round(summary.passRate * 100)}%)\n` +
       `cost $${spend.spentUsd.toFixed(4)} of $${spend.limitUsd.toFixed(2)} ` +
       `(${spend.pricedCalls} priced call(s), ${spend.unpricedCalls} unpriced, ` +
-      `${spend.failedCalls} failed, ${spend.refusedCalls} refused by the limit)\n`,
+      `${spend.failedCalls} failed, ${spend.refusedCalls} refused after the run stopped)\n`,
   );
+  const stopReason = meter.stopReason();
+  if (stopReason !== undefined) process.stdout.write(`run stopped: ${stopReason}\n`);
   if (spend.failedCalls > 0) {
     process.stdout.write("failed model calls leave no cost row, so the cost is a lower bound\n");
   }
@@ -188,6 +190,7 @@ async function main(): Promise<void> {
         startedAt,
         finishedAt: new Date().toISOString(),
         spend,
+        ...(stopReason === undefined ? {} : { stopReason }),
         costIsLowerBound: spend.failedCalls > 0,
         summary,
         cases: reports,

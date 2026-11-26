@@ -9,7 +9,7 @@ import {
   type Expectation,
   type TurnObservation,
 } from "./checks.js";
-import { DEFAULT_MAX_USD, SpendLimitReachedError, SpendMeter, lineCostUsd, parseRunArgs } from "./spend.js";
+import { DEFAULT_MAX_USD, RunStoppedError, SpendMeter, lineCostUsd, parseRunArgs } from "./spend.js";
 
 function turn(overrides: Partial<TurnObservation> = {}): TurnObservation {
   return {
@@ -183,10 +183,10 @@ describe("spend meter", () => {
     const meter = new SpendMeter(0.01);
     meter.record({ providerReportedCostUsd: 0.006 });
     expect(meter.stopReason()).toBeUndefined();
-    meter.assertBelowLimit();
+    meter.assertCanCall();
     meter.record({ cost: { total: 0.004 } });
     expect(meter.stopReason()).toMatch(/spend limit/);
-    expect(() => meter.assertBelowLimit()).toThrow(SpendLimitReachedError);
+    expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
     expect(meter.snapshot()).toMatchObject({ spentUsd: 0.01, pricedCalls: 2, refusedCalls: 1 });
   });
 
@@ -194,7 +194,15 @@ describe("spend meter", () => {
     const meter = new SpendMeter(10);
     meter.record({});
     expect(meter.stopReason()).toMatch(/cannot be enforced/);
-    expect(() => meter.assertBelowLimit()).toThrow(SpendLimitReachedError);
+    expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
+  });
+
+  it("stops for good once halted, keeping the first reason", () => {
+    const meter = new SpendMeter(10);
+    meter.halt("the model provider refused the key");
+    meter.halt("a later reason");
+    expect(meter.stopReason()).toBe("the model provider refused the key");
+    expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
   });
 
   it("counts failed calls separately from priced ones", () => {

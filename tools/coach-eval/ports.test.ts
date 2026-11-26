@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asSchema } from "ai";
+import { APICallError, asSchema } from "ai";
 import { createCoachEngine, type ModelTransport } from "@enduragent/engine";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { CASES } from "./cases.js";
@@ -65,10 +65,22 @@ const createWorkout: ScriptedCall = {
   },
 };
 
+const rejectedKey: ModelTransport = {
+  generate: async () => {
+    throw new APICallError({
+      message: "API key expired.",
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      requestBodyValues: {},
+      statusCode: 401,
+    });
+  },
+};
+
 async function runScripted(
   channel: Channel,
   turns: readonly (readonly ScriptedCall[])[],
   meter = new SpendMeter(10),
+  model: (calls: readonly ScriptedCall[]) => ModelTransport = (calls) => scriptedModel(calls, 0.01),
 ): Promise<{ observations: TurnObservation[]; meter: SpendMeter; errors: string[] }> {
   const recorder = new CaseRecorder();
   const harness = createEvalPorts({
@@ -86,7 +98,7 @@ async function runScripted(
         sport: cyclingSport,
         ports: {
           ...harness.ports,
-          modelTransportDecorator: () => recordingDecorator(recorder, meter)(scriptedModel(calls, 0.01)),
+          modelTransportDecorator: () => recordingDecorator(recorder, meter)(model(calls)),
         },
       });
       recorder.startTurn();
@@ -139,5 +151,12 @@ describe("coach eval ports", () => {
     expect(observations.length + errors.length).toBe(2);
     expect(meter.snapshot().spentUsd).toBeCloseTo(0.01);
     expect(meter.snapshot().refusedCalls).toBeGreaterThan(0);
+  });
+
+  it("stops the run when the provider refuses the key", async () => {
+    const meter = new SpendMeter(10);
+    await runScripted("desktop", [[]], meter, () => rejectedKey);
+    expect(meter.stopReason()).toMatch(/refused the key in OPENROUTER_API_KEY \(HTTP 401: API key expired\.\)/);
+    expect(meter.snapshot().failedCalls).toBeGreaterThan(0);
   });
 });
