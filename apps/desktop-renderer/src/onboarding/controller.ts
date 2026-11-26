@@ -4,7 +4,6 @@ import {
   type RideImportState,
 } from "../ride-import";
 import type {
-  CredentialWriteResult,
   IntervalsCredentialMutationResult,
   OnboardingBridge,
   OnboardingCredentialWriteInput,
@@ -12,8 +11,13 @@ import type {
   OnboardingLlmEndpointSelection,
   OnboardingLlmSelection,
 } from "./bridge";
-import { CUSTOM_MODEL_SELECTION, DESKTOP_CREDENTIAL_SLOTS } from "./constants";
-import { handoffCredential, type CredentialDraftPort } from "./credentials";
+import { CUSTOM_MODEL_SELECTION } from "./constants";
+import {
+  credentialSlotFor,
+  credentialWriteRefusalError,
+  handoffCredential,
+  type CredentialDraftPort,
+} from "./credentials";
 import { intervalsMutationError, type IntervalsSignInSurface } from "./intervals-sign-in";
 import {
   createOpenRouterSignIn,
@@ -135,13 +139,6 @@ export interface OnboardingController extends OnboardingActions {
   importDroppedFiles(paths: readonly string[]): void;
 }
 
-function credentialSlotFor(
-  provider: string | undefined,
-): OnboardingCredentialWriteInput["slot"] | undefined {
-  const slot = DESKTOP_CREDENTIAL_SLOTS.find((candidate) => candidate === provider);
-  return slot === "intervals-icu" ? undefined : slot;
-}
-
 export interface OnboardingControllerOptions {
   readonly bridge: OnboardingBridge;
   readonly credentials: CredentialDraftPort;
@@ -178,34 +175,11 @@ export function setupStatusKnown(
   return surface.initialized && !surface.loadUnavailable;
 }
 
-type CredentialWriteFailureReason = Extract<
-  CredentialWriteResult,
-  { readonly status: "stale-draft" | "refused" | "uncertain" }
->["reason"];
-
-const CREDENTIAL_WRITE_REFUSAL_ERRORS = {
-  "invalid-input": "invalid-input",
-  "encryption-unavailable": "encryption-unavailable",
-  "unsafe-backend": "unsafe-backend",
-  "storage-failed": "storage-failed",
-  "runtime-unavailable": "runtime-unavailable",
-  "catalog-unavailable": "configuration-unavailable",
-  "training-account-mismatch": "training-account-mismatch",
-  "storage-uncertain": "storage-uncertain",
-} as const satisfies Readonly<Record<CredentialWriteFailureReason, OnboardingErrorCode>>;
-
 const ENDPOINT_MODES: readonly OnboardingLlmEndpointSelection["mode"][] = [
   "automatic",
   "default",
   "custom",
 ];
-
-function credentialWriteRefusalError(reason: unknown): OnboardingErrorCode {
-  if (typeof reason === "string" && Object.hasOwn(CREDENTIAL_WRITE_REFUSAL_ERRORS, reason)) {
-    return CREDENTIAL_WRITE_REFUSAL_ERRORS[reason as CredentialWriteFailureReason];
-  }
-  return "credential-save-failed";
-}
 
 export function createOnboardingController(
   options: OnboardingControllerOptions,
