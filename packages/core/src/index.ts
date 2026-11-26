@@ -259,6 +259,24 @@ export type {
   IntervalsSignInOptions,
   IntervalsSignInPhase,
 } from "./auth/intervals-oauth.js";
+export {
+  OPENROUTER_CREDITS_PAGE_URL,
+  OPENROUTER_KEYS_PAGE_URL,
+  OPENROUTER_KEY_EXCHANGE_URL,
+  OPENROUTER_KEY_STATUS_URL,
+  OpenRouterSignInError,
+  parseOpenRouterCode,
+  readOpenRouterCreditStatus,
+  signInWithOpenRouter,
+  startOpenRouterCodeSignIn,
+} from "./auth/openrouter-oauth.js";
+export type {
+  OpenRouterCodeSignIn,
+  OpenRouterCreditStatus,
+  OpenRouterSignInFailure,
+  OpenRouterSignInOptions,
+  OpenRouterSignInPhase,
+} from "./auth/openrouter-oauth.js";
 export { intervalsCredentialKind } from "./intervals-credential.js";
 export {
   isIntervalsCredentialRejected,
