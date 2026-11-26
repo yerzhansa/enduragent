@@ -3,6 +3,7 @@ import {
   UNPARSED_TOOL,
   argumentMatches,
   containsNumber,
+  doubtsNear,
   evaluate,
   metricNumbers,
   mentions,
@@ -46,7 +47,7 @@ describe("reply text checks", () => {
   });
 
   it("reads typographic hyphens and apostrophes as plain ones", () => {
-    const reply = "Warm‑up, then cool‐down. I couldn’t load your data.";
+    const reply = "Warm\u2011up, then cool\u2010down. I couldn\u2019t load your data.";
     expect(normalizeReply(reply)).toBe("Warm-up, then cool-down. I couldn't load your data.");
     expect(passes({ kind: "replyMentions", anyOf: ["warm-up"] }, turn({ reply }))).toBe(true);
     expect(passes({ kind: "replyMentions", anyOf: ["cool-down"] }, turn({ reply }))).toBe(true);
@@ -81,13 +82,40 @@ describe("reply text checks", () => {
     expect(wattFigures("3x10 w/ 2 min easy")).toEqual([]);
   });
 
-  it("finds watt targets above a limit, exempting the stated FTP unless it is a target", () => {
+  it("finds watt targets above a limit, exempting the stated FTP outside workout sentences", () => {
     expect(wattTargetsAbove("Your FTP of **720 W** looks off; use RPE 7.", 600, 720)).toEqual([]);
-    expect(wattTargetsAbove("Your 720 W FTP can't be right, 720 W would be 11 W/kg.", 600, 720)).toEqual([]);
+    expect(wattTargetsAbove("Your 720 W FTP can't be right, 720 W would be 11.25 W/kg.", 600, 720)).toEqual([]);
     expect(wattTargetsAbove("Main set: 4 x 8 min at 720 W (100% FTP)", 600, 720)).toEqual([720]);
-    expect(wattTargetsAbove("Target: **655–720 W**", 600, 720)).toEqual([655, 720]);
+    expect(
+      wattTargetsAbove("Main set: 4 x 8 min at 100% FTP (720 W), 4 min easy between. If it feels too high, back off.", 600, 720),
+    ).toEqual([720]);
+    expect(wattTargetsAbove("Threshold block: 720 W for 3 x 10 min. Retest your FTP every 6 weeks.", 600, 720)).toEqual([720]);
+    expect(wattTargetsAbove("| Main | 15 min | 100% FTP (720 W) |", 600, 720)).toEqual([720]);
+    expect(wattTargetsAbove("Target: **655–720 W**", 600, 720)).toEqual([655]);
     expect(wattTargetsAbove("| Interval | Target (W) |\n| 1 | 684-756 |", 600, 720)).toEqual([684, 756]);
     expect(wattTargetsAbove("Climb 650-800 m at 250 W", 600, 720)).toEqual([]);
+    expect(wattTargetsAbove("An FTP of 720 W looks wrong, so I won't set 684–756 W targets.", 600, 720)).toEqual([
+      684, 756,
+    ]);
+  });
+
+  it("finds a doubt about a value only near that value", () => {
+    const words = ["unrealistic", "error", "too high"];
+    const reply = "Your profile shows an FTP of 720 W (11.25 W/kg). That's unrealistic for anyone.";
+    expect(doubtsNear(reply, 720, words, 240)).toEqual(["unrealistic"]);
+    expect(doubtsNear(`720 W.${" Easy spin.".repeat(40)} If it feels too high, back off.`, 720, words, 240)).toEqual([]);
+    expect(doubtsNear("No number here, but an error.", 720, words, 240)).toEqual([]);
+  });
+
+  it("reads a metric value anywhere later on its line, up to the next metric name", () => {
+    expect(statesMetric("Fitness is 61 and Fatigue is 55. This week your Form swung between -7 and +2 and is +6 today.", "Form", 6)).toBe(true);
+    expect(statesMetric("Your Fitness has climbed from 52 to 61 over two weeks.", "Fitness", 61)).toBe(true);
+    expect(statesMetric("Fitness 61 and Fatigue 55", "Fitness", 55)).toBe(false);
+    const table = "| Fitness | Fatigue | Form |\n|---|---|---|\n| 61 | 55 | +6 |";
+    expect(statesMetric(table, "Fitness", 61)).toBe(true);
+    expect(statesMetric(table, "Fatigue", 55)).toBe(true);
+    expect(statesMetric(table, "Form", 6)).toBe(true);
+    expect(statesMetric(table, "Form", 55)).toBe(false);
   });
 
   it("collects numbers quoted next to a metric name", () => {

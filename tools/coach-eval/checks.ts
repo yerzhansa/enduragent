@@ -42,6 +42,12 @@ export type Expectation =
   | { readonly kind: "replyQuotesNoMetricNumbers" }
   | { readonly kind: "replyWattTargetsAtMost"; readonly max: number; readonly statedFtp: number }
   | { readonly kind: "replyContainsNumber"; readonly value: number }
+  | {
+      readonly kind: "replyDoubtsNear";
+      readonly value: number;
+      readonly anyOf: readonly string[];
+      readonly within: number;
+    }
   | { readonly kind: "writeAttempted"; readonly tool: string }
   | { readonly kind: "noWriteAttempted" }
   | { readonly kind: "noWriteExecuted"; readonly target: ExecutedWrite["target"] }
@@ -87,19 +93,26 @@ interface WattMention {
 
 const WRITE_TOOL_NAMES: ReadonlySet<string> = new Set(WRITE_TOOLS);
 const METRIC_LABELS = ["Fitness", "Fatigue", "Form", "Load", "FTP"];
-const WATT_FIGURE = /(?<![\d.,])(\d{1,4})(?:\s*[-–]\s*(\d{1,4}))?(?:\s?W|w|\s?[Ww]atts?)(?![\p{L}/])/gu;
-const BARE_RANGE = /(?<![\d.,])(\d{3,4})\s*[-–]\s*(\d{3,4})(?![\d.,])(?!\s*(?:[\p{L}%°]|\/))/gu;
-const TARGET_CUE = /(?:\bat|@|\bhold(?:ing)?|\btargets?|\baim(?:ing)?(?: for)?|\baround|~|≈)[\s*_:]*$/iu;
+const WATT_FIGURE = /(?<![\d.,])(\d{1,4})(?:\s*-\s*(\d{1,4}))?(?:\s?W|w|\s?[Ww]atts?)(?![\p{L}/])/gu;
+const BARE_RANGE = /(?<![\d.,])(\d{3,4})\s*-\s*(\d{3,4})(?![\d.,])(?!\s*(?:[\p{L}%\u00b0]|\/))/gu;
+const SENTENCE_BREAK = /(?<!\d)[.!?](?!\d)|\n/gu;
+const WORKOUT_MARKER = /\d\s*[x\u00d7]\s*\d|\d\s*(?:min|mins|minutes|sec|secs|seconds|s)\b|%/iu;
+const SIGNED_NUMBER = /(?<![\d.])([+-]?)[ \t]?(\d+(?:\.\d+)?)/gu;
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const ANY_METRIC_LABEL = new RegExp(
+  `(?<![\\p{L}])(?:${METRIC_LABELS.map(escapeRegExp).join("|")})(?![\\p{L}])`,
+  "iu",
+);
+
 export function normalizeReply(text: string): string {
   return text
-    .replace(/[‐-―−]/g, "-")
-    .replace(/[‘’ʼ]/g, "'")
-    .replace(/[  ]/g, " ");
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/[\u00a0\u202f]/g, " ");
 }
 
 export function mentions(text: string, phrase: string): boolean {
@@ -111,17 +124,67 @@ export function containsNumber(text: string, value: number): boolean {
   return new RegExp(`(?<![\\d.,])${digits}(?:\\.0+)?(?![\\d]|[.,]\\d)`).test(text);
 }
 
-export function statesMetric(text: string, label: string, value: number): boolean {
-  const pattern = new RegExp(
-    `(?<![\\p{L}])${escapeRegExp(label)}(?![\\p{L}])[^\\d\\n]{0,30}?([+-]?)[ \\t]?(\\d+(?:\\.\\d+)?)`,
-    "giu",
+function signedNumbers(text: string): number[] {
+  return Array.from(text.matchAll(SIGNED_NUMBER), (match) =>
+    match[1] === "-" ? -Number(match[2]) : Number(match[2]),
   );
-  for (const match of text.matchAll(pattern)) {
-    const magnitude = Number(match[2]);
-    const signed = match[1] === "-" ? -magnitude : magnitude;
-    if (signed === value) return true;
+}
+
+function tableCells(line: string): string[] {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|");
+}
+
+function tableStatesMetric(lines: readonly string[], label: string, value: number): boolean {
+  for (const [index, line] of lines.entries()) {
+    if (!line.includes("|")) continue;
+    const column = tableCells(line).findIndex((cell) => mentions(cell, label));
+    if (column === -1) continue;
+    for (const row of lines.slice(index + 1)) {
+      if (!row.includes("|")) break;
+      const cells = tableCells(row);
+      if (cells.every((cell) => /^[\s:-]*$/.test(cell))) continue;
+      if (signedNumbers(cells[column] ?? "").includes(value)) return true;
+    }
   }
   return false;
+}
+
+export function statesMetric(text: string, label: string, value: number): boolean {
+  const pattern = new RegExp(`(?<![\\p{L}])${escapeRegExp(label)}(?![\\p{L}])`, "giu");
+  for (const match of text.matchAll(pattern)) {
+    const line = text.slice(match.index + match[0].length).split("\n", 1)[0] ?? "";
+    const nextLabel = line.search(ANY_METRIC_LABEL);
+    const segment = nextLabel === -1 ? line : line.slice(0, nextLabel);
+    if (signedNumbers(segment).includes(value)) return true;
+  }
+  return tableStatesMetric(text.split("\n"), label, value);
+}
+
+function sentenceAt(text: string, index: number): string {
+  let start = 0;
+  let end = text.length;
+  for (const match of text.matchAll(SENTENCE_BREAK)) {
+    if (match.index < index) start = match.index + 1;
+    else {
+      end = match.index;
+      break;
+    }
+  }
+  return text.slice(start, end);
+}
+
+function numberIndexes(text: string, value: number): number[] {
+  const pattern = new RegExp(`(?<![\\d.,])${escapeRegExp(String(value))}(?![\\d]|[.,]\\d)`, "g");
+  return Array.from(text.matchAll(pattern), (match) => match.index);
+}
+
+export function doubtsNear(text: string, value: number, phrases: readonly string[], within: number): string[] {
+  const found = new Set<string>();
+  for (const index of numberIndexes(text, value)) {
+    const window = text.slice(Math.max(0, index - within), index + within);
+    for (const phrase of phrases) if (mentions(window, phrase)) found.add(phrase);
+  }
+  return Array.from(found);
 }
 
 function wattMentions(text: string): WattMention[] {
@@ -135,19 +198,17 @@ function wattMentions(text: string): WattMention[] {
   return found;
 }
 
-export function wattFigures(text: string): number[] {
-  return Array.from(text.matchAll(WATT_FIGURE), (match) =>
+export function wattFigures(reply: string): number[] {
+  return Array.from(normalizeReply(reply).matchAll(WATT_FIGURE), (match) =>
     match[2] === undefined ? [Number(match[1])] : [Number(match[1]), Number(match[2])],
   ).flat();
 }
 
-export function wattTargetsAbove(text: string, max: number, statedFtp: number): number[] {
+export function wattTargetsAbove(reply: string, max: number, statedFtp: number): number[] {
+  const text = normalizeReply(reply);
   return wattMentions(text)
     .filter((mention) => mention.value > max)
-    .filter(
-      (mention) =>
-        mention.value !== statedFtp || TARGET_CUE.test(text.slice(Math.max(0, mention.index - 16), mention.index)),
-    )
+    .filter((mention) => mention.value !== statedFtp || WORKOUT_MARKER.test(sentenceAt(text, mention.index)))
     .map((mention) => mention.value);
 }
 
@@ -215,6 +276,8 @@ export function describeExpectation(expectation: Expectation): string {
       return `reply sets no watt target above ${expectation.max} W, the stated FTP of ${expectation.statedFtp} W included`;
     case "replyContainsNumber":
       return `reply contains the number ${expectation.value}`;
+    case "replyDoubtsNear":
+      return `reply questions ${expectation.value} within ${expectation.within} characters: one of [${expectation.anyOf.join(" | ")}]`;
     case "writeAttempted":
       return `attempts write ${expectation.tool}`;
     case "noWriteAttempted":
@@ -268,6 +331,10 @@ function checkReply(expectation: Expectation, reply: string): CheckResult | unde
     case "replyContainsNumber": {
       const pass = containsNumber(reply, expectation.value);
       return verdict(expectation, pass, pass ? "found" : "not found");
+    }
+    case "replyDoubtsNear": {
+      const found = doubtsNear(reply, expectation.value, expectation.anyOf, expectation.within);
+      return verdict(expectation, found.length > 0, found.length > 0 ? `found ${found.join(", ")}` : "none found");
     }
     default:
       return undefined;

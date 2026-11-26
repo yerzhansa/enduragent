@@ -126,7 +126,7 @@ export interface StoreFixture {
 
 export function buildStoreFixture(setting: "connected" | "implausible-ftp", today: Date): StoreFixture {
   const ftp = setting === "implausible-ftp" ? IMPLAUSIBLE_FTP_WATTS : FTP_WATTS;
-  const captureEpochMs = today.getTime() - SYNC_AGE_MS;
+  const captureEpochMs = Math.max(today.getTime() - SYNC_AGE_MS, Date.parse(`${dateKey(today, 0)}T00:00:00Z`));
   const find = (id: string) => ACTIVITY_SEEDS.find((seed) => seed.id === id);
   return {
     snapshot: {
