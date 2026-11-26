@@ -10,6 +10,7 @@ import {
 
 const TOKEN = "o".repeat(43);
 const SYNTHETIC_KEY = `sk-or-v1-${"0".repeat(64)}`;
+const ANTHROPIC_KEY = `sk-ant-api03-${"0".repeat(80)}`;
 
 interface ScriptRequest {
   readonly method: string;
@@ -20,6 +21,12 @@ interface LlmRuntimeRequest {
   readonly provider?: string;
   readonly model?: string;
   readonly api_key?: string;
+  readonly clear_credential?: boolean;
+}
+
+interface RuntimeRequest {
+  readonly llm?: LlmRuntimeRequest;
+  readonly session?: unknown;
 }
 
 function response(value: unknown): readonly string[] {
@@ -135,19 +142,25 @@ class OpenRouterCoach {
   };
 
   private configure(params: unknown) {
-    const llm = (params as { readonly llm?: LlmRuntimeRequest }).llm;
+    const request = params as RuntimeRequest;
+    const llm = request.llm;
     if (llm !== undefined) {
       this.llmRequests.push(llm);
       this.llm = {
         provider: llm.provider ?? this.llm.provider,
         model: llm.model ?? this.llm.model,
-        configured: this.llm.configured || llm.api_key !== undefined,
+        configured:
+          llm.clear_credential !== true && (this.llm.configured || llm.api_key !== undefined),
       };
     }
     return {
       schemaVersion: 3,
       status: "applied",
-      applied: { llm: llm !== undefined, intervals: false, session: true },
+      applied: {
+        llm: llm !== undefined,
+        intervals: false,
+        session: request.session !== undefined,
+      },
     };
   }
 
@@ -353,4 +366,49 @@ test("signs in to OpenRouter again from Settings after setup", async ({
   ).toHaveLength(2);
   await expectNoSecretInRenderer(desktop);
   await page.screenshot({ path: testInfo.outputPath("settings-signed-in-again.png") });
+});
+
+async function openSettings(page: Page): Promise<void> {
+  const navigation = page.getByRole("navigation", { name: "Main navigation" });
+  await navigation.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Setup", exact: true })).toBeVisible();
+}
+
+async function setUpWithAnthropicKey(page: Page): Promise<void> {
+  await page.locator('[data-setup-trigger="ai"]').click();
+  await page.locator('[data-setup-menu="ai"] [data-lane="api-key"]').click();
+  await page.locator("#credential-anthropic").fill(ANTHROPIC_KEY);
+  await page.getByRole("button", { name: "Save API key", exact: true }).click();
+  const row = page.locator('[data-setup-row="ai"]');
+  await expect(row).toHaveAttribute("data-state", "ready");
+  await page.getByRole("button", { name: "Start coaching", exact: true }).click();
+  await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "app");
+}
+
+function coachRoute(page: Page) {
+  return page
+    .getByRole("region", { name: "Coach", exact: true })
+    .locator("div", { hasText: /^Coach route$/u })
+    .locator("xpath=following-sibling::*[1]");
+}
+
+test("refreshes Settings after an OpenRouter sign-in replaces a pasted Anthropic key", async ({
+  openRouterDesktop: desktop,
+}, testInfo) => {
+  const { page } = desktop;
+  await setUpWithAnthropicKey(page);
+  await openSettings(page);
+  await expect(coachRoute(page)).toContainText("Anthropic");
+
+  await chooseOpenRouter(page);
+  await page.getByRole("button", { name: "Sign in with OpenRouter", exact: true }).click();
+  await desktop.approveSignIn();
+
+  await expectConnected(page);
+  await expect(
+    page.getByRole("button", { name: "Delete the OpenRouter credential" }),
+  ).toBeVisible();
+  await expect(coachRoute(page)).toContainText("OpenRouter");
+  await expectNoSecretInRenderer(desktop);
+  await page.screenshot({ path: testInfo.outputPath("settings-after-sign-in.png") });
 });

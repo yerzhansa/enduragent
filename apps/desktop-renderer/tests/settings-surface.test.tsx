@@ -39,6 +39,7 @@ import {
   credentialChangesBlocked,
   createCredentialSettingsController,
 } from "../src/settings/credential-controller";
+import { createSettingsPanes } from "../src/settings/panes";
 import { createProviderModelSettingsController } from "../src/settings/provider-model-controller";
 import { createSessionSettingsController } from "../src/settings/session-controller";
 import {
@@ -500,21 +501,13 @@ function createHarness(options: HarnessOptions = {}) {
     },
     view: updateAdapter.view,
   });
+  const panes = createSettingsPanes({
+    coach: coachController,
+    credentials: credentialController,
+    others: [athleteController, conversationController],
+  });
   store.getState().bindSettingsPorts({
-    panes: {
-      activate() {
-        void coachController.activate();
-        void credentialController.activate();
-        void athleteController.activate();
-        void conversationController.activate();
-      },
-      close() {
-        coachController.close();
-        credentialController.close();
-        athleteController.close();
-        conversationController.close();
-      },
-    },
+    panes,
     coach: coachAdapter.port,
     credentials: credentialAdapter.port,
     athlete: athleteAdapter.port,
@@ -546,6 +539,7 @@ function createHarness(options: HarnessOptions = {}) {
     credentialController,
     telegramController,
     spendController,
+    panes,
     startUpdate: () => updateController.start(),
     dispose() {
       coachController.dispose();
@@ -1530,6 +1524,60 @@ describe("settings lifecycle", () => {
     harness.dispose();
     expect(harness.cancelTelegramPoll).toHaveBeenCalledWith(1);
     harness = undefined;
+  });
+});
+
+describe("settings after a setup change", () => {
+  it("reloads the coach route and the credential rows once Setup connects a provider", async () => {
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    let statuses: readonly CredentialSlotStatus[] = [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ];
+    const loadCredentialStatuses = vi.fn(async () => statuses);
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      loadCredentialStatuses,
+    });
+    expect(screen.queryByRole("button", { name: "Delete the OpenRouter credential" })).toBeNull();
+
+    active = { provider: "openrouter", model: "vendor/synthetic" };
+    statuses = [
+      { slot: "anthropic", state: "configured", runtimeState: "stored-inactive" },
+      { slot: "openrouter", state: "configured", runtimeState: "active" },
+    ];
+    act(() => subject.panes.reloadAfterSetup());
+
+    await screen.findByRole("button", { name: "Delete the OpenRouter credential" });
+    await waitFor(() => {
+      const coach = useEnduragentStore.getState().settings.coach;
+      expect(coach.status === "ready" ? coach.active : null).toEqual(active);
+    });
+  });
+
+  it("leaves closed Settings panes closed when Setup connects a provider", () => {
+    const llm = vi.fn(llmConfiguration);
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);
+    harness = createHarness({ llm, loadCredentialStatuses });
+    harness.panes.reloadAfterSetup();
+    expect(llm).not.toHaveBeenCalled();
+    expect(loadCredentialStatuses).not.toHaveBeenCalled();
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+  });
+
+  it("keeps an open delete confirmation when Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+      { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+    ]);
+    const subject = await renderSettings({ loadCredentialStatuses });
+    await user.click(screen.getByRole("button", { name: "Delete the OpenRouter credential" }));
+    act(() => subject.panes.reloadAfterSetup());
+    expect(useEnduragentStore.getState().settings.credentials.status).toBe("confirming");
+    expect(loadCredentialStatuses).toHaveBeenCalledOnce();
   });
 });
 

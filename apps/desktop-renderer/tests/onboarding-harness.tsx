@@ -99,6 +99,7 @@ export function mountWizard(input: {
   readonly afterPaint?: (callback: () => void) => () => void;
   readonly placement?: "gate" | "settings";
   readonly codexAgentSupported?: boolean;
+  readonly onActiveSelectionChanged?: () => void;
 }): MountedWizard {
   const focusOpener = vi.fn<() => void>();
   const adapter = createOnboardingViewAdapter({
@@ -124,6 +125,9 @@ export function mountWizard(input: {
     ...(input.codexAgentSupported === undefined
       ? {}
       : { codexAgentSupported: input.codexAgentSupported }),
+    ...(input.onActiveSelectionChanged === undefined
+      ? {}
+      : { onActiveSelectionChanged: input.onActiveSelectionChanged }),
   });
   useEnduragentStore.getState().bindOnboardingActions(controller);
   const rendered = render(

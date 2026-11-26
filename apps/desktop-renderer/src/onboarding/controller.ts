@@ -148,6 +148,7 @@ export interface OnboardingControllerOptions {
   readonly focusOpener?: () => void;
   readonly onComplete: (completion: OnboardingCompletion) => void;
   readonly onReady?: () => void;
+  readonly onActiveSelectionChanged?: () => void;
   readonly ownsDroppedImportFiles?: () => boolean;
   readonly credentialMutationsBlocked?: () => boolean;
   readonly createOperationId?: () => string;
@@ -307,6 +308,7 @@ export function createOnboardingController(
       ...llmConfiguration,
       active: { provider: selection.provider, model: selection.model },
     };
+    options.onActiveSelectionChanged?.();
   };
 
   const openRouter = createOpenRouterSignIn({

@@ -1,7 +1,7 @@
 import { createPhrasebook } from "@enduragent/i18n/messages";
 import { act, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenRouterSignInResult } from "../src/onboarding/bridge";
 import { deleteDetailMessage } from "../src/settings/credential-delete-copy";
 import { useEnduragentStore } from "../src/state/store";
@@ -487,16 +487,37 @@ describe("OpenRouter sign-in panel", () => {
     wizard.controller.dispose();
   });
 
+  it("tells Settings to reload after OpenRouter connects by sign-in or by a pasted key", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const reloadSettings = vi.fn();
+    const wizard = mountWizard({ bridge, onActiveSelectionChanged: reloadSettings });
+    await wizard.open();
+    await chooseLane(user, "openrouter");
+    bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(rowState("ai")).toBe("ready"));
+    expect(reloadSettings).toHaveBeenCalledOnce();
+
+    await chooseLane(user, "api-key");
+    seedSecret("openrouter", PASTED_KEY);
+    await saveModelKey(user);
+    await waitFor(() => expect(reloadSettings).toHaveBeenCalledTimes(2));
+    wizard.controller.dispose();
+  });
+
   it("shows a status error when the setup status cannot be refreshed after sign-in", async () => {
     const user = userEvent.setup();
     const bridge = bridgeWith();
-    const wizard = mountWizard({ bridge });
+    const reloadSettings = vi.fn();
+    const wizard = mountWizard({ bridge, onActiveSelectionChanged: reloadSettings });
     await wizard.open();
     await chooseLane(user, "openrouter");
     bridge.credentialStatuses.mockRejectedValue(new TypeError());
     await click(user, SIGN_IN);
     await waitFor(() => expect(setupRow("ai").parentElement).toHaveTextContent(STATUS_UNAVAILABLE));
     expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    expect(reloadSettings).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
 
