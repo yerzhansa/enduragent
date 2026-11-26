@@ -281,6 +281,9 @@ describe("startOpenRouterCodeSignIn", () => {
     const exchange = exchangeFetch(() => jsonResponse(200, { key: SYNTHETIC_KEY }));
     const attempt = startOpenRouterCodeSignIn({ fetch: exchange.fetch });
     await expect(attempt.exchange("not a code")).rejects.toBeInstanceOf(OpenRouterSignInError);
+    await expect(
+      attempt.exchange(`https://intervals.icu/oauth/callback?code=${CODE}`),
+    ).rejects.toBeInstanceOf(OpenRouterSignInError);
     expect(exchange.calls).toHaveLength(0);
   });
 });
@@ -290,6 +293,11 @@ describe("parseOpenRouterCode", () => {
     [CODE, CODE],
     [`  ${CODE}  `, CODE],
     [`http://localhost:4000/openrouter/callback?code=${CODE}&state=x`, CODE],
+    [`http://127.0.0.1:4000/openrouter/callback?code=${CODE}`, CODE],
+    [`https://openrouter.ai/auth/code?code=${CODE}`, CODE],
+    [`https://intervals.icu/oauth/callback?code=${CODE}`, null],
+    [`https://openrouter.ai.example.com/callback?code=${CODE}`, null],
+    [`ftp://localhost/callback?code=${CODE}`, null],
     ["", null],
     ["two words here", null],
     ["short", null],

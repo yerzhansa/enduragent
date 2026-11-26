@@ -23,6 +23,7 @@ const AUTHORIZATION_TIMEOUT_MS = 5 * 60 * 1000;
 const TOKEN_EXCHANGE_TIMEOUT_MS = 10_000;
 const CREDIT_STATUS_TIMEOUT_MS = 10_000;
 const CODE_PATTERN = /^[A-Za-z0-9._~-]{8,512}$/u;
+const CODE_URL_HOSTS: ReadonlySet<string> = new Set(["openrouter.ai", "localhost", "127.0.0.1"]);
 
 export type OpenRouterSignInPhase = LoopbackSignInPhase;
 
@@ -88,9 +89,15 @@ function readCallback(url: URL, state: string): LoopbackCallbackOutcome<"access-
   return returnedState === state ? { code } : null;
 }
 
+function codeFromCallbackUrl(text: string): string | null {
+  const url = new URL(text);
+  const web = url.protocol === "https:" || url.protocol === "http:";
+  return web && CODE_URL_HOSTS.has(url.hostname) ? url.searchParams.get("code") : null;
+}
+
 export function parseOpenRouterCode(text: string): string | null {
   const trimmed = text.trim();
-  const candidate = URL.canParse(trimmed) ? new URL(trimmed).searchParams.get("code") : trimmed;
+  const candidate = URL.canParse(trimmed) ? codeFromCallbackUrl(trimmed) : trimmed;
   if (candidate === null || candidate.startsWith("sk-")) return null;
   return CODE_PATTERN.test(candidate) ? candidate : null;
 }
