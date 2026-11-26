@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { OpenRouterSignInResult } from "../src/onboarding/bridge";
 import { deleteDetailMessage } from "../src/settings/credential-delete-copy";
 import { useEnduragentStore } from "../src/state/store";
+import { SetupPanel } from "../src/ui/onboarding/OnboardingWizard";
+import { renderLocalized } from "./language-harness";
 import {
   TEST_LLM_CONFIGURATION,
   chooseLane,
@@ -248,6 +250,17 @@ describe("OpenRouter sign-in panel", () => {
       window.dispatchEvent(new Event("focus"));
     });
     expect(bridge.openRouterCreditStatus).toHaveBeenCalledTimes(2);
+    wizard.controller.dispose();
+  });
+
+  it("reads the credit status again when the Settings setup panel opens", async () => {
+    const bridge = bridgeWith({ active: "openrouter", statuses: [ACTIVE] });
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await waitFor(() => expect(bridge.openRouterCreditStatus).toHaveBeenCalledOnce());
+    const settings = renderLocalized(<SetupPanel placement="settings" />);
+    await waitFor(() => expect(bridge.openRouterCreditStatus).toHaveBeenCalledTimes(2));
+    settings.unmount();
     wizard.controller.dispose();
   });
 

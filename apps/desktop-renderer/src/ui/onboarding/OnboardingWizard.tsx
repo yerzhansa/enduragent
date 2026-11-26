@@ -65,6 +65,10 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   const focused = useRef(-1);
 
   useEffect(() => {
+    if (props.placement === "settings") actions?.openRouter.checkCredits();
+  }, [actions, props.placement]);
+
+  useEffect(() => {
     if (focused.current === surface.focusSeq) return;
     focused.current = surface.focusSeq;
     panel.current?.querySelector<HTMLElement>("#setup-panel-title")?.focus();
