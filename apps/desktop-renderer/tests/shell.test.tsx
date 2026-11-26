@@ -677,7 +677,10 @@ describe("shell", () => {
           open: true,
           completionRequired: true,
         },
-        onboardingActions: { finish } as unknown as OnboardingController,
+        onboardingActions: {
+          finish,
+          openRouter: { checkCredits: () => undefined },
+        } as unknown as OnboardingController,
       });
       await renderWithLanguage(<Shell onReady={() => {}} />);
       const gate = document.querySelector('[data-setup-host="gate"]');

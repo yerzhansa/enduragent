@@ -619,6 +619,7 @@ beforeEach(() => {
       setCustomModel() {},
       setEndpointMode() {},
       setCustomEndpoint() {},
+      openRouter: { checkCredits() {} },
     } as unknown as OnboardingController,
   });
 });
