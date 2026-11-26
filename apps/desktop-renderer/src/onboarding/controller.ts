@@ -325,7 +325,7 @@ export function createOnboardingController(
     sync: async (selection) => {
       const syncVisit = visit;
       const refreshed = await refreshStatuses(syncVisit);
-      if (refreshed && selection !== null) recordActiveSelection(selection);
+      if (selection !== null) recordActiveSelection(selection);
       if (refreshed || selection === null || visit !== syncVisit || !presenting) return;
       lastCommit = "provider";
       state = { ...state, fixedError: "credential-status-unavailable" };
@@ -493,7 +493,7 @@ export function createOnboardingController(
     if (saved === null) return;
     let saveError = saved.error;
     if (saveError === "runtime-unavailable") saveError = "model-runtime-unavailable";
-    if (saveError === null && saved.selectedApplied) {
+    if (saved.selectedApplied) {
       recordActiveSelection(parsedSelection.selection);
     } else if (saveError === null) {
       try {
@@ -509,11 +509,8 @@ export function createOnboardingController(
                 ? "model-runtime-unavailable"
                 : "invalid-input";
         } else {
-          if (!(await refreshStatuses(submitVisit))) {
-            saveError = "credential-status-unavailable";
-          } else {
-            recordActiveSelection(parsedSelection.selection);
-          }
+          if (!(await refreshStatuses(submitVisit))) saveError = "credential-status-unavailable";
+          recordActiveSelection(parsedSelection.selection);
         }
       } catch {
         if (visit !== submitVisit || !presenting) return;

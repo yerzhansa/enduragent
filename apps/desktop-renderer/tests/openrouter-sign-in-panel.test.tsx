@@ -506,7 +506,7 @@ describe("OpenRouter sign-in panel", () => {
     wizard.controller.dispose();
   });
 
-  it("shows a status error when the setup status cannot be refreshed after sign-in", async () => {
+  it("reloads Settings and shows a status error when the setup status cannot be refreshed after sign-in", async () => {
     const user = userEvent.setup();
     const bridge = bridgeWith();
     const reloadSettings = vi.fn();
@@ -517,7 +517,23 @@ describe("OpenRouter sign-in panel", () => {
     await click(user, SIGN_IN);
     await waitFor(() => expect(setupRow("ai").parentElement).toHaveTextContent(STATUS_UNAVAILABLE));
     expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
-    expect(reloadSettings).not.toHaveBeenCalled();
+    expect(reloadSettings).toHaveBeenCalledOnce();
+    wizard.controller.dispose();
+  });
+
+  it("reloads Settings and shows a status error when a pasted OpenRouter key connects but the setup status cannot be refreshed", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    const reloadSettings = vi.fn();
+    const wizard = mountWizard({ bridge, onActiveSelectionChanged: reloadSettings });
+    await wizard.open();
+    await chooseLane(user, "openrouter");
+    await click(user, PASTE);
+    seedSecret("openrouter", PASTED_KEY);
+    bridge.credentialStatuses.mockRejectedValue(new TypeError());
+    await saveModelKey(user);
+    await waitFor(() => expect(setupRow("ai").parentElement).toHaveTextContent(STATUS_UNAVAILABLE));
+    expect(reloadSettings).toHaveBeenCalledOnce();
     wizard.controller.dispose();
   });
 
