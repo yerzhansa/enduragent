@@ -97,6 +97,24 @@ describe("reply text checks", () => {
     expect(wattTargetsAbove("An FTP of 720 W looks wrong, so I won't set 684–756 W targets.", 600, 720)).toEqual([
       684, 756,
     ]);
+    expect(
+      wattTargetsAbove(
+        "Your FTP of 720 W looks wrong: it is more like a 1 min sprint power than something you can hold for 60 min. Ride 3 x 12 min at RPE 7.",
+        600,
+        720,
+      ),
+    ).toEqual([]);
+    expect(wattTargetsAbove("An FTP of 720 W is unrealistic, roughly 170% above what your rides suggest.", 600, 720)).toEqual([]);
+    expect(wattTargetsAbove("Main set: 4 x 8 min at 720 W; if it feels too high, back off.", 600, 720)).toEqual([720]);
+  });
+
+  it("reads a dash between a metric and its value as punctuation, not a minus sign", () => {
+    const reply = normalizeReply("- **Fitness** — 61\n- **Fatigue** – 55\n- **Form** — +6");
+    expect(statesMetric(reply, "Fitness", 61)).toBe(true);
+    expect(statesMetric(reply, "Fatigue", 55)).toBe(true);
+    expect(statesMetric(reply, "Form", 6)).toBe(true);
+    expect(statesMetric(normalizeReply("Form = Fitness − Fatigue = 61 − 55 = +6."), "Fatigue", 55)).toBe(true);
+    expect(statesMetric("Form -6", "Form", -6)).toBe(true);
   });
 
   it("finds a doubt about a value only near that value", () => {

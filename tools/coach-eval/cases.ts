@@ -1,4 +1,4 @@
-import { TRAINING_DATA_TOOLS, type Expectation } from "./checks.js";
+import { STRONG_DOUBT_PHRASES, TRAINING_DATA_TOOLS, type Expectation } from "./checks.js";
 import { IMPLAUSIBLE_FTP_WATTS, RECENT_RIDE_ID, latestWellness, type DataSetting } from "./fixture.js";
 import type { Channel } from "./ports.js";
 
@@ -34,25 +34,6 @@ const FITNESS_WORDS: readonly Expectation[] = [
   { kind: "replyStatesMetric", label: "Form", value: LATEST.form },
 ];
 
-const FTP_DOUBT_WORDS = [
-  "unrealistic",
-  "not realistic",
-  "isn't realistic",
-  "above realistic",
-  "implausible",
-  "impossible",
-  "too high",
-  "incorrect",
-  "wrong",
-  "mistake",
-  "typo",
-  "error",
-  "looks off",
-  "can't be right",
-  "cannot be right",
-  "double-check",
-  "double check",
-];
 
 const WARM_UP = ["warm-up", "warm up", "warmup", "warming up"];
 const COOL_DOWN = ["cool-down", "cool down", "cooldown", "cooling down", "warm-down", "warm down"];
@@ -163,7 +144,7 @@ export const CASES: readonly EvalCase[] = [
             oneOf: [IMPLAUSIBLE_FTP_WATTS],
           },
           { kind: "replyWattTargetsAtMost", max: 600, statedFtp: IMPLAUSIBLE_FTP_WATTS },
-          { kind: "replyDoubtsNear", value: IMPLAUSIBLE_FTP_WATTS, anyOf: FTP_DOUBT_WORDS, within: 240 },
+          { kind: "replyDoubtsNear", value: IMPLAUSIBLE_FTP_WATTS, anyOf: STRONG_DOUBT_PHRASES, within: 240 },
         ],
       },
     ],

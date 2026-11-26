@@ -97,7 +97,26 @@ const WATT_FIGURE = /(?<![\d.,])(\d{1,4})(?:\s*-\s*(\d{1,4}))?(?:\s?W|w|\s?[Ww]a
 const BARE_RANGE = /(?<![\d.,])(\d{3,4})\s*-\s*(\d{3,4})(?![\d.,])(?!\s*(?:[\p{L}%\u00b0]|\/))/gu;
 const SENTENCE_BREAK = /(?<!\d)[.!?](?!\d)|\n/gu;
 const WORKOUT_MARKER = /\d\s*[x\u00d7]\s*\d|\d\s*(?:min|mins|minutes|sec|secs|seconds|s)\b|%/iu;
-const SIGNED_NUMBER = /(?<![\d.])([+-]?)[ \t]?(\d+(?:\.\d+)?)/gu;
+const SIGNED_NUMBER = /(?<![\d.])([+-]?)(\d+(?:\.\d+)?)/gu;
+
+export const STRONG_DOUBT_PHRASES = [
+  "unrealistic",
+  "not realistic",
+  "isn't realistic",
+  "above realistic",
+  "implausible",
+  "impossible",
+  "incorrect",
+  "mistake",
+  "typo",
+  "error",
+  "looks off",
+  "looks wrong",
+  "can't be right",
+  "cannot be right",
+  "double-check",
+  "double check",
+] as const;
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -204,11 +223,15 @@ export function wattFigures(reply: string): number[] {
   ).flat();
 }
 
+function isTargetSentence(sentence: string): boolean {
+  return WORKOUT_MARKER.test(sentence) && !STRONG_DOUBT_PHRASES.some((phrase) => mentions(sentence, phrase));
+}
+
 export function wattTargetsAbove(reply: string, max: number, statedFtp: number): number[] {
   const text = normalizeReply(reply);
   return wattMentions(text)
     .filter((mention) => mention.value > max)
-    .filter((mention) => mention.value !== statedFtp || WORKOUT_MARKER.test(sentenceAt(text, mention.index)))
+    .filter((mention) => mention.value !== statedFtp || isTargetSentence(sentenceAt(text, mention.index)))
     .map((mention) => mention.value);
 }
 
