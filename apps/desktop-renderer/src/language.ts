@@ -4,16 +4,16 @@ import { setupDisposition } from "./state/onboarding-slice";
 import type { EnduragentState } from "./state/store";
 
 export function resolvedLanguageTag(state: Pick<EnduragentState, "settings">): LanguageTag {
-  const language = state.settings.language;
-  const fallback = normalizeLocaleHint(navigator.languages) ?? "en";
-  return language.status === "loading" ? fallback : (language.value ?? fallback);
+  return state.settings.language.value ?? normalizeLocaleHint(navigator.languages) ?? "en";
 }
 
 export function rendererLocale(tag: LanguageTag): string {
   try {
     const locale = Intl.getCanonicalLocales(navigator.language.trim().replaceAll("_", "-"))[0];
     if (locale !== undefined) return locale;
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+  }
   return describeLanguage(tag).defaultLocale;
 }
 

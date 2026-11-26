@@ -512,7 +512,6 @@
   "no-empty": {
     "apps/desktop-renderer/src/archive/controller.ts": 1,
     "apps/desktop-renderer/src/chat/controller.ts": 10,
-    "apps/desktop-renderer/src/language.ts": 1,
     "apps/desktop-renderer/src/onboarding/completion.ts": 1,
     "apps/desktop-renderer/src/training-sync.ts": 3,
     "apps/desktop/scripts/accept-residency.mjs": 10,
@@ -581,7 +580,6 @@
     "apps/desktop-renderer/src/chat/controller.ts": 18,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
     "apps/desktop-renderer/src/plan/library-refresh.ts": 1,
-    "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/settings/provider-model-controller.ts": 1,
     "apps/desktop-renderer/src/state/adapters/settings.ts": 1,
     "apps/desktop-renderer/src/training-context/controller.ts": 1,
@@ -627,7 +625,6 @@
     "apps/desktop-renderer/src/coach-client.ts": 2,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
     "apps/desktop-renderer/src/plan/library-refresh.ts": 1,
-    "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/settings/provider-model-controller.ts": 1,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 1,
     "apps/desktop-renderer/src/spend-meter/controller.ts": 3,

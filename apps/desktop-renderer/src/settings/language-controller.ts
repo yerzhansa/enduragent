@@ -1,10 +1,9 @@
 import type { LanguageTag } from "@enduragent/coach-contract";
 import type { CoachClient } from "@enduragent/coach-client";
 
-export interface LanguagePreferenceViewState {
-  readonly status: "loading" | "ready" | "saving" | "unavailable";
-  readonly value: LanguageTag | null;
-}
+export type LanguagePreferenceViewState =
+  | { readonly status: "loading"; readonly value: null }
+  | { readonly status: "ready" | "saving" | "unavailable"; readonly value: LanguageTag | null };
 
 export function createLanguageSettingsController(input: {
   readonly clients: { getClient(): Promise<Pick<CoachClient, "call">> };
@@ -22,16 +21,16 @@ export function createLanguageSettingsController(input: {
   };
 
   const enqueue = (operation: () => Promise<void>): Promise<void> => {
-    const task = tail.then(async () => {
+    const run = async (): Promise<void> => {
       if (!disposed) await operation();
-    });
-    tail = task.catch(() => {});
+    };
+    const task = tail.then(run, run);
+    tail = task;
     return task;
   };
 
   const refresh = (): Promise<void> =>
     enqueue(async () => {
-      publish({ ...state, status: "loading" });
       try {
         const client = await input.clients.getClient();
         if (disposed) return;
