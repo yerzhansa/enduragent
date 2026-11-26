@@ -1638,6 +1638,46 @@ describe("settings after a setup change", () => {
     expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
   });
 
+  it("reloads a Coach pane that Review setup closed once Setup connects the provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      applyLlmSelection: async () => ({ status: "refused", reason: "credential-required" }),
+    });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /Provider/u }));
+    await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
+    await user.click(await coach.findByRole("button", { name: "Review setup" }));
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+
+    active = OPENROUTER_ACTIVE;
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+  });
+
+  it("does not reload Settings panes after Settings closes", async () => {
+    const llm = vi.fn(llmConfiguration);
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);
+    const subject = await renderSettings({ llm, loadCredentialStatuses });
+    act(() => useEnduragentStore.getState().closeSettingsPanes());
+    const loads = llm.mock.calls.length;
+    const credentialLoads = loadCredentialStatuses.mock.calls.length;
+
+    await act(async () => {
+      subject.panes.reloadAfterSetup();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(llm).toHaveBeenCalledTimes(loads);
+    expect(loadCredentialStatuses).toHaveBeenCalledTimes(credentialLoads);
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+  });
+
   it("leaves closed Settings panes closed when Setup connects a provider", () => {
     const llm = vi.fn(llmConfiguration);
     const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);

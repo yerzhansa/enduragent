@@ -21,16 +21,20 @@ export function createSettingsPanes(input: {
   readonly onActivate?: () => void;
 }): SettingsPanes {
   const panes = [input.coach, input.credentials, ...input.others];
+  let open = false;
   return {
     activate() {
+      open = true;
       input.onActivate?.();
       for (const pane of panes) void pane.activate();
     },
     close() {
+      open = false;
       for (const pane of panes) pane.close();
     },
     reloadAfterSetup() {
-      if (input.coach.state().status !== "closed") void input.coach.refresh();
+      if (!open) return;
+      void input.coach.refresh();
       if (IDLE_CREDENTIAL_STATES.has(input.credentials.state().status)) {
         void input.credentials.refresh();
       }
