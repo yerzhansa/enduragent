@@ -102,6 +102,14 @@ interface AuthBridge {
   cancelIntervalsSignIn(): Promise<unknown>;
   reopenIntervalsSignIn(): Promise<unknown>;
   onIntervalsSignInProgress(listener: (phase: unknown) => void): () => void;
+  openRouterSignIn(input: unknown): Promise<unknown>;
+  startOpenRouterCodeSignIn(input: unknown): Promise<unknown>;
+  useCopiedOpenRouterCode(operationId: unknown): Promise<unknown>;
+  cancelOpenRouterSignIn(operationId: unknown): Promise<unknown>;
+  reopenOpenRouterSignIn(operationId: unknown): Promise<unknown>;
+  openRouterCreditStatus(...args: unknown[]): Promise<unknown>;
+  openOpenRouterPage(page: unknown): Promise<unknown>;
+  onOpenRouterSignInProgress(listener: (progress: unknown) => void): () => void;
   pasteTelegramTokenFromClipboard(): Promise<unknown>;
   enableTelegram(): Promise<unknown>;
   disableTelegram(): Promise<unknown>;
@@ -384,6 +392,7 @@ describe("desktop preload ChatGPT auth", () => {
         "cancelTelegramPairing",
         "cancelChatgptLogin",
         "cancelIntervalsSignIn",
+        "cancelOpenRouterSignIn",
         "chatgptLogin",
         "chatgptStatus",
         "chooseChatAttachments",
@@ -414,9 +423,13 @@ describe("desktop preload ChatGPT auth", () => {
         "onDroppedChatAttachments",
         "onDroppedImportFiles",
         "onIntervalsSignInProgress",
+        "onOpenRouterSignInProgress",
         "onPlanProgress",
         "onOpenSettings",
         "onUpdateState",
+        "openOpenRouterPage",
+        "openRouterCreditStatus",
+        "openRouterSignIn",
         "pasteChatAttachment",
         "pasteTelegramTokenFromClipboard",
         "platform",
@@ -425,14 +438,17 @@ describe("desktop preload ChatGPT auth", () => {
         "removeTelegramAllowedSender",
         "removeTelegramWebhook",
         "reopenIntervalsSignIn",
+        "reopenOpenRouterSignIn",
         "restartToUpdate",
         "resetAllCredentials",
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
         "signInWithIntervals",
+        "startOpenRouterCodeSignIn",
         "submitAthleteFeedback",
         "telegramStatus",
+        "useCopiedOpenRouterCode",
         "writeCredential",
       ].sort(),
     );
@@ -1034,6 +1050,111 @@ describe("desktop preload ChatGPT auth", () => {
     expect(() => throwing?.()).toThrow(failure);
     receiving?.();
     expect(received).toEqual(["waiting-for-browser"]);
+  });
+
+  it("sends OpenRouter sign-in requests on their own channels and copies closed results", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openrouter",
+      model: "athlete-model",
+      endpoint: { mode: "automatic" },
+    };
+    mocks.invoke
+      .mockResolvedValueOnce({ status: "connected", operationId: "or-1", credit: "never-paid" })
+      .mockResolvedValueOnce({ status: "awaiting-code", operationId: "or-2" })
+      .mockResolvedValueOnce({
+        status: "refused",
+        operationId: "or-2",
+        reason: "clipboard-no-code",
+      })
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce("paid")
+      .mockResolvedValueOnce(true);
+
+    await expect(bridge.openRouterSignIn({ operationId: "or-1", selection })).resolves.toEqual({
+      status: "connected",
+      operationId: "or-1",
+      credit: "never-paid",
+    });
+    await expect(
+      bridge.startOpenRouterCodeSignIn({ operationId: "or-2", selection }),
+    ).resolves.toEqual({ status: "awaiting-code", operationId: "or-2" });
+    await expect(bridge.useCopiedOpenRouterCode("or-2")).resolves.toEqual({
+      status: "refused",
+      operationId: "or-2",
+      reason: "clipboard-no-code",
+    });
+    await expect(bridge.cancelOpenRouterSignIn("or-2")).resolves.toBe(true);
+    await expect(bridge.reopenOpenRouterSignIn("or-2")).resolves.toBe(false);
+    await expect(bridge.openRouterCreditStatus()).resolves.toBe("paid");
+    await expect(bridge.openOpenRouterPage("credits")).resolves.toBe(true);
+    expect(mocks.invoke.mock.calls).toEqual([
+      ["desktop:openrouter:sign-in", { operationId: "or-1", selection }],
+      ["desktop:openrouter:code-sign-in", { operationId: "or-2", selection }],
+      ["desktop:openrouter:use-copied-code", { operationId: "or-2" }],
+      ["desktop:openrouter:sign-in-cancel", { operationId: "or-2" }],
+      ["desktop:openrouter:sign-in-reopen", { operationId: "or-2" }],
+      ["desktop:openrouter:credit-status"],
+      ["desktop:openrouter:open-page", { page: "credits" }],
+    ]);
+  });
+
+  it("refuses OpenRouter requests and results that could carry a secret", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openrouter",
+      model: "athlete-model",
+      endpoint: { mode: "automatic" },
+    };
+    const key = `sk-or-v1-${"9".repeat(64)}`;
+    for (const input of [
+      { operationId: "or-1", selection, code: "synthetic-code" },
+      { operationId: "or 1", selection },
+      { operationId: "or-1" },
+    ]) {
+      await expect(bridge.openRouterSignIn(input)).rejects.toBeInstanceOf(TypeError);
+    }
+    await expect(
+      bridge.openOpenRouterPage("https://openrouter.ai/settings/keys"),
+    ).rejects.toBeInstanceOf(TypeError);
+    await expect(bridge.openRouterCreditStatus({})).rejects.toBeInstanceOf(TypeError);
+    expect(mocks.invoke).not.toHaveBeenCalled();
+
+    for (const reply of [
+      { status: "connected", operationId: "or-1", credit: "paid", key },
+      { status: "connected", operationId: "or-1", credit: key },
+      { status: "refused", operationId: "or-1", reason: key },
+      { status: "awaiting-code", operationId: "or-1", code: "synthetic-code" },
+      { status: "connected", operationId: "or-other", credit: "paid" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(reply);
+      const rejection = await bridge.openRouterSignIn({ operationId: "or-1", selection }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(rejection).toBeInstanceOf(TypeError);
+      expect(String((rejection as Error).message)).not.toContain(key);
+    }
+    mocks.invoke.mockResolvedValueOnce(key);
+    await expect(bridge.openRouterCreditStatus()).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it("forwards only closed OpenRouter sign-in progress", async () => {
+    const onProgress = ipcListener("desktop:openrouter:sign-in-progress");
+    const received: unknown[] = [];
+    const dispose = bridge.onOpenRouterSignInProgress((progress) => received.push(progress));
+    onProgress(undefined, { operationId: "or-1", phase: "waiting-for-browser" });
+    onProgress(undefined, { operationId: "or-1", phase: "completing-sign-in", code: "x" });
+    onProgress(undefined, { operationId: "or-1", phase: "connected" });
+    onProgress(undefined, { phase: "completing-sign-in" });
+    onProgress(undefined, null);
+    await settleMicrotasks();
+    expect(received).toEqual([{ operationId: "or-1", phase: "waiting-for-browser" }]);
+    dispose();
+    onProgress(undefined, { operationId: "or-1", phase: "completing-sign-in" });
+    await settleMicrotasks();
+    expect(received).toHaveLength(1);
   });
 
   it("accepts only closed secret-safe Telegram mutation envelopes", async () => {

@@ -42,6 +42,8 @@ import {
   type OnboardingLlmSelectionResult,
 } from "./llm-selection.js";
 import type { ClaudeCliStatus, ClaudeCliStatusController } from "./claude-cli-status.js";
+import { createOpenRouterAuth, type OpenRouterAuthDependencies } from "./openrouter-auth.js";
+import { installDesktopOpenRouterIpc, openRouterStoreOutcome } from "./openrouter-ipc.js";
 
 export const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status" as const;
 export const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry" as const;
@@ -97,6 +99,7 @@ interface RegisterOnboardingIpcOptions {
   readonly retryCredentialRecovery: () => Promise<DesktopCredentialRecoveryStatus>;
   readonly resetAllCredentials: () => Promise<DesktopCredentialResetResult>;
   readonly revokeIntervalsAccess: (credential: string) => Promise<IntervalsRevokeResult>;
+  readonly openRouter: OpenRouterAuthDependencies;
 }
 
 export type DesktopCredentialRecoveryStatus =
@@ -370,9 +373,36 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
       pinnedCatalogs.delete(revision);
     }
   };
+  const pinnedSnapshot = (
+    selection: OnboardingLlmSelection,
+  ): ModelCatalogSnapshot | "stale-draft" | "invalid-input" => {
+    const pinned = pinnedCatalogs.get(selection.catalogRevision);
+    if (pinned === undefined) return "stale-draft";
+    return pinned.effective.providers.some((provider) => provider.provider === selection.provider)
+      ? pinned.snapshot
+      : "invalid-input";
+  };
   const requireTrusted = (event: IpcMainInvokeEvent): void => {
     if (!options.isTrusted(event)) throw new TypeError();
   };
+  const disposeOpenRouter = installDesktopOpenRouterIpc({
+    ipcMain: options.ipcMain,
+    isTrusted: options.isTrusted,
+    auth: createOpenRouterAuth(options.openRouter),
+    prepareStore: (selection) => {
+      const catalogSnapshot = pinnedSnapshot(selection);
+      if (typeof catalogSnapshot === "string") return null;
+      return async (value) =>
+        openRouterStoreOutcome(
+          await options.vault.writeCredential({
+            slot: "openrouter",
+            value,
+            selection,
+            catalogSnapshot,
+          }),
+        );
+    },
+  });
   const publishChatGptProgress = (
     sender: IpcMainInvokeEvent["sender"],
     operationId: string,
@@ -417,8 +447,8 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     try {
       let catalogSnapshot: ModelCatalogSnapshot | undefined;
       if (input.selection !== undefined) {
-        const pinned = pinnedCatalogs.get(input.selection.catalogRevision);
-        if (pinned === undefined) {
+        const pinned = pinnedSnapshot(input.selection);
+        if (pinned === "stale-draft") {
           return {
             slot: input.slot,
             status: "stale-draft",
@@ -426,14 +456,10 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
             selection: input.selection,
           };
         }
-        if (
-          !pinned.effective.providers.some(
-            (provider) => provider.provider === input.selection?.provider,
-          )
-        ) {
+        if (pinned === "invalid-input") {
           return { slot: input.slot, status: "refused", reason: "invalid-input" };
         }
-        catalogSnapshot = pinned.snapshot;
+        catalogSnapshot = pinned;
       }
       if (input.slot === "intervals-icu") {
         const ownership = await options
@@ -675,6 +701,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
   });
   return () => {
     disposed = true;
+    disposeOpenRouter();
     pinnedCatalogs.clear();
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_STATUS_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RETRY_CHANNEL);
