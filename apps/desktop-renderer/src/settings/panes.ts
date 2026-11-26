@@ -35,9 +35,9 @@ export function createSettingsPanes(input: {
     reloadAfterSetup() {
       if (!open) return;
       void input.coach.refresh();
-      if (IDLE_CREDENTIAL_STATES.has(input.credentials.state().status)) {
-        void input.credentials.refresh();
-      }
+      const credentialStatus = input.credentials.state().status;
+      if (credentialStatus === "closed") void input.credentials.activate();
+      else if (IDLE_CREDENTIAL_STATES.has(credentialStatus)) void input.credentials.refresh();
     },
   };
 }

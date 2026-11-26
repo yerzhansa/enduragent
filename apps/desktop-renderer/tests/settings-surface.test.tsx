@@ -1661,6 +1661,34 @@ describe("settings after a setup change", () => {
     expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
   });
 
+  it("reloads the credential rows that Set up again left once Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    let statuses: readonly CredentialSlotStatus[] = [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ];
+    const subject = await renderSettings({
+      loadCredentialStatuses: async () => statuses,
+      credentialRecoveryStatus: async () => ({ state: "ready", unverifiedEnvelopes: 1 }),
+      resetAllCredentials: async () => {
+        statuses = [];
+        return { status: "reset", keyCleanupPending: false };
+      },
+    });
+    await user.click(screen.getByRole("button", { name: "Remove all credentials" }));
+    const confirmation = screen.getByRole("group", { name: "Remove all credentials?" });
+    await user.click(within(confirmation).getByRole("button", { name: "Remove all credentials" }));
+    await waitFor(() => {
+      useEnduragentStore.getState().settingsPorts?.credentials.openSetup();
+      expect(subject.credentialController.state().status).toBe("closed");
+    });
+    expect(subject.openSetup).toHaveBeenCalledOnce();
+
+    statuses = [{ slot: "openrouter", state: "configured", runtimeState: "active" }];
+    act(() => subject.panes.reloadAfterSetup());
+
+    await screen.findByRole("button", { name: "Delete the OpenRouter credential" });
+  });
+
   it("does not reload Settings panes after Settings closes", async () => {
     const llm = vi.fn(llmConfiguration);
     const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);
