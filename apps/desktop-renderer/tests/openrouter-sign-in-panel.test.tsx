@@ -367,6 +367,48 @@ describe("OpenRouter sign-in panel", () => {
     wizard.controller.dispose();
   });
 
+  it("clears a failure with Cancel so OpenRouter opens idle next time", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith();
+    bridge.openRouterSignIn.mockImplementationOnce(async ({ operationId }) => ({
+      status: "refused",
+      operationId,
+      reason: "not-finished",
+    }));
+    const wizard = await openIdlePanel(user, bridge);
+    await click(user, SIGN_IN);
+    await waitFor(() => expect(panelState()).toBe("not-finished"));
+    await click(user, "Cancel");
+    await waitFor(() => expect(panel("openrouter")).toBeNull());
+    expect(useEnduragentStore.getState().onboarding.openRouter.signIn.phase).toBe("idle");
+    await chooseLane(user, "openrouter");
+    await waitFor(() => expect(panelState()).toBe("idle"));
+    wizard.controller.dispose();
+  });
+
+  it("closes a failed Sign in again in Settings and keeps the connected row", async () => {
+    const user = userEvent.setup();
+    const bridge = bridgeWith({ active: "openrouter", statuses: [ACTIVE] });
+    bridge.openRouterSignIn.mockImplementationOnce(async ({ operationId }) => ({
+      status: "refused",
+      operationId,
+      reason: "unreachable",
+    }));
+    const wizard = mountWizard({ bridge, placement: "settings" });
+    await wizard.open();
+    await waitFor(() => expect(rowState("ai")).toBe("ready"));
+    await chooseLane(user, "openrouter");
+    await click(user, "Sign in again");
+    await waitFor(() => expect(panelState()).toBe("unreachable"));
+    await click(user, "Cancel");
+    await waitFor(() => expect(panel("openrouter")).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(panel("openrouter")).toBeNull();
+    expect(rowState("ai")).toBe("ready");
+    expect(rowSubtitle("ai")).toBe("Connected · powers your coach");
+    wizard.controller.dispose();
+  });
+
   it("retries activation of a saved key without signing in again", async () => {
     const user = userEvent.setup();
     const bridge = bridgeWith();

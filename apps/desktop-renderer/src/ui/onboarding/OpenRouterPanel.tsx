@@ -139,8 +139,10 @@ export function OpenRouterPanel(props: {
   const content = PANEL_CONTENT[props.state];
   const activating = props.surface.openRouter.activating;
   const run = (handler: Handler | undefined): void => {
-    if (handler === "revert") props.onRevert();
-    else if (handler === "pasteKey") props.onPasteKey();
+    if (handler === "revert") {
+      props.actions?.openRouter.dismiss();
+      props.onRevert();
+    } else if (handler === "pasteKey") props.onPasteKey();
     else if (handler !== undefined) props.actions?.openRouter[handler]();
   };
   const disabled = (action: PanelAction): boolean =>
