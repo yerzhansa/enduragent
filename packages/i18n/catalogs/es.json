@@ -206,6 +206,7 @@
         "confirmAria": "Confirmar la eliminación de la credencial de {{provider}}",
         "credential": "Eliminar credencial",
         "detail": "Esto la elimina solo de {{computer}}. {{product}} dejará de usarla si está activa. Tu cuenta del proveedor no cambia.",
+        "openrouterDetail": "Esto la elimina solo de {{computer}}. {{product}} dejará de usarla si está activa. La clave sigue funcionando en {{openrouter}} hasta que la elimines allí.",
         "title": "¿Eliminar la credencial de {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avanzado",
       "announcement": {
         "apiKey": "La configuración de la clave de API se ha abierto debajo de esta fila.",
-        "chatgpt": "El inicio de sesión de {{chatgpt}} se ha abierto debajo de esta fila."
+        "chatgpt": "El inicio de sesión de {{chatgpt}} se ha abierto debajo de esta fila.",
+        "openrouter": "El inicio de sesión de {{openrouter}} se ha abierto debajo de esta fila."
       },
       "apiKeyHint": "Se crea en la consola del proveedor y se factura por uso, normalmente unos céntimos por conversación.",
       "cancelLabel": "Cancelar configuración de la clave de API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} proveedores · pago por uso",
         "claudeCli": "Comprueba tu suscripción a {{claude}} al seleccionarla",
-        "openaiCodex": "Usa el plan que ya pagas"
+        "openaiCodex": "Usa el plan que ya pagas",
+        "openrouter": "Inicia sesión · pago por uso, muchos modelos"
       },
       "menuLabel": "IA que hace funcionar tu entrenador",
       "model": "Modelo",
@@ -646,14 +649,15 @@
         "apiKey": "Hace funcionar tu entrenador · añade una clave para terminar",
         "chatgpt": "Hace funcionar tu entrenador · inicia sesión para terminar",
         "checkingClaude": "Hace funcionar tu entrenador · comprobando la sesión de {{claudeCode}}",
-        "claude": "Hace funcionar tu entrenador · inicia sesión desde un terminal para terminar"
+        "claude": "Hace funcionar tu entrenador · inicia sesión desde un terminal para terminar",
+        "openrouterCredits": "Sesión iniciada · añade créditos en {{openrouter}} para recibir respuestas"
       },
       "provider": "Proveedor",
       "saveLabel": "Guardar clave de API",
       "subtitle": "Obligatoria. {{product}} no incluye una",
       "title": "IA que hace funcionar tu entrenador",
       "tooltip": {
-        "body": "Funciona con una suscripción a {{chatgpt}}, una sesión de {{claudeCode}} o una clave de API que aportes. La opción que elijas se queda en {{computer}}.",
+        "body": "Funciona con una suscripción a {{chatgpt}}, una sesión de {{claudeCode}}, una sesión de {{openrouter}} o una clave de API que aportes. La opción que elijas se queda en {{computer}}.",
         "label": "Acerca de la IA que hace funcionar tu entrenador",
         "lead": "{{product}} no tiene una IA propia"
       },
@@ -731,6 +735,41 @@
       "importing": "Importando archivos de salidas…",
       "unavailable": "Importación a la biblioteca local: {{imported}} importados. {{quarantined}} en cuarentena. El acceso del entrenador a las actividades y a sus series de datos no está disponible temporalmente; reintenta la importación.",
       "unconfirmed": "La importación a la biblioteca local ha fallado. No se ha podido confirmar el resultado; comprueba la biblioteca antes de intentarlo de nuevo."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Ese código ha caducado o ya se ha usado. Elige Obtener un código nuevo y copia el nuevo.",
+        "heading": "Iniciar sesión con un código",
+        "hint": "Usa esta opción cuando el navegador no pueda devolver el inicio de sesión a {{product}}.",
+        "newCode": "Obtener un código nuevo",
+        "noCode": "Tu portapapeles no contiene un código de {{openrouter}}. Copia el código desde el navegador y vuelve a elegir Usar código copiado. Este inicio de sesión sigue abierto.",
+        "open": "Abrir página de inicio de sesión",
+        "status": "Un código solo funciona una vez y caduca a los 10 minutos.",
+        "step1": "Elige Abrir página de inicio de sesión y después autoriza el acceso en tu navegador.",
+        "step2": "Copia el código que muestra {{openrouter}}.",
+        "step3": "Elige Usar código copiado. {{product}} lee el código y después vacía tu portapapeles.",
+        "use": "Usar código copiado"
+      },
+      "completingHint": "Autorizado. Guardando la clave en {{computer}}…",
+      "enterCode": "Introducir un código en su lugar",
+      "failed": {
+        "notFinished": "El inicio de sesión no se completó en el navegador. Inténtalo de nuevo cuando quieras.",
+        "notSaved": "{{openrouter}} creó una clave, pero {{computer}} no pudo guardarla. Inténtalo de nuevo. La clave sin usar se queda en {{openrouter}} hasta que la elimines allí.",
+        "openKeys": "Abrir mis claves en {{openrouter}}",
+        "savedHint": "La clave está guardada en {{computer}}.",
+        "savedNotActive": "Sesión iniciada, pero el entrenador no ha podido arrancar. Reintenta sin volver a iniciar sesión.",
+        "unreachable": "{{openrouter}} no respondió, así que no se guardó nada. Inténtalo de nuevo en un minuto."
+      },
+      "hint": "Abre {{openrouter}} en tu navegador. Autoriza el acceso allí y la clave que se crea se queda en {{computer}}. La página de autorización llama a esta aplicación localhost.",
+      "noCredits": {
+        "addCredits": "Añadir créditos",
+        "hint": "Esta cuenta de {{openrouter}} nunca ha comprado créditos. El entrenador necesita créditos para responder, normalmente unos céntimos por conversación.",
+        "status": "{{product}} vuelve a comprobarlo cuando regresas a esta ventana."
+      },
+      "pasteInstead": "Pegar una clave en su lugar",
+      "signIn": "Iniciar sesión con {{openrouter}}",
+      "signInAgainHint": "Volver a iniciar sesión sustituye la clave en {{computer}}. La clave anterior sigue funcionando en {{openrouter}} hasta que la elimines allí.",
+      "tryAgain": "Intentar de nuevo"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos listos",
     "retrySavedKeys": "Reintentar claves guardadas",

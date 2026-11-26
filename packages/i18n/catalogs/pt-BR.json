@@ -221,6 +221,7 @@
         "confirmAria": "Confirmar exclusão da credencial de {{provider}}",
         "credential": "Excluir credencial",
         "detail": "Esta ação remove a credencial apenas de {{computer}}. {{product}} deixará de usá-la se estiver ativa. Sua conta no provedor permanece inalterada.",
+        "openrouterDetail": "Esta ação remove a credencial apenas de {{computer}}. {{product}} deixará de usá-la se estiver ativa. A chave continua funcionando em {{openrouter}} até você excluí-la lá.",
         "title": "Excluir a credencial de {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avançado",
       "announcement": {
         "apiKey": "A configuração da chave de API foi aberta abaixo desta linha.",
-        "chatgpt": "O acesso a {{chatgpt}} foi aberto abaixo desta linha."
+        "chatgpt": "O acesso a {{chatgpt}} foi aberto abaixo desta linha.",
+        "openrouter": "O acesso a {{openrouter}} foi aberto abaixo desta linha."
       },
       "apiKeyHint": "Criada no console do provedor, com cobrança por uso — geralmente centavos por conversa.",
       "cancelLabel": "Cancelar configuração da chave de API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} provedores · pagamento por uso",
         "claudeCli": "Verifica sua assinatura {{claude}} quando selecionada",
-        "openaiCodex": "Use o plano que você já paga"
+        "openaiCodex": "Use o plano que você já paga",
+        "openrouter": "Entrar · pagamento por uso, vários modelos"
       },
       "menuLabel": "IA que faz seu treinador funcionar",
       "model": "Modelo",
@@ -646,14 +649,15 @@
         "apiKey": "Faz seu treinador funcionar · adicione uma chave para concluir",
         "chatgpt": "Faz seu treinador funcionar · entre para concluir",
         "checkingClaude": "Faz seu treinador funcionar · verificando sessão de {{claudeCode}}",
-        "claude": "Faz seu treinador funcionar · entre por um terminal para concluir"
+        "claude": "Faz seu treinador funcionar · entre por um terminal para concluir",
+        "openrouterCredits": "Sessão iniciada · adicione créditos em {{openrouter}} para receber respostas"
       },
       "provider": "Provedor",
       "saveLabel": "Salvar chave de API",
       "subtitle": "Obrigatória — {{product}} não inclui uma",
       "title": "IA que faz seu treinador funcionar",
       "tooltip": {
-        "body": "Funciona com uma assinatura {{chatgpt}}, uma sessão de {{claudeCode}} ou uma chave de API fornecida por você. A opção escolhida fica em {{computer}}.",
+        "body": "Funciona com uma assinatura {{chatgpt}}, uma sessão de {{claudeCode}}, uma sessão de {{openrouter}} ou uma chave de API fornecida por você. A opção escolhida fica em {{computer}}.",
         "label": "Sobre a IA que faz seu treinador funcionar",
         "lead": "{{product}} não tem IA própria"
       },
@@ -731,6 +735,41 @@
       "importing": "Importando arquivos de pedalada…",
       "unavailable": "Importação da biblioteca local: {{imported}} importados. {{quarantined}} em quarentena. O acesso do treinador às atividades e às séries de dados está temporariamente indisponível; tente importar novamente.",
       "unconfirmed": "Falha na importação da biblioteca local. Não foi possível confirmar o resultado; verifique a biblioteca antes de tentar novamente."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Esse código expirou ou já foi usado. Selecione Obter um novo código e copie o novo.",
+        "heading": "Entrar com um código",
+        "hint": "Use esta opção quando o navegador não conseguir devolver a entrada para {{product}}.",
+        "newCode": "Obter um novo código",
+        "noCode": "Sua área de transferência não contém um código de {{openrouter}}. Copie o código no navegador e selecione Usar código copiado novamente. Esta entrada continua em andamento.",
+        "open": "Abrir página de entrada",
+        "status": "Um código funciona uma única vez e expira após 10 minutos.",
+        "step1": "Selecione Abrir página de entrada e depois autorize o acesso no navegador.",
+        "step2": "Copie o código exibido por {{openrouter}}.",
+        "step3": "Selecione Usar código copiado. {{product}} lê o código e depois limpa sua área de transferência.",
+        "use": "Usar código copiado"
+      },
+      "completingHint": "Autorizado. Salvando a chave em {{computer}}…",
+      "enterCode": "Inserir um código como alternativa",
+      "failed": {
+        "notFinished": "A entrada não foi concluída no navegador. Tente novamente quando quiser.",
+        "notSaved": "{{openrouter}} criou uma chave, mas não foi possível salvá-la em {{computer}}. Tente novamente. A chave não usada fica em {{openrouter}} até você excluí-la lá.",
+        "openKeys": "Abrir minhas chaves em {{openrouter}}",
+        "savedHint": "A chave está salva em {{computer}}.",
+        "savedNotActive": "Sessão iniciada, mas não foi possível iniciar o treinador. Tente novamente sem entrar outra vez.",
+        "unreachable": "{{openrouter}} não respondeu, então nada foi salvo. Tente novamente em um minuto."
+      },
+      "hint": "Abre {{openrouter}} no navegador. Autorize o acesso lá, e a chave criada fica em {{computer}}. A página de autorização chama este aplicativo de localhost.",
+      "noCredits": {
+        "addCredits": "Adicionar créditos",
+        "hint": "Esta conta de {{openrouter}} nunca comprou créditos. O treinador precisa de créditos para responder, geralmente centavos por conversa.",
+        "status": "{{product}} verifica novamente quando você volta a esta janela."
+      },
+      "pasteInstead": "Colar uma chave como alternativa",
+      "signIn": "Entrar com {{openrouter}}",
+      "signInAgainHint": "Entrar novamente substitui a chave em {{computer}}. A chave antiga continua funcionando em {{openrouter}} até você excluí-la lá.",
+      "tryAgain": "Tentar novamente"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos prontos",
     "retrySavedKeys": "Tentar chaves salvas novamente",

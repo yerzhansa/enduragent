@@ -205,6 +205,7 @@
         "confirmAria": "確認刪除 {{provider}} 憑證",
         "credential": "刪除憑證",
         "detail": "此操作僅會從 {{computer}} 移除此憑證。若憑證已啟用，{{product}} 將停止使用。供應商帳號不會變更。",
+        "openrouterDetail": "此操作僅會從 {{computer}} 移除此憑證。若憑證已啟用，{{product}} 將停止使用。在 {{openrouter}} 上刪除此金鑰之前，它仍可繼續使用。",
         "title": "要刪除 {{provider}} 憑證嗎？"
       },
       "feedback": {
@@ -564,7 +565,8 @@
       "advanced": "進階",
       "announcement": {
         "apiKey": "API 金鑰設定已在此列下方開啟。",
-        "chatgpt": "{{chatgpt}} 登入已在此列下方開啟。"
+        "chatgpt": "{{chatgpt}} 登入已在此列下方開啟。",
+        "openrouter": "{{openrouter}} 登入已在此列下方開啟。"
       },
       "apiKeyHint": "在供應商控制台建立，依用量計費；每次對話通常只需幾美分。",
       "cancelLabel": "取消 API 金鑰設定",
@@ -619,7 +621,8 @@
       "laneHint": {
         "apiKey": "{{providers}} 家供應商 · 依用量付費",
         "claudeCli": "選取時會檢查 {{claude}} 訂閱",
-        "openaiCodex": "使用已付費的方案"
+        "openaiCodex": "使用已付費的方案",
+        "openrouter": "登入 · 依用量付費，多種模型"
       },
       "menuLabel": "教練使用的 AI",
       "model": "模型",
@@ -644,14 +647,15 @@
         "apiKey": "提供教練所需的 AI · 新增金鑰以完成設定",
         "chatgpt": "提供教練所需的 AI · 登入以完成設定",
         "checkingClaude": "提供教練所需的 AI · 正在檢查 {{claudeCode}} 登入狀態",
-        "claude": "提供教練所需的 AI · 從終端機登入以完成設定"
+        "claude": "提供教練所需的 AI · 從終端機登入以完成設定",
+        "openrouterCredits": "已登入 · 在 {{openrouter}} 新增額度後即可收到回覆"
       },
       "provider": "供應商",
       "saveLabel": "儲存 API 金鑰",
       "subtitle": "必填 — {{product}} 未內含 AI",
       "title": "教練使用的 AI",
       "tooltip": {
-        "body": "可使用 {{chatgpt}} 訂閱、{{claudeCode}} 登入，或自行提供的 API 金鑰。無論選擇哪一種，登入資料或金鑰都會保留在 {{computer}}。",
+        "body": "可使用 {{chatgpt}} 訂閱、{{claudeCode}} 登入、{{openrouter}} 登入，或自行提供的 API 金鑰。無論選擇哪一種，登入資料或金鑰都會保留在 {{computer}}。",
         "label": "關於教練使用的 AI",
         "lead": "{{product}} 本身不含 AI"
       },
@@ -728,6 +732,41 @@
       "importing": "正在匯入騎乘檔案…",
       "unavailable": "本機資料庫匯入：已匯入 {{imported}} 個，已隔離 {{quarantined}} 個。教練暫時無法存取活動與資料串流；請重試匯入。",
       "unconfirmed": "本機資料庫匯入失敗。無法確認結果；請先檢查資料庫再重試。"
+    },
+    "openrouter": {
+      "code": {
+        "expired": "此授權碼已過期或已使用過。請選擇「取得新授權碼」，然後複製新的授權碼。",
+        "heading": "使用授權碼登入",
+        "hint": "當瀏覽器無法將登入結果交回 {{product}} 時，請使用此方式。",
+        "newCode": "取得新授權碼",
+        "noCode": "剪貼簿中沒有 {{openrouter}} 授權碼。請從瀏覽器複製授權碼，然後再次選擇「使用已複製的授權碼」。此登入流程會保持開啟。",
+        "open": "開啟登入頁面",
+        "status": "授權碼只能使用一次，10 分鐘後失效。",
+        "step1": "選擇「開啟登入頁面」，然後在瀏覽器中授權。",
+        "step2": "複製 {{openrouter}} 顯示的授權碼。",
+        "step3": "選擇「使用已複製的授權碼」。{{product}} 會讀取授權碼，然後清除剪貼簿。",
+        "use": "使用已複製的授權碼"
+      },
+      "completingHint": "已授權。正在將金鑰儲存至 {{computer}}…",
+      "enterCode": "改為輸入授權碼",
+      "failed": {
+        "notFinished": "未在瀏覽器中完成登入。準備好後請重試。",
+        "notSaved": "{{openrouter}} 已建立金鑰，但 {{computer}} 無法儲存。請重試。在 {{openrouter}} 上刪除之前，未使用的金鑰會一直保留在那裡。",
+        "openKeys": "在 {{openrouter}} 上開啟我的金鑰",
+        "savedHint": "金鑰已儲存在 {{computer}}。",
+        "savedNotActive": "已登入，但無法啟動教練。請重試，不必再次登入。",
+        "unreachable": "{{openrouter}} 沒有回應，因此未儲存任何內容。請一分鐘後重試。"
+      },
+      "hint": "在瀏覽器中開啟 {{openrouter}}。在該頁授權後，產生的金鑰會保留在 {{computer}}。授權頁面會將此應用程式顯示為 localhost。",
+      "noCredits": {
+        "addCredits": "新增額度",
+        "hint": "此 {{openrouter}} 帳號從未購買過額度。教練需要額度才能回覆，每次對話通常只需幾美分。",
+        "status": "回到此視窗時，{{product}} 會再次檢查。"
+      },
+      "pasteInstead": "改為貼上金鑰",
+      "signIn": "使用 {{openrouter}} 登入",
+      "signInAgainHint": "重新登入會取代 {{computer}} 上的金鑰。在 {{openrouter}} 上刪除舊金鑰之前，它仍可繼續使用。",
+      "tryAgain": "重試"
     },
     "requiredReady": "{{total}} 個必要項目中，{{ready}} 個已就緒",
     "retrySavedKeys": "重試已儲存的金鑰",
