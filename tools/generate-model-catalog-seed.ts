@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ModelCatalogSnapshotSchema } from "../packages/coach-contract/src/model-catalog.js";
@@ -36,7 +37,20 @@ const snapshot = ModelCatalogSnapshotSchema.parse({
   providers,
 });
 
-const output = `export const GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(snapshot, null, 2)} as const;\n`;
+const formatted = spawnSync(
+  process.execPath,
+  [
+    fileURLToPath(new URL("../node_modules/oxfmt/bin/oxfmt", import.meta.url)),
+    `--stdin-filepath=${outputFile}`,
+  ],
+  {
+    input: `export const GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(snapshot, null, 2)} as const;\n`,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  },
+);
+if (formatted.status !== 0) throw new Error(`oxfmt failed: ${formatted.stderr}`);
+const output = formatted.stdout;
 if (process.argv.includes("--check")) {
   if (readFileSync(outputFile, "utf8") !== output) process.exitCode = 1;
 } else {

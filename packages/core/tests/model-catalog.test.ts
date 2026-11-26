@@ -66,7 +66,7 @@ describe("model catalog compatibility filtering", () => {
 
     expect(provider).toMatchObject({
       provider: "openai",
-      defaultModel: "gpt-5.6-sol",
+      defaultModel: "gpt-6.2-sol",
       models: [],
     });
   });
@@ -137,7 +137,7 @@ describe("model catalog compatibility filtering", () => {
     );
     expect(effectiveOpenai).toMatchObject({
       kind: "suggested",
-      initialModel: "gpt-5.6-terra",
+      initialModel: "gpt-6.1-terra",
     });
   });
 
@@ -146,17 +146,17 @@ describe("model catalog compatibility filtering", () => {
     candidate.revision = 2;
     const openai = candidate.providers.find((provider) => provider.providerId === "openai");
     if (openai === undefined) throw new Error("missing OpenAI seed provider");
-    openai.recommendedModelId = "gpt-5.6-luna";
+    openai.recommendedModelId = "gpt-6-luna";
     openai.models = openai.models.map((model) => ({
       ...model,
       compatibilityProfile:
-        model.modelId === "gpt-5.6-luna" ? "future-profile-v2" : model.compatibilityProfile,
+        model.modelId === "gpt-6-luna" ? "future-profile-v2" : model.compatibilityProfile,
     }));
 
     const accepted = acceptModelCatalogSnapshot(candidate, "candidate-etag");
     expect(
       accepted?.effective.providers.find((provider) => provider.provider === "openai"),
-    ).toMatchObject({ kind: "suggested", initialModel: "gpt-5.6-sol" });
+    ).toMatchObject({ kind: "suggested", initialModel: "gpt-6.2-sol" });
   });
 
   it("filters models refused by the compiled provider eligibility policy", () => {

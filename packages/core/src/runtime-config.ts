@@ -33,18 +33,18 @@ export function isModelEnabledForProvider(provider: LlmProvider, model: string):
 }
 
 export const DEFAULT_MODELS = {
-  anthropic: "claude-sonnet-5",
-  openai: "gpt-5.6-sol",
-  google: "gemini-3.6-flash",
+  anthropic: "claude-sonnet-5-5",
+  openai: "gpt-6.2-sol",
+  google: "gemini-4-hydrogen",
   "openai-codex": "gpt-5.6-sol",
   "claude-cli": "sonnet",
   "codex-agent": "gpt-5.6-sol",
-  deepseek: "deepseek-v4-flash",
-  qwen: "qwen3.7-plus",
+  deepseek: "deepseek-flash",
+  qwen: "qwen4-max",
   minimax: "MiniMax-M3",
-  kimi: "kimi-k3",
-  zai: "glm-4.7",
-  openrouter: "deepseek/deepseek-v4-flash",
+  kimi: "kimi-k3.1-pro",
+  zai: "glm-5.3",
+  openrouter: "deepseek/deepseek-v4.1-flash-1017",
 } as const satisfies Record<LlmProvider, string>;
 
 export const PROVIDER_BASE_URLS = {
@@ -138,9 +138,9 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
 ] as const;
 
 export const COMPACT_MODEL_DEFAULTS = {
-  anthropic: "claude-haiku-4-5-20251001",
+  anthropic: "claude-haiku-5-5",
   "claude-cli": "haiku",
-  openrouter: "deepseek/deepseek-v4-flash",
+  openrouter: "deepseek/deepseek-v4.1-flash-1017",
 } as const satisfies Partial<Record<LlmProvider, string>>;
 
 export const CLAUDE_CLI_BILLING_MODES = ["subscription", "api-key"] as const;

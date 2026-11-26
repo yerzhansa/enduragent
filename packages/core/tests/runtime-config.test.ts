@@ -54,14 +54,14 @@ describe("runtime configuration authority", () => {
 
     expect(next.llm).toEqual({
       provider: "zai",
-      model: "glm-4.7",
+      model: "glm-5.3",
       apiKey: "obviously-fake-zai-key",
       authProfile: undefined,
       flushModel: undefined,
-      compactModel: "glm-4.7",
+      compactModel: "glm-5.3",
       baseUrl: "https://api.z.ai/api/openai/v1",
     });
-    expect(next.contextWindowTokens).toBe(200_000);
+    expect(next.contextWindowTokens).toBe(1_000_000);
   });
 
   it("keeps ChatGPT compaction aligned at startup and after model changes", () => {
@@ -184,15 +184,15 @@ describe("Astra explicit public API selection", () => {
       llm: {
         provider: "openai",
         apiKey: "fake-key",
-        compactModel: "gpt-5.6-luna",
-        flushModel: "gpt-5.6-luna",
+        compactModel: "gpt-6-luna",
+        flushModel: "gpt-6-luna",
       },
     });
-    expect(initial.llm.model).toBe("gpt-5.6-sol");
+    expect(initial.llm.model).toBe("gpt-6.2-sol");
     const selected = resolveRuntimeConfig({ llm: { model: "gpt-6-astra" } }, initial);
     expect(selected.llm).toEqual({ ...initial.llm, model: "gpt-6-astra" });
     expect(selected.contextWindowTokens).toBe(1_050_000);
-    const restored = resolveRuntimeConfig({ llm: { model: "gpt-5.6-sol" } }, selected);
+    const restored = resolveRuntimeConfig({ llm: { model: "gpt-6.2-sol" } }, selected);
     expect(restored.llm).toEqual(initial.llm);
     expect(restored.contextWindowTokens).toBe(initial.contextWindowTokens);
   });
@@ -212,6 +212,6 @@ it("keeps implicit OpenAI background work on its previous model when opting into
   const fresh = resolveRuntimeConfig({
     llm: { provider: "openai", model: "gpt-6-astra", apiKey: "fake-key" },
   });
-  expect(fresh.llm.flushModel).toBe("gpt-5.6-sol");
-  expect(fresh.llm.compactModel).toBe("gpt-5.6-sol");
+  expect(fresh.llm.flushModel).toBe("gpt-6.2-sol");
+  expect(fresh.llm.compactModel).toBe("gpt-6.2-sol");
 });

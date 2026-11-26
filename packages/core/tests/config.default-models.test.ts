@@ -55,11 +55,11 @@ afterEach(() => {
 });
 
 describe("config — default model and context-window resolution", () => {
-  it("google provider with no model defaults to gemini-3.6-flash with a 1M window", async () => {
+  it("google provider with no model defaults to gemini-4-hydrogen with a 1M window", async () => {
     process.env.LLM_PROVIDER = "google";
     const { loadConfig } = await import("../src/config.js");
     const cfg = loadConfig();
-    expect(cfg.llm.model).toBe("gemini-3.6-flash");
+    expect(cfg.llm.model).toBe("gemini-4-hydrogen");
     expect(cfg.contextWindowTokens).toBe(1_048_576);
   });
 
@@ -71,21 +71,21 @@ describe("config — default model and context-window resolution", () => {
     expect(cfg.contextWindowTokens).toBe(200_000);
   });
 
-  it("openai provider with no model defaults to gpt-5.6-sol with a 1.05M window", async () => {
+  it("openai provider with no model defaults to gpt-6.2-sol with a 1.05M window", async () => {
     process.env.LLM_PROVIDER = "openai";
     const { loadConfig } = await import("../src/config.js");
     const cfg = loadConfig();
-    expect(cfg.llm.model).toBe("gpt-5.6-sol");
+    expect(cfg.llm.model).toBe("gpt-6.2-sol");
     expect(cfg.contextWindowTokens).toBe(1_050_000);
   });
 
   it.each([
-    ["deepseek", "deepseek-v4-flash", 1_000_000],
-    ["qwen", "qwen3.7-plus", 1_000_000],
+    ["deepseek", "deepseek-flash", 1_000_000],
+    ["qwen", "qwen4-max", 1_000_000],
     ["minimax", "MiniMax-M3", 1_000_000],
-    ["kimi", "kimi-k3", 1_000_000],
-    ["zai", "glm-4.7", 200_000],
-    ["openrouter", "deepseek/deepseek-v4-flash", 1_000_000],
+    ["kimi", "kimi-k3.1-pro", 1_048_576],
+    ["zai", "glm-5.3", 1_000_000],
+    ["openrouter", "deepseek/deepseek-v4.1-flash-1017", 1_048_576],
   ])("%s provider defaults to %s with the right window", async (provider, model, window) => {
     process.env.LLM_PROVIDER = provider;
     const { loadConfig } = await import("../src/config.js");

@@ -8,11 +8,16 @@ import { scriptedPrompts } from "./helpers/scripted-prompts.js";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 
-// Ordered prompt contract for a NEW (non-codex) provider with a BASE_URL default:
-//   selects: [provider, model, backend]
-//   texts:   [base-url]          (custom-model text is skipped by picking a catalog model;
-//                                 athlete-id text is skipped by not entering an intervals key)
-//   passwords: [llm api_key, intervals (skip), telegram (skip)]
+interface WrittenConfig {
+  readonly llm: {
+    readonly provider?: string;
+    readonly model?: string;
+    readonly base_url?: string;
+    readonly api_key?: string;
+    readonly codex_agent?: unknown;
+  };
+  readonly intervals: { readonly api_key?: string };
+}
 
 let tempHome: string;
 let origHome: string | undefined;
@@ -54,7 +59,7 @@ const CONFIG = () => join(tempHome, ".cycling-coach", "config.yaml");
 describe("setup — new providers", () => {
   it("offers a compatible model from the shared accepted catalog without refreshing", async () => {
     const candidate = structuredClone(BUNDLED_MODEL_CATALOG);
-    candidate.revision = 2;
+    candidate.revision = BUNDLED_MODEL_CATALOG.revision + 1;
     candidate.provenance = {
       kind: "published",
       publishedAt: "1998-01-01T00:00:00.000Z",
@@ -77,7 +82,7 @@ describe("setup — new providers", () => {
       join(catalogDirectory, "accepted-snapshot.json"),
       `${JSON.stringify({
         formatVersion: 1,
-        etag: '"revision-2"',
+        etag: `"revision-${candidate.revision}"`,
         lastSuccessfulRefreshAt: "1998-01-01T00:00:00.000Z",
         snapshot: candidate,
       })}\n`,
@@ -112,8 +117,8 @@ describe("setup — new providers", () => {
     vi.doMock("@clack/prompts", () =>
       scriptedPrompts({
         selects: ["zai", "glm-4.6", "plain"],
-        texts: [""], // Enter at the base-URL prompt → falls back to the default
-        passwords: ["sk-zai-test", "", ""], // llm key, intervals skip, telegram skip
+        texts: [""],
+        passwords: ["sk-zai-test", "", ""],
         confirms: [],
       }),
     );
@@ -121,7 +126,7 @@ describe("setup — new providers", () => {
     const { runSetup } = await import("../src/setup.js");
     await runSetup(cyclingBinary);
 
-    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;
+    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as WrittenConfig;
     expect(cfg.llm.provider).toBe("zai");
     expect(cfg.llm.model).toBe("glm-4.6");
     expect(cfg.llm.base_url).toBe("https://api.z.ai/api/openai/v1");
@@ -141,7 +146,7 @@ describe("setup — new providers", () => {
     const { runSetup } = await import("../src/setup.js");
     await runSetup(cyclingBinary);
 
-    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;
+    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as WrittenConfig;
     expect(cfg.llm.provider).toBe("minimax");
     expect(cfg.llm.base_url).toBe("https://proxy.example/v1");
   });
@@ -159,7 +164,7 @@ describe("setup — new providers", () => {
     const { runSetup } = await import("../src/setup.js");
     await runSetup(cyclingBinary);
 
-    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;
+    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as WrittenConfig;
     expect(cfg.llm.provider).toBe("openrouter");
     expect(cfg.llm.model).toBe("deepseek/deepseek-chat");
     expect(cfg.llm.base_url).toBe("https://openrouter.ai/api/v1");
@@ -208,7 +213,7 @@ describe("setup — off-catalogue provider guard", () => {
     );
     expect(passwordMessages.some((message) => message.includes("Telegram bot token"))).toBe(true);
 
-    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;
+    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as WrittenConfig;
     expect(cfg.llm.provider).toBe("codex-agent");
     expect(cfg.llm.model).toBe("gpt-5.6-sol");
     expect(cfg.llm.codex_agent).toEqual({ enabled: true });
@@ -229,7 +234,7 @@ describe("setup — off-catalogue provider guard", () => {
     const { runSetup } = await import("../src/setup.js");
     await runSetup(cyclingBinary);
 
-    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;
+    const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as WrittenConfig;
     expect(cfg.llm.provider).toBe("zai");
     expect(cfg.llm.codex_agent).toBeUndefined();
   });

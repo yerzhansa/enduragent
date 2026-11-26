@@ -95,11 +95,11 @@ describe("claude-cli context windows", () => {
 
   it("keeps exact catalogue entries ahead of family normalization for api lanes", () => {
     expect(contextWindowForModel("claude-sonnet-5")).toBe(1_000_000);
-    expect(contextWindowForModel("claude-opus-5")).toBe(1_000_000);
+    expect(contextWindowForModel("claude-opus-5-5")).toBe(1_000_000);
     expect(contextWindowForModel("claude-sonnet-4-6", "anthropic")).toBe(200_000);
   });
 
-  it.each(["claude-sonnet-5", "claude-opus-5", "claude-sonnet-4-6", "claude-opus-4-8"])(
+  it.each(["claude-sonnet-5", "claude-opus-5-5", "claude-sonnet-4-6", "claude-opus-4-8"])(
     "normalizes %s to its family alias before the lookup on the claude-cli lane",
     (model) => {
       expect(contextWindowForModel(model, "claude-cli")).toBe(200_000);
