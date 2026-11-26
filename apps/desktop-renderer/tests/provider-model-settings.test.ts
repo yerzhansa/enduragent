@@ -215,6 +215,27 @@ describe("provider and model settings refresh", () => {
       dirty: true,
     });
   });
+
+  it("reruns a refresh that Setup requested while a save was in flight", async () => {
+    const save = deferred<OnboardingLlmSelectionResult>();
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load, apply: vi.fn(() => save.promise) });
+    await controller.activate();
+    subject.model("claude-opus");
+    expect(controller.state().status).toBe("saving");
+    load.mockResolvedValue(configuration(OPENAI_ACTIVE));
+
+    await controller.refresh();
+    save.resolve({ status: "configured", runtimeReady: true });
+
+    await vi.waitFor(() =>
+      expect(formState(controller)).toMatchObject({
+        status: "ready",
+        active: OPENAI_ACTIVE,
+        dirty: false,
+      }),
+    );
+  });
 });
 
 describe("provider and model settings controller", () => {

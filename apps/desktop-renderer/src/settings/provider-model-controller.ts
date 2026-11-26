@@ -162,6 +162,7 @@ export function createProviderModelSettingsController(input: {
   let queuedSelection: OnboardingLlmSelection | undefined;
   let loadOperation: Promise<void> | undefined;
   let saveOperation: Promise<void> | undefined;
+  let refreshAfterSave = false;
   let providerDrafts = new Map<string, ProviderModelDraft>();
   const committedCustomModels = new Map<string, string>();
 
@@ -391,6 +392,9 @@ export function createProviderModelSettingsController(input: {
         saveOperation = undefined;
         if (!visible) currentState = { status: "closed" };
         releaseMutation?.();
+        const rerunRefresh = refreshAfterSave && visible;
+        refreshAfterSave = false;
+        if (rerunRefresh) void refresh();
       }
     });
     saveOperation = pending;
@@ -482,7 +486,11 @@ export function createProviderModelSettingsController(input: {
   };
 
   const refresh = (): Promise<void> => {
-    if (disposed || saveOperation !== undefined) return Promise.resolve();
+    if (disposed) return Promise.resolve();
+    if (saveOperation !== undefined) {
+      refreshAfterSave = true;
+      return Promise.resolve();
+    }
     if (!visible || editableState(currentState) === null) return startLoad();
     const operationGeneration = ++generation;
     return Promise.resolve()
