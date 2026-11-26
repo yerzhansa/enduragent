@@ -272,25 +272,57 @@ describe("OpenRouter sign-in surface", () => {
     expect(subject.view()).toMatchObject({ signIn: { phase: "idle" }, readingCode: false });
   });
 
-  it("lets a new code attempt use its copied code while an older read is still pending", async () => {
+  it("keeps a copied-code read that Setup closed over until main answers it", async () => {
     const subject = harness();
     subject.signIn.actions.enterCode();
     await settle();
-    const stale = deferred<OpenRouterSignInResult>();
-    subject.bridge.useCopiedOpenRouterCode.mockReturnValueOnce(stale.promise);
+    const read = deferred<OpenRouterSignInResult>();
+    subject.bridge.useCopiedOpenRouterCode.mockReturnValueOnce(read.promise);
+    subject.bridge.startOpenRouterCodeSignIn.mockImplementation(async ({ operationId }) => ({
+      status: "refused",
+      operationId,
+      reason: "already-in-progress",
+    }));
+    subject.bridge.openRouterSignIn.mockImplementation(async ({ operationId }) => ({
+      status: "refused",
+      operationId,
+      reason: "already-in-progress",
+    }));
     subject.signIn.actions.useCopiedCode();
     subject.signIn.reset();
     subject.signIn.actions.enterCode();
+    subject.signIn.actions.start();
     await settle();
     expect(subject.view()).toMatchObject({
-      signIn: { phase: "awaiting-code", operationId: "op-2" },
+      signIn: { phase: "awaiting-code", operationId: "op-1" },
+      readingCode: true,
+    });
+    read.resolve({ status: "connected", operationId: "op-1", credit: "paid" });
+    await settle();
+    expect(subject.sync).toHaveBeenCalledWith(SELECTION);
+    expect(subject.view()).toMatchObject({ signIn: { phase: "idle" }, readingCode: false });
+    expect(subject.bridge.startOpenRouterCodeSignIn).toHaveBeenCalledOnce();
+    expect(subject.bridge.openRouterSignIn).not.toHaveBeenCalled();
+  });
+
+  it("returns to the code attempt when main keeps it after a copied-code read that Setup closed over", async () => {
+    const subject = harness();
+    subject.signIn.actions.enterCode();
+    await settle();
+    const read = deferred<OpenRouterSignInResult>();
+    subject.bridge.useCopiedOpenRouterCode.mockReturnValueOnce(read.promise);
+    subject.signIn.actions.useCopiedCode();
+    subject.signIn.reset();
+    read.resolve({ status: "refused", operationId: "op-1", reason: "clipboard-no-code" });
+    await settle();
+    expect(subject.view()).toMatchObject({
+      signIn: { phase: "awaiting-code", operationId: "op-1", problem: "clipboard-no-code" },
       readingCode: false,
     });
     subject.signIn.actions.useCopiedCode();
-    expect(subject.bridge.useCopiedOpenRouterCode).toHaveBeenLastCalledWith("op-2");
-    stale.resolve({ status: "connected", operationId: "op-1", credit: "paid" });
     await settle();
-    expect(subject.view().signIn).toMatchObject({ phase: "idle" });
+    expect(subject.bridge.useCopiedOpenRouterCode).toHaveBeenLastCalledWith("op-1");
+    expect(subject.view()).toMatchObject({ signIn: { phase: "idle" }, credit: "paid" });
   });
 
   it("ignores a second Enter a code instead while the first code attempt is open", async () => {

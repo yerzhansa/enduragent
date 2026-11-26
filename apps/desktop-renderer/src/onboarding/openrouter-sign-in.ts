@@ -362,7 +362,7 @@ export function createOpenRouterSignIn(host: OpenRouterSignInHost): OpenRouterSi
     },
     reset() {
       cancel();
-      signIn = IDLE;
+      if (!reading()) signIn = IDLE;
     },
     dispose() {
       cancel();
