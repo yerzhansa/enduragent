@@ -452,7 +452,7 @@
   "file-length": {
     "apps/desktop-renderer/src/chat/controller.ts": 3384,
     "apps/desktop-renderer/src/onboarding/controller.ts": 1171,
-    "apps/desktop-renderer/src/settings/credential-controller.ts": 835,
+    "apps/desktop-renderer/src/settings/credential-controller.ts": 838,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 862,
     "apps/desktop-renderer/src/state/adapters/plan.ts": 1479,
     "apps/desktop-renderer/src/ui/chat/PlanChangeCards.tsx": 952,

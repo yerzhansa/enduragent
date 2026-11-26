@@ -129,6 +129,7 @@ export interface CredentialSettingsView {
 
 export interface CredentialSettingsController {
   activate(): Promise<void>;
+  refresh(): Promise<void>;
   close(): void;
   state(): CredentialSettingsState;
   dispose(): void;
@@ -318,7 +319,7 @@ export function createCredentialSettingsController(input: {
     }
   };
 
-  const startLoad = (retryRecovery = false): Promise<void> => {
+  const startLoad = (retryRecovery = false, quiet = false): Promise<void> => {
     if (disposed || operation !== undefined) return operation ?? Promise.resolve();
     const repairCredential = repairRequiredCredential(currentState);
     const resetUncertain = currentState.resetUncertain === true;
@@ -331,14 +332,15 @@ export function createCredentialSettingsController(input: {
           ? currentState.announcement
           : UNCERTAIN_DELETE_ANNOUNCEMENT;
     const operationGeneration = ++generation;
-    render({
-      status: "loading",
-      announcement: repairAnnouncement,
-      repairCredential,
-      ...(resetUncertain ? { resetUncertain: true } : {}),
-      recoveryAvailable: false,
-      focus: repairCredential === null && !resetUncertain ? null : { target: "feedback" },
-    });
+    if (!quiet)
+      render({
+        status: "loading",
+        announcement: repairAnnouncement,
+        repairCredential,
+        ...(resetUncertain ? { resetUncertain: true } : {}),
+        recoveryAvailable: false,
+        focus: repairCredential === null && !resetUncertain ? null : { target: "feedback" },
+      });
     const pending = (async () => {
       try {
         if (retryRecovery) await input.retryCredentialRecovery?.();
@@ -820,6 +822,7 @@ export function createCredentialSettingsController(input: {
       if (disposed || currentState.status !== "closed") return;
       await startLoad();
     },
+    refresh: () => startLoad(false, true),
     close,
     state: () => currentState,
     dispose() {

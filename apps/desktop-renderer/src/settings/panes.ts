@@ -12,13 +12,7 @@ export interface SettingsPanes {
   reloadAfterSetup(): void;
 }
 
-const IDLE_COACH_STATES: ReadonlySet<string> = new Set(["ready", "saved", "error"]);
 const IDLE_CREDENTIAL_STATES: ReadonlySet<string> = new Set(["ready", "deleted"]);
-
-function reload(pane: SettingsPane): void {
-  pane.close();
-  void pane.activate();
-}
 
 export function createSettingsPanes(input: {
   readonly coach: ProviderModelSettingsController;
@@ -36,8 +30,10 @@ export function createSettingsPanes(input: {
       for (const pane of panes) pane.close();
     },
     reloadAfterSetup() {
-      if (IDLE_COACH_STATES.has(input.coach.state().status)) reload(input.coach);
-      if (IDLE_CREDENTIAL_STATES.has(input.credentials.state().status)) reload(input.credentials);
+      if (input.coach.state().status !== "closed") void input.coach.refresh();
+      if (IDLE_CREDENTIAL_STATES.has(input.credentials.state().status)) {
+        void input.credentials.refresh();
+      }
     },
   };
 }

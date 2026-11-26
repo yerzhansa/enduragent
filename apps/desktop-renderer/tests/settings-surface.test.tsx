@@ -1528,7 +1528,30 @@ describe("settings lifecycle", () => {
 });
 
 describe("settings after a setup change", () => {
-  it("reloads the coach route and the credential rows once Setup connects a provider", async () => {
+  const OPENROUTER_ACTIVE = { provider: "openrouter", model: "vendor/synthetic" } as const;
+
+  function recordPaneStatuses() {
+    const coach: string[] = [];
+    const credentials: string[] = [];
+    const stop = useEnduragentStore.subscribe((state, previous) => {
+      if (state.settings.coach !== previous.settings.coach) {
+        coach.push(state.settings.coach.status);
+      }
+      if (state.settings.credentials !== previous.settings.credentials) {
+        credentials.push(state.settings.credentials.status);
+      }
+    });
+    return { coach, credentials, stop };
+  }
+
+  async function coachActive(active: OnboardingLlmConfiguration["active"]): Promise<void> {
+    await waitFor(() => {
+      const coach = useEnduragentStore.getState().settings.coach;
+      expect(coach.status === "ready" ? coach.active : null).toEqual(active);
+    });
+  }
+
+  it("reloads the coach route and the credential rows in place once Setup connects a provider", async () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
@@ -1543,18 +1566,76 @@ describe("settings after a setup change", () => {
     });
     expect(screen.queryByRole("button", { name: "Delete the OpenRouter credential" })).toBeNull();
 
-    active = { provider: "openrouter", model: "vendor/synthetic" };
+    active = OPENROUTER_ACTIVE;
     statuses = [
       { slot: "anthropic", state: "configured", runtimeState: "stored-inactive" },
       { slot: "openrouter", state: "configured", runtimeState: "active" },
     ];
+    const recorded = recordPaneStatuses();
     act(() => subject.panes.reloadAfterSetup());
 
     await screen.findByRole("button", { name: "Delete the OpenRouter credential" });
-    await waitFor(() => {
-      const coach = useEnduragentStore.getState().settings.coach;
-      expect(coach.status === "ready" ? coach.active : null).toEqual(active);
+    await coachActive(active);
+    recorded.stop();
+    expect(recorded.coach).toEqual(["ready"]);
+    expect(recorded.credentials).toEqual(["ready"]);
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
+  });
+
+  it("keeps an unsaved custom model and its focus while Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({ llm: () => ({ ...llmConfiguration(), active }) });
+    await user.click(screen.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: "Other model…" }));
+    const custom = await screen.findByLabelText("Custom model name");
+    await waitFor(() => expect(custom).toHaveFocus());
+    await user.type(custom, "vendor/experimental");
+
+    active = OPENROUTER_ACTIVE;
+    const recorded = recordPaneStatuses();
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    recorded.stop();
+    expect(recorded.coach).not.toContain("loading");
+    expect(recorded.coach).not.toContain("closed");
+    expect(recorded.credentials).not.toContain("loading");
+    expect(screen.getByLabelText("Custom model name")).toHaveValue("vendor/experimental");
+    expect(screen.getByLabelText("Custom model name")).toHaveFocus();
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.getByText("Currently active: OpenRouter · vendor/synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Unsaved")).toBeInTheDocument();
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+  });
+
+  it("clears a credential-required save once Setup connects that provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      applyLlmSelection: async () => ({ status: "refused", reason: "credential-required" }),
     });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /Provider/u }));
+    await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
+    await coach.findByRole("button", { name: "Review setup" });
+
+    active = OPENROUTER_ACTIVE;
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    expect(coach.queryByRole("button", { name: "Review setup" })).toBeNull();
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
   });
 
   it("leaves closed Settings panes closed when Setup connects a provider", () => {

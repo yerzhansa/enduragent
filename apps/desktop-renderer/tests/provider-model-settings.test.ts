@@ -129,6 +129,61 @@ function formState(controller: ProviderModelSettingsController) {
   return state;
 }
 
+describe("provider and model settings refresh", () => {
+  const OPENAI_ACTIVE = { provider: "openai", model: "gpt-standard" } as const;
+
+  it("keeps the current route on screen until the refreshed route arrives", async () => {
+    const gate = deferred<OnboardingLlmConfiguration>();
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load });
+    await controller.activate();
+    load.mockReturnValueOnce(gate.promise);
+    const renders = vi.mocked(subject.view.render).mock.calls.length;
+
+    const pending = controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: { model: "claude-sonnet" },
+    });
+    expect(subject.view.render).toHaveBeenCalledTimes(renders);
+    gate.resolve(configuration(OPENAI_ACTIVE));
+    await pending;
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: OPENAI_ACTIVE,
+      draft: { provider: { provider: "openai" }, modelChoice: "gpt-standard" },
+      dirty: false,
+    });
+  });
+
+  it("keeps an unsaved draft when the refresh fails and shows the load error otherwise", async () => {
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load });
+    await controller.activate();
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.customModel("private-model-in-progress");
+    load.mockRejectedValueOnce(new Error("unavailable"));
+
+    await controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      draft: { customModel: "private-model-in-progress" },
+      dirty: true,
+    });
+
+    subject.model("claude-sonnet");
+    load.mockRejectedValueOnce(new Error("unavailable"));
+    await controller.refresh();
+
+    expect(controller.state()).toEqual({
+      status: "error",
+      kind: "load",
+      reason: "configuration-unavailable",
+    });
+  });
+});
+
 describe("provider and model settings controller", () => {
   it("opens with visible loading state before resolving a known active model", async () => {
     const gate = deferred<OnboardingLlmConfiguration>();

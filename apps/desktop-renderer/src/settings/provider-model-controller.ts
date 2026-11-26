@@ -66,6 +66,7 @@ export interface ProviderModelSettingsView {
 
 export interface ProviderModelSettingsController {
   activate(): Promise<void>;
+  refresh(): Promise<void>;
   close(): void;
   state(): ProviderModelSettingsState;
   dispose(): void;
@@ -169,6 +170,47 @@ export function createProviderModelSettingsController(input: {
     if (visible && !disposed) input.view.render(state);
   };
 
+  const showLoaded = (configuration: OnboardingLlmConfiguration): void => {
+    const activeProvider =
+      configuration.active === null
+        ? undefined
+        : configuration.providers.find(
+            (provider) => provider.provider === configuration.active?.provider,
+          );
+    if (configuration.providers.length === 0) {
+      render({
+        status: "error",
+        kind: "load",
+        reason: "configuration-unavailable",
+      });
+      return;
+    }
+    providerDrafts = new Map();
+    committedCustomModels.clear();
+    const draft =
+      configuration.active === null || activeProvider === undefined
+        ? null
+        : draftFor(activeProvider, configuration.active.model);
+    if (draft !== null) {
+      providerDrafts.set(draft.provider.provider, draft);
+      if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
+        committedCustomModels.set(draft.provider.provider, selectedModel(draft));
+      }
+    }
+    render({
+      status: "ready",
+      ...formState(
+        {
+          catalogRevision: configuration.catalogRevision,
+          providers: configuration.providers,
+          active: configuration.active,
+          draft,
+        },
+        input.codexAgentSupported ?? true,
+      ),
+    });
+  };
+
   const startLoad = (): Promise<void> => {
     if (disposed) return Promise.resolve();
     const operationGeneration = ++generation;
@@ -179,45 +221,7 @@ export function createProviderModelSettingsController(input: {
       .then(() => input.load())
       .then(
         (configuration) => {
-          if (disposed || generation !== operationGeneration) return;
-          const activeProvider =
-            configuration.active === null
-              ? undefined
-              : configuration.providers.find(
-                  (provider) => provider.provider === configuration.active?.provider,
-                );
-          if (configuration.providers.length === 0) {
-            render({
-              status: "error",
-              kind: "load",
-              reason: "configuration-unavailable",
-            });
-            return;
-          }
-          providerDrafts = new Map();
-          committedCustomModels.clear();
-          const draft =
-            configuration.active === null || activeProvider === undefined
-              ? null
-              : draftFor(activeProvider, configuration.active.model);
-          if (draft !== null) {
-            providerDrafts.set(draft.provider.provider, draft);
-            if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
-              committedCustomModels.set(draft.provider.provider, selectedModel(draft));
-            }
-          }
-          render({
-            status: "ready",
-            ...formState(
-              {
-                catalogRevision: configuration.catalogRevision,
-                providers: configuration.providers,
-                active: configuration.active,
-                draft,
-              },
-              input.codexAgentSupported ?? true,
-            ),
-          });
+          if (!disposed && generation === operationGeneration) showLoaded(configuration);
         },
         () => {
           if (!disposed && generation === operationGeneration) {
@@ -439,8 +443,54 @@ export function createProviderModelSettingsController(input: {
     return startLoad();
   };
 
+  const refreshIsCurrent = (operationGeneration: number): boolean =>
+    !disposed && generation === operationGeneration && saveOperation === undefined;
+
+  const showRefreshed = (
+    operationGeneration: number,
+    configuration: OnboardingLlmConfiguration,
+  ): void => {
+    const latest = editableState(currentState);
+    if (!refreshIsCurrent(operationGeneration) || latest === null) return;
+    const unsaved = isDirty(latest.active, latest.draft);
+    if (unsaved && configuration.providers.length === 0) return;
+    if (!unsaved || !isDirty(configuration.active, latest.draft)) {
+      showLoaded(configuration);
+      return;
+    }
+    const form = formState(
+      { ...latest, active: configuration.active },
+      input.codexAgentSupported ?? true,
+    );
+    render(
+      currentState.status === "error" && currentState.kind === "save"
+        ? { ...currentState, ...form }
+        : { status: "ready", ...form },
+    );
+  };
+
+  const showRefreshFailure = (operationGeneration: number): void => {
+    const latest = editableState(currentState);
+    if (!refreshIsCurrent(operationGeneration) || latest === null) return;
+    if (isDirty(latest.active, latest.draft)) return;
+    render({ status: "error", kind: "load", reason: "configuration-unavailable" });
+  };
+
+  const refresh = (): Promise<void> => {
+    if (disposed || saveOperation !== undefined) return Promise.resolve();
+    if (!visible || editableState(currentState) === null) return startLoad();
+    const operationGeneration = ++generation;
+    return Promise.resolve()
+      .then(() => input.load())
+      .then(
+        (configuration) => showRefreshed(operationGeneration, configuration),
+        () => showRefreshFailure(operationGeneration),
+      );
+  };
+
   return {
     activate,
+    refresh,
     close,
     state: () => (visible ? currentState : { status: "closed" }),
     dispose() {
