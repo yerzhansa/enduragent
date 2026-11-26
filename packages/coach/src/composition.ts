@@ -293,10 +293,9 @@ export interface LocalStoreRuntime {
   currentDroppedActivities(): ReturnType<StoreRuntime["currentDroppedActivities"]>;
   attemptLedgerForRun(): ReturnType<StoreRuntime["attemptLedgerForRun"]>;
   runWindow(): ReturnType<StoreRuntime["runWindow"]>;
-  runWindowAfter(
-    work: (signal: AbortSignal) => Promise<void>,
-  ): ReturnType<StoreRuntime["runWindow"]>;
+  runWindowAfter: StoreRuntime["runWindowAfter"];
   runExclusive: StoreRuntime["runExclusive"];
+  runOutsideWindow: StoreRuntime["runOutsideWindow"];
   runActivityWrite: StoreRuntime["runActivityWrite"];
   startScheduler(): void;
   close(): Promise<void>;
