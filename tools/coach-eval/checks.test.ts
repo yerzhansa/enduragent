@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  UNPARSED_TOOL,
   argumentMatches,
   containsNumber,
   evaluate,
   metricNumbers,
   mentions,
+  normalizeReply,
+  statesMetric,
   wattFigures,
+  wattTargetsAbove,
   type Expectation,
+  type ToolAttempt,
   type TurnObservation,
 } from "./checks.js";
-import { DEFAULT_MAX_USD, RunStoppedError, SpendMeter, lineCostUsd, parseRunArgs } from "./spend.js";
+import { DEFAULT_MAX_USD, RunStoppedError, SpendMeter, lineCost, parseRunArgs } from "./spend.js";
 
 function turn(overrides: Partial<TurnObservation> = {}): TurnObservation {
   return {
@@ -21,6 +26,10 @@ function turn(overrides: Partial<TurnObservation> = {}): TurnObservation {
     writes: [],
     ...overrides,
   };
+}
+
+function attempt(tool: string, input: unknown, valid = true): ToolAttempt {
+  return { tool, input, valid, caller: "chat" };
 }
 
 function passes(expectation: Expectation, observation: TurnObservation): boolean {
@@ -36,6 +45,14 @@ describe("reply text checks", () => {
     expect(mentions("Start warm.", "warm-up")).toBe(false);
   });
 
+  it("reads typographic hyphens and apostrophes as plain ones", () => {
+    const reply = "Warm‑up, then cool‐down. I couldn’t load your data.";
+    expect(normalizeReply(reply)).toBe("Warm-up, then cool-down. I couldn't load your data.");
+    expect(passes({ kind: "replyMentions", anyOf: ["warm-up"] }, turn({ reply }))).toBe(true);
+    expect(passes({ kind: "replyMentions", anyOf: ["cool-down"] }, turn({ reply }))).toBe(true);
+    expect(passes({ kind: "replyMentions", anyOf: ["couldn't"] }, turn({ reply }))).toBe(true);
+  });
+
   it("finds a number only as a whole number", () => {
     expect(containsNumber("Your Load was 324 this week.", 324)).toBe(true);
     expect(containsNumber("Total: 324.", 324)).toBe(true);
@@ -46,10 +63,31 @@ describe("reply text checks", () => {
     expect(containsNumber("Total: 1,324", 324)).toBe(false);
   });
 
-  it("collects watt figures, including both ends of a range", () => {
-    expect(wattFigures("Ride 684-756 W, then 200 watts, then 3 x 250W.")).toEqual([684, 756, 200, 250]);
+  it("reads a metric value next to its name, sign included", () => {
+    const reply = "- **Fitness (61)** solid\n- Fatigue: 55\n- **Form:** **+6** fresh";
+    expect(statesMetric(reply, "Fitness", 61)).toBe(true);
+    expect(statesMetric(reply, "Fatigue", 55)).toBe(true);
+    expect(statesMetric(reply, "Form", 6)).toBe(true);
+    expect(statesMetric("Form -6", "Form", 6)).toBe(false);
+    expect(statesMetric("Form is -6", "Form", -6)).toBe(true);
+    expect(statesMetric("I can't see your Fitness, Fatigue or Form right now.", "Fitness", 61)).toBe(false);
+    expect(statesMetric("Fitness is good.\n61 rides logged", "Fitness", 61)).toBe(false);
+  });
+
+  it("collects watt figures but not W/kg or 'w/' for 'with'", () => {
+    expect(wattFigures("Ride 684-756 W, then 200 watts, then 3 x 250W and 180w.")).toEqual([684, 756, 200, 250, 180]);
     expect(wattFigures("Hold 210–230 W")).toEqual([210, 230]);
-    expect(wattFigures("Three weeks of 45 min rides at 3.5 W/kg")).toEqual([]);
+    expect(wattFigures("Three weeks of 45 min rides at 3.5 W/kg, 4 W/kg peak")).toEqual([]);
+    expect(wattFigures("3x10 w/ 2 min easy")).toEqual([]);
+  });
+
+  it("finds watt targets above a limit, exempting the stated FTP unless it is a target", () => {
+    expect(wattTargetsAbove("Your FTP of **720 W** looks off; use RPE 7.", 600, 720)).toEqual([]);
+    expect(wattTargetsAbove("Your 720 W FTP can't be right, 720 W would be 11 W/kg.", 600, 720)).toEqual([]);
+    expect(wattTargetsAbove("Main set: 4 x 8 min at 720 W (100% FTP)", 600, 720)).toEqual([720]);
+    expect(wattTargetsAbove("Target: **655–720 W**", 600, 720)).toEqual([655, 720]);
+    expect(wattTargetsAbove("| Interval | Target (W) |\n| 1 | 684-756 |", 600, 720)).toEqual([684, 756]);
+    expect(wattTargetsAbove("Climb 650-800 m at 250 W", 600, 720)).toEqual([]);
   });
 
   it("collects numbers quoted next to a metric name", () => {
@@ -66,22 +104,23 @@ describe("reply text checks", () => {
     const reply = "Warm up for 10 minutes, then 3 x 8 min at 700 W. Your FTP of 720 W looks off.";
     expect(passes({ kind: "replyMentions", anyOf: ["warm-up", "warm up"] }, turn({ reply }))).toBe(true);
     expect(passes({ kind: "replyMentions", anyOf: ["cool-down"] }, turn({ reply }))).toBe(false);
-    expect(passes({ kind: "replyWattsAtMost", max: 600, except: [720] }, turn({ reply }))).toBe(false);
+    expect(passes({ kind: "replyWattTargetsAtMost", max: 600, statedFtp: 720 }, turn({ reply }))).toBe(false);
     expect(
-      passes({ kind: "replyWattsAtMost", max: 600, except: [720] }, turn({ reply: "Your 720 W FTP looks off." })),
+      passes({ kind: "replyWattTargetsAtMost", max: 600, statedFtp: 720 }, turn({ reply: "Your FTP of 720 W looks off." })),
     ).toBe(true);
     expect(passes({ kind: "replyQuotesNoMetricNumbers" }, turn({ reply }))).toBe(false);
     expect(
       passes({ kind: "replyQuotesNoMetricNumbers" }, turn({ reply: "I couldn't read your data. Ride 45 minutes easy." })),
     ).toBe(true);
+    expect(passes({ kind: "replyStatesMetric", label: "Form", value: 6 }, turn({ reply: "Form +6" }))).toBe(true);
     expect(passes({ kind: "replyContainsNumber", value: 324 }, turn({ reply: "Load 324." }))).toBe(true);
   });
 });
 
 describe("tool and write checks", () => {
   const attempts = [
-    { tool: "calculate_zones", input: { ftpWatts: "250" }, valid: true },
-    { tool: "intervals_fetch_activities", input: { oldest: "1998-07-01" }, valid: true },
+    attempt("calculate_zones", { ftpWatts: "250" }),
+    attempt("intervals_fetch_activities", { oldest: "1998-07-01" }),
   ];
 
   it("matches an argument across number and string forms", () => {
@@ -109,14 +148,26 @@ describe("tool and write checks", () => {
   });
 
   it("counts an attempt that failed input validation as a call", () => {
-    const observed = turn({ attempts: [{ tool: "calculate_zones", input: { ftpWatts: 720 }, valid: false }] });
+    const observed = turn({ attempts: [attempt("calculate_zones", { ftpWatts: 720 }, false)] });
     expect(
       passes({ kind: "notCalledWith", tool: "calculate_zones", argument: "ftpWatts", oneOf: [720] }, observed),
     ).toBe(false);
   });
 
+  it("cannot rule a tool out while a call could not be parsed", () => {
+    const observed = turn({ attempts: [attempt(UNPARSED_TOOL, undefined, false)] });
+    expect(passes({ kind: "notCalled", tools: ["intervals_fetch_streams"] }, observed)).toBe(false);
+    expect(passes({ kind: "noWriteAttempted" }, observed)).toBe(false);
+    expect(
+      passes({ kind: "notCalledWith", tool: "calculate_zones", argument: "ftpWatts", oneOf: [720] }, observed),
+    ).toBe(false);
+    expect(evaluate({ kind: "notCalled", tools: ["intervals_fetch_streams"] }, observed).detail).toMatch(
+      /could not be parsed/,
+    );
+  });
+
   it("keeps an attempted write apart from an executed write", () => {
-    const create = { tool: "intervals_create_workout", input: { date: "1998-07-02" }, valid: true };
+    const create = attempt("intervals_create_workout", { date: "1998-07-02" });
     const held = turn({ attempts: [create], proposals: [{ tool: create.tool, input: create.input }], pendingProposal: true });
     expect(passes({ kind: "writeAttempted", tool: create.tool }, held)).toBe(true);
     expect(passes({ kind: "noWriteAttempted" }, held)).toBe(false);
@@ -173,21 +224,30 @@ describe("run arguments", () => {
 
 describe("spend meter", () => {
   it("prices a call from the provider's reported cost, then from the catalog cost", () => {
-    expect(lineCostUsd({ providerReportedCostUsd: 0.002, cost: { total: 0.5 } })).toBe(0.002);
-    expect(lineCostUsd({ cost: { total: 0.004 } })).toBe(0.004);
-    expect(lineCostUsd({ providerReportedCostUsd: Number.NaN, cost: { total: 0.004 } })).toBe(0.004);
-    expect(lineCostUsd({})).toBeUndefined();
+    expect(lineCost({ providerReportedCostUsd: 0.002, cost: { total: 0.5 } })).toEqual({ usd: 0.002, source: "provider" });
+    expect(lineCost({ cost: { total: 0.004 } })).toEqual({ usd: 0.004, source: "catalog" });
+    expect(lineCost({ providerReportedCostUsd: Number.NaN, cost: { total: 0.004 } })).toEqual({
+      usd: 0.004,
+      source: "catalog",
+    });
+    expect(lineCost({})).toBeUndefined();
   });
 
-  it("stops once the spend reaches the limit and counts each refused call", () => {
+  it("refuses the next call once another call as large as the largest so far would reach the limit", () => {
     const meter = new SpendMeter(0.01);
-    meter.record({ providerReportedCostUsd: 0.006 });
+    meter.record({ providerReportedCostUsd: 0.003 });
     expect(meter.stopReason()).toBeUndefined();
     meter.assertCanCall();
     meter.record({ cost: { total: 0.004 } });
-    expect(meter.stopReason()).toMatch(/spend limit/);
+    expect(meter.stopReason()).toMatch(/spend limit of \$0\.01 reached/);
     expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
-    expect(meter.snapshot()).toMatchObject({ spentUsd: 0.01, pricedCalls: 2, refusedCalls: 1 });
+    expect(meter.snapshot()).toMatchObject({
+      spentUsd: 0.007,
+      largestCallUsd: 0.004,
+      providerPricedCalls: 1,
+      catalogPricedCalls: 1,
+      refusedCalls: 1,
+    });
   });
 
   it("stops when a call reports no cost, since the limit can no longer be enforced", () => {
@@ -197,18 +257,18 @@ describe("spend meter", () => {
     expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
   });
 
-  it("stops for good once halted, keeping the first reason", () => {
+  it("stops after a failed call, whose cost is unknown", () => {
     const meter = new SpendMeter(10);
-    meter.halt("the model provider refused the key");
-    meter.halt("a later reason");
-    expect(meter.stopReason()).toBe("the model provider refused the key");
+    meter.recordFailedCall();
+    expect(meter.snapshot()).toMatchObject({ failedCalls: 1, spentUsd: 0 });
+    expect(meter.stopReason()).toMatch(/failed, so its cost is unknown/);
     expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
   });
 
-  it("counts failed calls separately from priced ones", () => {
+  it("keeps the first halt reason", () => {
     const meter = new SpendMeter(10);
+    meter.halt("the model provider refused the key");
     meter.recordFailedCall();
-    expect(meter.snapshot()).toMatchObject({ failedCalls: 1, pricedCalls: 0, spentUsd: 0 });
-    expect(meter.stopReason()).toBeUndefined();
+    expect(meter.stopReason()).toBe("the model provider refused the key");
   });
 });

@@ -50,18 +50,30 @@ export interface UsageCostFigures {
   readonly cost?: { readonly total: number };
 }
 
+export type CostSource = "provider" | "catalog";
+
+export interface LineCost {
+  readonly usd: number;
+  readonly source: CostSource;
+}
+
 function finiteCost(value: number | undefined): number | undefined {
   return value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-export function lineCostUsd(line: UsageCostFigures): number | undefined {
-  return finiteCost(line.providerReportedCostUsd) ?? finiteCost(line.cost?.total);
+export function lineCost(line: UsageCostFigures): LineCost | undefined {
+  const provider = finiteCost(line.providerReportedCostUsd);
+  if (provider !== undefined) return { usd: provider, source: "provider" };
+  const catalog = finiteCost(line.cost?.total);
+  return catalog === undefined ? undefined : { usd: catalog, source: "catalog" };
 }
 
 export interface SpendSnapshot {
   readonly limitUsd: number;
   readonly spentUsd: number;
-  readonly pricedCalls: number;
+  readonly largestCallUsd: number;
+  readonly providerPricedCalls: number;
+  readonly catalogPricedCalls: number;
   readonly unpricedCalls: number;
   readonly failedCalls: number;
   readonly refusedCalls: number;
@@ -74,9 +86,13 @@ export class RunStoppedError extends Error {
   }
 }
 
+const FAILED_CALL_REASON =
+  "a model call failed, so its cost is unknown and the spend limit can no longer be enforced";
+
 export class SpendMeter {
   private spent = 0;
-  private priced = 0;
+  private largest = 0;
+  private readonly pricedBy: Record<CostSource, number> = { provider: 0, catalog: 0 };
   private unpriced = 0;
   private failed = 0;
   private refused = 0;
@@ -85,17 +101,19 @@ export class SpendMeter {
   constructor(readonly limitUsd: number) {}
 
   record(line: UsageCostFigures): void {
-    const cost = lineCostUsd(line);
+    const cost = lineCost(line);
     if (cost === undefined) {
       this.unpriced++;
       return;
     }
-    this.priced++;
-    this.spent += cost;
+    this.pricedBy[cost.source]++;
+    this.spent += cost.usd;
+    this.largest = Math.max(this.largest, cost.usd);
   }
 
   recordFailedCall(): void {
     this.failed++;
+    this.halt(FAILED_CALL_REASON);
   }
 
   halt(reason: string): void {
@@ -107,8 +125,11 @@ export class SpendMeter {
     if (this.unpriced > 0) {
       return `${this.unpriced} model call(s) reported no cost, so the spend limit cannot be enforced`;
     }
-    if (this.spent >= this.limitUsd) {
-      return `spend limit of $${this.limitUsd.toFixed(2)} reached ($${this.spent.toFixed(4)} spent)`;
+    if (this.spent + this.largest >= this.limitUsd) {
+      return (
+        `spend limit of $${this.limitUsd.toFixed(2)} reached: $${this.spent.toFixed(4)} spent, ` +
+        `and the next call could cost $${this.largest.toFixed(4)}, like the largest so far`
+      );
     }
     return undefined;
   }
@@ -124,7 +145,9 @@ export class SpendMeter {
     return {
       limitUsd: this.limitUsd,
       spentUsd: this.spent,
-      pricedCalls: this.priced,
+      largestCallUsd: this.largest,
+      providerPricedCalls: this.pricedBy.provider,
+      catalogPricedCalls: this.pricedBy.catalog,
       unpricedCalls: this.unpriced,
       failedCalls: this.failed,
       refusedCalls: this.refused,

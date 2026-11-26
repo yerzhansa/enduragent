@@ -5,7 +5,6 @@ import { APICallError, asSchema, jsonSchema, type Tool, type ToolSet } from "ai"
 import { IntervalsClient } from "intervals-icu-api";
 import type {
   AthleteDataReaderPort,
-  AthleteReadResult,
   EngineHostPorts,
   MemoryStorePort,
   ModelTransportDecorator,
@@ -19,13 +18,14 @@ import { createEngineHostAdapter } from "../../packages/core/src/agent/engine-ho
 import { bundledAcceptedCatalog } from "../../packages/core/src/model-catalog.js";
 import { legacyStateReader } from "../../packages/core/src/agent/legacy-athlete-state-reader.js";
 import { createNpmCoachLanguage } from "../../packages/core/src/language-preference.js";
+import { createStoreAthleteDataReader } from "../../packages/core/src/athlete-data.js";
 import {
   ConfirmationGate,
   createProposalSummarizers,
   createToolConfirmationPort,
 } from "../../packages/core/src/agent/confirmation-gate.js";
-import type { ExecutedWrite, Proposal, ToolAttempt, TurnObservation } from "./checks.js";
-import type { AthleteFixture } from "./fixture.js";
+import { UNPARSED_TOOL, type ExecutedWrite, type Proposal, type ToolAttempt, type TurnObservation } from "./checks.js";
+import type { StoreFixture } from "./fixture.js";
 import type { SpendMeter } from "./spend.js";
 
 export type Channel = "desktop" | "telegram";
@@ -85,7 +85,16 @@ function keyRejection(error: unknown): string | undefined {
   return `the model provider refused the key in OPENROUTER_API_KEY (HTTP ${error.statusCode}: ${error.message})`;
 }
 
-function recordAttempts(name: string, tool: Tool, recorder: CaseRecorder): Tool {
+const TOOL_NAME_SHAPE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
+
+interface CallLog {
+  readonly caller: string;
+  validated: number;
+  toolStarts: number;
+  readonly unknownNames: Set<string>;
+}
+
+function recordAttempts(name: string, tool: Tool, recorder: CaseRecorder, log: CallLog): Tool {
   const schema = asSchema(tool.inputSchema);
   return {
     ...tool,
@@ -95,11 +104,33 @@ function recordAttempts(name: string, tool: Tool, recorder: CaseRecorder): Tool 
           schema.validate === undefined
             ? { success: true as const, value }
             : await schema.validate(value);
-        recorder.attempts.push({ tool: name, input: value, valid: result.success });
+        log.validated++;
+        recorder.attempts.push({ tool: name, input: value, valid: result.success, caller: log.caller });
         return result;
       },
     }),
   };
+}
+
+function watchUnknownNames(tools: ToolSet, log: CallLog): ToolSet {
+  return new Proxy(tools, {
+    get(target, property, receiver) {
+      if (typeof property === "string" && !Object.hasOwn(target, property) && TOOL_NAME_SHAPE.test(property)) {
+        log.unknownNames.add(property);
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+}
+
+function recordUnseenCalls(recorder: CaseRecorder, log: CallLog): void {
+  for (const name of log.unknownNames) {
+    recorder.attempts.push({ tool: name, input: undefined, valid: false, caller: log.caller });
+  }
+  const unparsed = log.toolStarts - log.validated - log.unknownNames.size;
+  for (let index = 0; index < unparsed; index++) {
+    recorder.attempts.push({ tool: UNPARSED_TOOL, input: undefined, valid: false, caller: log.caller });
+  }
 }
 
 export function recordingDecorator(
@@ -109,85 +140,54 @@ export function recordingDecorator(
   return (next) => ({
     generate: async (request) => {
       meter.assertCanCall();
-      const tools = request.options.tools;
+      const { tools, onStreamActivity } = request.options;
+      const log: CallLog = {
+        caller: request.options.caller ?? "unknown",
+        validated: 0,
+        toolStarts: 0,
+        unknownNames: new Set(),
+      };
       if (tools !== undefined) recorder.offer(Object.keys(tools));
       const recordedTools: ToolSet | undefined =
         tools === undefined
           ? undefined
-          : Object.fromEntries(
-              Object.entries(tools).map(([name, tool]) => [name, recordAttempts(name, tool, recorder)]),
+          : watchUnknownNames(
+              Object.fromEntries(
+                Object.entries(tools).map(([name, tool]) => [name, recordAttempts(name, tool, recorder, log)]),
+              ),
+              log,
             );
       try {
         return await next.generate({
           ...request,
-          options: { ...request.options, tools: recordedTools },
+          options: {
+            ...request.options,
+            tools: recordedTools,
+            onStreamActivity: (activity) => {
+              if (activity.type === "tool_start") log.toolStarts++;
+              onStreamActivity?.(activity);
+            },
+          },
         });
       } catch (error) {
-        meter.recordFailedCall();
         const rejection = keyRejection(error);
         if (rejection !== undefined) meter.halt(rejection);
+        meter.recordFailedCall();
         throw error;
+      } finally {
+        recordUnseenCalls(recorder, log);
       }
     },
   });
 }
 
-const STORE_UNAVAILABLE = {
-  ok: false,
-  error: "store_read_unavailable",
-  message: "No complete local training-store snapshot is available.",
-} as const;
-
-function inRange(day: string, start: string, end: string | undefined): boolean {
-  return day >= start && (end === undefined || day <= end);
-}
-
-function failingReader(): AthleteDataReaderPort {
-  const unavailable = async (): Promise<AthleteReadResult<never>> => STORE_UNAVAILABLE;
-  return {
-    getAthlete: unavailable,
-    listWellness: unavailable,
-    listActivities: unavailable,
-    getActivity: unavailable,
-    getStreams: unavailable,
-    listCalendar: unavailable,
-    freshness: () => undefined,
-  };
-}
-
-export function createFixtureReader(fixture: AthleteFixture | "failing"): AthleteDataReaderPort {
-  if (fixture === "failing") return failingReader();
-  const find = (id: string) => fixture.activities.find((activity) => String(activity.id) === id);
-  return {
-    getAthlete: async () => ({ ok: true, value: fixture.athlete }),
-    listWellness: async ({ start, end }) => ({
-      ok: true,
-      value: fixture.wellness.filter((day) => inRange(day.id, start, end)),
-    }),
-    listActivities: async ({ start, end }) => ({
-      ok: true,
-      value: fixture.activities
-        .filter((activity) => inRange(activity.startDateLocal.slice(0, 10), start, end))
-        .sort((a, b) => b.startDateLocal.localeCompare(a.startDateLocal)),
-    }),
-    getActivity: async ({ id }) => {
-      const activity = find(id);
-      return activity === undefined
-        ? { ok: false, error: "not_found", message: `No activity ${id}.` }
-        : { ok: true, value: { ...activity, laps: fixture.laps(activity.id) } };
-    },
-    getStreams: async ({ id, keys }) => {
-      const activity = find(id);
-      if (activity === undefined) return { ok: false, error: "not_found", message: `No activity ${id}.` };
-      const streams = fixture.streams(activity.id);
-      return {
-        ok: true,
-        value: Object.fromEntries(Object.entries(streams).filter(([key]) => keys.includes(key))),
-      };
-    },
-    listCalendar: async () => ({ ok: true, value: [] }),
-    freshness: () => undefined,
-  };
+export function createFixtureReader(fixture: StoreFixture | "failing"): AthleteDataReaderPort {
+  return fixture === "failing"
+    ? createStoreAthleteDataReader({ snapshot: () => undefined })
+    : createStoreAthleteDataReader({
+        snapshot: () => fixture.snapshot,
+        canonicalActivities: fixture.activities,
+      });
 }
 
 export function recordingCalendar(recorder: CaseRecorder): PlatformCalendarMutationsPort {
@@ -262,7 +262,7 @@ function confirmationPort(
 export interface EvalPortsInput {
   readonly model: string;
   readonly apiKey: string;
-  readonly fixture: AthleteFixture | "failing" | undefined;
+  readonly fixture: StoreFixture | "failing" | undefined;
   readonly recorder: CaseRecorder;
   readonly meter: SpendMeter;
 }

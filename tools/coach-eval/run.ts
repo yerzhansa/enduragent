@@ -4,9 +4,9 @@ import { createCoachEngine } from "@enduragent/engine";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { CASES, type EvalCase } from "./cases.js";
 import { evaluateTurn, type CheckResult, type TurnObservation } from "./checks.js";
-import { buildAthleteFixture, type AthleteFixture } from "./fixture.js";
+import { buildStoreFixture, type StoreFixture } from "./fixture.js";
 import { CHAT_IDS, CaseRecorder, createEvalPorts } from "./ports.js";
-import { SpendMeter, USAGE, lineCostUsd, parseRunArgs, type RunOptions } from "./spend.js";
+import { SpendMeter, USAGE, lineCost, parseRunArgs, type RunOptions } from "./spend.js";
 
 type CaseStatus = "pass" | "fail" | "error" | "stopped" | "skipped";
 
@@ -23,6 +23,7 @@ interface CaseReport {
   readonly status: CaseStatus;
   readonly costUsd: number;
   readonly modelCalls: number;
+  readonly modelSteps: number;
   readonly turns: readonly TurnReport[];
   readonly error?: string;
 }
@@ -32,10 +33,10 @@ function fail(code: number, reason: string): never {
   process.exit(code);
 }
 
-function fixtureFor(evalCase: EvalCase, today: Date): AthleteFixture | "failing" | undefined {
+function fixtureFor(evalCase: EvalCase, today: Date): StoreFixture | "failing" | undefined {
   if (evalCase.data === "not-connected") return undefined;
   if (evalCase.data === "reads-failing") return "failing";
-  return buildAthleteFixture(evalCase.data, today);
+  return buildStoreFixture(evalCase.data, today);
 }
 
 function errorText(error: unknown): string {
@@ -46,38 +47,53 @@ function checksStatus(turns: readonly TurnReport[]): CaseStatus {
   return turns.every((turn) => turn.checks.every((check) => check.pass)) ? "pass" : "fail";
 }
 
+async function runTurns(
+  evalCase: EvalCase,
+  options: RunOptions,
+  apiKey: string,
+  meter: SpendMeter,
+  recorder: CaseRecorder,
+  turns: TurnReport[],
+): Promise<void> {
+  const harness = createEvalPorts({
+    model: options.model,
+    apiKey,
+    fixture: fixtureFor(evalCase, new Date()),
+    recorder,
+    meter,
+  });
+  const chatId = CHAT_IDS[evalCase.channel];
+  try {
+    const engine = createCoachEngine({ sport: cyclingSport, ports: harness.ports });
+    try {
+      for (const turn of evalCase.turns) {
+        recorder.startTurn();
+        const response = await engine.chat({ chatId, message: turn.message });
+        const observation = recorder.finishTurn(response.text, harness.gate.peek(chatId) !== undefined);
+        turns.push({ message: turn.message, ...observation, checks: evaluateTurn(turn.expect, observation) });
+      }
+    } finally {
+      await engine.settle?.();
+    }
+  } finally {
+    harness.dispose();
+  }
+}
+
 async function runCase(
   evalCase: EvalCase,
   options: RunOptions,
   apiKey: string,
   meter: SpendMeter,
-  today: Date,
 ): Promise<CaseReport> {
   const recorder = new CaseRecorder();
   const refusedBefore = meter.snapshot().refusedCalls;
-  const harness = createEvalPorts({
-    model: options.model,
-    apiKey,
-    fixture: fixtureFor(evalCase, today),
-    recorder,
-    meter,
-  });
-  const chatId = CHAT_IDS[evalCase.channel];
   const turns: TurnReport[] = [];
   let error: string | undefined;
   try {
-    const engine = createCoachEngine({ sport: cyclingSport, ports: harness.ports });
-    for (const turn of evalCase.turns) {
-      recorder.startTurn();
-      const response = await engine.chat({ chatId, message: turn.message });
-      const observation = recorder.finishTurn(response.text, harness.gate.peek(chatId) !== undefined);
-      turns.push({ message: turn.message, ...observation, checks: evaluateTurn(turn.expect, observation) });
-    }
-    await engine.settle?.();
+    await runTurns(evalCase, options, apiKey, meter, recorder, turns);
   } catch (caught) {
     error = errorText(caught);
-  } finally {
-    harness.dispose();
   }
   const generateLines = recorder.usage.filter((line) => line.kind === "generate");
   const refused = meter.snapshot().refusedCalls > refusedBefore;
@@ -87,8 +103,9 @@ async function runCase(
     channel: evalCase.channel,
     data: evalCase.data,
     status: refused ? "stopped" : error !== undefined ? "error" : checksStatus(turns),
-    costUsd: generateLines.reduce((sum, line) => sum + (lineCostUsd(line) ?? 0), 0),
+    costUsd: generateLines.reduce((sum, line) => sum + (lineCost(line)?.usd ?? 0), 0),
     modelCalls: generateLines.length,
+    modelSteps: generateLines.reduce((sum, line) => sum + (line.steps ?? 0), 0),
     turns,
     ...(error === undefined ? {} : { error }),
   };
@@ -103,6 +120,7 @@ function skippedCase(evalCase: EvalCase, reason: string): CaseReport {
     status: "skipped",
     costUsd: 0,
     modelCalls: 0,
+    modelSteps: 0,
     turns: [],
     error: reason,
   };
@@ -111,7 +129,8 @@ function skippedCase(evalCase: EvalCase, reason: string): CaseReport {
 function printCase(report: CaseReport): void {
   const label = report.status.toUpperCase().padEnd(7);
   process.stdout.write(
-    `${label} ${report.id.padEnd(28)} $${report.costUsd.toFixed(4)}  ${report.modelCalls} call(s)\n`,
+    `${label} ${report.id.padEnd(28)} $${report.costUsd.toFixed(4)}  ` +
+      `${report.modelCalls} call(s), ${report.modelSteps} step(s)\n`,
   );
   for (const turn of report.turns) {
     for (const check of turn.checks.filter((item) => !item.pass)) {
@@ -138,8 +157,7 @@ async function main(): Promise<void> {
   }
   const cases = selectCases(options.caseIds);
   const meter = new SpendMeter(options.maxUsd);
-  const today = new Date();
-  const startedAt = today.toISOString();
+  const startedAt = new Date().toISOString();
   process.stdout.write(
     `coach-eval: ${cases.length} case(s) on ${options.model}, spend limit $${options.maxUsd.toFixed(2)}\n\n`,
   );
@@ -149,7 +167,7 @@ async function main(): Promise<void> {
     const reason = meter.stopReason();
     const report =
       reason === undefined
-        ? await runCase(evalCase, options, apiKey, meter, today)
+        ? await runCase(evalCase, options, apiKey, meter)
         : skippedCase(evalCase, reason);
     reports.push(report);
     printCase(report);
@@ -158,20 +176,24 @@ async function main(): Promise<void> {
   const spend = meter.snapshot();
   const count = (status: CaseStatus) => reports.filter((report) => report.status === status).length;
   const passed = count("pass");
+  const completed = passed + count("fail");
   const summary = {
     total: reports.length,
+    completed,
     passed,
     failed: count("fail"),
     errored: count("error"),
     stopped: count("stopped"),
     skipped: count("skipped"),
     passRate: reports.length === 0 ? 0 : passed / reports.length,
+    passRateOfCompleted: completed === 0 ? 0 : passed / completed,
   };
   process.stdout.write(
-    `\npass rate ${passed}/${summary.total} (${Math.round(summary.passRate * 100)}%)\n` +
+    `\npass rate ${passed}/${summary.total} (${Math.round(summary.passRate * 100)}%); ` +
+      `${passed}/${completed} of the cases that ran to the end\n` +
       `cost $${spend.spentUsd.toFixed(4)} of $${spend.limitUsd.toFixed(2)} ` +
-      `(${spend.pricedCalls} priced call(s), ${spend.unpricedCalls} unpriced, ` +
-      `${spend.failedCalls} failed, ${spend.refusedCalls} refused after the run stopped)\n`,
+      `(${spend.providerPricedCalls} call(s) priced by the provider, ${spend.catalogPricedCalls} from the catalog, ` +
+      `${spend.unpricedCalls} unpriced, ${spend.failedCalls} failed, ${spend.refusedCalls} refused)\n`,
   );
   const stopReason = meter.stopReason();
   if (stopReason !== undefined) process.stdout.write(`run stopped: ${stopReason}\n`);
