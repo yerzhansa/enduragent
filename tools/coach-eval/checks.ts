@@ -45,7 +45,8 @@ export type Expectation =
   | {
       readonly kind: "replyDoubtsNear";
       readonly value: number;
-      readonly anyOf: readonly string[];
+      readonly nearby: readonly string[];
+      readonly sameSentence: readonly string[];
       readonly within: number;
     }
   | { readonly kind: "writeAttempted"; readonly tool: string }
@@ -107,15 +108,25 @@ export const STRONG_DOUBT_PHRASES = [
   "implausible",
   "impossible",
   "incorrect",
-  "mistake",
   "typo",
-  "error",
   "looks off",
   "looks wrong",
   "can't be right",
   "cannot be right",
   "double-check",
   "double check",
+] as const;
+
+export const WEAK_DOUBT_PHRASES = [
+  "too high",
+  "wrong",
+  "mistake",
+  "error",
+  "seems off",
+  "doesn't look right",
+  "not right",
+  "unusually high",
+  "suspicious",
 ] as const;
 
 function escapeRegExp(text: string): string {
@@ -197,11 +208,20 @@ function numberIndexes(text: string, value: number): number[] {
   return Array.from(text.matchAll(pattern), (match) => match.index);
 }
 
-export function doubtsNear(text: string, value: number, phrases: readonly string[], within: number): string[] {
+export interface DoubtPhrases {
+  readonly nearby: readonly string[];
+  readonly sameSentence: readonly string[];
+  readonly within: number;
+}
+
+export function doubtsNear(reply: string, value: number, phrases: DoubtPhrases): string[] {
+  const text = normalizeReply(reply);
   const found = new Set<string>();
   for (const index of numberIndexes(text, value)) {
-    const window = text.slice(Math.max(0, index - within), index + within);
-    for (const phrase of phrases) if (mentions(window, phrase)) found.add(phrase);
+    const window = text.slice(Math.max(0, index - phrases.within), index + phrases.within);
+    const sentence = sentenceAt(text, index);
+    for (const phrase of phrases.nearby) if (mentions(window, phrase)) found.add(phrase);
+    for (const phrase of phrases.sameSentence) if (mentions(sentence, phrase)) found.add(phrase);
   }
   return Array.from(found);
 }
@@ -300,7 +320,10 @@ export function describeExpectation(expectation: Expectation): string {
     case "replyContainsNumber":
       return `reply contains the number ${expectation.value}`;
     case "replyDoubtsNear":
-      return `reply questions ${expectation.value} within ${expectation.within} characters: one of [${expectation.anyOf.join(" | ")}]`;
+      return (
+        `reply questions ${expectation.value}: one of [${expectation.nearby.join(" | ")}] within ` +
+        `${expectation.within} characters, or one of [${expectation.sameSentence.join(" | ")}] in its sentence`
+      );
     case "writeAttempted":
       return `attempts write ${expectation.tool}`;
     case "noWriteAttempted":
@@ -356,7 +379,7 @@ function checkReply(expectation: Expectation, reply: string): CheckResult | unde
       return verdict(expectation, pass, pass ? "found" : "not found");
     }
     case "replyDoubtsNear": {
-      const found = doubtsNear(reply, expectation.value, expectation.anyOf, expectation.within);
+      const found = doubtsNear(reply, expectation.value, expectation);
       return verdict(expectation, found.length > 0, found.length > 0 ? `found ${found.join(", ")}` : "none found");
     }
     default:

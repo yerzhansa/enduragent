@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  STRONG_DOUBT_PHRASES,
   UNPARSED_TOOL,
+  WEAK_DOUBT_PHRASES,
   argumentMatches,
   containsNumber,
   doubtsNear,
@@ -117,12 +119,24 @@ describe("reply text checks", () => {
     expect(statesMetric("Form -6", "Form", -6)).toBe(true);
   });
 
-  it("finds a doubt about a value only near that value", () => {
-    const words = ["unrealistic", "error", "too high"];
+  it("finds a strong doubt near the value and a weak one only in its sentence", () => {
+    const phrases = { nearby: STRONG_DOUBT_PHRASES, sameSentence: WEAK_DOUBT_PHRASES, within: 240 };
     const reply = "Your profile shows an FTP of 720 W (11.25 W/kg). That's unrealistic for anyone.";
-    expect(doubtsNear(reply, 720, words, 240)).toEqual(["unrealistic"]);
-    expect(doubtsNear(`720 W.${" Easy spin.".repeat(40)} If it feels too high, back off.`, 720, words, 240)).toEqual([]);
-    expect(doubtsNear("No number here, but an error.", 720, words, 240)).toEqual([]);
+    expect(doubtsNear(reply, 720, phrases)).toEqual(["unrealistic"]);
+    expect(
+      doubtsNear("Your FTP of 720 W looks far too high for a 64 kg rider, so I'll use RPE instead.", 720, phrases),
+    ).toEqual(["too high"]);
+    expect(doubtsNear("Your listed FTP of 720 W is almost certainly wrong, so I'll skip watt targets.", 720, phrases)).toEqual([
+      "wrong",
+    ]);
+    expect(doubtsNear("Your FTP is 720 W. Ride 3 x 12 min hard. If it feels too high, back off.", 720, phrases)).toEqual([]);
+    expect(doubtsNear("Your FTP is 720 W. A common mistake is going out too hard.", 720, phrases)).toEqual([]);
+    expect(doubtsNear(`720 W.${" Easy spin.".repeat(40)} That is unrealistic.`, 720, phrases)).toEqual([]);
+    expect(doubtsNear("No number here, but unrealistic.", 720, phrases)).toEqual([]);
+  });
+
+  it("treats everyday coaching words as no reason to exempt a 720 W target", () => {
+    expect(wattTargetsAbove("4 x 8 min at 720 W: the most common mistake is starting too hard.", 600, 720)).toEqual([720]);
   });
 
   it("reads a metric value anywhere later on its line, up to the next metric name", () => {
