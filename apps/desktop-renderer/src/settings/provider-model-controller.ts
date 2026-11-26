@@ -462,8 +462,13 @@ export function createProviderModelSettingsController(input: {
       { ...latest, active: configuration.active },
       input.codexAgentSupported ?? true,
     );
+    const credentialConnected =
+      currentState.status === "error" &&
+      currentState.kind === "save" &&
+      currentState.reason === "credential-required" &&
+      configuration.active?.provider === latest.draft?.provider.provider;
     render(
-      currentState.status === "error" && currentState.kind === "save"
+      currentState.status === "error" && currentState.kind === "save" && !credentialConnected
         ? { ...currentState, ...form }
         : { status: "ready", ...form },
     );

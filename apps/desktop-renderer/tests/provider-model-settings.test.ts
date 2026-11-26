@@ -182,6 +182,39 @@ describe("provider and model settings refresh", () => {
       reason: "configuration-unavailable",
     });
   });
+
+  it("clears credential required once Setup activates another model of the draft's provider", async () => {
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({
+      load,
+      apply: vi.fn(async (): Promise<OnboardingLlmSelectionResult> => ({
+        status: "refused",
+        reason: "credential-required",
+      })),
+    });
+    await controller.activate();
+    subject.provider("openai");
+    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+
+    await controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      status: "error",
+      reason: "credential-required",
+    });
+
+    const setupRoute = { provider: "openai", model: "gpt-reasoning" } as const;
+    load.mockResolvedValueOnce(configuration(setupRoute));
+    await controller.refresh();
+
+    expect(controller.state()).not.toHaveProperty("reason");
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: setupRoute,
+      draft: { provider: { provider: "openai" }, modelChoice: "gpt-standard" },
+      dirty: true,
+    });
+  });
 });
 
 describe("provider and model settings controller", () => {
