@@ -282,6 +282,12 @@ WHERE plan_workout_match.decision='suggested'`,
           input.decision === "unpaired") ||
         (current.source === "platform" &&
           current.decision === "unpaired" &&
+          input.decision === "confirmed") ||
+        (current.source === "heuristic" &&
+          current.decision === "confirmed" &&
+          input.decision === "rejected") ||
+        (current.source === "heuristic" &&
+          current.decision === "rejected" &&
           input.decision === "confirmed");
       if (!allowed) throw new PlanWorkoutMatchValidationError("invalid-transition");
       await store.run(

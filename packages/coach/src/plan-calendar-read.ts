@@ -134,7 +134,7 @@ function outcomeView(outcome: WorkoutOutcome, match: OutcomeMatch): PlanCalendar
 
 const RANGE_LIMIT_DAYS = 120;
 
-function isoOf(dateKey: number): string {
+export function isoOf(dateKey: number): string {
   const value = String(dateKey).padStart(8, "0");
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
@@ -145,7 +145,10 @@ function validDateKey(dateKey: number): boolean {
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === iso;
 }
 
-function boundedRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+export function boundedRange(range: {
+  readonly startDateKey: number;
+  readonly endDateKey: number;
+}) {
   if (!validDateKey(range.startDateKey) || !validDateKey(range.endDateKey)) {
     return { startDateKey: range.startDateKey, endDateKey: range.startDateKey - 1 };
   }

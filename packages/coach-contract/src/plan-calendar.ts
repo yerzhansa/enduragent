@@ -23,7 +23,31 @@ export const PlanCalendarTickSchema = z
   .strict();
 export type PlanCalendarTick = z.infer<typeof PlanCalendarTickSchema>;
 
+const ActivityIdSchema = z.string().regex(/^[0-9a-f]{64}$/u);
+
+export const PlanCalendarRideDecisionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("confirm"), planWorkoutId: UlidSchema }).strict(),
+  z.object({ kind: z.literal("extra") }).strict(),
+  z.object({ kind: z.literal("rematch"), planWorkoutId: UlidSchema }).strict(),
+]);
+export type PlanCalendarRideDecision = z.infer<typeof PlanCalendarRideDecisionSchema>;
+
 export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("rides"),
+      startDateKey: DateKeySchema,
+      endDateKey: DateKeySchema,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("decide-ride"),
+      planId: UlidSchema,
+      activityId: ActivityIdSchema,
+      decision: PlanCalendarRideDecisionSchema,
+    })
+    .strict(),
   z
     .object({
       action: z.literal("approve-weeks"),
@@ -93,6 +117,7 @@ export const PlanCalendarRefusalSchema = z.enum([
   "workout-not-movable",
   "change-card-open",
   "outside-plan",
+  "match-changed",
 ]);
 export type PlanCalendarRefusal = z.infer<typeof PlanCalendarRefusalSchema>;
 
@@ -280,8 +305,74 @@ export const PlanCalendarReplacingSchema = z
   })
   .strict();
 export type PlanCalendarReplacing = z.infer<typeof PlanCalendarReplacingSchema>;
+export const PlanCalendarRideWorkoutSchema = z
+  .object({
+    planWorkoutId: UlidSchema,
+    name: z.string().min(1).max(512),
+    dateKey: DateKeySchema,
+    durationS: SecondsSchema.nullable(),
+  })
+  .strict();
+export type PlanCalendarRideWorkout = z.infer<typeof PlanCalendarRideWorkoutSchema>;
+
+export const PlanCalendarRideMatchSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("none") }).strict(),
+  PlanCalendarRideWorkoutSchema.extend({ kind: z.literal("suggested") }).strict(),
+  PlanCalendarRideWorkoutSchema.extend({
+    kind: z.literal("confirmed"),
+    outcome: z.enum(["done-as-planned", "done-differently"]),
+    by: z.enum(["you", "intervals"]),
+  }).strict(),
+]);
+export type PlanCalendarRideMatch = z.infer<typeof PlanCalendarRideMatchSchema>;
+
+export const PlanCalendarRideSchema = z
+  .object({
+    activityId: ActivityIdSchema,
+    dateKey: DateKeySchema,
+    startEpochSeconds: z.number().int().nonnegative(),
+    timezoneOffsetSeconds: z.number().int().min(-86_400).max(86_400).nullable(),
+    name: z.string().min(1).max(512).nullable(),
+    kind: z.enum(["road", "indoor", "mountain", "gravel", "other"]),
+    fromIntervals: z.boolean(),
+    sport: z.string().min(1).max(64),
+    durationS: SecondsSchema.nullable(),
+    distanceM: z.number().min(0).max(10_000_000).nullable(),
+    load: z.number().min(0).max(10_000).nullable(),
+    averagePowerW: z.number().min(0).max(20_000).nullable(),
+    averageHeartRateBpm: z.number().min(0).max(500).nullable(),
+    perceivedExertion: z.number().min(0).max(10).nullable(),
+    match: PlanCalendarRideMatchSchema,
+    otherWorkouts: z.array(PlanCalendarRideWorkoutSchema).max(32),
+  })
+  .strict();
+export type PlanCalendarRide = z.infer<typeof PlanCalendarRideSchema>;
+
+export const PlanCalendarRideWeekSchema = z
+  .object({
+    index: z.number().int().min(1).max(52),
+    startDateKey: DateKeySchema,
+    endDateKey: DateKeySchema,
+  })
+  .strict();
+export type PlanCalendarRideWeek = z.infer<typeof PlanCalendarRideWeekSchema>;
 
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("rides"),
+      todayDateKey: DateKeySchema,
+      plan: z
+        .object({
+          planId: UlidSchema,
+          weeks: z.array(PlanCalendarRideWeekSchema).max(52),
+        })
+        .strict()
+        .nullable(),
+      rides: z.array(PlanCalendarRideSchema).max(1_000),
+    })
+    .strict(),
+  z.object({ status: z.literal("ride"), ride: PlanCalendarRideSchema }).strict(),
   z
     .object({
       status: z.literal("approved"),

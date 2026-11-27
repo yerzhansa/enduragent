@@ -100,12 +100,31 @@ describe("Plan WorkoutMatch repository", () => {
       .resolves.toMatchObject({ decision: "confirmed", decidedAtMs: 11 });
     await expect(repository.decide({
       id: MATCH_ID,
-      decision: "rejected",
+      decision: "unpaired",
       decidedAtMs: 13,
       deviceId: "device-1",
       hlcPhysicalMs: 13,
       hlcCounter: 0,
     })).rejects.toEqual(new PlanWorkoutMatchValidationError("invalid-transition"));
+  });
+
+  it("lets the athlete take back a confirmation, and confirm a refused pairing later", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    await repository.observe(suggestion());
+    const stamp = (at: number) => ({
+      id: MATCH_ID,
+      decidedAtMs: at,
+      deviceId: "device-1",
+      hlcPhysicalMs: at,
+      hlcCounter: 0,
+    });
+    await repository.decide({ ...stamp(11), decision: "confirmed" });
+    await expect(repository.decide({ ...stamp(12), decision: "rejected" })).resolves
+      .toMatchObject({ decision: "rejected", decidedAtMs: 12 });
+    await expect(repository.observe(suggestion({ observedAtMs: 13, hlcPhysicalMs: 13 })))
+      .resolves.toMatchObject({ decision: "rejected", decidedAtMs: 12 });
+    await expect(repository.decide({ ...stamp(14), decision: "confirmed" })).resolves
+      .toMatchObject({ decision: "confirmed", decidedAtMs: 14 });
   });
 
   it("reads canonical activities and reports stale Intervals sync honestly", async () => {
