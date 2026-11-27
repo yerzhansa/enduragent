@@ -129,6 +129,17 @@ describe("llm-picker G15: Keychain unlocked after launch", () => {
     });
   });
 
+  it("keeps refusing the save while the Keychain stays locked", async () => {
+    const { vault } = await launchWithLockedKeychain();
+
+    const saved = await vault.writeCredential({ slot: "anthropic", value: "synthetic-key" });
+
+    expect({ save: saved.status, reason: "reason" in saved ? saved.reason : undefined }).toEqual({
+      save: "refused",
+      reason: "encryption-unavailable",
+    });
+  });
+
   it("control: after Settings' credential Retry, the same save works", async () => {
     const { vault, prepared, unlock } = await launchWithLockedKeychain();
     unlock();
