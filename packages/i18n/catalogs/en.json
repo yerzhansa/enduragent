@@ -94,6 +94,7 @@
         },
         "failed": "The coach could not write its verdict this time, so nothing was kept.",
         "meta": "{{written}} · {{replies}} · kept",
+        "metaNoPlan": "Written at {{time}} · {{replies}}",
         "noFile": "This ride has only a time and a distance, with no power or heart rate from a file, so the coach writes no verdict for it.",
         "noModel": "The coach writes its verdict on your own model, and none is set up yet. Choose one in Settings, then open this ride again.",
         "replies_one": "{{count}} coach reply",
@@ -105,14 +106,10 @@
         "writing": "Writing the coach’s verdict…",
         "written": {
           "asked": "Written at {{time}}, when you asked again, from its file and your Plan",
-          "askedNoPlan": "Written at {{time}}, when you asked again, from its file",
           "askedNote": "Written at {{time}}, when you asked again, from its file, your Plan and your note",
-          "askedNoteNoPlan": "Written at {{time}}, when you asked again, from its file and your note",
           "firstOpen": "Written at {{time}}, when you first opened this ride, from its file and your Plan",
-          "firstOpenNoPlan": "Written at {{time}}, when you first opened this ride, from its file",
           "matched": "Written at {{time}}, when you answered which workout this ride was, from its file and your Plan",
-          "opened": "Written at {{time}}, when you opened this ride again, from its file and your Plan",
-          "openedNoPlan": "Written at {{time}}, when you opened this ride again, from its file"
+          "opened": "Written at {{time}}, when you opened this ride again, from its file and your Plan"
         }
       }
     }

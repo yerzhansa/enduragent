@@ -55,13 +55,15 @@ export function ActivityReviewView(): ReactElement {
             >
               {say("activity.review.showInCalendar")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => actions?.askCoach(say("activity.review.askDraft", facts))}
-            >
-              {say("activity.review.ask")}
-            </Button>
+            {ride.match.kind === "suggested" ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => actions?.askCoach(say("activity.review.askDraft", facts))}
+              >
+                {say("activity.review.ask")}
+              </Button>
+            )}
           </div>
         )
       }

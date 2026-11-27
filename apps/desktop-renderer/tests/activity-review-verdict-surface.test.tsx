@@ -133,6 +133,16 @@ describe("the coach's verdict on Activity review", () => {
     expect(verdict()).toHaveTextContent("Written before you matched this ride to Extra");
   });
 
+  it("keeps the meta line short for a ride with no Plan", () => {
+    show(
+      reviewed({ verdict: kept({ usedPlan: false }) }),
+      rides([ride("b", 19980822, { name: "Café ride" })], null),
+    );
+    render(<ActivityReviewView />);
+    expect(verdict()).toHaveTextContent("Written at 7:58 AM · 1 coach reply");
+    expect(verdict()).not.toHaveTextContent("kept");
+  });
+
   it("names the note and the reply count when the athlete asked again", () => {
     show(reviewed({ verdict: kept({ trigger: "asked", usedNote: true }), replies: 2 }));
     render(<ActivityReviewView />);
@@ -183,6 +193,7 @@ describe("the coach's verdict on Activity review", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Coach’s verdict" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ask the coach about this ride" })).toBeNull();
   });
 
   it("saves the athlete's note without touching the verdict", async () => {

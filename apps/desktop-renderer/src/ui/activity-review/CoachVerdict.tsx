@@ -24,11 +24,10 @@ function Frame(props: { readonly children: ReactNode }): ReactElement {
   );
 }
 
-function useWritten(): (verdict: Kept, replies: number) => string {
+function useMeta(): (verdict: Kept, replies: number) => string {
   const { say } = usePhrasebook();
   const text = useReviewText();
-  return (verdict, replies) => {
-    const time = text.clock(verdict.writtenAtMs);
+  const written = (verdict: Kept, replies: number, time: string): string => {
     switch (verdict.marker.kind) {
       case "matched-to":
         return say("activity.review.verdict.before.workout", { name: verdict.marker.name });
@@ -43,24 +42,25 @@ function useWritten(): (verdict: Kept, replies: number) => string {
       case "matched":
         return say("activity.review.verdict.written.matched", { time });
       case "opened":
-        if (replies <= 1) {
-          return verdict.usedPlan
-            ? say("activity.review.verdict.written.firstOpen", { time })
-            : say("activity.review.verdict.written.firstOpenNoPlan", { time });
-        }
-        return verdict.usedPlan
-          ? say("activity.review.verdict.written.opened", { time })
-          : say("activity.review.verdict.written.openedNoPlan", { time });
+        return replies <= 1
+          ? say("activity.review.verdict.written.firstOpen", { time })
+          : say("activity.review.verdict.written.opened", { time });
       case "asked":
-        if (verdict.usedNote) {
-          return verdict.usedPlan
-            ? say("activity.review.verdict.written.askedNote", { time })
-            : say("activity.review.verdict.written.askedNoteNoPlan", { time });
-        }
-        return verdict.usedPlan
-          ? say("activity.review.verdict.written.asked", { time })
-          : say("activity.review.verdict.written.askedNoPlan", { time });
+        return verdict.usedNote
+          ? say("activity.review.verdict.written.askedNote", { time })
+          : say("activity.review.verdict.written.asked", { time });
     }
+  };
+  return (verdict, replies) => {
+    const time = text.clock(verdict.writtenAtMs);
+    const count = say("activity.review.verdict.replies", { count: replies });
+    if (!verdict.usedPlan && verdict.marker.kind === "current") {
+      return say("activity.review.verdict.metaNoPlan", { time, replies: count });
+    }
+    return say("activity.review.verdict.meta", {
+      written: written(verdict, replies, time),
+      replies: count,
+    });
   };
 }
 
@@ -96,7 +96,7 @@ export function CoachVerdict(props: {
   readonly actions: ActivityReviewActions | null;
 }): ReactElement | null {
   const { say } = usePhrasebook();
-  const written = useWritten();
+  const meta = useMeta();
   const state = props.state;
   if (state.kind === "none" || state.kind === "loading") return null;
   if (state.kind === "unavailable") {
@@ -128,10 +128,7 @@ export function CoachVerdict(props: {
               verdict.marker.kind === "current" ? "text-ink-2" : "text-warn",
             )}
           >
-            {say("activity.review.verdict.meta", {
-              written: written(verdict, review.replies),
-              replies: say("activity.review.verdict.replies", { count: review.replies }),
-            })}
+            {meta(verdict, review.replies)}
           </span>
           {canWrite ? <WriteAgain busy={busy} actions={props.actions} /> : null}
         </div>
