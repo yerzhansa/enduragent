@@ -422,7 +422,6 @@ export function createProviderModelSettingsController(input: {
     ) {
       return;
     }
-    close();
     input.openSetup();
   };
 
