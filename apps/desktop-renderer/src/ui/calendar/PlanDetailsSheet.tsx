@@ -140,7 +140,7 @@ function EndConfirmView(props: {
       )}
       {end.kind === "failed" ? (
         <p
-          className="m-0 rounded-card border border-danger bg-danger/10 px-3 py-2 text-xs"
+          className="m-0 rounded-ctl border border-danger bg-danger/10 px-3 py-2 text-xs"
           role="alert"
         >
           {end.reason === "changed"
