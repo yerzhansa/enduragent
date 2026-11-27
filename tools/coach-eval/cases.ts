@@ -68,6 +68,12 @@ const INFERENCE_WORDS = [
   "as a single session",
   "treated them as",
   "treating them as",
+  "minutes apart",
+  "min apart",
+  "mins apart",
+  "minute gap",
+  "min gap",
+  "minutes between",
 ];
 
 const STALE_AGE_WORDS = [`${STALE_DAYS} days`, `${STALE_DAYS}-day`, "ten days", "ten-day"];
