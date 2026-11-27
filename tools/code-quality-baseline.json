@@ -430,7 +430,7 @@
     "tools/shift-to-synthetic-epoch.ts": 3
   },
   "file-length": {
-    "apps/desktop-renderer/src/chat/controller.ts": 3384,
+    "apps/desktop-renderer/src/chat/controller.ts": 3360,
     "apps/desktop-renderer/src/onboarding/controller.ts": 1168,
     "apps/desktop-renderer/src/settings/credential-controller.ts": 838,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 862,
@@ -491,7 +491,6 @@
   },
   "no-empty": {
     "apps/desktop-renderer/src/archive/controller.ts": 1,
-    "apps/desktop-renderer/src/chat/controller.ts": 10,
     "apps/desktop-renderer/src/language.ts": 1,
     "apps/desktop-renderer/src/onboarding/completion.ts": 1,
     "apps/desktop/scripts/accept-residency.mjs": 10,
@@ -554,7 +553,6 @@
     "packages/kernel-node/tests/launchd-service-live.test.ts": 2
   },
   "no-empty-function": {
-    "apps/desktop-renderer/src/chat/controller.ts": 18,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
     "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/state/adapters/settings.ts": 1,
@@ -591,7 +589,6 @@
     "packages/kernel/src/ingest/gpx.ts": 1
   },
   "swallowed-rejection": {
-    "apps/desktop-renderer/src/chat/controller.ts": 20,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
     "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 1,

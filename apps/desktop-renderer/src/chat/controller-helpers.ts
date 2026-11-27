@@ -219,23 +219,24 @@ export interface PlanCreationPauseIdentity {
   readonly answerKey: PlanCreationAnswerSummary["answerKey"];
 }
 
-export function trySync(operation: () => void): boolean {
+export function reportBestEffortSync(event: string, operation: () => void): void {
   try {
     operation();
-    return true;
   } catch {
-    return false;
+    console.error(event);
   }
 }
 
-export async function runSettled(operation: () => Promise<unknown> | undefined): Promise<boolean> {
+export async function reportBestEffortAsync(
+  event: string,
+  operation: () => Promise<unknown> | undefined,
+): Promise<void> {
   try {
     const task = operation();
-    if (task === undefined) return true;
+    if (task === undefined) return;
     await task;
-    return true;
   } catch {
-    return false;
+    console.error(event);
   }
 }
 
@@ -268,14 +269,14 @@ export function readPlanCreationPause(): PlanCreationPauseIdentity | null {
   }
 }
 
-export function writePlanCreationPause(identity: PlanCreationPauseIdentity): boolean {
-  return trySync(() => {
+export function writePlanCreationPause(identity: PlanCreationPauseIdentity): void {
+  reportBestEffortSync("desktop-chat-pause-storage-write-failed", () => {
     pauseStorage()?.setItem(PLAN_CREATION_PAUSE_STORAGE_KEY, JSON.stringify(identity));
   });
 }
 
-export function clearPlanCreationPause(): boolean {
-  return trySync(() => {
+export function clearPlanCreationPause(): void {
+  reportBestEffortSync("desktop-chat-pause-storage-clear-failed", () => {
     pauseStorage()?.removeItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
   });
 }

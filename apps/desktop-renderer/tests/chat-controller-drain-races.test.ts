@@ -1353,4 +1353,262 @@ describe("BUG-17: orphan dropped attachment admission timeout and dismiss while 
     expect(composerCalls).toHaveBeenCalledTimes(1);
     controller.dispose();
   });
+
+  it("does not drain queued messages during retryDecision before failed planningRequests recover", async () => {
+    let decisionCalls = 0;
+    let queueCalls = 0;
+    let listPlanningCalls = 0;
+    let resumeQueueCalls = 0;
+    const blockingPlanCreation = {
+      schemaVersion: 1,
+      creationId: "pc-block-1",
+      status: "interviewing",
+      version: 1,
+      openQuestion: {
+        kind: "goal-question",
+        prompt: "What are you training for?",
+        candidates: [],
+        eventNotListedOption: {
+          detail: "Enter another event",
+          nameLabel: "Event",
+          dateLabel: "Date",
+          placeholder: "Spring sportive",
+        },
+        fitnessOption: {
+          label: "Build general fitness",
+          detail: "No specific race date",
+        },
+      },
+      answers: [],
+      draft: null,
+      pendingCheck: null,
+      pendingCommitment: null,
+    };
+    const client: CoachClient = {
+      handshake: {} as CoachClient["handshake"],
+      call: vi.fn((method) => {
+        if (method === "getCoachDecision") {
+          decisionCalls += 1;
+          if (decisionCalls === 1) return Promise.reject(new Error("boot decision down"));
+          return Promise.resolve({ decision: null }) as never;
+        }
+        if (method === "getChatQueue") {
+          queueCalls += 1;
+          if (queueCalls === 1) return Promise.reject(new Error("boot queue down"));
+          return Promise.resolve({
+            schemaVersion: 1,
+            revision: 1,
+            items: [
+              {
+                queuedMessageId: "q-ord-1",
+                messageId: "m-ord-1",
+                submissionId: "s-ord-1",
+                attachmentIds: [],
+                text: "Waiting behind plan creation",
+                kind: "ordinary",
+                position: 0,
+                restored: false,
+              },
+            ],
+          }) as never;
+        }
+        if (method === "hasSession") return Promise.resolve({ hasSession: true }) as never;
+        if (method === "getChatAttachmentComposer")
+          return Promise.resolve(emptyComposer()) as never;
+        if (method === "getTranscriptPage") {
+          return Promise.resolve({
+            schemaVersion: 1,
+            status: "page",
+            turns: [],
+            nextCursor: null,
+          }) as never;
+        }
+        if (method === "resumePlanningRequests") {
+          return listPlanningCalls === 0
+            ? Promise.reject(new Error("boot planning down"))
+            : (Promise.resolve({ deliveries: [] }) as never);
+        }
+        if (method === "listPlanningRequests") {
+          listPlanningCalls += 1;
+          if (listPlanningCalls === 1) return Promise.reject(new Error("boot planning down"));
+          return Promise.resolve({ deliveries: [], planCreation: blockingPlanCreation }) as never;
+        }
+        if (method === "resumeChatQueue") {
+          resumeQueueCalls += 1;
+          return Promise.resolve({
+            snapshot: { schemaVersion: 1, revision: 2, items: [] },
+            response: { text: "Should not run" },
+          }) as never;
+        }
+        throw new TypeError(String(method));
+      }),
+      close: vi.fn(async () => undefined),
+    };
+    const controller = createChatController({
+      clients: makeProvider(client),
+      view: { render: vi.fn() },
+      refreshTrainingContext: async () => undefined,
+      refreshSpend: async () => undefined,
+    });
+
+    await controller.start();
+    await controller.retryDecision();
+    await Promise.resolve();
+
+    expect(resumeQueueCalls).toBe(0);
+    controller.dispose();
+  });
+
+  it("does not re-fire a stalled head when a later queued item is removed", async () => {
+    let resumeCalls = 0;
+    const item1 = {
+      queuedMessageId: "q-stalled-1",
+      messageId: "m-stalled-1",
+      submissionId: "s-stalled-1",
+      attachmentIds: [],
+      text: "Fails at head",
+      kind: "ordinary" as const,
+      position: 0,
+      restored: false,
+    };
+    const item2 = {
+      queuedMessageId: "q-later-2",
+      messageId: "m-later-2",
+      submissionId: "s-later-2",
+      attachmentIds: [],
+      text: "Removed behind head",
+      kind: "ordinary" as const,
+      position: 1,
+      restored: false,
+    };
+    let currentItems = [item1, item2];
+    let rev = 2;
+    const client: CoachClient = {
+      handshake: {} as CoachClient["handshake"],
+      call: vi.fn((method, params) => {
+        if (method === "getChatQueue") {
+          return Promise.resolve({ schemaVersion: 1, revision: rev, items: currentItems }) as never;
+        }
+        if (method === "resumeChatQueue") {
+          resumeCalls += 1;
+          return Promise.reject(new Error("head failure"));
+        }
+        if (method === "removeQueuedChatMessage") {
+          const id = (params as { readonly queuedMessageId: string }).queuedMessageId;
+          currentItems = currentItems
+            .filter((item) => item.queuedMessageId !== id)
+            .map((item, position) => ({ ...item, position }));
+          rev += 1;
+          return Promise.resolve({ schemaVersion: 1, revision: rev, items: currentItems }) as never;
+        }
+        if (method === "getCoachDecision") return Promise.resolve({ decision: null }) as never;
+        if (method === "hasSession") return Promise.resolve({ hasSession: false }) as never;
+        if (method === "getChatAttachmentComposer")
+          return Promise.resolve(emptyComposer()) as never;
+        if (method === "getTranscriptPage") {
+          return Promise.resolve({
+            schemaVersion: 1,
+            status: "page",
+            turns: [],
+            nextCursor: null,
+          }) as never;
+        }
+        if (method === "resumePlanningRequests")
+          return Promise.resolve({ deliveries: [] }) as never;
+        if (method === "listPlanningRequests") {
+          return Promise.resolve({ deliveries: [], planCreation: null }) as never;
+        }
+        throw new TypeError(String(method));
+      }),
+      close: vi.fn(async () => undefined),
+    };
+    const controller = createChatController({
+      clients: makeProvider(client),
+      view: { render: vi.fn() },
+      refreshTrainingContext: async () => undefined,
+      refreshSpend: async () => undefined,
+    });
+
+    await controller.start();
+    await vi.waitFor(() => expect(resumeCalls).toBe(1));
+
+    await controller.removeQueued("q-later-2");
+    await Promise.resolve();
+
+    expect(resumeCalls).toBe(1);
+    controller.dispose();
+  });
+
+  it("retries hasSession on resume when an earlier session probe resolved in a stale epoch", async () => {
+    let releaseFirstSession!: (value: { readonly hasSession: boolean }) => void;
+    const firstSession = new Promise<{ readonly hasSession: boolean }>((resolve) => {
+      releaseFirstSession = resolve;
+    });
+    let sessionCalls = 0;
+    const client: CoachClient = {
+      handshake: {} as CoachClient["handshake"],
+      call: vi.fn((method) => {
+        if (method === "hasSession") {
+          sessionCalls += 1;
+          if (sessionCalls === 1) return firstSession as never;
+          return Promise.resolve({ hasSession: true }) as never;
+        }
+        if (method === "getCoachDecision") return Promise.resolve({ decision: null }) as never;
+        if (method === "getChatQueue") {
+          return Promise.resolve({ schemaVersion: 1, revision: 0, items: [] }) as never;
+        }
+        if (method === "getChatAttachmentComposer")
+          return Promise.resolve(emptyComposer()) as never;
+        if (method === "resumePlanningRequests")
+          return Promise.resolve({ deliveries: [] }) as never;
+        if (method === "listPlanningRequests") {
+          return Promise.resolve({ deliveries: [], planCreation: null }) as never;
+        }
+        throw new TypeError(String(method));
+      }),
+      close: vi.fn(async () => undefined),
+    };
+    const states: ChatState[] = [];
+    let newConversationDisabled = true;
+    const controller = createChatController({
+      clients: makeProvider(client),
+      readTranscriptPage: async () => ({
+        schemaVersion: 1,
+        status: "page",
+        turns: [
+          {
+            turnId: "t-old-1",
+            completedAt: "1998-08-24T08:00:00.000Z",
+            athleteText: "Earlier ride",
+            coachText: "Good spin.",
+          },
+        ],
+        nextCursor: null,
+      }),
+      view: {
+        render: (next, meta) => {
+          states.push(structuredClone(next));
+          newConversationDisabled = meta?.newConversationDisabled ?? true;
+        },
+      },
+      refreshTrainingContext: async () => undefined,
+      refreshSpend: async () => undefined,
+    });
+
+    const started = controller.start();
+    await vi.waitFor(() => {
+      expect(sessionCalls).toBe(1);
+      expect(newConversationDisabled).toBe(false);
+    });
+    expect(controller.openNewConversation()).toBe(true);
+    controller.cancelNewConversation();
+    releaseFirstSession({ hasSession: true });
+    await started;
+
+    expect(states.at(-1)?.session.presence).toBe("unknown");
+    await controller.resume();
+    expect(sessionCalls).toBe(2);
+    expect(states.at(-1)?.session.presence).toBe("present");
+    controller.dispose();
+  });
 });

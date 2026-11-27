@@ -67,8 +67,8 @@ import {
   planCreationDiscardNoticeCopy,
   planCreationQuestionKey,
   readPlanCreationPause,
-  runSettled,
-  trySync,
+  reportBestEffortAsync,
+  reportBestEffortSync,
   writePlanCreationPause,
   type ActivePlanKnowledge,
   type ChatAppendDelta,
@@ -312,6 +312,14 @@ export function createChatController(input: {
   const canChat = input.canChat ?? (() => true);
 
   const nextId = (prefix: "request" | "message"): string => `${prefix}-${++sequence}`;
+  const refreshPlanLibraryBestEffort = (): Promise<void> =>
+    reportBestEffortAsync("desktop-chat-refresh-plan-library-failed", () =>
+      input.refreshPlanLibrary?.(),
+    );
+  const loadPlanningRequestsBestEffort = (): Promise<void> =>
+    reportBestEffortAsync("desktop-chat-load-planning-requests-failed", () =>
+      loadPlanningRequests(),
+    );
   const now = input.now ?? Date.now;
   const resetBlocksWork = (): boolean =>
     state.session.resetPhase === "confirming" || state.session.resetPhase === "resetting";
@@ -360,7 +368,7 @@ export function createChatController(input: {
     resetTask === undefined;
   const render = (appendDelta?: ChatAppendDelta): void => {
     if (disposed) return;
-    trySync(() => {
+    reportBestEffortSync("desktop-chat-view-render-failed", () => {
       input.view.render(
         hydration.turns.length === 0 && hydration.entries.length === 0
           ? state
@@ -567,9 +575,9 @@ export function createChatController(input: {
         if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
         const stopClient = client;
         const stopTurnId = boundTurnId;
-        stopTask = runSettled(() =>
+        stopTask = reportBestEffortAsync("desktop-chat-stop-chat-failed", () =>
           stopClient.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: stopTurnId }),
-        ).then(() => undefined);
+        );
       };
       activeStopRequest = { requestKey, request: requestStop };
 
@@ -836,7 +844,7 @@ export function createChatController(input: {
         if (!current()) return;
         if (activeQueueCall !== undefined && client !== undefined) {
           const queueClient = client;
-          await runSettled(async () => {
+          await reportBestEffortAsync("desktop-chat-refresh-queue-failed", async () => {
             applyQueueSnapshot(await queueClient.call("getChatQueue", { chatId: DESKTOP_CHAT_ID }));
           });
         }
@@ -865,8 +873,12 @@ export function createChatController(input: {
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
         if (callStarted) {
-          void runSettled(() => input.refreshSpend());
-          await runSettled(() => input.refreshTrainingContext());
+          void reportBestEffortAsync("desktop-chat-refresh-spend-failed", () =>
+            input.refreshSpend(),
+          );
+          await reportBestEffortAsync("desktop-chat-refresh-training-context-failed", () =>
+            input.refreshTrainingContext(),
+          );
         }
         const released = outstandingChatTasks.delete(task);
         if (activeTask === task) {
@@ -1145,9 +1157,8 @@ export function createChatController(input: {
     try {
       const activeClient = client ?? (await input.clients.getClient());
       const result = await activeClient.call("hasSession", { chatId: DESKTOP_CHAT_ID });
-      if (disposed) return;
+      if (disposed || epoch !== probeEpoch) return;
       bootProbes.session = "succeeded";
-      if (epoch !== probeEpoch) return;
       reduce({ type: "session-probe", hasSession: result.hasSession });
     } catch {
       if (bootProbes.session !== "succeeded") bootProbes.session = "failed";
@@ -1389,7 +1400,8 @@ export function createChatController(input: {
       assistantMessageId,
       includeUser: false,
     });
-    const task = (async () => {
+    let task!: Promise<void>;
+    task = (async () => {
       let client: DesktopCoachClient | undefined;
       let boundRequestId: string | number | undefined;
       let boundTurnId: string | undefined;
@@ -1417,9 +1429,9 @@ export function createChatController(input: {
         if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
         const stopClient = client;
         const stopTurnId = boundTurnId;
-        stopTask = runSettled(() =>
+        stopTask = reportBestEffortAsync("desktop-chat-stop-chat-failed", () =>
           stopClient.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: stopTurnId }),
-        ).then(() => undefined);
+        );
       };
       activeStopRequest = { requestKey, request: requestStop };
       const callOptions = {
@@ -1585,18 +1597,18 @@ export function createChatController(input: {
         }
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
-        void runSettled(() => input.refreshSpend());
-        await runSettled(() => input.refreshTrainingContext());
+        void reportBestEffortAsync("desktop-chat-refresh-spend-failed", () => input.refreshSpend());
+        await reportBestEffortAsync("desktop-chat-refresh-training-context-failed", () =>
+          input.refreshTrainingContext(),
+        );
+        if (decisionActionTask === task) decisionActionTask = undefined;
+        if (activeTask === task) activeTask = undefined;
+        render();
       }
     })();
     decisionActionTask = task;
     activeTask = task;
     render();
-    void task.finally(() => {
-      if (decisionActionTask === task) decisionActionTask = undefined;
-      if (activeTask === task) activeTask = undefined;
-      render();
-    });
     return task;
   };
 
@@ -1611,6 +1623,7 @@ export function createChatController(input: {
       planCreationBlocksWork() ||
       planCreationBusy ||
       planningRequestLoadTask !== undefined ||
+      decisionLoadTask !== undefined ||
       queueMutationCount > 0 ||
       activeTask !== undefined ||
       decisionActionTask !== undefined
@@ -2010,7 +2023,7 @@ export function createChatController(input: {
           }
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
             return;
           }
           if (result.reason === "race-window") {
@@ -2018,12 +2031,12 @@ export function createChatController(input: {
               notice:
                 "Only training reductions are allowed during this race window. Training is unchanged.",
             });
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
             return;
           }
           if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
             publishChange({ notice: "The latest Change is no longer eligible for Undo." });
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
             return;
           }
           const rejectionCopy =
@@ -2038,7 +2051,7 @@ export function createChatController(input: {
               : { error: rejectionCopy },
           );
           if (result.reason === "stale-version") {
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
           }
           return;
         }
@@ -2053,7 +2066,7 @@ export function createChatController(input: {
             notice: null,
             focusRequest: changeFocus("check"),
           });
-          await runSettled(() => input.refreshPlanLibrary?.());
+          await refreshPlanLibraryBestEffort();
           if (disposed || epoch !== previewEpoch) return;
           if (result.pendingCheck === null) requestPlanCreationFocus("composer");
           render();
@@ -2071,7 +2084,7 @@ export function createChatController(input: {
             ? `This preview supersedes “${superseded.title}”. Training is unchanged until confirmation.`
             : "Review the exact changes before confirming.",
         });
-        await runSettled(() => input.refreshPlanLibrary?.());
+        await refreshPlanLibraryBestEffort();
         if (disposed || epoch !== previewEpoch) return;
         publishChange({ focusRequest: changeFocus("preview") });
       } catch (error) {
@@ -2082,7 +2095,7 @@ export function createChatController(input: {
               ? error.message
               : "The preview result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await runSettled(() => input.refreshPlanLibrary?.());
+        await refreshPlanLibraryBestEffort();
       } finally {
         if (!disposed && epoch === previewEpoch) publishChange({ busy: false });
       }
@@ -2120,16 +2133,17 @@ export function createChatController(input: {
         };
       }
       if (applyAttempt === null) return;
+      const attempt = applyAttempt;
       const applyEpoch = epoch;
       publishChange({ busy: true, error: null, notice: null });
       try {
-        const result = await applyPlanChange(input.clients, applyAttempt);
-        applyAttempt = null;
+        const result = await applyPlanChange(input.clients, attempt);
         if (disposed || epoch !== applyEpoch) return;
+        if (applyAttempt === attempt) applyAttempt = null;
         if (result.status === "rejected") {
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
             return;
           }
           publishChange({ notice: planChangeApplyRejectionCopy(result.reason) });
@@ -2142,7 +2156,7 @@ export function createChatController(input: {
             result.reason === "day-changed" ||
             result.reason === "not-eligible"
           ) {
-            await runSettled(() => input.refreshPlanLibrary?.());
+            await refreshPlanLibraryBestEffort();
           }
           return;
         }
@@ -2155,7 +2169,7 @@ export function createChatController(input: {
               ? "Change applied locally. Training now matches the confirmed preview."
               : "Change cancelled. Training is unchanged; the preview remains in history.",
         });
-        await runSettled(() => input.refreshPlanLibrary?.());
+        await refreshPlanLibraryBestEffort();
         if (disposed || epoch !== applyEpoch) return;
         implicitPlanChangeRouting = true;
         publishChange({ textRouting: false, focusRequest: changeFocus("change") });
@@ -2165,7 +2179,7 @@ export function createChatController(input: {
           notice:
             "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await runSettled(() => input.refreshPlanLibrary?.());
+        await refreshPlanLibraryBestEffort();
       } finally {
         if (!disposed && epoch === applyEpoch) publishChange({ busy: false });
       }
@@ -2664,7 +2678,7 @@ export function createChatController(input: {
         installPlanCreation(result.planCreation);
         if (result.status === "rejected" && result.reason === "commitments-pending") {
           planCreationError = result.explanation;
-          await runSettled(() => loadPlanningRequests());
+          await loadPlanningRequestsBestEffort();
         } else if (result.status === "rejected") {
           planCreationNotice = planCreationBuildRejectionCopy(result.reason);
         }
@@ -2679,7 +2693,7 @@ export function createChatController(input: {
         ) {
           pendingPlanCreationCommand = null;
           planCreationError = error.message;
-          await runSettled(() => loadPlanningRequests());
+          await loadPlanningRequestsBestEffort();
         } else {
           planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
         }
@@ -2942,7 +2956,7 @@ export function createChatController(input: {
           activationAttempt = null;
           planCreationActivateConfirmationOpen = false;
           planCreationError = error.message;
-          await runSettled(() => loadPlanningRequests());
+          await loadPlanningRequestsBestEffort();
         } else if (
           rejection === "version-conflict" ||
           rejection === "not-ready" ||
@@ -2958,7 +2972,7 @@ export function createChatController(input: {
             "The activation result could not be confirmed. The Plan library will show the current state after refresh.";
         }
         if (disposed) return;
-        await runSettled(() => input.refreshPlanLibrary?.());
+        await refreshPlanLibraryBestEffort();
         if (disposed) return;
         planCreationBusy = false;
         render();
@@ -2991,7 +3005,6 @@ export function createChatController(input: {
               });
               if (!disposed) {
                 queueMutationError = null;
-                stalledDrainHeadId = null;
                 applyQueueSnapshot(acknowledged);
               }
             } catch {
@@ -3262,7 +3275,9 @@ export function createChatController(input: {
           });
         } finally {
           if (!disposed && epoch === resetEpoch) {
-            void runSettled(() => input.refreshSpend());
+            void reportBestEffortAsync("desktop-chat-refresh-spend-failed", () =>
+              input.refreshSpend(),
+            );
           }
         }
       })();
