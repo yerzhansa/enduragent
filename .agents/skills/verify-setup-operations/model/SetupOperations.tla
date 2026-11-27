@@ -87,14 +87,20 @@ WaitsForIntervals(e) ==
        \/ e.op = "reapply" /\ IntervalsSlot \in stored
        \/ e.op = "key-delete" /\ e.arg = IntervalsSlot
 
-\* Setup's mutation guards: setupStatusBlocksMutations(), state.busy and
-\* credentialMutationsBlocked(), which is credentialChangesBlocked: a non-Telegram
-\* Settings mutation or a repair credential. Its open delete confirmation is not modeled.
+\* Setup's mutation guards: setupStatusBlocksMutations(), setupOperationRunning()
+\* (setup-operation.ts: busy, a ChatGPT sign-in or activation, the OpenRouter or
+\* Intervals.icu sign-in, a ride import) and credentialMutationsBlocked(), which is
+\* credentialChangesBlocked: a non-Telegram Settings mutation or a repair credential.
+\* Its open delete confirmation and ride imports are not modeled.
 SetupMayMutate ==
     /\ page.alive
     /\ ~setup.loading
     /\ ~setup.unavailable
     /\ ~setup.busy
+    /\ setup.keySave = NoOne
+    /\ setup.chatgpt = "idle"
+    /\ setup.intervals = "idle"
+    /\ setup.openRouter = "idle"
     /\ settings.op = "idle"
     /\ ~settings.repair
 
