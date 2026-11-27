@@ -8,11 +8,7 @@ import { createDetailsController, detailsEnding } from "./details-controller";
 import { createMoveController } from "./move-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
-
-function localTodayDateKey(): number {
-  const now = new Date();
-  return now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate();
-}
+import { localTodayDateKey } from "./dates";
 
 export function startCalendar(
   store: typeof useEnduragentStore,
@@ -22,7 +18,7 @@ export function startCalendar(
     read: async (range) =>
       (await clients.getClient()).call("plan.calendar", { action: "read", ...range }),
     firstDayOfWeek: () => rendererPlatformProjection().firstDayOfWeek,
-    localTodayDateKey,
+    localTodayDateKey: () => localTodayDateKey(),
     publish: (next) => {
       store.getState().setCalendar(next);
       if (next.kind === "ready") approve.observe(next.read, next.refresh);

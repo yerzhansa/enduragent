@@ -10,7 +10,14 @@ import {
 } from "lucide-react";
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 
-export type ViewId = "chat" | "archive" | "calendar" | "plan" | "training" | "settings";
+export type ViewId =
+  | "chat"
+  | "archive"
+  | "calendar"
+  | "activity-review"
+  | "plan"
+  | "training"
+  | "settings";
 export type StoredViewId = ViewId;
 
 export const REACT_CHAT_REGION = "react-chat-region";
@@ -58,6 +65,16 @@ export const VIEWS: readonly ViewDefinition[] = Object.freeze([
     title: msg("sidebar.views.calendar"),
     page: lazy(async () => ({
       default: (await import("../ui/calendar/CalendarView")).CalendarView,
+    })),
+  },
+  {
+    id: "activity-review",
+    label: msg("sidebar.views.activityReview"),
+    loading: msg("shell.loading.activityReview"),
+    icon: Activity,
+    title: msg("sidebar.views.activityReview"),
+    page: lazy(async () => ({
+      default: (await import("../ui/activity-review/ActivityReviewView")).ActivityReviewView,
     })),
   },
   {
