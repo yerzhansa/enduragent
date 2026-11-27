@@ -1427,6 +1427,8 @@
       "spanLabel": "Træningsplanens periode",
       "stale": "Forældet",
       "staleDetail": "Denne kladde bevarer de tidligere svar og træninger. Opret den igen før aktivering.",
+      "startBeforeEvent": "I dag, før din begivenhed",
+      "startDateMaximum": "Vælg en dato på eller før {{date}}.",
       "startDateMinimum": "Vælg en dato på eller efter {{date}}.",
       "startLabel": "Starttidspunkt",
       "submittedLabel": "Indsendt",
@@ -1751,8 +1753,10 @@
         "cardOpen": "Træningen {{day}} blev ændret i intervals.icu. Vælg først »Behold« eller »Sæt tilbage«, og flyt den derefter.",
         "clash": "På {{weekday}} er der allerede {{workouts}}",
         "confirm": "Flyt",
+        "earlier": "Tidligere dag",
         "failed": "Appen svarede ikke, så intet blev flyttet. Prøv igen.",
         "keepBoth": "Behold begge på {{weekday}}",
+        "later": "Senere dag",
         "leaves": "Den fjernes fra intervals.icu, indtil uge {{week}} sendes.",
         "notMovable": "Denne træning kan ikke flyttes til den dag, så intet blev flyttet.",
         "onIntervals": "Den flyttes også i intervals.icu, så din cykelcomputer får den til {{weekday}}.",
@@ -1880,6 +1884,20 @@
         "unavailable": "intervals.icu svarede ikke, så træningen kunne ikke læses. Intet blev ændret.",
         "weekDrops": "Ugen falder til {{total}}.",
         "weekGrows": "Ugen stiger til {{total}}."
+      },
+      "workout": {
+        "ask": "Bed træneren om at ændre den",
+        "askDraft": "Ændr venligst {{name}} {{day}}:",
+        "close": "Luk",
+        "export": "Eksportér dagens træninger",
+        "move": "Flyt…",
+        "moving": "Flyttes i intervals.icu",
+        "onIntervals": "På intervals.icu",
+        "onIntervalsYours": "På intervals.icu, med din ændring",
+        "planOnly": "Kun i træningsplanen, ikke sendt endnu",
+        "planOnlyGoesOut": "Kun i træningsplanen, sendes {{date}}",
+        "planWorkout": "Træning i træningsplanen",
+        "today": "I dag"
       }
     },
     "details": {

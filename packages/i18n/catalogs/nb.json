@@ -1427,6 +1427,8 @@
       "spanLabel": "Planperiode",
       "stale": "Utdatert",
       "staleDetail": "Dette utkastet bevarer de tidligere svarene og treningsøktene. Lag det på nytt før aktivering.",
+      "startBeforeEvent": "I dag, før arrangementet ditt",
+      "startDateMaximum": "Velg en dato på eller før {{date}}.",
       "startDateMinimum": "Velg en dato på eller etter {{date}}.",
       "startLabel": "Starttidspunkt",
       "submittedLabel": "Sendt inn",
@@ -1751,8 +1753,10 @@
         "cardOpen": "Treningsøkten {{day}} ble endret i intervals.icu. Velg først «Behold» eller «Tilbakestill», og flytt den deretter.",
         "clash": "På {{weekday}} ligger det allerede {{workouts}}",
         "confirm": "Flytt",
+        "earlier": "Tidligere dag",
         "failed": "Appen svarte ikke, så ingenting ble flyttet. Prøv igjen.",
         "keepBoth": "Behold begge på {{weekday}}",
+        "later": "Senere dag",
         "leaves": "Den fjernes fra intervals.icu til uke {{week}} sendes.",
         "notMovable": "Denne treningsøkten kan ikke flyttes til den dagen, så ingenting ble flyttet.",
         "onIntervals": "Den flyttes også i intervals.icu, så sykkelcomputeren din får den til {{weekday}}.",
@@ -1880,6 +1884,20 @@
         "unavailable": "intervals.icu svarte ikke, så treningsøkten kunne ikke leses. Ingenting ble endret.",
         "weekDrops": "Uken synker til {{total}}.",
         "weekGrows": "Uken øker til {{total}}."
+      },
+      "workout": {
+        "ask": "Be treneren endre den",
+        "askDraft": "Endre {{name}} {{day}}:",
+        "close": "Lukk",
+        "export": "Eksporter dagens treningsøkter",
+        "move": "Flytt…",
+        "moving": "Flyttes i intervals.icu",
+        "onIntervals": "På intervals.icu",
+        "onIntervalsYours": "På intervals.icu, med endringen din",
+        "planOnly": "Bare i planen, ikke sendt ennå",
+        "planOnlyGoesOut": "Bare i planen, sendes {{date}}",
+        "planWorkout": "Treningsøkt i planen",
+        "today": "I dag"
       }
     },
     "details": {

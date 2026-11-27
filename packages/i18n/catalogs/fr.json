@@ -1427,6 +1427,8 @@
       "spanLabel": "Période du plan",
       "stale": "Obsolète",
       "staleDetail": "Ce brouillon conserve les réponses et les entraînements précédents. Recrée-le avant d’activer le plan.",
+      "startBeforeEvent": "Aujourd’hui, avant ton événement",
+      "startDateMaximum": "Choisis le {{date}} ou une date antérieure.",
       "startDateMinimum": "Choisis le {{date}} ou une date ultérieure.",
       "startLabel": "Moment du début",
       "submittedLabel": "Envoyé",
@@ -1751,8 +1753,10 @@
         "cardOpen": "L’entraînement du {{day}} a été modifié dans intervals.icu. Choisis d’abord « Garder » ou « Remettre », puis déplace-le.",
         "clash": "Déjà prévu {{weekday}} : {{workouts}}",
         "confirm": "Déplacer",
+        "earlier": "Jour précédent",
         "failed": "L’application n’a pas répondu, donc rien n’a été déplacé. Réessaie.",
         "keepBoth": "Garder les deux {{weekday}}",
+        "later": "Jour suivant",
         "leaves": "Il est retiré d’intervals.icu jusqu’à l’envoi de la semaine {{week}}.",
         "notMovable": "Cet entraînement ne peut pas être déplacé à ce jour, donc rien n’a été déplacé.",
         "onIntervals": "Il est aussi déplacé dans intervals.icu, donc ton compteur vélo le reçoit pour {{weekday}}.",
@@ -1880,6 +1884,20 @@
         "unavailable": "intervals.icu n’a pas répondu, donc l’entraînement n’a pas pu être lu. Rien n’a changé.",
         "weekDrops": "La semaine descend à {{total}}.",
         "weekGrows": "La semaine monte à {{total}}."
+      },
+      "workout": {
+        "ask": "Demander au coach de le modifier",
+        "askDraft": "Modifie {{name}} du {{day}}, s’il te plaît :",
+        "close": "Fermer",
+        "export": "Exporter les entraînements de ce jour",
+        "move": "Déplacer…",
+        "moving": "Déplacement dans intervals.icu",
+        "onIntervals": "Sur intervals.icu",
+        "onIntervalsYours": "Sur intervals.icu, avec ta modification",
+        "planOnly": "Seulement dans le plan, pas encore envoyé",
+        "planOnlyGoesOut": "Seulement dans le plan, envoi le {{date}}",
+        "planWorkout": "Entraînement du plan",
+        "today": "Aujourd’hui"
       }
     },
     "details": {

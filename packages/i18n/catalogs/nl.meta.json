@@ -11387,6 +11387,70 @@
     "plan.calendar.approve.replace.title": {
       "sourceHash": "264392e17a06412c1c6aa99ff85ed9707cab35fc038e6d9df2725c2c75b780df",
       "translatedBy": "model"
+    },
+    "chat.planCreation.startBeforeEvent": {
+      "sourceHash": "7978e3af473f1b484c7f55c2896a5cfec93f0bf81e8649794e330c0e903614c0",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.startDateMaximum": {
+      "sourceHash": "8483fb46ee6681a7b69f6e4d1db33f99295738c1e3317b514a25328f9fc3bc6f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.earlier": {
+      "sourceHash": "a086c5ee3f6ff804f44c5b8e5cbc762105f48a968afc4b33bcce470b7f4b4b20",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.later": {
+      "sourceHash": "b7a2cb91aea2b99c55fcc1ca2b2ef17f606f15cc249014de766ed73482da9e9f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.ask": {
+      "sourceHash": "3f9c3d45eae6b2c88649621304fb000833b521a4d27eac350ffbe55d6c8d8250",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.askDraft": {
+      "sourceHash": "39c5b1c36cfb9d2aa27220f2553f22e60bf6d38e474adfa313b1998f624c6598",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.close": {
+      "sourceHash": "7d9eb7acb13e24625c404401d8e88b2350e32162455885f18276cf802f7701ed",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.export": {
+      "sourceHash": "52e4508f482915846d052e5ed0a9d26d1c9d789d77277a3188ee12d1424b6af4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.move": {
+      "sourceHash": "cd799da3521d15cbb48b62d795b68071df1c21a6cca43ff966e058fc3dfb2aef",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.moving": {
+      "sourceHash": "c6170dc44ee764ae69294bbfec128a875655e8f89f1911be16271ac811154763",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.onIntervals": {
+      "sourceHash": "49a4b4c0f73caa853b8855885026958878b5c22c3cb774136a1296d8be8d23d4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.onIntervalsYours": {
+      "sourceHash": "16a4f5f12f0a02ff8f3f1dbd0067b4431f66b3c38018571277968f1bd7b53932",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planOnly": {
+      "sourceHash": "ae2946ee9d69f144b39ac2e9c78411eecb85bda3da73dd800ac9dc3b6b80d633",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planOnlyGoesOut": {
+      "sourceHash": "fc17f29d91c3a44de72e930cb35b97041066c654817ecbf22b62013aae3de229",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planWorkout": {
+      "sourceHash": "028e3940ab3775543f3b38f50755a670e3149dc45cfb596558ad3f36e949a3ac",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.today": {
+      "sourceHash": "2b065c7c9ce466e5ebcad757987d5d660ee4c9ea708bc62c43444b53334738ba",
+      "translatedBy": "model"
     }
   }
 }

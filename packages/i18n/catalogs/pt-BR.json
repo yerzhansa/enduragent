@@ -1427,6 +1427,8 @@
       "spanLabel": "Período do plano",
       "stale": "Desatualizado",
       "staleDetail": "Este rascunho mantém as respostas e os treinos anteriores. Recrie-o antes de ativar.",
+      "startBeforeEvent": "Hoje, antes do seu evento",
+      "startDateMaximum": "Escolha uma data igual ou anterior a {{date}}.",
       "startDateMinimum": "Escolha uma data igual ou posterior a {{date}}.",
       "startLabel": "Momento de início",
       "submittedLabel": "Enviado",
@@ -1751,8 +1753,10 @@
         "cardOpen": "O treino de {{day}} foi alterado no intervals.icu. Escolha primeiro “Manter” ou “Restaurar” e depois mova o treino.",
         "clash": "Já está previsto para {{weekday}}: {{workouts}}",
         "confirm": "Mover",
+        "earlier": "Dia anterior",
         "failed": "O aplicativo não respondeu, então nada foi movido. Tente novamente.",
         "keepBoth": "Manter os dois no mesmo dia ({{weekday}})",
+        "later": "Dia seguinte",
         "leaves": "Ele sai do intervals.icu até a semana {{week}} ser enviada.",
         "notMovable": "Este treino não pode ser movido para esse dia, então nada foi movido.",
         "onIntervals": "Ele também é movido no intervals.icu, para que seu ciclocomputador o receba para {{weekday}}.",
@@ -1880,6 +1884,20 @@
         "unavailable": "O intervals.icu não respondeu, então não foi possível ler o treino. Nada mudou.",
         "weekDrops": "A semana cai para {{total}}.",
         "weekGrows": "A semana sobe para {{total}}."
+      },
+      "workout": {
+        "ask": "Pedir ao treinador para alterar",
+        "askDraft": "Por favor, altere {{name}} de {{day}}:",
+        "close": "Fechar",
+        "export": "Exportar os treinos deste dia",
+        "move": "Mover…",
+        "moving": "Movendo no intervals.icu",
+        "onIntervals": "No intervals.icu",
+        "onIntervalsYours": "No intervals.icu, com sua alteração",
+        "planOnly": "Só no plano, ainda não enviado",
+        "planOnlyGoesOut": "Só no plano, envio em {{date}}",
+        "planWorkout": "Treino do plano",
+        "today": "Hoje"
       }
     },
     "details": {

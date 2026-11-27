@@ -1427,6 +1427,8 @@
       "spanLabel": "Periodo del piano",
       "stale": "Non aggiornata",
       "staleDetail": "Questa bozza conserva le risposte e gli allenamenti precedenti. Ricreala prima dell’attivazione.",
+      "startBeforeEvent": "Oggi, prima del tuo evento",
+      "startDateMaximum": "Scegli una data entro il {{date}}.",
       "startDateMinimum": "Scegli una data a partire dal {{date}}.",
       "startLabel": "Inizio",
       "submittedLabel": "Inviato",
@@ -1751,8 +1753,10 @@
         "cardOpen": "L’allenamento di {{day}} è stato modificato su intervals.icu. Scegli prima «Mantieni» o «Ripristina», poi spostalo.",
         "clash": "Già in programma {{weekday}}: {{workouts}}",
         "confirm": "Sposta",
+        "earlier": "Giorno precedente",
         "failed": "L’app non ha risposto, quindi non è stato spostato nulla. Riprova.",
         "keepBoth": "Mantieni entrambi nello stesso giorno ({{weekday}})",
+        "later": "Giorno successivo",
         "leaves": "Viene tolto da intervals.icu finché non viene inviata la settimana {{week}}.",
         "notMovable": "Questo allenamento non può essere spostato in quel giorno, quindi non è stato spostato nulla.",
         "onIntervals": "Viene spostato anche su intervals.icu, così il tuo ciclocomputer lo riceve per {{weekday}}.",
@@ -1880,6 +1884,20 @@
         "unavailable": "intervals.icu non ha risposto, quindi non è stato possibile leggere l’allenamento. Non è cambiato nulla.",
         "weekDrops": "La settimana scende a {{total}}.",
         "weekGrows": "La settimana sale a {{total}}."
+      },
+      "workout": {
+        "ask": "Chiedi al coach di modificarlo",
+        "askDraft": "Modifica {{name}} di {{day}}:",
+        "close": "Chiudi",
+        "export": "Esporta gli allenamenti di questo giorno",
+        "move": "Sposta…",
+        "moving": "Spostamento su intervals.icu",
+        "onIntervals": "Su intervals.icu",
+        "onIntervalsYours": "Su intervals.icu, con la tua modifica",
+        "planOnly": "Solo nel piano, non ancora inviato",
+        "planOnlyGoesOut": "Solo nel piano, invio il {{date}}",
+        "planWorkout": "Allenamento del piano",
+        "today": "Oggi"
       }
     },
     "details": {

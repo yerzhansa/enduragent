@@ -1427,6 +1427,8 @@
       "spanLabel": "Suunnitelman ajanjakso",
       "stale": "Vanhentunut",
       "staleDetail": "Tämä luonnos säilyttää aiemmat vastaukset ja harjoitukset. Luo se uudelleen ennen aktivointia.",
+      "startBeforeEvent": "Tänään, ennen tapahtumaasi",
+      "startDateMaximum": "Valitse {{date}} tai sitä aiempi päivämäärä.",
       "startDateMinimum": "Valitse {{date}} tai sitä myöhempi päivämäärä.",
       "startLabel": "Aloitusajankohta",
       "submittedLabel": "Lähetetty",
@@ -1751,8 +1753,10 @@
         "cardOpen": "Harjoitusta ({{day}}) muutettiin intervals.icu-palvelussa. Valitse ensin ”Pidä” tai ”Palauta” ja siirrä se sitten.",
         "clash": "Samana päivänä ({{weekday}}) on jo {{workouts}}",
         "confirm": "Siirrä",
+        "earlier": "Aiempi päivä",
         "failed": "Sovellus ei vastannut, joten mitään ei siirretty. Yritä uudelleen.",
         "keepBoth": "Pidä molemmat samana päivänä ({{weekday}})",
+        "later": "Myöhempi päivä",
         "leaves": "Se poistetaan intervals.icu-palvelusta, kunnes viikko {{week}} lähetetään.",
         "notMovable": "Tätä harjoitusta ei voi siirtää sille päivälle, joten mitään ei siirretty.",
         "onIntervals": "Se siirtyy myös intervals.icu-palvelussa, joten pyörätietokoneesi saa sen oikealle päivälle ({{weekday}}).",
@@ -1880,6 +1884,20 @@
         "unavailable": "intervals.icu ei vastannut, joten harjoitusta ei voitu lukea. Mitään ei muutettu.",
         "weekDrops": "Viikko lyhenee kestoon {{total}}.",
         "weekGrows": "Viikko pitenee kestoon {{total}}."
+      },
+      "workout": {
+        "ask": "Pyydä valmentajaa muuttamaan sitä",
+        "askDraft": "Muuta harjoitusta {{name}} ({{day}}):",
+        "close": "Sulje",
+        "export": "Vie tämän päivän harjoitukset",
+        "move": "Siirrä…",
+        "moving": "Siirretään intervals.icu-palvelussa",
+        "onIntervals": "intervals.icu-palvelussa",
+        "onIntervalsYours": "intervals.icu-palvelussa, omalla muutoksellasi",
+        "planOnly": "Vain suunnitelmassa, ei vielä lähetetty",
+        "planOnlyGoesOut": "Vain suunnitelmassa, lähetetään {{date}}",
+        "planWorkout": "Suunnitelman harjoitus",
+        "today": "Tänään"
       }
     },
     "details": {

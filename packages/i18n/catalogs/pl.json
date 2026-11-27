@@ -1449,6 +1449,8 @@
       "spanLabel": "Okres planu",
       "stale": "Nieaktualna",
       "staleDetail": "Ta wersja robocza zachowuje wcześniejsze odpowiedzi i treningi. Utwórz ją ponownie przed aktywacją.",
+      "startBeforeEvent": "Dzisiaj, przed twoim wydarzeniem",
+      "startDateMaximum": "Wybierz datę {{date}} lub wcześniejszą.",
       "startDateMinimum": "Wybierz datę {{date}} lub późniejszą.",
       "startLabel": "Termin rozpoczęcia",
       "submittedLabel": "Przesłano",
@@ -1815,8 +1817,10 @@
         "cardOpen": "Trening z dnia {{day}} został zmieniony w intervals.icu. Najpierw wybierz „Zachowaj” lub „Przywróć”, a potem go przenieś.",
         "clash": "Na ten dzień ({{weekday}}) jest już {{workouts}}",
         "confirm": "Przenieś",
+        "earlier": "Wcześniejszy dzień",
         "failed": "Aplikacja nie odpowiedziała, więc nic nie zostało przeniesione. Spróbuj ponownie.",
         "keepBoth": "Zostaw oba w tym samym dniu ({{weekday}})",
+        "later": "Późniejszy dzień",
         "leaves": "Trening zostanie usunięty z intervals.icu do czasu wysłania tygodnia {{week}}.",
         "notMovable": "Tego treningu nie można przenieść na ten dzień, więc nic nie zostało przeniesione.",
         "onIntervals": "Trening przenosi się też w intervals.icu, więc twój licznik rowerowy otrzyma go na właściwy dzień ({{weekday}}).",
@@ -1960,6 +1964,20 @@
         "unavailable": "intervals.icu nie odpowiedział, więc nie udało się odczytać treningu. Nic się nie zmieniło.",
         "weekDrops": "Tydzień spada do {{total}}.",
         "weekGrows": "Tydzień rośnie do {{total}}."
+      },
+      "workout": {
+        "ask": "Poproś trenera o zmianę",
+        "askDraft": "Zmień, proszę, {{name}} z dnia {{day}}:",
+        "close": "Zamknij",
+        "export": "Eksportuj treningi z tego dnia",
+        "move": "Przenieś…",
+        "moving": "Przenoszenie w intervals.icu",
+        "onIntervals": "W intervals.icu",
+        "onIntervalsYours": "W intervals.icu, z twoją zmianą",
+        "planOnly": "Tylko w planie, jeszcze niewysłany",
+        "planOnlyGoesOut": "Tylko w planie, wysyłka {{date}}",
+        "planWorkout": "Trening z planu",
+        "today": "Dzisiaj"
       }
     },
     "details": {

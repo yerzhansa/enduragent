@@ -1416,6 +1416,8 @@
       "spanLabel": "计划起止时间",
       "stale": "已过期",
       "staleDetail": "此草稿保留了之前的回答和训练课程。启用前请重新生成。",
+      "startBeforeEvent": "今天，在赛事之前",
+      "startDateMaximum": "请选择 {{date}} 当天或之前的日期。",
       "startDateMinimum": "请选择 {{date}} 当天或之后的日期。",
       "startLabel": "开始时间",
       "submittedLabel": "已提交",
@@ -1719,8 +1721,10 @@
         "cardOpen": "{{day}} 的训练课程已在 intervals.icu 中更改。请先选择“保留”或“恢复”，然后再移动。",
         "clash": "{{weekday}}已有 {{workouts}}",
         "confirm": "移动",
+        "earlier": "前一天",
         "failed": "应用没有响应，因此未移动任何内容。请重试。",
         "keepBoth": "两个都保留在{{weekday}}",
+        "later": "后一天",
         "leaves": "在第 {{week}} 周发送之前，它会从 intervals.icu 中移除。",
         "notMovable": "此训练课程无法移到那一天，因此未移动任何内容。",
         "onIntervals": "它在 intervals.icu 中也会移动，码表会按{{weekday}}收到。",
@@ -1840,6 +1844,20 @@
         "unavailable": "intervals.icu 没有响应，因此无法读取训练课程。未做任何更改。",
         "weekDrops": "本周总时长降至 {{total}}。",
         "weekGrows": "本周总时长增至 {{total}}。"
+      },
+      "workout": {
+        "ask": "请教练修改",
+        "askDraft": "请修改 {{day}} 的 {{name}}：",
+        "close": "关闭",
+        "export": "导出这一天的训练课程",
+        "move": "移动…",
+        "moving": "正在 intervals.icu 中移动",
+        "onIntervals": "已在 intervals.icu 上",
+        "onIntervalsYours": "已在 intervals.icu 上，含你的修改",
+        "planOnly": "仅在计划中，尚未发送",
+        "planOnlyGoesOut": "仅在计划中，{{date}} 发送",
+        "planWorkout": "计划训练课程",
+        "today": "今天"
       }
     },
     "details": {

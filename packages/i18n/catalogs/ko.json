@@ -1416,6 +1416,8 @@
       "spanLabel": "계획 기간",
       "stale": "오래됨",
       "staleDetail": "이 초안에는 이전 답변과 워크아웃이 유지되어 있습니다. 활성화하기 전에 다시 생성하세요.",
+      "startBeforeEvent": "오늘, 이벤트 전",
+      "startDateMaximum": "{{date}} 또는 그 이전 날짜를 선택하세요.",
       "startDateMinimum": "{{date}} 또는 그 이후 날짜를 선택하세요.",
       "startLabel": "시작 시점",
       "submittedLabel": "제출됨",
@@ -1719,8 +1721,10 @@
         "cardOpen": "{{day}} 워크아웃이 intervals.icu에서 변경되었습니다. 먼저 “유지” 또는 “되돌리기”를 선택한 후 이동하세요.",
         "clash": "{{weekday}}에는 이미 다음 워크아웃이 있습니다: {{workouts}}",
         "confirm": "이동",
+        "earlier": "이전 날",
         "failed": "앱이 응답하지 않아 아무것도 이동되지 않았습니다. 다시 시도하세요.",
         "keepBoth": "둘 다 {{weekday}}에 두기",
+        "later": "다음 날",
         "leaves": "{{week}}주차가 전송될 때까지 intervals.icu에서 제거됩니다.",
         "notMovable": "이 워크아웃은 해당 날짜로 이동할 수 없어 아무것도 이동되지 않았습니다.",
         "onIntervals": "intervals.icu에서도 이동되므로 사이클링 컴퓨터가 {{weekday}} 일정으로 받습니다.",
@@ -1840,6 +1844,20 @@
         "unavailable": "intervals.icu가 응답하지 않아 워크아웃을 읽을 수 없습니다. 아무것도 변경되지 않았습니다.",
         "weekDrops": "주간 합계가 {{total}}까지 줄어듭니다.",
         "weekGrows": "주간 합계가 {{total}}까지 늘어납니다."
+      },
+      "workout": {
+        "ask": "코치에게 변경 요청",
+        "askDraft": "{{day}} {{name}} 워크아웃을 변경해 주세요:",
+        "close": "닫기",
+        "export": "이 날의 워크아웃 내보내기",
+        "move": "이동…",
+        "moving": "intervals.icu에서 이동 중",
+        "onIntervals": "intervals.icu에 있음",
+        "onIntervalsYours": "intervals.icu에 있음, 내 수정 반영",
+        "planOnly": "계획에만 있음, 아직 전송 안 됨",
+        "planOnlyGoesOut": "계획에만 있음, {{date}}에 전송",
+        "planWorkout": "계획 워크아웃",
+        "today": "오늘"
       }
     },
     "details": {

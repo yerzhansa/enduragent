@@ -1427,6 +1427,8 @@
       "spanLabel": "Planens tidsperiod",
       "stale": "Inaktuellt",
       "staleDetail": "Utkastet innehåller de tidigare svaren och träningspassen. Skapa om det innan du aktiverar.",
+      "startBeforeEvent": "Idag, före ditt evenemang",
+      "startDateMaximum": "Välj ett datum senast {{date}}.",
       "startDateMinimum": "Välj ett datum tidigast {{date}}.",
       "startLabel": "Starttidpunkt",
       "submittedLabel": "Inskickat",
@@ -2118,8 +2120,10 @@
         "cardOpen": "Träningspasset {{day}} ändrades i intervals.icu. Välj först ”Behåll” eller ”Återställ” och flytta det sedan.",
         "clash": "På {{weekday}} finns redan {{workouts}}",
         "confirm": "Flytta",
+        "earlier": "Tidigare dag",
         "failed": "Appen svarade inte, så inget flyttades. Försök igen.",
         "keepBoth": "Behåll båda på {{weekday}}",
+        "later": "Senare dag",
         "leaves": "Det tas bort från intervals.icu tills vecka {{week}} skickas.",
         "notMovable": "Det här träningspasset kan inte flyttas till den dagen, så inget flyttades.",
         "onIntervals": "Det flyttas även i intervals.icu, så din cykeldator får det till {{weekday}}.",
@@ -2247,6 +2251,20 @@
         "unavailable": "intervals.icu svarade inte, så träningspasset kunde inte läsas. Inget ändrades.",
         "weekDrops": "Veckan minskar till {{total}}.",
         "weekGrows": "Veckan ökar till {{total}}."
+      },
+      "workout": {
+        "ask": "Be tränaren att ändra det",
+        "askDraft": "Ändra {{name}} på {{day}}:",
+        "close": "Stäng",
+        "export": "Exportera dagens träningspass",
+        "move": "Flytta…",
+        "moving": "Flyttas i intervals.icu",
+        "onIntervals": "På intervals.icu",
+        "onIntervalsYours": "På intervals.icu, med din ändring",
+        "planOnly": "Bara i planen, inte skickat än",
+        "planOnlyGoesOut": "Bara i planen, skickas {{date}}",
+        "planWorkout": "Träningspass i planen",
+        "today": "Idag"
       }
     },
     "details": {
