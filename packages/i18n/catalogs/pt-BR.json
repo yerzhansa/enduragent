@@ -1598,7 +1598,7 @@
         "endChanged": "O plano mudou nesse meio-tempo, então não foi encerrado. Abra os detalhes do plano novamente.",
         "endChanges_one": "{{count}} treino que você alterou no intervals.icu continua, como seu:",
         "endChanges_other": "{{count}} treinos que você alterou no intervals.icu continuam, como seus:",
-        "endFailed": "O aplicativo não respondeu, então o plano não foi encerrado. Tente novamente.",
+        "endFailed": "O aplicativo não respondeu, então não foi possível confirmar o encerramento. Tente novamente.",
         "endRemoveChanges_one": "Remover esse também",
         "endRemoveChanges_other": "Remover esses {{count}} também",
         "endRemoves_one": "Remove {{count}} treino a partir de amanhã.",

@@ -1598,7 +1598,7 @@
         "endChanged": "Der Plan hat sich inzwischen geändert und wurde daher nicht beendet. Öffne die Plandetails erneut.",
         "endChanges_one": "{{count}} Training, das du in intervals.icu geändert hast, bleibt als deins erhalten:",
         "endChanges_other": "{{count}} Trainings, die du in intervals.icu geändert hast, bleiben als deine erhalten:",
-        "endFailed": "Die App hat nicht geantwortet, daher wurde der Plan nicht beendet. Versuche es erneut.",
+        "endFailed": "Die App hat nicht geantwortet, daher konnte das Beenden nicht bestätigt werden. Versuche es erneut.",
         "endRemoveChanges_one": "Auch dieses entfernen",
         "endRemoveChanges_other": "Auch diese {{count}} entfernen",
         "endRemoves_one": "Entfernt ab morgen {{count}} Training.",

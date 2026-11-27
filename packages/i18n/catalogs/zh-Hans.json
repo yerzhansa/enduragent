@@ -1579,7 +1579,7 @@
         "endAction": "结束计划",
         "endChanged": "计划在此期间已更改，因此未结束。请重新打开计划详情。",
         "endChanges_other": "你在 intervals.icu 中更改的 {{count}} 次训练课程会保留，归你所有：",
-        "endFailed": "应用没有响应，因此计划未结束。请重试。",
+        "endFailed": "应用没有响应，因此无法确认结束结果。请重试。",
         "endRemoveChanges_other": "也删除这 {{count}} 次",
         "endRemoves_other": "从明天起删除 {{count}} 次训练课程。",
         "endRemovesNone": "不会从 intervals.icu 中删除任何内容。",

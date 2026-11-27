@@ -1598,7 +1598,7 @@
         "endChanged": "Nel frattempo il piano è cambiato, quindi non è stato terminato. Riapri i dettagli del piano.",
         "endChanges_one": "{{count}} allenamento che hai modificato su intervals.icu resta, come tuo:",
         "endChanges_other": "{{count}} allenamenti che hai modificato su intervals.icu restano, come tuoi:",
-        "endFailed": "L’app non ha risposto, quindi il piano non è stato terminato. Riprova.",
+        "endFailed": "L’app non ha risposto, quindi è impossibile confermare la chiusura. Riprova.",
         "endRemoveChanges_one": "Rimuovi anche quello",
         "endRemoveChanges_other": "Rimuovi anche quei {{count}}",
         "endRemoves_one": "Rimuove {{count}} allenamento da domani in poi.",

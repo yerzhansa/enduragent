@@ -1598,7 +1598,7 @@
         "endChanged": "Het trainingsschema is intussen gewijzigd en is daarom niet beëindigd. Open de details van het trainingsschema opnieuw.",
         "endChanges_one": "{{count}} training die je in intervals.icu hebt gewijzigd, blijft staan als je eigen training:",
         "endChanges_other": "{{count}} trainingen die je in intervals.icu hebt gewijzigd, blijven staan als je eigen trainingen:",
-        "endFailed": "De app reageerde niet, dus het trainingsschema is niet beëindigd. Probeer het opnieuw.",
+        "endFailed": "De app reageerde niet, dus het beëindigen kon niet worden bevestigd. Probeer het opnieuw.",
         "endRemoveChanges_one": "Die ook verwijderen",
         "endRemoveChanges_other": "Die {{count}} ook verwijderen",
         "endRemoves_one": "Verwijdert vanaf morgen {{count}} training.",

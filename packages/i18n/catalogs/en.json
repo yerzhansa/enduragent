@@ -1067,7 +1067,7 @@
         "endChanged": "The Plan changed meanwhile, so it was not ended. Open Plan details again.",
         "endChanges_one": "{{count}} you changed in intervals.icu stays, as your own:",
         "endChanges_other": "{{count}} you changed in intervals.icu stay, as your own:",
-        "endFailed": "The app did not answer, so the Plan was not ended. Try again.",
+        "endFailed": "The app did not answer, so ending could not be confirmed. Try again.",
         "endRemoveChanges_one": "Remove that one too",
         "endRemoveChanges_other": "Remove those {{count}} too",
         "endRemoves_one": "Removes {{count}} workout from tomorrow on.",

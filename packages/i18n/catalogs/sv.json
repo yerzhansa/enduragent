@@ -1965,7 +1965,7 @@
         "endChanged": "Planen ändrades under tiden, så den avslutades inte. Öppna plandetaljerna igen.",
         "endChanges_one": "{{count}} träningspass som du ändrade i intervals.icu blir kvar som ditt eget:",
         "endChanges_other": "{{count}} träningspass som du ändrade i intervals.icu blir kvar som dina egna:",
-        "endFailed": "Appen svarade inte, så planen avslutades inte. Försök igen.",
+        "endFailed": "Appen svarade inte, så avslutet kunde inte bekräftas. Försök igen.",
         "endRemoveChanges_one": "Ta bort det också",
         "endRemoveChanges_other": "Ta bort de {{count}} också",
         "endRemoves_one": "Tar bort {{count}} träningspass från och med i morgon.",

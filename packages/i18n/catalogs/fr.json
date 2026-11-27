@@ -1598,7 +1598,7 @@
         "endChanged": "Le plan a changé entre-temps, il n’a donc pas pris fin. Rouvre les détails du plan.",
         "endChanges_one": "{{count}} entraînement que tu as modifié dans intervals.icu reste, comme le tien :",
         "endChanges_other": "{{count}} entraînements que tu as modifiés dans intervals.icu restent, comme les tiens :",
-        "endFailed": "L’application n’a pas répondu, donc le plan n’a pas pris fin. Réessaie.",
+        "endFailed": "L’application n’a pas répondu, donc la fin du plan n’a pas pu être confirmée. Réessaie.",
         "endRemoveChanges_one": "Le supprimer aussi",
         "endRemoveChanges_other": "Supprimer aussi ces {{count}}",
         "endRemoves_one": "Supprime {{count}} entraînement à partir de demain.",

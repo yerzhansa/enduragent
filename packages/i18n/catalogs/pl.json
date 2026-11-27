@@ -1636,7 +1636,7 @@
         "endChanges_few": "{{count}} treningi zmienione przez ciebie w intervals.icu zostają jako twoje:",
         "endChanges_many": "{{count}} treningów zmienionych przez ciebie w intervals.icu zostaje jako twoje:",
         "endChanges_other": "{{count}} treningu zmienionego przez ciebie w intervals.icu zostaje jako twoje:",
-        "endFailed": "Aplikacja nie odpowiedziała, więc plan nie został zakończony. Spróbuj ponownie.",
+        "endFailed": "Aplikacja nie odpowiedziała, więc nie udało się potwierdzić zakończenia. Spróbuj ponownie.",
         "endRemoveChanges_one": "Usuń także ten",
         "endRemoveChanges_few": "Usuń także te {{count}}",
         "endRemoveChanges_many": "Usuń także te {{count}}",

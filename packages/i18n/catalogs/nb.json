@@ -1598,7 +1598,7 @@
         "endChanged": "Planen ble endret i mellomtiden, så den ble ikke avsluttet. Åpne plandetaljene på nytt.",
         "endChanges_one": "{{count}} treningsøkt du endret i intervals.icu, blir værende som din egen:",
         "endChanges_other": "{{count}} treningsøkter du endret i intervals.icu, blir værende som dine egne:",
-        "endFailed": "Appen svarte ikke, så planen ble ikke avsluttet. Prøv igjen.",
+        "endFailed": "Appen svarte ikke, så avslutningen kunne ikke bekreftes. Prøv igjen.",
         "endRemoveChanges_one": "Fjern den også",
         "endRemoveChanges_other": "Fjern de {{count}} også",
         "endRemoves_one": "Fjerner {{count}} treningsøkt fra og med i morgen.",

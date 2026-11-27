@@ -1598,7 +1598,7 @@
         "endChanged": "Træningsplanen blev ændret i mellemtiden, så den blev ikke afsluttet. Åbn detaljerne om træningsplanen igen.",
         "endChanges_one": "{{count}} træning, du har ændret i intervals.icu, bliver som din egen:",
         "endChanges_other": "{{count}} træninger, du har ændret i intervals.icu, bliver som dine egne:",
-        "endFailed": "Appen svarede ikke, så træningsplanen blev ikke afsluttet. Prøv igen.",
+        "endFailed": "Appen svarede ikke, så afslutningen kunne ikke bekræftes. Prøv igen.",
         "endRemoveChanges_one": "Fjern også den",
         "endRemoveChanges_other": "Fjern også de {{count}}",
         "endRemoves_one": "Fjerner {{count}} træning fra i morgen.",

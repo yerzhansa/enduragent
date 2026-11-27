@@ -1598,7 +1598,7 @@
         "endChanged": "Suunnitelma muuttui sillä välin, joten sitä ei päätetty. Avaa suunnitelman tiedot uudelleen.",
         "endChanges_one": "{{count}} harjoitus, jota muutit intervals.icu-palvelussa, jää omaksesi:",
         "endChanges_other": "{{count}} harjoitusta, joita muutit intervals.icu-palvelussa, jää omiksesi:",
-        "endFailed": "Sovellus ei vastannut, joten suunnitelmaa ei päätetty. Yritä uudelleen.",
+        "endFailed": "Sovellus ei vastannut, joten päättämistä ei voitu vahvistaa. Yritä uudelleen.",
         "endRemoveChanges_one": "Poista myös se",
         "endRemoveChanges_other": "Poista myös ne {{count}}",
         "endRemoves_one": "Poistaa {{count}} harjoituksen huomisesta alkaen.",

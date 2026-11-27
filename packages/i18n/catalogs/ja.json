@@ -1579,7 +1579,7 @@
         "endAction": "プランを終了",
         "endChanged": "その間にプランが変更されたため、終了しませんでした。プランの詳細をもう一度開いてください。",
         "endChanges_other": "intervals.icuで変更した{{count}}件は、自分のワークアウトとして残ります:",
-        "endFailed": "アプリから応答がなかったため、プランは終了していません。もう一度お試しください。",
+        "endFailed": "アプリから応答がなかったため、終了を確認できませんでした。もう一度お試しください。",
         "endRemoveChanges_other": "この{{count}}件も削除する",
         "endRemoves_other": "明日以降のワークアウト{{count}}件を削除します。",
         "endRemovesNone": "intervals.icuからは何も削除されません。",

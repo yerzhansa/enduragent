@@ -1579,7 +1579,7 @@
         "endAction": "結束計畫",
         "endChanged": "計畫在此期間已變更，因此未結束。請重新開啟計畫詳情。",
         "endChanges_other": "你在 intervals.icu 中變更的 {{count}} 次訓練課表會保留，歸你所有：",
-        "endFailed": "應用程式沒有回應，因此計畫未結束。請重試。",
+        "endFailed": "應用程式沒有回應，因此無法確認計畫是否已結束。請重試。",
         "endRemoveChanges_other": "也刪除這 {{count}} 次",
         "endRemoves_other": "從明天起刪除 {{count}} 次訓練課表。",
         "endRemovesNone": "不會從 intervals.icu 中刪除任何內容。",
