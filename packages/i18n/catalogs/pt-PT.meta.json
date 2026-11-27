@@ -2132,12 +2132,12 @@
       "sourceHash": "4d2c4a67c154e181bf1449df9516051180b1a503a5d7f657b31fb1cab6d2c5c7",
       "translatedBy": "model"
     },
-    "setup.error.intervalsRuntimeUnavailable": {
-      "sourceHash": "d356d27fd77eb200fa4d7dd3e34e7c09a0afa29996028abe796a67b07a15d9ef",
+    "setup.error.intervalsRuntimeNotWorking": {
+      "sourceHash": "4bff6bfa55ea2fe2f09d8c1cb6496bacd7e653a5a804d5ea968a0e145f6bb3d2",
       "translatedBy": "model"
     },
-    "setup.error.intervalsRuntimeUncertain": {
-      "sourceHash": "b3ac912978e43c4e97b3b81c2ce36c2485de3ea42f8084db23a91f1eeecfbb2d",
+    "setup.error.intervalsRuntimeUnavailable": {
+      "sourceHash": "d356d27fd77eb200fa4d7dd3e34e7c09a0afa29996028abe796a67b07a15d9ef",
       "translatedBy": "model"
     },
     "setup.error.intervalsSignInDenied": {

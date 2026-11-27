@@ -35,13 +35,14 @@ const INTERVALS_REFUSAL_ERRORS = {
 export function intervalsMutationError(
   result: IntervalsCredentialMutationResult,
 ): OnboardingErrorCode | null {
-  if (result.outcome === "applied") {
-    return result.current.state === "configured" && result.current.runtimeState === "active"
-      ? null
-      : "intervals-runtime-unavailable";
-  }
   if (result.outcome === "refused") return INTERVALS_REFUSAL_ERRORS[result.reason];
-  return result.reason === "storage-uncertain"
-    ? "intervals-storage-uncertain"
-    : "intervals-runtime-uncertain";
+  if (result.outcome === "uncertain" && result.reason === "storage-uncertain") {
+    return "intervals-storage-uncertain";
+  }
+  const current = result.current;
+  if (current.state !== "configured") return "intervals-runtime-unavailable";
+  if (current.runtimeState === "active") return null;
+  return current.runtimeState === "failed"
+    ? "intervals-runtime-not-working"
+    : "intervals-runtime-unavailable";
 }

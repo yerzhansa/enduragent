@@ -132,7 +132,7 @@ const ERROR_SECTIONS: Readonly<Record<OnboardingErrorCode, SectionRule>> = {
   "intervals-owner-unavailable": "training",
   "intervals-storage-uncertain": "training",
   "intervals-runtime-unavailable": "training",
-  "intervals-runtime-uncertain": "training",
+  "intervals-runtime-not-working": "training",
   "training-data-required": "training",
   "credential-save-failed": "commit",
   "invalid-input": "commit",

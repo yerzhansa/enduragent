@@ -478,6 +478,58 @@ describe("Intervals.icu sign-in panel", () => {
     wizard.controller.dispose();
   });
 
+  describe("when the sign-in finishes but the coach cannot use it", () => {
+    const FAILED = { ...ACTIVE, runtimeState: "failed" } as const;
+    const NOT_WORKING_ERROR =
+      "Your Intervals.icu sign-in is saved, but Enduragent couldn’t start using it. Choose Retry saved keys, or Disconnect and sign in again.";
+    const RETRY = "Retry saved keys";
+
+    async function signInThatCannotBeUsed(placement: "gate" | "settings"): Promise<MountedWizard> {
+      const user = userEvent.setup();
+      const { bridge, signIn } = signInBridge();
+      const wizard = mountWizard({ bridge, placement });
+      await wizard.open();
+      await startSignIn(user, bridge);
+      await settle(wizard, signIn, {
+        outcome: "uncertain",
+        reason: "runtime-uncertain",
+        current: FAILED,
+      });
+      return wizard;
+    }
+
+    it.each(["gate", "settings"] as const)(
+      "says the sign-in is saved but not working and names Retry saved keys (%s)",
+      async (placement) => {
+        const wizard = await signInThatCannotBeUsed(placement);
+
+        expect(rowState("training")).toBe("attention");
+        expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
+        expect(errorText()).toBe(NOT_WORKING_ERROR);
+        expect(errorText()).not.toContain("Reload credential status");
+        const recovery = panel("training-recovery");
+        expect(recovery?.contains(document.querySelector("#onboarding-error"))).toBe(true);
+        expect(screen.getByRole("button", { name: RETRY })).toBeEnabled();
+        expect(
+          screen.getByRole("button", { name: "Disconnect Intervals.icu" }),
+        ).toBeInTheDocument();
+        wizard.controller.dispose();
+      },
+    );
+
+    it.each(["gate", "settings"] as const)(
+      "puts keyboard focus on Retry saved keys, not Disconnect (%s)",
+      async (placement) => {
+        const wizard = await signInThatCannotBeUsed(placement);
+
+        await waitFor(() => {
+          expect(screen.getByRole("button", { name: RETRY })).toHaveFocus();
+        });
+        wizard.controller.dispose();
+      },
+    );
+  });
+
   describe("when intervals.icu stops accepting the sign-in", () => {
     const REJECTED_SUBTITLE =
       "Intervals.icu stopped accepting the sign-in. Sign in again to keep syncing.";

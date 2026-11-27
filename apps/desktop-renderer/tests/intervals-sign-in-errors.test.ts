@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   IntervalsCredentialMutationRefusalReason,
+  IntervalsCredentialMutationResult,
   IntervalsCredentialStatus,
 } from "../src/onboarding/bridge";
 import { intervalsMutationError } from "../src/onboarding/intervals-sign-in";
@@ -54,7 +55,6 @@ describe("intervalsMutationError", () => {
 
   it.each([
     { state: "configured", runtimeState: "stored-inactive" },
-    { state: "configured", runtimeState: "failed" },
     { state: "configured", runtimeState: null },
     { state: "re-prompt", runtimeState: "active" },
     { state: "missing", runtimeState: null },
@@ -71,20 +71,47 @@ describe("intervalsMutationError", () => {
     },
   );
 
-  it("separates uncertain storage from uncertain activation", () => {
+  it("reports uncertain storage without reading the current status", () => {
     expect(
       intervalsMutationError({
         outcome: "uncertain",
         reason: "storage-uncertain",
-        current: MISSING,
+        current: { slot: "intervals-icu", state: "configured", runtimeState: "failed" },
       }),
     ).toBe("intervals-storage-uncertain");
+  });
+
+  it.each(["applied", "runtime-uncertain"] as const)(
+    "reports a saved sign-in the coach could not use as not working (%s)",
+    (kind) => {
+      const current = {
+        slot: "intervals-icu",
+        state: "configured",
+        runtimeState: "failed",
+      } as const;
+      const result: IntervalsCredentialMutationResult =
+        kind === "applied"
+          ? { outcome: "applied", current }
+          : { outcome: "uncertain", reason: "runtime-uncertain", current };
+
+      expect(intervalsMutationError(result)).toBe("intervals-runtime-not-working");
+    },
+  );
+
+  it("asks for a new sign-in when activation failed and nothing usable is saved", () => {
     expect(
       intervalsMutationError({
         outcome: "uncertain",
         reason: "runtime-uncertain",
         current: MISSING,
       }),
-    ).toBe("intervals-runtime-uncertain");
+    ).toBe("intervals-runtime-unavailable");
+    expect(
+      intervalsMutationError({
+        outcome: "uncertain",
+        reason: "runtime-uncertain",
+        current: { slot: "intervals-icu", state: "configured", runtimeState: "stored-inactive" },
+      }),
+    ).toBe("intervals-runtime-unavailable");
   });
 });

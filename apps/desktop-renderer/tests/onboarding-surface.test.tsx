@@ -413,9 +413,11 @@ describe("mounted onboarding", () => {
     await user.click(panelButton("training", "Sign in with Intervals.icu"));
 
     await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intervals-runtime-unavailable");
+      expect(wizard.controller.state().fixedError).toBe("intervals-runtime-not-working");
     });
-    expect(errorText()).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+    expect(errorText()).toBe(
+      "Your Intervals.icu sign-in is saved, but Enduragent couldn’t start using it. Choose Retry saved keys, or Disconnect and sign in again.",
+    );
     expect(retryButtons()).toHaveLength(1);
     expect(rowState("training"), "a sign-in that cannot be used should not look connected").toBe(
       "attention",

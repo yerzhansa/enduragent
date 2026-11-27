@@ -96,7 +96,7 @@ export type OnboardingErrorCode =
   | "intervals-owner-unavailable"
   | "intervals-storage-uncertain"
   | "intervals-runtime-unavailable"
-  | "intervals-runtime-uncertain"
+  | "intervals-runtime-not-working"
   | "training-data-required";
 
 export interface OnboardingState {
