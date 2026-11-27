@@ -1601,7 +1601,7 @@
         "progressTitle": "進度",
         "raceLabel": "比賽",
         "replaceAction": "替換計畫",
-        "replaceBody": "與教練一起制定新計畫。intervals.icu 中的變更會在寫入前以一個變更集交給你確認。核准後，會先刪除舊計畫從明天起的訓練課表，再傳送新計畫的前兩週。",
+        "replaceBody": "與教練一起制定新計畫。啟用後，舊計畫從明天起的訓練課表會從 intervals.icu 中移除；在你核准新計畫的前兩個訓練週之前，新計畫的任何內容都不會傳送到 intervals.icu。",
         "replaceTitle": "替換計畫",
         "title": "計畫詳情",
         "unavailable": "無法讀取計畫詳情。請重試。",

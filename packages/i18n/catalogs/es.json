@@ -1623,7 +1623,7 @@
         "progressTitle": "Progreso",
         "raceLabel": "Carrera",
         "replaceAction": "Sustituir Plan",
-        "replaceBody": "Crea un plan nuevo con el entrenador. Lo que cambia en intervals.icu te llega como un solo conjunto de cambios antes de escribir nada. Cuando lo apruebes, primero se eliminan los entrenamientos del plan anterior a partir de mañana y luego se envían las dos primeras semanas del plan nuevo.",
+        "replaceBody": "Crea un plan nuevo con el entrenador. Cuando lo actives, los entrenamientos del plan anterior a partir de mañana se quitan de intervals.icu, y no se envía nada del nuevo plan hasta que apruebes sus dos primeras semanas de entrenamiento.",
         "replaceTitle": "Sustituir Plan",
         "title": "Detalles del plan",
         "unavailable": "No se pudieron leer los detalles del plan. Inténtalo de nuevo.",

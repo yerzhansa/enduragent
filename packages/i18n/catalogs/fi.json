@@ -1623,7 +1623,7 @@
         "progressTitle": "Edistyminen",
         "raceLabel": "Kilpailu",
         "replaceAction": "Korvaa suunnitelma",
-        "replaceBody": "Laatii uuden suunnitelman valmentajan kanssa. Muutokset intervals.icu-palveluun tulevat sinulle yhtenä muutoseränä ennen kuin mitään kirjoitetaan. Kun hyväksyt, vanhan suunnitelman harjoitukset huomisesta alkaen poistetaan ensin, ja sitten uuden suunnitelman kaksi ensimmäistä viikkoa lähetetään.",
+        "replaceBody": "Laatii uuden suunnitelman valmentajan kanssa. Kun otat sen käyttöön, vanhan suunnitelman harjoitukset huomisesta alkaen poistetaan intervals.icu-palvelusta, eikä uudesta suunnitelmasta lähetetä mitään ennen kuin hyväksyt sen kaksi ensimmäistä harjoitusviikkoa.",
         "replaceTitle": "Korvaa suunnitelma",
         "title": "Suunnitelman tiedot",
         "unavailable": "Suunnitelman tietoja ei voitu lukea. Yritä uudelleen.",

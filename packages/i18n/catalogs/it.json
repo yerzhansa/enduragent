@@ -1623,7 +1623,7 @@
         "progressTitle": "Progressi",
         "raceLabel": "Gara",
         "replaceAction": "Sostituisci piano",
-        "replaceBody": "Crea un nuovo piano con il coach. Ciò che cambia su intervals.icu ti arriva come un unico set di modifiche prima che venga scritto qualcosa. Dopo la tua approvazione, vengono prima rimossi gli allenamenti del vecchio piano da domani in poi, poi vengono inviate le prime due settimane del nuovo piano.",
+        "replaceBody": "Crea un nuovo piano con il coach. Quando lo attivi, gli allenamenti del vecchio piano da domani in poi vengono tolti da intervals.icu, e non viene inviato nulla del nuovo piano finché non approvi le sue prime due settimane di allenamento.",
         "replaceTitle": "Sostituisci piano",
         "title": "Dettagli del piano",
         "unavailable": "Impossibile leggere i dettagli del piano. Riprova.",

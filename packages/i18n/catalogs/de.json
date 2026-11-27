@@ -1623,7 +1623,7 @@
         "progressTitle": "Fortschritt",
         "raceLabel": "Rennen",
         "replaceAction": "Plan ersetzen",
-        "replaceBody": "Erstellt mit dem Coach einen neuen Plan. Was sich in intervals.icu ändert, bekommst du als ein Änderungspaket, bevor etwas geschrieben wird. Nach deiner Zustimmung werden zuerst die Trainings des alten Plans ab morgen entfernt, dann werden die ersten zwei Wochen des neuen Plans gesendet.",
+        "replaceBody": "Erstellt mit dem Coach einen neuen Plan. Wenn du ihn aktivierst, werden die Trainings des alten Plans ab morgen aus intervals.icu entfernt, und nichts aus dem neuen Plan geht an intervals.icu, bevor du seinen ersten zwei Trainingswochen zustimmst.",
         "replaceTitle": "Plan ersetzen",
         "title": "Plandetails",
         "unavailable": "Die Plandetails konnten nicht gelesen werden. Versuche es erneut.",

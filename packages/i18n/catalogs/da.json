@@ -1623,7 +1623,7 @@
         "progressTitle": "Fremskridt",
         "raceLabel": "Konkurrence",
         "replaceAction": "Erstat træningsplan",
-        "replaceBody": "Laver en ny træningsplan sammen med træneren. Det, der ændres i intervals.icu, får du som ét sæt af ændringer, før noget skrives. Når du har godkendt, fjernes den gamle træningsplans træninger fra i morgen først, og derefter sendes den nye træningsplans første to uger.",
+        "replaceBody": "Laver en ny træningsplan sammen med træneren. Når du aktiverer den, fjernes den gamle træningsplans træninger fra i morgen fra intervals.icu, og intet fra den nye træningsplan sendes, før du godkender dens første to træningsuger.",
         "replaceTitle": "Erstat træningsplan",
         "title": "Detaljer om træningsplanen",
         "unavailable": "Detaljerne om træningsplanen kunne ikke læses. Prøv igen.",

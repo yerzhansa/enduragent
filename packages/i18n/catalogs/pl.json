@@ -1667,7 +1667,7 @@
         "progressTitle": "Postępy",
         "raceLabel": "Wyścig",
         "replaceAction": "Zastąp plan",
-        "replaceBody": "Tworzy nowy plan z trenerem. Zmiany w intervals.icu dostaniesz jako jeden pakiet zmian, zanim cokolwiek zostanie zapisane. Po zatwierdzeniu najpierw zostaną usunięte treningi starego planu od jutra, a potem zostaną wysłane dwa pierwsze tygodnie nowego planu.",
+        "replaceBody": "Tworzy nowy plan z trenerem. Gdy go aktywujesz, treningi starego planu od jutra zostaną usunięte z intervals.icu, a nic z nowego planu nie trafi do intervals.icu, dopóki nie zatwierdzisz jego dwóch pierwszych tygodni treningowych.",
         "replaceTitle": "Zastąp plan",
         "title": "Szczegóły planu",
         "unavailable": "Nie udało się odczytać szczegółów planu. Spróbuj ponownie.",

@@ -1623,7 +1623,7 @@
         "progressTitle": "Fremdrift",
         "raceLabel": "Konkurranse",
         "replaceAction": "Erstatt planen",
-        "replaceBody": "Lager en ny plan sammen med treneren. Det som endres i intervals.icu, får du som ett endringssett før noe skrives. Når du har godkjent, fjernes den gamle planens treningsøkter fra og med i morgen først, og deretter sendes de to første ukene i den nye planen.",
+        "replaceBody": "Lager en ny plan sammen med treneren. Når du aktiverer den, fjernes den gamle planens treningsøkter fra og med i morgen fra intervals.icu, og ingenting fra den nye planen sendes før du godkjenner de to første treningsukene i den.",
         "replaceTitle": "Erstatt planen",
         "title": "Plandetaljer",
         "unavailable": "Plandetaljene kunne ikke leses. Prøv igjen.",

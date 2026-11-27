@@ -1990,7 +1990,7 @@
         "progressTitle": "Framsteg",
         "raceLabel": "Tävling",
         "replaceAction": "Ersätt planen",
-        "replaceBody": "Tar fram en ny plan med tränaren. Det som ändras i intervals.icu får du som ett enda ändringspaket innan något skrivs. När du har godkänt tas den gamla planens träningspass från och med i morgon bort först, och sedan skickas den nya planens första två veckor.",
+        "replaceBody": "Tar fram en ny plan med tränaren. När du aktiverar den tas den gamla planens träningspass från och med i morgon bort från intervals.icu, och inget från den nya planen skickas förrän du godkänner dess två första träningsveckor.",
         "replaceTitle": "Ersätt planen",
         "title": "Plandetaljer",
         "unavailable": "Plandetaljerna kunde inte läsas. Försök igen.",

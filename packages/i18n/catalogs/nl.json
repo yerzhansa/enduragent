@@ -1623,7 +1623,7 @@
         "progressTitle": "Voortgang",
         "raceLabel": "Wedstrijd",
         "replaceAction": "Trainingsschema vervangen",
-        "replaceBody": "Stelt met de coach een nieuw trainingsschema op. Wat er in intervals.icu verandert, krijg je als één set wijzigingen voordat er iets wordt geschreven. Na je goedkeuring worden eerst de trainingen van het oude trainingsschema vanaf morgen verwijderd, daarna worden de eerste twee weken van het nieuwe trainingsschema verzonden.",
+        "replaceBody": "Stelt met de coach een nieuw trainingsschema op. Als je het activeert, worden de trainingen van het oude trainingsschema vanaf morgen uit intervals.icu gehaald, en gaat er niets van het nieuwe trainingsschema naar intervals.icu totdat je de eerste twee trainingsweken ervan goedkeurt.",
         "replaceTitle": "Trainingsschema vervangen",
         "title": "Details van het trainingsschema",
         "unavailable": "De details van het trainingsschema konden niet worden gelezen. Probeer het opnieuw.",

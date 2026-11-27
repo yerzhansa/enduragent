@@ -1623,7 +1623,7 @@
         "progressTitle": "Progresso",
         "raceLabel": "Prova",
         "replaceAction": "Substituir plano",
-        "replaceBody": "Cria um novo plano com o treinador. O que muda no intervals.icu chega para você como um único conjunto de alterações antes de qualquer coisa ser gravada. Depois que você aprovar, os treinos do plano antigo a partir de amanhã são removidos primeiro e, em seguida, as duas primeiras semanas do novo plano são enviadas.",
+        "replaceBody": "Cria um novo plano com o treinador. Quando você o ativar, os treinos do plano antigo a partir de amanhã saem do intervals.icu, e nada do novo plano vai para o intervals.icu até você aprovar as duas primeiras semanas de treinamento dele.",
         "replaceTitle": "Substituir plano",
         "title": "Detalhes do plano",
         "unavailable": "Não foi possível ler os detalhes do plano. Tente novamente.",
