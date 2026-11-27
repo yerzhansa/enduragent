@@ -201,6 +201,7 @@ function connectController(result: unknown, refresh: () => Promise<void>) {
     clients: {
       getClient: vi.fn().mockResolvedValue({ call }),
       reconnect: vi.fn().mockResolvedValue({ call }),
+      onConnectionOpen: () => () => {},
       close: vi.fn(),
     },
     view: { render: vi.fn() },
