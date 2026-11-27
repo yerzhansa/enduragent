@@ -32,6 +32,7 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
   readonly lists: Array<{ readonly startDateKey: number; readonly endDateKey: number }> = [];
   failNextList = false;
   failNextCreate = false;
+  refuseDeletes = false;
   delayMs = 0;
   nextEventId = 100;
 
@@ -82,6 +83,7 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
   async deleteEvent(input: { eventId: number }) {
     this.deletes.push(input.eventId);
     await this.delay();
+    if (this.refuseDeletes) throw new Error("forbidden");
     const index = this.events.findIndex((event) => event.id === input.eventId);
     if (index < 0) throw new Error("missing");
     this.events.splice(index, 1);
