@@ -4470,6 +4470,82 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await lifecycle.close();
   });
 
+  it.each([
+    { name: "a bare route", llm: { provider: "anthropic" as const, model: "synthetic" } },
+    {
+      name: "a catalog route",
+      llm: {
+        provider: "anthropic" as const,
+        model: "claude-sonnet-5",
+        compactModel: "claude-haiku-4-5-20251001",
+        flushModel: "claude-opus-5",
+      },
+    },
+  ])("waits for the turn when the stored key is re-applied unchanged on $name", async ({ llm }) => {
+    const home = await freshHome();
+    let enterOld!: () => void;
+    let releaseOld!: () => void;
+    const oldEntered = new Promise<void>((resolve) => {
+      enterOld = resolve;
+    });
+    const oldRelease = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    let builds = 0;
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: () => {
+          builds += 1;
+          const generation = builds;
+          return backend({
+            chat: async () => {
+              if (generation === 1) {
+                enterOld();
+                await oldRelease;
+              }
+              return { text: String(generation) };
+            },
+          });
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+      },
+      fakeContext(home),
+      undefined,
+      { ...config(home), llm: { ...llm, apiKey: "synthetic" } },
+    );
+
+    const oldTurn = lifecycle.engine.chat({ chatId: "reapply", message: "hold" });
+    await oldEntered;
+    let reapplySettled = false;
+    const reapply = lifecycle.operations
+      .configureRuntime({ llm: { provider: "anthropic", api_key: "synthetic" } })
+      .then((result) => {
+        reapplySettled = true;
+        return result;
+      });
+    await vi.waitFor(() => expect(builds).toBe(2));
+    expect(reapplySettled).toBe(false);
+
+    releaseOld();
+    await expect(oldTurn).resolves.toEqual({ text: "1" });
+    await expect(reapply).resolves.toEqual({
+      schemaVersion: 3,
+      status: "applied",
+      applied: { llm: true, intervals: false, session: false },
+    });
+    await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+      llm: { provider: "anthropic", model: llm.model, credential_configured: true },
+    });
+    await lifecycle.close();
+  });
+
   it("refuses to clear a different active LLM credential", async () => {
     const home = await freshHome();
     const initial: Config = {

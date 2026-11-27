@@ -116,6 +116,7 @@ import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
 import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "./runtime-bundle.js";
 import { modelWriters } from "./model-writers.js";
+import { runtimeConfigUnchanged } from "./runtime-config-unchanged.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -377,6 +378,14 @@ function mergedRuntimeConfig(config: Config, request: ConfigureRuntimeRpcParams)
   return { ...config, ...resolveRuntimeConfig(runtimePatch(request, config), config) };
 }
 
+const SESSION_FIELDS = [
+  "historyTokenBudgetRatio",
+  "idleMinutes",
+  "dailyResetHour",
+  "resetArchiveRetentionDays",
+  "timezone",
+] as const;
+
 const LLM_CREDENTIAL_ENVIRONMENT_KEYS = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -520,13 +529,7 @@ function persistRuntimeConfig(
     const session: Record<string, unknown> = {
       ...(isRecord(parsed.session) ? parsed.session : {}),
     };
-    for (const field of [
-      "historyTokenBudgetRatio",
-      "idleMinutes",
-      "dailyResetHour",
-      "resetArchiveRetentionDays",
-      "timezone",
-    ] as const) {
+    for (const field of SESSION_FIELDS) {
       if (request.session[field] !== undefined) {
         session[field] = candidate.session[field];
       }
@@ -1451,13 +1454,7 @@ export async function createLocalCoachComposition(
       }
       if (request.session !== undefined) {
         const ownership = sessionConfigEnvironmentOwnership(input.env);
-        for (const field of [
-          "historyTokenBudgetRatio",
-          "idleMinutes",
-          "dailyResetHour",
-          "resetArchiveRetentionDays",
-          "timezone",
-        ] as const) {
+        for (const field of SESSION_FIELDS) {
           if (request.session[field] !== undefined && ownership[field]) {
             throw new Error(`runtime session ${field} is controlled by the daemon environment`);
           }
@@ -1573,6 +1570,11 @@ export async function createLocalCoachComposition(
       }
       const chatGptProfileClear =
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
+      const changesNothing =
+        pinnedCatalog === undefined &&
+        pendingOwnerClaim === undefined &&
+        !chatGptProfileClear &&
+        runtimeConfigUnchanged(unapprovedConfig, candidate);
       signal.throwIfAborted();
       const replacement = await reconfigurable.replace(
         async () => {
@@ -1640,7 +1642,7 @@ export async function createLocalCoachComposition(
           activeTimezone = replacement.timezone;
           return replacement;
         },
-        "refuse",
+        changesNothing ? "wait" : "refuse",
       );
       if (replacement === "busy-replying") return "busy-replying";
       if (request.intervals !== undefined && candidate.intervals.apiKey.length > 0) {
@@ -2291,10 +2293,8 @@ export async function createLocalCoachComposition(
       close() {
         closePromise ??= (async () => {
           closing = true;
-          if (initialRefreshRetryTimer !== undefined) {
-            clearTimeout(initialRefreshRetryTimer);
-            initialRefreshRetryTimer = undefined;
-          }
+          clearTimeout(initialRefreshRetryTimer);
+          initialRefreshRetryTimer = undefined;
           initialRefreshController.abort(new Error("Coach lifecycle closed."));
           let failure: { readonly error: unknown } | undefined;
           const attempt = async (operation: () => void | Promise<void>): Promise<void> => {
