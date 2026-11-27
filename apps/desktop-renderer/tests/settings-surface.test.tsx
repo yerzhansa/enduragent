@@ -2036,6 +2036,12 @@ describe("credential deletion", () => {
     );
     expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
+    const trainingRow = document.querySelector<HTMLElement>('[data-setup-row="training"]');
+    expect(trainingRow, "kept rides should leave the training row ready").toHaveAttribute(
+      "data-state",
+      "ready",
+    );
+    expect(trainingRow).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
     expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
       status: "deleted",
       focus: null,
@@ -2587,7 +2593,11 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Connect Intervals.icu" })).toHaveFocus();
     });
-    expect(trainingRow()).toHaveAttribute("data-state", "pending");
+    expect(trainingRow()).toHaveAttribute("data-state", "ready");
+    expect(trainingRow()).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
+    expect(
+      within(trainingRow()).getByRole("button", { name: "Connect Intervals.icu" }),
+    ).toBeEnabled();
     expect(within(trainingRow()).queryByRole("button", { name: "Sign in again" })).toBeNull();
     expect(
       within(trainingRow()).queryByRole("button", { name: "Disconnect Intervals.icu" }),
@@ -2641,8 +2651,9 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
       setupRefresh.resolve();
     });
     await waitFor(() => {
-      expect(trainingRow()).toHaveAttribute("data-state", "pending");
+      expect(trainingRow()).toHaveAttribute("data-state", "ready");
     });
+    expect(trainingRow()).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
     expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
     expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
   });

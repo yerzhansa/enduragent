@@ -62,10 +62,9 @@ interface ChatDesktopFixtures {
   readonly chatDesktop: ChatDesktop;
 }
 
-const readySetupStatus = {
-  schemaVersion: 1,
-  durableTrainingData: true,
-} as const;
+interface ChatDesktopOptions {
+  readonly durableTrainingData: boolean;
+}
 
 const emptyAttachmentComposer = {
   schemaVersion: 1,
@@ -184,8 +183,13 @@ interface RetryRequiredClaim {
   readonly status: "retry-required";
 }
 
-function createScript(turn: ScriptedTurn, streamRequests: string[]): DesktopFixtureScript {
+function createScript(
+  turn: ScriptedTurn,
+  options: ChatDesktopOptions,
+  streamRequests: string[],
+): DesktopFixtureScript {
   let hasSession = false;
+  let durableTrainingData = options.durableTrainingData;
   let queueRevision = 0;
   let queueItems: QueuedMessage[] = [];
   let retryRequired: RetryRequiredClaim | undefined;
@@ -250,7 +254,9 @@ function createScript(turn: ScriptedTurn, streamRequests: string[]): DesktopFixt
           wellness: {},
         });
       }
-      if (request.method === "getSetupStatus") return response(readySetupStatus);
+      if (request.method === "getSetupStatus") {
+        return response({ schemaVersion: 1, durableTrainingData });
+      }
       if (request.method === "getLanguagePreference") {
         return response({ value: null });
       }
@@ -337,6 +343,7 @@ function createScript(turn: ScriptedTurn, streamRequests: string[]): DesktopFixt
         });
       }
       if (request.method === "importFiles") {
+        durableTrainingData = true;
         return response({
           schemaVersion: 2,
           files: { total: 1, imported: 1, quarantined: 0 },
@@ -398,8 +405,9 @@ function capturedLog(fixture: RunningDesktopFixture, messages: readonly string[]
   ].join("\n\n");
 }
 
-export const test = base.extend<ChatDesktopFixtures>({
-  chatDesktop: async ({ playwright }, use, testInfo) => {
+export const test = base.extend<ChatDesktopFixtures & ChatDesktopOptions>({
+  durableTrainingData: [true, { option: true }],
+  chatDesktop: async ({ playwright, durableTrainingData }, use, testInfo) => {
     const turn = createScriptedTurn();
     const streamRequests: string[] = [];
     const directory = await mkdtemp(join(tmpdir(), "chat-desktop-e2e-"));
@@ -410,7 +418,7 @@ export const test = base.extend<ChatDesktopFixtures>({
     const messages: string[] = [];
     try {
       fixture = await launchDesktopFixture({
-        script: createScript(turn, streamRequests),
+        script: createScript(turn, { durableTrainingData }, streamRequests),
         token,
         width: 1180,
         height: 820,
@@ -433,9 +441,13 @@ export const test = base.extend<ChatDesktopFixtures>({
       await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       const shell = page.locator("[data-shell]");
       await expect(shell).toHaveAttribute("data-onboarding", "settled", { timeout: 30_000 });
-      await expect(shell).toHaveAttribute("data-shell", "app");
-      await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible();
-      await expect(page.getByRole("combobox", { name: "Message your coach" })).toBeEnabled();
+      if (durableTrainingData) {
+        await expect(shell).toHaveAttribute("data-shell", "app");
+        await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible();
+        await expect(page.getByRole("combobox", { name: "Message your coach" })).toBeEnabled();
+      } else {
+        await expect(shell).toHaveAttribute("data-shell", "gate");
+      }
       await use({
         page,
         coach: turn.coach,

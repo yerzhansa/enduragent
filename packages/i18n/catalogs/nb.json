@@ -817,7 +817,8 @@
         "connected": "Tilkoblet · der turene dine kommer fra",
         "connectedAs": "Tilkoblet som {{name}} · der turene dine kommer fra",
         "missing": "Koble til eller importer turfiler.",
-        "rejected": "{{intervals}} godtar ikke lenger påloggingen. Logg på igjen for å fortsette synkroniseringen."
+        "rejected": "{{intervals}} godtar ikke lenger påloggingen. Logg på igjen for å fortsette synkroniseringen.",
+        "savedRides": "Turer lagret på {{computer}} · koble til for å synkronisere nye"
       },
       "tooltip": {
         "body": "Et gratis treningsnettsted som allerede har turene dine. {{product}} leser dem derfra i stedet for å kommunisere direkte med leverandøren av klokken eller sykkelcomputeren din. Du trenger en gratis konto med klokken eller sykkelcomputeren tilkoblet. Deretter logger du på her.",

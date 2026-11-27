@@ -817,7 +817,8 @@
         "connected": "Ansluten · källan till dina cykelturer",
         "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
         "missing": "Anslut eller importera filer från cykelturer.",
-        "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera."
+        "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera.",
+        "savedRides": "Cykelturer sparade på {{computer}} · anslut för att synkronisera nya"
       },
       "tooltip": {
         "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Logga sedan in här.",

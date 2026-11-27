@@ -823,7 +823,8 @@
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów.",
-        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować."
+        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować.",
+        "savedRides": "Przejazdy zapisane na {{computer}} · połącz, aby synchronizować nowe"
       },
       "tooltip": {
         "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie zaloguj się tutaj.",

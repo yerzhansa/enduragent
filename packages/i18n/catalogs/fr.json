@@ -817,7 +817,8 @@
         "connected": "Connecté · source de tes sorties",
         "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
         "missing": "Connecte un compte ou importe des fichiers de sortie.",
-        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation."
+        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation.",
+        "savedRides": "Sorties enregistrées sur {{computer}} · connecte-toi pour synchroniser les nouvelles"
       },
       "tooltip": {
         "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu te connectes ici.",

@@ -817,7 +817,8 @@
         "connected": "Collegato · la fonte delle tue uscite",
         "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
         "missing": "Collega o importa i file delle uscite.",
-        "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione."
+        "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione.",
+        "savedRides": "Uscite salvate su {{computer}} · collega per sincronizzare le nuove"
       },
       "tooltip": {
         "body": "Un sito gratuito per l’allenamento che contiene già le tue uscite. {{product}} le legge da lì anziché comunicare direttamente con il fornitore del tuo orologio o ciclocomputer. Ti serve un account gratuito a cui collegare l’orologio o il ciclocomputer, poi accedi qui.",

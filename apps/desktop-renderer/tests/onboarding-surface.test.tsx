@@ -1216,7 +1216,7 @@ describe("mounted onboarding", () => {
     expect(document.body.textContent).toContain(
       "Local library import: 1 ride file imported. 1 ride file quarantined. Coaching access to activities and streams is available.",
     );
-    expect(rowState("training")).toBe("pending");
+    expect(rowState("training")).toBe("ready");
     expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
 
     act(() => {

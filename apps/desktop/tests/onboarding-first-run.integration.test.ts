@@ -266,6 +266,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       fixtures.push(fixture);
       const observed = await fixture.evaluate<{
         readonly trainingSubtitle: string;
+        readonly trainingRowState: string | null;
         readonly readiness: string;
         readonly startEnabled: boolean;
         readonly completionStored: boolean;
@@ -290,6 +291,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const trainingSubtitle = document.querySelector('[data-setup-row="training"] [data-setup-row-subtitle]')?.textContent ?? "";
+      const trainingRowState = document.querySelector('[data-setup-row="training"]')?.getAttribute("data-state") ?? null;
       const page = document.querySelector(setupSelector);
       const present = page !== null;
       const chatSetup = document.querySelector(setupSelector) !== null;
@@ -394,6 +396,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       const syncChip = document.querySelector(".sync-chip");
       return {
         trainingSubtitle,
+        trainingRowState,
         readiness,
         startEnabled,
         completionStored: localStorage.getItem("enduragent.desktop.onboarding") === '{"version":1,"completed":true}',
@@ -417,7 +420,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       };
     `);
       expect(observed).toEqual({
-        trainingSubtitle: "Connect or import ride files.",
+        trainingSubtitle: "Rides saved on this Mac · connect to sync new ones",
+        trainingRowState: "ready",
         readiness: "2 of 2 required ready",
         startEnabled: true,
         completionStored: true,
