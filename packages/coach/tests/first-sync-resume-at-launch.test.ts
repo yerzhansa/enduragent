@@ -26,8 +26,8 @@ const EMPTY_DROPPED = {
 const IN_PROGRESS_CURSOR = JSON.stringify({
   v: 1,
   cycle: 0,
-  window_start: "1997-12-08",
-  window_end: "1998-12-07",
+  window_start: "1998-01-01",
+  window_end: "1998-12-31",
   last_key: "synthetic-activity-0420",
   complete: false,
 });
@@ -35,8 +35,8 @@ const IN_PROGRESS_CURSOR = JSON.stringify({
 const COMPLETE_CURSOR = JSON.stringify({
   v: 1,
   cycle: 0,
-  window_start: "1997-12-08",
-  window_end: "1998-12-07",
+  window_start: "1998-01-01",
+  window_end: "1998-12-31",
   last_key: null,
   complete: true,
 });
