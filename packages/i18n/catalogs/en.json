@@ -1352,7 +1352,7 @@
       },
       "workout": {
         "ask": "Ask the coach to change it",
-        "askDraft": "Please change {{name}} on {{day}}:",
+        "askDraft": "Please change “{{name}}” on {{day}}:",
         "close": "Close",
         "export": "Export this day’s workouts",
         "move": "Move…",

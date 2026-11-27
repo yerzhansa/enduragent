@@ -271,3 +271,51 @@ describe("Ask the coach around a message the athlete sent", () => {
     test.dispose();
   });
 });
+
+describe("both Ask the coach buttons with a draft already typed", () => {
+  it("adds the Calendar card's question, then Activity review's, after the draft, and sends nothing", async () => {
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "Keep my question");
+    act(() => {
+      store.getState().setActiveView("calendar");
+      store.getState().calendarWorkoutActions?.open(`${"0".repeat(25)}P`, `${"0".repeat(24)}11`);
+      store
+        .getState()
+        .calendarWorkoutActions?.askCoach("Please change “Long endurance” on Wed 14 Jan:");
+    });
+    expect(store.getState().activeView).toBe("chat");
+    await waitFor(
+      () =>
+        expect(composer()).toHaveValue(
+          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:",
+        ),
+      SETTLED,
+    );
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() =>
+      store
+        .getState()
+        .activityReviewActions?.askCoach("What do you make of my ride “Road ride” on Thu 20 Aug?"),
+    );
+    expect(store.getState().activeView).toBe("chat");
+    await waitFor(
+      () =>
+        expect(composer()).toHaveValue(
+          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
+        ),
+      SETTLED,
+    );
+    await vi.waitFor(
+      () =>
+        expect(store.getState().chat.attachments?.draft?.text).toBe(
+          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
+        ),
+      SETTLED,
+    );
+    expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
+    test.dispose();
+  });
+});

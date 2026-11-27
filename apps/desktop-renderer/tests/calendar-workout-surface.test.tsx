@@ -68,7 +68,6 @@ function show(calendar = read()) {
   const prefillComposer = vi.fn();
   const openChangeInChat = vi.fn();
   const card = createWorkoutCardController({
-    composerEmpty: () => true,
     prefillComposer,
     openChangeInChat,
     publish: (next) => useEnduragentStore.getState().setCalendarWorkout(next),
@@ -270,7 +269,7 @@ describe("the workout card on the Calendar", () => {
     await user.click(gridCard(workoutId(1)));
     await user.click(screen.getByRole("button", { name: "Ask the coach to change it" }));
     expect(bound.prefillComposer).toHaveBeenCalledWith(
-      "Please change Long endurance on Wed 14 Jan:",
+      "Please change “Long endurance” on Wed 14 Jan:",
     );
     expect(bound.openChangeInChat).toHaveBeenCalledOnce();
     expect(bound.call).not.toHaveBeenCalled();
