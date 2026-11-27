@@ -379,4 +379,42 @@ describe("Plan calendar while the intervals.icu sign-in is rejected", () => {
       },
     ]);
   });
+
+  it("applies a race change previewed before the sign-in was rejected", async () => {
+    const refused = "intervals-oauth:fixture-calendar-unused-race-apply";
+    const accepted = "intervals-oauth:fixture-calendar-rejected-after-preview";
+    const race = {
+      id: 17,
+      name: "Autumn ride",
+      start_date_local: "1998-09-20T09:00:00",
+      category: "RACE_B",
+    };
+    const fixture = await planCalendarFixture({ refused, accepted }, { plannedWorkouts: [race] });
+    await expect(fixture.apply(accepted)).resolves.toMatchObject({ status: "applied" });
+    const preview = await fixture.operations["plan_change.preview"]({
+      commandId: "race-preview",
+      planId: fixture.planId,
+      expectedVersion: 1,
+      intent: {
+        kind: "supporting-event",
+        operation: "add",
+        name: "Autumn ride",
+        date: "1998-09-20",
+        role: "Training",
+        providerId: "17",
+      },
+    });
+    if (preview.status !== "previewed") throw new Error(`preview ${preview.status}`);
+    recordIntervalsCredentialResponse(accepted, 401);
+
+    await expect(
+      fixture.operations["plan_change.apply"]({
+        commandId: "race-apply",
+        planId: fixture.planId,
+        expectedVersion: 1,
+        changeId: preview.change.changeId,
+        decision: "apply",
+      }),
+    ).resolves.toMatchObject({ status: "applied" });
+  });
 });
