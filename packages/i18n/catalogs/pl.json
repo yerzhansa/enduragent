@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Zapytaj trenera o ten przejazd",
+      "askDraft": "Co sądzisz o moim przejeździe „{{name}}” z {{day}}?",
       "empty": "Brak przejazdów z ostatnich 120 dni. Przejazdy z intervals.icu pojawią się tutaj po synchronizacji.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Dopóki nie odpowiesz, ten przejazd nie liczy się do planu, a kalendarz pokazuje dzień ({{weekday}}) jako oczekujący, a nie wykonany lub pominięty.",
         "yes": "Tak, to ten"
       },
+      "note": {
+        "failed": "Nie udało się zapisać notatki. Spróbuj ponownie.",
+        "hint": "Twoja notatka trafia do trenera razem z tym przejazdem. Zapisanie jej nie powoduje napisania oceny od nowa, chyba że o to poprosisz.",
+        "placeholder": "Jakie były odczucia? Napisz trenerowi to, czego plik nie pokaże: sen, jedzenie, jak ciężko było.",
+        "save": "Zapisz notatkę",
+        "saved": "Zapisano notatkę.",
+        "saving": "Zapisywanie notatki…",
+        "title": "Twoja notatka"
+      },
       "refreshFailed": "Nie udało się odświeżyć przejazdów. Widzisz to, co odczytano wcześniej.",
       "retry": "Spróbuj ponownie",
       "showInCalendar": "Pokaż w kalendarzu",
@@ -73,7 +84,45 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · brak planu",
       "unavailable": "Nie udało się odczytać przejazdów. Spróbuj ponownie.",
-      "untitled": "Przejazd"
+      "untitled": "Przejazd",
+      "verdict": {
+        "afterAnswer": "Trener pisze ocenę po twojej odpowiedzi: jedna odpowiedź z użyciem twojego własnego modelu.",
+        "before": {
+          "extra": "Napisana przed oznaczeniem tego przejazdu jako dodatkowy",
+          "pending": "Napisana przed zmianą dopasowania tego przejazdu",
+          "workout": "Napisana przed dopasowaniem tego przejazdu do treningu {{name}}"
+        },
+        "failed": "Tym razem trener nie zdołał napisać oceny, więc nic nie zostało zapisane.",
+        "failedKeepsEarlier": "Tym razem trener nie zdołał napisać nowej oceny, więc zostaje poprzednia.",
+        "meta": "{{written}} · {{replies}} · zapisana",
+        "metaNoPlan": "Napisana o {{time}} · {{replies}}",
+        "metaNoPlanOn": "Napisana {{date}} o {{time}} · {{replies}}",
+        "noFile": "Ten przejazd ma tylko czas i dystans, bez mocy ani tętna z pliku, więc trener nie pisze dla niego oceny.",
+        "noModel": "Trener pisze ocenę z użyciem twojego własnego modelu, a żaden nie jest jeszcze skonfigurowany. Wybierz model w ustawieniach, a potem otwórz ten przejazd ponownie.",
+        "replies_one": "{{count}} odpowiedź trenera",
+        "replies_few": "{{count}} odpowiedzi trenera",
+        "replies_many": "{{count}} odpowiedzi trenera",
+        "replies_other": "{{count}} odpowiedzi trenera",
+        "title": "Ocena trenera",
+        "unavailable": "Nie udało się odczytać oceny trenera. Spróbuj ponownie.",
+        "writeAgain_one": "Napisz ponownie · {{count}} odpowiedź",
+        "writeAgain_few": "Napisz ponownie · {{count}} odpowiedzi",
+        "writeAgain_many": "Napisz ponownie · {{count}} odpowiedzi",
+        "writeAgain_other": "Napisz ponownie · {{count}} odpowiedzi",
+        "writing": "Trener pisze ocenę…",
+        "written": {
+          "asked": "Napisana o {{time}}, po ponownym pytaniu, na podstawie pliku przejazdu i twojego planu",
+          "askedNote": "Napisana o {{time}}, po ponownym pytaniu, na podstawie pliku przejazdu, twojego planu i twojej notatki",
+          "askedNoteOn": "Napisana {{date}} o {{time}}, po ponownym pytaniu, na podstawie pliku przejazdu, twojego planu i twojej notatki",
+          "askedOn": "Napisana {{date}} o {{time}}, po ponownym pytaniu, na podstawie pliku przejazdu i twojego planu",
+          "firstOpen": "Napisana o {{time}}, przy pierwszym otwarciu tego przejazdu, na podstawie pliku przejazdu i twojego planu",
+          "firstOpenOn": "Napisana {{date}} o {{time}}, przy pierwszym otwarciu tego przejazdu, na podstawie pliku przejazdu i twojego planu",
+          "matched": "Napisana o {{time}}, po wskazaniu, jakim treningiem był ten przejazd, na podstawie pliku przejazdu i twojego planu",
+          "matchedOn": "Napisana {{date}} o {{time}}, po wskazaniu, jakim treningiem był ten przejazd, na podstawie pliku przejazdu i twojego planu",
+          "opened": "Napisana o {{time}}, przy ponownym otwarciu tego przejazdu, na podstawie pliku przejazdu i twojego planu",
+          "openedOn": "Napisana {{date}} o {{time}}, przy ponownym otwarciu tego przejazdu, na podstawie pliku przejazdu i twojego planu"
+        }
+      }
     }
   },
   "common": {
@@ -1977,7 +2026,7 @@
       },
       "workout": {
         "ask": "Poproś trenera o zmianę",
-        "askDraft": "Zmień, proszę, {{name}} z dnia {{day}}:",
+        "askDraft": "Zmień, proszę, „{{name}}” z dnia {{day}}:",
         "close": "Zamknij",
         "export": "Eksportuj treningi z tego dnia",
         "move": "Przenieś…",

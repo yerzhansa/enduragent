@@ -35,7 +35,8 @@ Each rule is a TLA+ invariant with the same name. The test's walk checks it as a
 | `RemovedIsNeverMissed` | A workout removed by the athlete shows Missed. | `never counts Removed by you as Missed or as planned time` |
 | `OnlyConfirmedCounts` | An unconfirmed ride counts as done. | `does not count an unconfirmed ride` |
 | `RideOnTheDayIsSuggested` | A ride on the day a kept move set gets no "Is this it?". | `suggests a ride on the day a kept intervals.icu move set` |
-| `NoReplyWithoutAsking` | The coach spends a reply nobody asked for. | `never rewrites a kept text by itself`, `tries a failed text again only when the athlete opens it or asks` |
+| `NoReplyWithoutAsking` | The coach spends a reply nobody asked for. | `never rewrites a kept text by itself`, `tries a text the model failed again only when the athlete asks` |
+| `OpenAfterModelFailureSpendsNothing` | Opening a text the model failed to write spends another reply, instead of showing the failure and Write again. | `tries a text the model failed again only when the athlete asks`, `records whether the model failed or the write was interrupted` |
 | `NeverStuckWriting` (engine only) | A text left half-written when the app quit can never be written. | `recovers a text left writing when the app quit, on the next open` |
 | `NoTextBeforeTheMatch` | The coach writes before the athlete confirms the match. | `waits for Confirm or Not this one before writing` |
 | `KeptTextIsHonest` | A kept review describes a match that changed, and nothing says so. | `says which match a kept review was written for after the match changes` |
@@ -58,7 +59,7 @@ The walks are wider than the models in four places:
 - The icu walk has two days in the window and one in a later week. The athlete can move a workout in intervals.icu or drag it in the app, the coach can remove one, and intervals.icu can stop answering.
 - The End walk lets a day pass before the cleanup and lets the athlete edit again after the confirm.
 - The FTP walk keeps a planned test as evidence after Keep, as intervals.icu does.
-- The coach text walk lets the app quit mid-write.
+- The coach text walk lets the app quit mid-write while the page stays open, and checks `NeverStuckWriting` on top of the model's rules.
 
 ## Run the models
 
@@ -84,7 +85,7 @@ The icu model also has one variant per fix, with only that fix off, to show that
 | `icu/without-recheck` | `NeverUndoneByItself` |
 | `icu/without-staleSet` | `KeptEditReplacedOnlyWhenFlagged` |
 | `outcome/before` | `MissedIsTrue`, `RideOnTheDayIsSuggested` |
-| `text/before` | `KeptTextIsHonest` |
+| `text/before` | `KeptTextIsHonest`, `OpenAfterModelFailureSpendsNothing` |
 | `ftp/before` | `NeverOverwriteAnUnseenFtp`, `PlannedTestIsAnswered` |
 | `weeks/before` | `ThisWeekAndNextAreThere` |
 | `plan/before` | `TodayIsKept`, `NeverTwoPlansOnIntervals`, `YourChangesAreNotDeletedByItself` |

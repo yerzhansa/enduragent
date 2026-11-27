@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Spørg træneren om denne tur",
+      "askDraft": "Hvad synes du om min tur “{{name}}” fra {{day}}?",
       "empty": "Ingen ture fra de seneste 120 dage endnu. Ture fra intervals.icu vises her efter en synkronisering.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Indtil du svarer, tæller denne tur ikke med i træningsplanen, og kalenderen viser {{weekday}} som afventende i stedet for gennemført eller ikke gennemført.",
         "yes": "Ja, det er den"
       },
+      "note": {
+        "failed": "Noten kunne ikke gemmes. Prøv igen.",
+        "hint": "Din note sendes til træneren sammen med denne tur. Når du gemmer den, bliver vurderingen ikke skrevet om, medmindre du beder om det.",
+        "placeholder": "Hvordan føltes det? Fortæl træneren det, filen ikke kan: søvn, mad, hvor hårdt det føltes.",
+        "save": "Gem note",
+        "saved": "Noten er gemt.",
+        "saving": "Gemmer din note…",
+        "title": "Din note"
+      },
       "refreshFailed": "Turene kunne ikke opdateres. Her vises det, der blev læst før.",
       "retry": "Prøv igen",
       "showInCalendar": "Vis i kalenderen",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · ingen træningsplan",
       "unavailable": "Turene kunne ikke læses. Prøv igen.",
-      "untitled": "Tur"
+      "untitled": "Tur",
+      "verdict": {
+        "afterAnswer": "Træneren skriver sin vurdering, når du har svaret: ét svar med din egen model.",
+        "before": {
+          "extra": "Skrevet, før du markerede denne tur som ekstra",
+          "pending": "Skrevet, før koblingen for denne tur blev ændret",
+          "workout": "Skrevet, før du koblede denne tur til {{name}}"
+        },
+        "failed": "Træneren kunne ikke skrive sin vurdering denne gang, så intet blev gemt.",
+        "failedKeepsEarlier": "Træneren kunne ikke skrive en ny vurdering denne gang, så den tidligere bliver stående.",
+        "meta": "{{written}} · {{replies}} · gemt",
+        "metaNoPlan": "Skrevet kl. {{time}} · {{replies}}",
+        "metaNoPlanOn": "Skrevet {{date}} kl. {{time}} · {{replies}}",
+        "noFile": "Denne tur har kun en tid og en distance, uden effekt eller puls fra en fil, så træneren skriver ingen vurdering af den.",
+        "noModel": "Træneren skriver sin vurdering med din egen model, og der er ikke sat nogen op endnu. Vælg en i Indstillinger, og åbn så denne tur igen.",
+        "replies_one": "{{count}} svar fra træneren",
+        "replies_other": "{{count}} svar fra træneren",
+        "title": "Trænerens vurdering",
+        "unavailable": "Trænerens vurdering kunne ikke læses. Prøv igen.",
+        "writeAgain_one": "Skriv igen · {{count}} svar",
+        "writeAgain_other": "Skriv igen · {{count}} svar",
+        "writing": "Skriver trænerens vurdering…",
+        "written": {
+          "asked": "Skrevet kl. {{time}}, da du spurgte igen, ud fra turens fil og din træningsplan",
+          "askedNote": "Skrevet kl. {{time}}, da du spurgte igen, ud fra turens fil, din træningsplan og din note",
+          "askedNoteOn": "Skrevet {{date}} kl. {{time}}, da du spurgte igen, ud fra turens fil, din træningsplan og din note",
+          "askedOn": "Skrevet {{date}} kl. {{time}}, da du spurgte igen, ud fra turens fil og din træningsplan",
+          "firstOpen": "Skrevet kl. {{time}}, da du åbnede denne tur første gang, ud fra turens fil og din træningsplan",
+          "firstOpenOn": "Skrevet {{date}} kl. {{time}}, da du åbnede denne tur første gang, ud fra turens fil og din træningsplan",
+          "matched": "Skrevet kl. {{time}}, da du svarede, hvilken træning denne tur var, ud fra turens fil og din træningsplan",
+          "matchedOn": "Skrevet {{date}} kl. {{time}}, da du svarede, hvilken træning denne tur var, ud fra turens fil og din træningsplan",
+          "opened": "Skrevet kl. {{time}}, da du åbnede denne tur igen, ud fra turens fil og din træningsplan",
+          "openedOn": "Skrevet {{date}} kl. {{time}}, da du åbnede denne tur igen, ud fra turens fil og din træningsplan"
+        }
+      }
     }
   },
   "common": {
@@ -1893,7 +1938,7 @@
       },
       "workout": {
         "ask": "Bed træneren om at ændre den",
-        "askDraft": "Ændr venligst {{name}} {{day}}:",
+        "askDraft": "Ændr venligst “{{name}}” {{day}}:",
         "close": "Luk",
         "export": "Eksportér dagens træninger",
         "move": "Flyt…",

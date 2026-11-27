@@ -30,6 +30,7 @@ export function ActivityReviewView(): ReactElement {
   const text = useReviewText();
   const state = useEnduragentStore((store) => store.activityReview);
   const actions = useEnduragentStore((store) => store.activityReviewActions);
+  const review = useEnduragentStore((store) => store.rideReview);
   const ride = state.kind === "ready" ? selectedRide(state.read, state.selectedId) : null;
   const facts =
     ride === null ? null : { day: text.weekdayDayMonth(ride.dateKey), name: text.rideName(ride) };
@@ -45,14 +46,25 @@ export function ActivityReviewView(): ReactElement {
       {...(subtitle === undefined ? {} : { subtitle })}
       busy={state.kind === "loading" || (state.kind === "ready" && state.refresh === "refreshing")}
       action={
-        ride === null ? undefined : (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => actions?.showInCalendar(ride.dateKey)}
-          >
-            {say("activity.review.showInCalendar")}
-          </Button>
+        ride === null || facts === null ? undefined : (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => actions?.showInCalendar(ride.dateKey)}
+            >
+              {say("activity.review.showInCalendar")}
+            </Button>
+            {ride.match.kind === "suggested" ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => actions?.askCoach(say("activity.review.askDraft", facts))}
+              >
+                {say("activity.review.ask")}
+              </Button>
+            )}
+          </div>
         )
       }
       className="activity-review-view"
@@ -88,6 +100,7 @@ export function ActivityReviewView(): ReactElement {
               ride={ride}
               choices={state.choices}
               saving={state.saving}
+              review={review}
               actions={actions}
             />
           </div>

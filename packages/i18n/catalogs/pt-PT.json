@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Perguntar ao treinador sobre esta volta",
+      "askDraft": "O que achas da minha volta «{{name}}» de {{day}}?",
       "empty": "Ainda não há voltas dos últimos 120 dias. As voltas do intervals.icu aparecem aqui depois de uma sincronização.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Até responderes, esta volta não conta para o plano e o calendário mostra {{weekday}} como pendente, não como feito nem como não realizado.",
         "yes": "Sim, é"
       },
+      "note": {
+        "failed": "Não foi possível guardar a nota. Tenta novamente.",
+        "hint": "A tua nota segue para o treinador com esta volta. Guardá-la não reescreve a avaliação, a menos que o peças.",
+        "placeholder": "Como te sentiste? Diz ao treinador o que o ficheiro não consegue: sono, alimentação, quão dura foi.",
+        "save": "Guardar nota",
+        "saved": "Nota guardada.",
+        "saving": "A guardar a tua nota…",
+        "title": "A tua nota"
+      },
       "refreshFailed": "Não foi possível atualizar as voltas. Isto mostra o que foi lido antes.",
       "retry": "Tentar novamente",
       "showInCalendar": "Mostrar no calendário",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · sem plano",
       "unavailable": "Não foi possível ler as voltas. Tenta novamente.",
-      "untitled": "Volta"
+      "untitled": "Volta",
+      "verdict": {
+        "afterAnswer": "O treinador escreve a avaliação depois de responderes: uma resposta com o teu próprio modelo.",
+        "before": {
+          "extra": "Escrita antes de marcares esta volta como extra",
+          "pending": "Escrita antes de a associação desta volta mudar",
+          "workout": "Escrita antes de associares esta volta a {{name}}"
+        },
+        "failed": "O treinador não conseguiu escrever a avaliação desta vez, por isso nada foi guardado.",
+        "failedKeepsEarlier": "O treinador não conseguiu escrever uma nova avaliação desta vez, por isso a anterior mantém-se.",
+        "meta": "{{written}} · {{replies}} · guardada",
+        "metaNoPlan": "Escrita às {{time}} · {{replies}}",
+        "metaNoPlanOn": "Escrita a {{date}}, às {{time}} · {{replies}}",
+        "noFile": "Esta volta só tem um tempo e uma distância, sem potência nem frequência cardíaca de um ficheiro, por isso o treinador não escreve uma avaliação para ela.",
+        "noModel": "O treinador escreve a avaliação com o teu próprio modelo e ainda não configuraste nenhum. Escolhe um nas Definições e abre novamente esta volta.",
+        "replies_one": "{{count}} resposta do treinador",
+        "replies_other": "{{count}} respostas do treinador",
+        "title": "Avaliação do treinador",
+        "unavailable": "Não foi possível ler a avaliação do treinador. Tenta novamente.",
+        "writeAgain_one": "Escrever de novo · {{count}} resposta",
+        "writeAgain_other": "Escrever de novo · {{count}} respostas",
+        "writing": "A escrever a avaliação do treinador…",
+        "written": {
+          "asked": "Escrita às {{time}}, quando voltaste a perguntar, com base no ficheiro da volta e no teu plano",
+          "askedNote": "Escrita às {{time}}, quando voltaste a perguntar, com base no ficheiro da volta, no teu plano e na tua nota",
+          "askedNoteOn": "Escrita a {{date}}, às {{time}}, quando voltaste a perguntar, com base no ficheiro da volta, no teu plano e na tua nota",
+          "askedOn": "Escrita a {{date}}, às {{time}}, quando voltaste a perguntar, com base no ficheiro da volta e no teu plano",
+          "firstOpen": "Escrita às {{time}}, quando abriste esta volta pela primeira vez, com base no ficheiro da volta e no teu plano",
+          "firstOpenOn": "Escrita a {{date}}, às {{time}}, quando abriste esta volta pela primeira vez, com base no ficheiro da volta e no teu plano",
+          "matched": "Escrita às {{time}}, quando indicaste que treino era esta volta, com base no ficheiro da volta e no teu plano",
+          "matchedOn": "Escrita a {{date}}, às {{time}}, quando indicaste que treino era esta volta, com base no ficheiro da volta e no teu plano",
+          "opened": "Escrita às {{time}}, quando abriste novamente esta volta, com base no ficheiro da volta e no teu plano",
+          "openedOn": "Escrita a {{date}}, às {{time}}, quando abriste novamente esta volta, com base no ficheiro da volta e no teu plano"
+        }
+      }
     }
   },
   "archive": {
@@ -1893,7 +1938,7 @@
       },
       "workout": {
         "ask": "Pedir ao treinador para o alterar",
-        "askDraft": "Por favor, altera {{name}} de {{day}}:",
+        "askDraft": "Por favor, altera «{{name}}» de {{day}}:",
         "close": "Fechar",
         "export": "Exportar os treinos deste dia",
         "move": "Mover…",

@@ -43,6 +43,9 @@ import {
 } from "../../../../packages/coach/src/plan-creation-operations.js";
 import { createPlanChangeOperations } from "../../../../packages/coach/src/plan-change-operations.js";
 import { createPlanChangeEventSourceReader } from "../../../../packages/coach/src/plan-change-event-source-reader.js";
+import type { RideVerdictModel } from "../../../../packages/coach/src/plan-calendar-review.js";
+import type { CoachTextFacts } from "@enduragent/engine/coach-text-writer";
+import { canonicalJson } from "@enduragent/kernel/archive";
 import type { DesktopFixtureScript } from "./desktop-fixture.js";
 import { createPlanQaFixtureScript } from "./plan-qa-live.js";
 import {
@@ -150,6 +153,15 @@ export class PlanCreationBackend {
     readonly result: PlanChangeApplyResult;
   }[] = [];
   readonly planListRequests: ScriptRequest[] = [];
+  readonly verdictRequests: CoachTextFacts[] = [];
+  readonly verdictReplies: string[] = [];
+  private readonly verdicts: RideVerdictModel = {
+    available: () => true,
+    writeCoachText: async (facts) => {
+      this.verdictRequests.push(facts);
+      return this.verdictReplies.shift() ?? "Steady from start to finish, as planned.";
+    },
+  };
   private store: (SqlStore & MigratorStore) | undefined;
   private repository: PlanCreationRepository | undefined;
   private host: PlanCreationHost | undefined;
@@ -556,6 +568,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         await this.calendarDrain?.idle();
       },
       calendar: { mirror: this.options.calendar?.mirror ?? NO_CALENDAR },
+      coachText: this.verdicts,
       identity: {
         deviceId: async () => "fixture-device",
         newUlid: () => `${++this.sequence}`.padStart(26, "0"),
@@ -1141,6 +1154,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
     readonly name: string;
     readonly movingS: number;
     readonly distanceM: number;
+    readonly averageWatts?: number;
     readonly match?: {
       readonly planId: string;
       readonly planWorkoutId: string;
@@ -1171,6 +1185,50 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
         ride.distanceM,
       ],
     );
+    if (ride.averageWatts !== undefined) {
+      const artifact = `${ride.key.slice(0, 63)}f`;
+      const external = `i${ride.key.slice(0, 6)}${ride.dateKey}`;
+      await store.run(
+        `INSERT INTO source_artifact(artifact_key,source,lane,external_id,artifact_kind,
+          archive_address,archive_rel_path,archive_epoch_s) VALUES(?,?,?,?,?,?,?,?)`,
+        [
+          artifact,
+          "intervals-icu",
+          "activities",
+          external,
+          "snapshot",
+          "d".repeat(64),
+          `1998/${artifact}.json.gz`,
+          startUtc / 1000,
+        ],
+      );
+      await store.run(
+        `INSERT INTO source_record(id,workout_key,session_key,source,external_id,raw_sha256,
+          quality_rank,payload_json,artifact_key) VALUES(?,?,?,?,?,?,?,?,?)`,
+        [
+          `${ride.key.slice(0, 63)}e`,
+          ride.key,
+          ride.key,
+          "intervals-icu",
+          external,
+          "c".repeat(64),
+          1,
+          canonicalJson({
+            activity: {
+              id: external,
+              name: ride.name,
+              average_watts: ride.averageWatts,
+              start_date_local: `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T08:00:00`,
+              type: "Ride",
+            },
+            concerns: {},
+            dedup: {},
+            schema_version: 1,
+          }),
+          artifact,
+        ],
+      );
+    }
     if (ride.match === undefined) return;
     const decided = ride.match.decision === "confirmed" ? this.instant : null;
     const stored = await createPlanWorkoutMatchRepository(store).observe({

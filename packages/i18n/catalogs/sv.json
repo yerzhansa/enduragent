@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Fråga tränaren om den här cykelturen",
+      "askDraft": "Vad tycker du om min cykeltur ”{{name}}” den {{day}}?",
       "empty": "Inga cykelturer från de senaste 120 dagarna än. Cykelturer från intervals.icu visas här efter en synkronisering.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Tills du svarar räknas den här cykelturen inte in i planen, och kalendern visar {{weekday}} som väntande, inte som genomfört eller missat.",
         "yes": "Ja, det är det"
       },
+      "note": {
+        "failed": "Anteckningen kunde inte sparas. Försök igen.",
+        "hint": "Din anteckning skickas till tränaren tillsammans med den här cykelturen. Att spara den skriver inte om bedömningen, om du inte ber om det.",
+        "placeholder": "Hur kändes det? Berätta för tränaren det som filen inte kan: sömn, mat, hur tungt det kändes.",
+        "save": "Spara anteckning",
+        "saved": "Anteckningen har sparats.",
+        "saving": "Sparar din anteckning…",
+        "title": "Din anteckning"
+      },
       "refreshFailed": "Cykelturerna kunde inte uppdateras. Det här visar det som lästes in tidigare.",
       "retry": "Försök igen",
       "showInCalendar": "Visa i kalendern",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · ingen plan",
       "unavailable": "Cykelturerna kunde inte läsas in. Försök igen.",
-      "untitled": "Cykeltur"
+      "untitled": "Cykeltur",
+      "verdict": {
+        "afterAnswer": "Tränaren skriver sin bedömning när du har svarat: ett svar via din egen modell.",
+        "before": {
+          "extra": "Skriven innan du markerade den här cykelturen som extra",
+          "pending": "Skriven innan kopplingen för den här cykelturen ändrades",
+          "workout": "Skriven innan du kopplade den här cykelturen till {{name}}"
+        },
+        "failed": "Tränaren kunde inte skriva sin bedömning den här gången, så inget sparades.",
+        "failedKeepsEarlier": "Tränaren kunde inte skriva en ny bedömning den här gången, så den tidigare ligger kvar.",
+        "meta": "{{written}} · {{replies}} · sparad",
+        "metaNoPlan": "Skriven kl. {{time}} · {{replies}}",
+        "metaNoPlanOn": "Skriven {{date}} kl. {{time}} · {{replies}}",
+        "noFile": "Den här cykelturen har bara en tid och en distans, utan effekt eller puls från en fil, så tränaren skriver ingen bedömning av den.",
+        "noModel": "Tränaren skriver sin bedömning via din egen modell, och ingen är konfigurerad än. Välj en i Inställningar och öppna sedan den här cykelturen igen.",
+        "replies_one": "{{count}} svar från tränaren",
+        "replies_other": "{{count}} svar från tränaren",
+        "title": "Tränarens bedömning",
+        "unavailable": "Tränarens bedömning kunde inte läsas. Försök igen.",
+        "writeAgain_one": "Skriv igen · {{count}} svar",
+        "writeAgain_other": "Skriv igen · {{count}} svar",
+        "writing": "Skriver tränarens bedömning…",
+        "written": {
+          "asked": "Skriven kl. {{time}}, när du frågade igen, utifrån cykelturens fil och din plan",
+          "askedNote": "Skriven kl. {{time}}, när du frågade igen, utifrån cykelturens fil, din plan och din anteckning",
+          "askedNoteOn": "Skriven {{date}} kl. {{time}}, när du frågade igen, utifrån cykelturens fil, din plan och din anteckning",
+          "askedOn": "Skriven {{date}} kl. {{time}}, när du frågade igen, utifrån cykelturens fil och din plan",
+          "firstOpen": "Skriven kl. {{time}}, när du öppnade den här cykelturen första gången, utifrån cykelturens fil och din plan",
+          "firstOpenOn": "Skriven {{date}} kl. {{time}}, när du öppnade den här cykelturen första gången, utifrån cykelturens fil och din plan",
+          "matched": "Skriven kl. {{time}}, när du svarade vilket träningspass cykelturen var, utifrån cykelturens fil och din plan",
+          "matchedOn": "Skriven {{date}} kl. {{time}}, när du svarade vilket träningspass cykelturen var, utifrån cykelturens fil och din plan",
+          "opened": "Skriven kl. {{time}}, när du öppnade den här cykelturen igen, utifrån cykelturens fil och din plan",
+          "openedOn": "Skriven {{date}} kl. {{time}}, när du öppnade den här cykelturen igen, utifrån cykelturens fil och din plan"
+        }
+      }
     }
   },
   "common": {
@@ -2260,7 +2305,7 @@
       },
       "workout": {
         "ask": "Be tränaren att ändra det",
-        "askDraft": "Ändra {{name}} på {{day}}:",
+        "askDraft": "Ändra ”{{name}}” på {{day}}:",
         "close": "Stäng",
         "export": "Exportera dagens träningspass",
         "move": "Flytta…",

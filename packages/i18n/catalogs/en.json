@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Ask the coach about this ride",
+      "askDraft": "What do you make of my ride “{{name}}” on {{day}}?",
       "empty": "No rides from the last 120 days yet. Rides from intervals.icu show up here after a sync.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Until you answer, this ride does not count toward the Plan, and the calendar shows {{weekday}} as waiting, not done or missed.",
         "yes": "Yes, it is"
       },
+      "note": {
+        "failed": "The note could not be saved. Try again.",
+        "hint": "Your note goes to the coach with this ride. Saving it does not rewrite the verdict unless you ask.",
+        "placeholder": "How did it feel? Tell the coach what the file cannot: sleep, food, how hard it felt.",
+        "save": "Save note",
+        "saved": "Note saved.",
+        "saving": "Saving your note…",
+        "title": "Your note"
+      },
       "refreshFailed": "The rides could not be refreshed. This shows what was read before.",
       "retry": "Retry",
       "showInCalendar": "Show in calendar",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · no Plan",
       "unavailable": "The rides could not be read. Try again.",
-      "untitled": "Ride"
+      "untitled": "Ride",
+      "verdict": {
+        "afterAnswer": "The coach writes its verdict after you answer: one reply on your own model.",
+        "before": {
+          "extra": "Written before you matched this ride to Extra",
+          "pending": "Written before this ride’s match changed",
+          "workout": "Written before you matched this ride to {{name}}"
+        },
+        "failed": "The coach could not write its verdict this time, so nothing was kept.",
+        "failedKeepsEarlier": "The coach could not write a new verdict this time, so the earlier one stays.",
+        "meta": "{{written}} · {{replies}} · kept",
+        "metaNoPlan": "Written at {{time}} · {{replies}}",
+        "metaNoPlanOn": "Written on {{date}} at {{time}} · {{replies}}",
+        "noFile": "This ride has only a time and a distance, with no power or heart rate from a file, so the coach writes no verdict for it.",
+        "noModel": "The coach writes its verdict on your own model, and none is set up yet. Choose one in Settings, then open this ride again.",
+        "replies_one": "{{count}} coach reply",
+        "replies_other": "{{count}} coach replies",
+        "title": "Coach’s verdict",
+        "unavailable": "The coach’s verdict could not be read. Try again.",
+        "writeAgain_one": "Write again · {{count}} reply",
+        "writeAgain_other": "Write again · {{count}} replies",
+        "writing": "Writing the coach’s verdict…",
+        "written": {
+          "asked": "Written at {{time}}, when you asked again, from its file and your Plan",
+          "askedNote": "Written at {{time}}, when you asked again, from its file, your Plan and your note",
+          "askedNoteOn": "Written on {{date}} at {{time}}, when you asked again, from its file, your Plan and your note",
+          "askedOn": "Written on {{date}} at {{time}}, when you asked again, from its file and your Plan",
+          "firstOpen": "Written at {{time}}, when you first opened this ride, from its file and your Plan",
+          "firstOpenOn": "Written on {{date}} at {{time}}, when you first opened this ride, from its file and your Plan",
+          "matched": "Written at {{time}}, when you answered which workout this ride was, from its file and your Plan",
+          "matchedOn": "Written on {{date}} at {{time}}, when you answered which workout this ride was, from its file and your Plan",
+          "opened": "Written at {{time}}, when you opened this ride again, from its file and your Plan",
+          "openedOn": "Written on {{date}} at {{time}}, when you opened this ride again, from its file and your Plan"
+        }
+      }
     }
   },
   "archive": {
@@ -1307,7 +1352,7 @@
       },
       "workout": {
         "ask": "Ask the coach to change it",
-        "askDraft": "Please change {{name}} on {{day}}:",
+        "askDraft": "Please change “{{name}}” on {{day}}:",
         "close": "Close",
         "export": "Export this day’s workouts",
         "move": "Move…",

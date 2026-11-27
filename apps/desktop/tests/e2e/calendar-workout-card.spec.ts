@@ -314,7 +314,7 @@ test.describe("The workout card", () => {
       await card.getByRole("button", { name: "Ask the coach to change it", exact: true }).click();
       const composer = page.locator("#message");
       await expect(composer).toBeVisible();
-      await expect(composer).toHaveValue(new RegExp(`^Please change ${workoutName} on `, "u"));
+      await expect(composer).toHaveValue(new RegExp(`^Please change “${workoutName}” on `, "u"));
       await snap(scenario, "workout-card-ask-light");
       expect(scenario.backend.chatSubmissions, "asking the coach sent a message").toBe(0);
       expect(previews(), "asking the coach asked for a Plan change").toBe(previewsBefore);

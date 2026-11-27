@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "向教練詢問這次騎乘",
+      "askDraft": "你覺得我{{day}}的騎乘「{{name}}」怎麼樣？",
       "empty": "最近 120 天內還沒有騎乘。同步後，intervals.icu 中的騎乘會顯示在這裡。",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "在你回答之前，此騎乘不計入計畫，行事曆會將{{weekday}}顯示為等待中，而不是已完成或未完成。",
         "yes": "是的"
       },
+      "note": {
+        "failed": "無法儲存備註。請重試。",
+        "hint": "備註會隨此騎乘一併傳送給教練。儲存備註不會重寫點評，除非你提出要求。",
+        "placeholder": "感覺如何？告訴教練檔案無法呈現的資訊：睡眠、飲食、主觀感受到的難度。",
+        "save": "儲存備註",
+        "saved": "備註已儲存。",
+        "saving": "正在儲存備註…",
+        "title": "備註"
+      },
       "refreshFailed": "無法重新整理騎乘。這裡顯示的是之前讀取的內容。",
       "retry": "重試",
       "showInCalendar": "在行事曆中顯示",
@@ -73,7 +84,39 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · 無計畫",
       "unavailable": "無法讀取騎乘。請重試。",
-      "untitled": "騎乘"
+      "untitled": "騎乘",
+      "verdict": {
+        "afterAnswer": "你回答後，教練會撰寫點評：使用你自己的模型回覆一次。",
+        "before": {
+          "extra": "撰寫於你將此騎乘標記為額外之前",
+          "pending": "撰寫於此騎乘的對應變更之前",
+          "workout": "撰寫於你將此騎乘對應到{{name}}之前"
+        },
+        "failed": "教練這次未能寫出點評，因此未儲存任何內容。",
+        "failedKeepsEarlier": "教練這次未能寫出新的點評，因此保留之前的點評。",
+        "meta": "{{written}} · {{replies}} · 已儲存",
+        "metaNoPlan": "撰寫於 {{time}} · {{replies}}",
+        "metaNoPlanOn": "撰寫於 {{date}} {{time}} · {{replies}}",
+        "noFile": "此騎乘只有時間和距離，沒有來自檔案的功率或心率，因此教練不會為其撰寫點評。",
+        "noModel": "教練使用你自己的模型撰寫點評，但尚未設定模型。請在設定中選擇一個，然後重新開啟此騎乘。",
+        "replies_other": "教練回覆 {{count}} 次",
+        "title": "教練點評",
+        "unavailable": "無法讀取教練點評。請重試。",
+        "writeAgain_other": "重新撰寫 · 回覆 {{count}} 次",
+        "writing": "正在撰寫教練點評…",
+        "written": {
+          "asked": "撰寫於 {{time}}，在你再次詢問時，依據騎乘檔案和你的計畫",
+          "askedNote": "撰寫於 {{time}}，在你再次詢問時，依據騎乘檔案、你的計畫和你的備註",
+          "askedNoteOn": "撰寫於 {{date}} {{time}}，在你再次詢問時，依據騎乘檔案、你的計畫和你的備註",
+          "askedOn": "撰寫於 {{date}} {{time}}，在你再次詢問時，依據騎乘檔案和你的計畫",
+          "firstOpen": "撰寫於 {{time}}，在你首次開啟此騎乘時，依據騎乘檔案和你的計畫",
+          "firstOpenOn": "撰寫於 {{date}} {{time}}，在你首次開啟此騎乘時，依據騎乘檔案和你的計畫",
+          "matched": "撰寫於 {{time}}，在你回答此騎乘是哪一份訓練課表時，依據騎乘檔案和你的計畫",
+          "matchedOn": "撰寫於 {{date}} {{time}}，在你回答此騎乘是哪一份訓練課表時，依據騎乘檔案和你的計畫",
+          "opened": "撰寫於 {{time}}，在你再次開啟此騎乘時，依據騎乘檔案和你的計畫",
+          "openedOn": "撰寫於 {{date}} {{time}}，在你再次開啟此騎乘時，依據騎乘檔案和你的計畫"
+        }
+      }
     }
   },
   "common": {
@@ -1851,7 +1894,7 @@
       },
       "workout": {
         "ask": "請教練修改",
-        "askDraft": "請修改 {{day}} 的 {{name}}：",
+        "askDraft": "請修改 {{day}} 的「{{name}}」：",
         "close": "關閉",
         "export": "匯出這一天的訓練課表",
         "move": "移動…",

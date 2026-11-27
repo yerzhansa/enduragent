@@ -10,12 +10,11 @@ import { calendarRead, PLAN_ID, plan, week, workout, workoutId } from "./calenda
 const MONDAY = 19980112;
 const TODAY = 19980113;
 
-function harness(composer = "") {
+function harness() {
   const states: WorkoutCardState[] = [];
   const prefillComposer = vi.fn();
   const openChangeInChat = vi.fn();
   const controller = createWorkoutCardController({
-    composerEmpty: () => composer.trim().length === 0,
     prefillComposer,
     openChangeInChat,
     publish: (state) => states.push(state),
@@ -38,28 +37,20 @@ describe("the workout card controller", () => {
     ]);
   });
 
-  it("puts the draft in an empty composer and opens the Plan change in Chat without sending", () => {
-    const test = harness("   ");
+  it("asks Chat to prefill the question and opens the Plan change in Chat without sending", () => {
+    const test = harness();
     test.controller.open(PLAN_ID, workoutId(1));
-    test.controller.askCoach("Please change Long endurance on Wed 14 Jan:");
+    test.controller.askCoach("Please change “Long endurance” on Wed 14 Jan:");
     expect(test.states.at(-1)).toEqual(WORKOUT_CARD_CLOSED);
     expect(test.prefillComposer).toHaveBeenCalledWith(
-      "Please change Long endurance on Wed 14 Jan:",
+      "Please change “Long endurance” on Wed 14 Jan:",
     );
-    expect(test.openChangeInChat).toHaveBeenCalledOnce();
-  });
-
-  it("keeps a message the athlete already started and still opens Chat", () => {
-    const test = harness("About Saturday");
-    test.controller.open(PLAN_ID, workoutId(1));
-    test.controller.askCoach("Please change Long endurance on Wed 14 Jan:");
-    expect(test.prefillComposer).not.toHaveBeenCalled();
     expect(test.openChangeInChat).toHaveBeenCalledOnce();
   });
 
   it("asks nothing when no card is open", () => {
     const test = harness();
-    test.controller.askCoach("Please change Long endurance on Wed 14 Jan:");
+    test.controller.askCoach("Please change “Long endurance” on Wed 14 Jan:");
     expect(test.states).toEqual([]);
     expect(test.openChangeInChat).not.toHaveBeenCalled();
   });

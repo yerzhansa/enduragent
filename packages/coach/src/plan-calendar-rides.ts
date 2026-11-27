@@ -309,6 +309,63 @@ async function ridesInside(
     .map((row) => rideView(row, fromIntervals.has(row.id), context, todayDateKey));
 }
 
+export interface RideInPlan {
+  readonly ride: PlanCalendarRide;
+  readonly planned: boolean;
+  readonly week: {
+    readonly index: number;
+    readonly workouts: readonly PlanCalendarRideWorkout[];
+  } | null;
+}
+
+const WEEK_WORKOUTS = 14;
+
+export async function readRideInPlan(
+  store: RideStore,
+  todayDateKey: number,
+  activityId: string,
+): Promise<RideInPlan | undefined> {
+  const session = await store.get(
+    "SELECT local_date_key FROM session WHERE session_key=? AND sport='cycling'",
+    [activityId],
+  );
+  if (typeof session?.local_date_key !== "number") return undefined;
+  const day = { startDateKey: session.local_date_key, endDateKey: session.local_date_key };
+  const context = await activePlan(store);
+  const ride = (await ridesInside(store, todayDateKey, day, context)).find(
+    (entry) => entry.activityId === activityId,
+  );
+  if (ride === undefined) return undefined;
+  const week =
+    context === null
+      ? undefined
+      : trainingWeeks(context.plan).find(
+          (entry) => ride.dateKey >= entry.startDateKey && ride.dateKey <= entry.endDateKey,
+        );
+  return {
+    ride,
+    planned: context !== null,
+    week:
+      context === null || week === undefined
+        ? null
+        : {
+            index: week.index,
+            workouts: [...context.workouts.values()]
+              .filter(
+                (workout) =>
+                  workout.dateKey >= week.startDateKey &&
+                  workout.dateKey <= week.endDateKey &&
+                  !context.removed.has(workout.id),
+              )
+              .sort(
+                (left, right) => left.dateKey - right.dateKey || left.id.localeCompare(right.id),
+              )
+              .slice(0, WEEK_WORKOUTS)
+              .map(workoutView),
+          },
+  };
+}
+
 export async function readRides(
   deps: { readonly store: RideStore; readonly identity: Identity; readonly todayDateKey: number },
   requested: DateRange,
@@ -516,19 +573,8 @@ export async function decideRide(
     });
   if (refusal !== null) return refusal;
   void deps.changed();
-  const ride = await deps.store.transaction(async () => {
-    const session = await deps.store.get("SELECT local_date_key FROM session WHERE session_key=?", [
-      request.activityId,
-    ]);
-    if (typeof session?.local_date_key !== "number") return undefined;
-    const day = { startDateKey: session.local_date_key, endDateKey: session.local_date_key };
-    const rides = await ridesInside(
-      deps.store,
-      deps.todayDateKey(),
-      day,
-      await activePlan(deps.store),
-    );
-    return rides.find((entry) => entry.activityId === request.activityId);
-  });
-  return ride === undefined ? refused("match-changed") : { status: "ride", ride };
+  const read = await deps.store.transaction(() =>
+    readRideInPlan(deps.store, deps.todayDateKey(), request.activityId),
+  );
+  return read === undefined ? refused("match-changed") : { status: "ride", ride: read.ride };
 }

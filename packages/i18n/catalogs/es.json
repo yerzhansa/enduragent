@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Preguntar al entrenador sobre esta salida",
+      "askDraft": "¿Qué te parece mi salida «{{name}}» del {{day}}?",
       "empty": "Aún no hay salidas de los últimos 120 días. Las salidas de intervals.icu aparecen aquí después de una sincronización.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Hasta que respondas, esta salida no cuenta para el plan y el calendario muestra el {{weekday}} como pendiente, no como completado ni no realizado.",
         "yes": "Sí, es este"
       },
+      "note": {
+        "failed": "No se pudo guardar la nota. Inténtalo de nuevo.",
+        "hint": "Tu nota se envía al entrenador junto con esta salida. Guardarla no reescribe la valoración, salvo que lo pidas.",
+        "placeholder": "¿Qué sensaciones tuviste? Cuéntale al entrenador lo que el archivo no puede: sueño, comida, lo dura que se te hizo.",
+        "save": "Guardar nota",
+        "saved": "Nota guardada.",
+        "saving": "Guardando tu nota…",
+        "title": "Tu nota"
+      },
       "refreshFailed": "No se pudieron actualizar las salidas. Se muestra lo que se leyó antes.",
       "retry": "Reintentar",
       "showInCalendar": "Mostrar en el calendario",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · sin plan",
       "unavailable": "No se pudieron leer las salidas. Inténtalo de nuevo.",
-      "untitled": "Salida"
+      "untitled": "Salida",
+      "verdict": {
+        "afterAnswer": "El entrenador escribe su valoración cuando respondes: una respuesta con tu propio modelo.",
+        "before": {
+          "extra": "Escrita antes de que marcaras esta salida como adicional",
+          "pending": "Escrita antes de que cambiara la asociación de esta salida",
+          "workout": "Escrita antes de que asociaras esta salida a {{name}}"
+        },
+        "failed": "El entrenador no pudo escribir su valoración esta vez, así que no se guardó nada.",
+        "failedKeepsEarlier": "El entrenador no pudo escribir una nueva valoración esta vez, así que se mantiene la anterior.",
+        "meta": "{{written}} · {{replies}} · guardada",
+        "metaNoPlan": "Escrita a las {{time}} · {{replies}}",
+        "metaNoPlanOn": "Escrita el {{date}} a las {{time}} · {{replies}}",
+        "noFile": "Esta salida solo tiene un tiempo y una distancia, sin potencia ni frecuencia cardiaca de un archivo, así que el entrenador no escribe ninguna valoración para ella.",
+        "noModel": "El entrenador escribe su valoración con tu propio modelo y aún no hay ninguno configurado. Elige uno en Ajustes y vuelve a abrir esta salida.",
+        "replies_one": "{{count}} respuesta del entrenador",
+        "replies_other": "{{count}} respuestas del entrenador",
+        "title": "Valoración del entrenador",
+        "unavailable": "No se pudo leer la valoración del entrenador. Inténtalo de nuevo.",
+        "writeAgain_one": "Volver a escribir · {{count}} respuesta",
+        "writeAgain_other": "Volver a escribir · {{count}} respuestas",
+        "writing": "Escribiendo la valoración del entrenador…",
+        "written": {
+          "asked": "Escrita a las {{time}}, cuando volviste a preguntar, a partir del archivo de la salida y tu plan",
+          "askedNote": "Escrita a las {{time}}, cuando volviste a preguntar, a partir del archivo de la salida, tu plan y tu nota",
+          "askedNoteOn": "Escrita el {{date}} a las {{time}}, cuando volviste a preguntar, a partir del archivo de la salida, tu plan y tu nota",
+          "askedOn": "Escrita el {{date}} a las {{time}}, cuando volviste a preguntar, a partir del archivo de la salida y tu plan",
+          "firstOpen": "Escrita a las {{time}}, cuando abriste esta salida por primera vez, a partir del archivo de la salida y tu plan",
+          "firstOpenOn": "Escrita el {{date}} a las {{time}}, cuando abriste esta salida por primera vez, a partir del archivo de la salida y tu plan",
+          "matched": "Escrita a las {{time}}, cuando indicaste qué entrenamiento era esta salida, a partir del archivo de la salida y tu plan",
+          "matchedOn": "Escrita el {{date}} a las {{time}}, cuando indicaste qué entrenamiento era esta salida, a partir del archivo de la salida y tu plan",
+          "opened": "Escrita a las {{time}}, cuando volviste a abrir esta salida, a partir del archivo de la salida y tu plan",
+          "openedOn": "Escrita el {{date}} a las {{time}}, cuando volviste a abrir esta salida, a partir del archivo de la salida y tu plan"
+        }
+      }
     }
   },
   "common": {
@@ -1893,7 +1938,7 @@
       },
       "workout": {
         "ask": "Pedir al entrenador que lo cambie",
-        "askDraft": "Por favor, cambia {{name}} del {{day}}:",
+        "askDraft": "Por favor, cambia «{{name}}» del {{day}}:",
         "close": "Cerrar",
         "export": "Exportar los entrenamientos de este día",
         "move": "Mover…",

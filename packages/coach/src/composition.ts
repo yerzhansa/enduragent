@@ -115,6 +115,7 @@ import {
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
 import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "./runtime-bundle.js";
+import { modelWriters } from "./model-writers.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -1395,10 +1396,7 @@ export async function createLocalCoachComposition(
       const engineInput = { sport: cyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
       return {
-        ...(runtimeCredentialConfigured(input.home.configDir, config) &&
-        backend.translateIntent !== undefined
-          ? { intentTranslator: { translateIntent: backend.translateIntent.bind(backend) } }
-          : {}),
+        ...modelWriters(backend, ports, runtimeCredentialConfigured(input.home.configDir, config)),
         memory,
         chatStore: conversationStore,
         timezone,
@@ -2003,6 +2001,7 @@ export async function createLocalCoachComposition(
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
+      coachText: reconfigurable.coachText,
       changed: () => (closing ? Promise.resolve() : drain.kick().then(() => drain.idle())),
     };
     const drain = createPlanCalendarDrain(calendarDeps);

@@ -109,13 +109,7 @@ export function startCalendar(
     },
   });
   const workout = createWorkoutCardController({
-    composerEmpty: () => {
-      const composer = document.querySelector("#message");
-      const live = composer instanceof HTMLTextAreaElement ? composer.value : "";
-      const saved = store.getState().chat.attachments?.draft?.text ?? "";
-      return `${live}${saved}`.trim().length === 0;
-    },
-    prefillComposer: (text) => store.getState().chatActions?.saveAttachmentDraftText(text),
+    prefillComposer: (text) => store.getState().requestComposerPrefill(text),
     openChangeInChat: () => {
       const library = store.getState().planLibraryActions;
       if (library === null) store.getState().setActiveView("chat");

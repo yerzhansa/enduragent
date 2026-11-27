@@ -78,6 +78,8 @@ export function ChatView(): ReactElement {
   const conversation = useRef<HTMLElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const composerDraft = useRef("");
+  const prefilled = useRef<string | null>(null);
+  const [composerKey, setComposerKey] = useState(0);
   const [contextOpen, setContextOpen] = useState(true);
   const [contextDrawerOpen, setContextDrawerOpen] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -101,6 +103,8 @@ export function ChatView(): ReactElement {
     (state) => state.chat.planCreationFocusRequest,
   );
   const actions = useEnduragentStore((state) => state.chatActions);
+  const prefill = useEnduragentStore((state) => state.composerPrefill);
+  const clearPrefill = useEnduragentStore((state) => state.clearComposerPrefill);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   const chatNotice = useEnduragentStore((state) => state.chat.notice);
   const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
@@ -121,6 +125,23 @@ export function ChatView(): ReactElement {
       (planChangeOpenForActivePlan(state.planChange, state.planLibrary.value) ||
         planChangePendingInLibrary(state.planLibrary.value)),
   );
+  useEffect(() => {
+    if (prefill === null) return;
+    clearPrefill(prefill.revision);
+    const inFlight = composer.current?.sending() ?? null;
+    const current = composerDraft.current === inFlight ? "" : composerDraft.current;
+    if (current.trimEnd().endsWith(prefill.text)) return;
+    const next = current.trim().length === 0 ? prefill.text : `${current}\n\n${prefill.text}`;
+    composerDraft.current = next;
+    prefilled.current = next;
+    setComposerKey((key) => key + 1);
+  }, [prefill, clearPrefill]);
+  useEffect(() => {
+    const next = prefilled.current;
+    if (next === null) return;
+    prefilled.current = null;
+    actions?.saveAttachmentDraftText(next);
+  }, [composerKey, actions]);
   const mountedView = useRef(activeView);
   const previousConversationTop = useRef<number | null>(null);
   const pending = useMemo(
@@ -466,7 +487,7 @@ export function ChatView(): ReactElement {
                 <QueuedMessages />
               </div>
               {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
-                <Composer handle={composer} draftMemory={composerDraft} />
+                <Composer key={composerKey} handle={composer} draftMemory={composerDraft} />
               )}
             </div>
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">

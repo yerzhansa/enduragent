@@ -1,7 +1,24 @@
+import type { PlanCalendarRideDecision } from "@enduragent/coach-contract";
 import type { DesktopCoachClientProvider } from "../coach-client";
 import { localTodayDateKey } from "../calendar/dates";
-import type { useEnduragentStore } from "../state/store";
+import type { EnduragentState, useEnduragentStore } from "../state/store";
 import { createActivityReviewController } from "./controller";
+import { createRideReviewController } from "./review-controller";
+import { selectedRide } from "./rides";
+
+const POLL_MS = 1_500;
+
+function shownRideId(state: EnduragentState): string | null {
+  if (state.activeView !== "activity-review" || state.activityReview.kind !== "ready") return null;
+  return (
+    selectedRide(state.activityReview.read, state.activityReview.selectedId)?.activityId ?? null
+  );
+}
+
+function askCoach(store: typeof useEnduragentStore, draft: string): void {
+  store.getState().requestComposerPrefill(draft);
+  store.getState().setActiveView("chat");
+}
 
 export function startActivityReview(
   store: typeof useEnduragentStore,
@@ -15,27 +32,55 @@ export function startActivityReview(
     localTodayDateKey: () => localTodayDateKey(),
     publish: (next) => store.getState().setActivityReview(next),
   });
+  const review = createRideReviewController({
+    read: async (activityId) =>
+      (await clients.getClient()).call("plan.calendar", { action: "read-review", activityId }),
+    write: async (request) =>
+      (await clients.getClient()).call("plan.calendar", { action: "write-verdict", ...request }),
+    saveNote: async (request) =>
+      (await clients.getClient()).call("plan.calendar", { action: "save-note", ...request }),
+    later: (run) => {
+      const timer = setTimeout(run, POLL_MS);
+      return () => clearTimeout(timer);
+    },
+    publish: (next) => store.getState().setRideReview(next),
+  });
+  const decide = (decision: PlanCalendarRideDecision): void => {
+    void controller.decide(decision).then(() => review.refresh());
+  };
   store.getState().bindActivityReviewActions({
-    refresh: () => void controller.refresh(),
+    refresh: () => {
+      void controller.refresh();
+      void review.refresh();
+    },
     select: (activityId) => controller.select(activityId),
     change: () => controller.change(),
     otherDay: () => controller.otherDay(),
     closeChoices: () => controller.closeChoices(),
-    confirm: (planWorkoutId) => void controller.decide({ kind: "confirm", planWorkoutId }),
-    extra: () => void controller.decide({ kind: "extra" }),
-    rematch: (planWorkoutId) => void controller.decide({ kind: "rematch", planWorkoutId }),
+    confirm: (planWorkoutId) => decide({ kind: "confirm", planWorkoutId }),
+    extra: () => decide({ kind: "extra" }),
+    rematch: (planWorkoutId) => decide({ kind: "rematch", planWorkoutId }),
     showInCalendar: (dateKey) => {
       store.getState().setActiveView("calendar");
       store.getState().calendarActions?.showWeekOf(dateKey);
     },
+    writeAgain: () => void review.writeAgain(),
+    saveNote: (text) => void review.saveNote(text),
+    askCoach: (draft) => askCoach(store, draft),
   });
+  let shown: string | null = null;
   const dispose = store.subscribe((state, previous) => {
     if (state.activeView === "activity-review" && previous.activeView !== "activity-review") {
       void controller.open();
     }
+    const next = shownRideId(state);
+    if (next === shown) return;
+    shown = next;
+    void review.show(next);
   });
   return () => {
     dispose();
+    review.dispose();
     store.getState().bindActivityReviewActions(null);
   };
 }

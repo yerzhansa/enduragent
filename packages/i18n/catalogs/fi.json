@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Kysy valmentajalta tästä lenkistä",
+      "askDraft": "Mitä mieltä olet lenkistäni ”{{name}}” ({{day}})?",
       "empty": "Viimeisen 120 päivän ajalta ei ole vielä lenkkejä. intervals.icu-palvelun lenkit näkyvät täällä synkronoinnin jälkeen.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Kunnes vastaat, tätä lenkkiä ei lasketa suunnitelmaan, ja kalenteri näyttää päivän ({{weekday}}) odottavana, ei tehtynä eikä väliin jääneenä.",
         "yes": "Kyllä on"
       },
+      "note": {
+        "failed": "Muistiinpanoa ei voitu tallentaa. Yritä uudelleen.",
+        "hint": "Muistiinpanosi menee valmentajalle tämän lenkin mukana. Tallentaminen ei kirjoita arviota uudelleen, ellet pyydä sitä.",
+        "placeholder": "Miltä lenkki tuntui? Kerro valmentajalle se, mitä tiedosto ei kerro: uni, ruoka, kuinka raskaalta se tuntui.",
+        "save": "Tallenna muistiinpano",
+        "saved": "Muistiinpano tallennettu.",
+        "saving": "Tallennetaan muistiinpanoasi…",
+        "title": "Muistiinpanosi"
+      },
       "refreshFailed": "Lenkkejä ei voitu päivittää. Tässä näkyy aiemmin luettu tilanne.",
       "retry": "Yritä uudelleen",
       "showInCalendar": "Näytä kalenterissa",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · ei suunnitelmaa",
       "unavailable": "Lenkkejä ei voitu lukea. Yritä uudelleen.",
-      "untitled": "Lenkki"
+      "untitled": "Lenkki",
+      "verdict": {
+        "afterAnswer": "Valmentaja kirjoittaa arvionsa, kun olet vastannut: yksi vastaus omalla mallillasi.",
+        "before": {
+          "extra": "Kirjoitettu ennen kuin merkitsit tämän lenkin ylimääräiseksi",
+          "pending": "Kirjoitettu ennen kuin tämän lenkin yhdistäminen muuttui",
+          "workout": "Kirjoitettu ennen kuin yhdistit tämän lenkin harjoitukseen {{name}}"
+        },
+        "failed": "Valmentaja ei pystynyt kirjoittamaan arviotaan tällä kertaa, joten mitään ei tallennettu.",
+        "failedKeepsEarlier": "Valmentaja ei pystynyt kirjoittamaan uutta arviota tällä kertaa, joten aiempi arvio jää voimaan.",
+        "meta": "{{written}} · {{replies}} · tallennettu",
+        "metaNoPlan": "Kirjoitettu klo {{time}} · {{replies}}",
+        "metaNoPlanOn": "Kirjoitettu {{date}} klo {{time}} · {{replies}}",
+        "noFile": "Tässä lenkissä on vain aika ja matka, ilman tiedostosta saatua tehoa tai sykettä, joten valmentaja ei kirjoita siitä arviota.",
+        "noModel": "Valmentaja kirjoittaa arvionsa omalla mallillasi, eikä sellaista ole vielä määritetty. Valitse malli asetuksista ja avaa sitten tämä lenkki uudelleen.",
+        "replies_one": "{{count}} valmentajan vastaus",
+        "replies_other": "{{count}} valmentajan vastausta",
+        "title": "Valmentajan arvio",
+        "unavailable": "Valmentajan arviota ei voitu lukea. Yritä uudelleen.",
+        "writeAgain_one": "Kirjoita uudelleen · {{count}} vastaus",
+        "writeAgain_other": "Kirjoita uudelleen · {{count}} vastausta",
+        "writing": "Kirjoitetaan valmentajan arviota…",
+        "written": {
+          "asked": "Kirjoitettu klo {{time}}, kun kysyit uudelleen, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "askedNote": "Kirjoitettu klo {{time}}, kun kysyit uudelleen, lenkin tiedoston, suunnitelmasi ja muistiinpanosi pohjalta",
+          "askedNoteOn": "Kirjoitettu {{date}} klo {{time}}, kun kysyit uudelleen, lenkin tiedoston, suunnitelmasi ja muistiinpanosi pohjalta",
+          "askedOn": "Kirjoitettu {{date}} klo {{time}}, kun kysyit uudelleen, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "firstOpen": "Kirjoitettu klo {{time}}, kun avasit tämän lenkin ensimmäisen kerran, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "firstOpenOn": "Kirjoitettu {{date}} klo {{time}}, kun avasit tämän lenkin ensimmäisen kerran, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "matched": "Kirjoitettu klo {{time}}, kun vastasit, mikä harjoitus tämä lenkki oli, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "matchedOn": "Kirjoitettu {{date}} klo {{time}}, kun vastasit, mikä harjoitus tämä lenkki oli, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "opened": "Kirjoitettu klo {{time}}, kun avasit tämän lenkin uudelleen, lenkin tiedoston ja suunnitelmasi pohjalta",
+          "openedOn": "Kirjoitettu {{date}} klo {{time}}, kun avasit tämän lenkin uudelleen, lenkin tiedoston ja suunnitelmasi pohjalta"
+        }
+      }
     }
   },
   "common": {
@@ -1893,7 +1938,7 @@
       },
       "workout": {
         "ask": "Pyydä valmentajaa muuttamaan sitä",
-        "askDraft": "Muuta harjoitusta {{name}} ({{day}}):",
+        "askDraft": "Muuta harjoitusta ”{{name}}” ({{day}}):",
         "close": "Sulje",
         "export": "Vie tämän päivän harjoitukset",
         "move": "Siirrä…",

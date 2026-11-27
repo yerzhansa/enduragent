@@ -6,11 +6,17 @@ export type CoachTextBasis =
   | { readonly kind: "waiting-for-match" }
   | { readonly kind: "decided"; readonly match: CoachTextMatch };
 
+export type CoachTextFailure = "model" | "interrupted";
+
 export type CoachText =
   | { readonly kind: "not-written" }
   | { readonly kind: "writing"; readonly startedFor: CoachTextMatch }
   | { readonly kind: "kept"; readonly writtenFor: CoachTextMatch }
-  | { readonly kind: "failed"; readonly startedFor: CoachTextMatch };
+  | {
+      readonly kind: "failed";
+      readonly startedFor: CoachTextMatch;
+      readonly failedBy: CoachTextFailure;
+    };
 
 export type CoachTextPage = "open" | "closed";
 
@@ -60,7 +66,10 @@ export function coachTextStep(text: CoachText, event: CoachTextEvent): CoachText
   switch (event.type) {
     case "athlete-opens":
       if (event.basis.kind !== "decided") return stay(text);
-      if (text.kind === "not-written" || text.kind === "failed") {
+      if (
+        text.kind === "not-written" ||
+        (text.kind === "failed" && text.failedBy === "interrupted")
+      ) {
         return startWriting(event.basis.match);
       }
       return stay(text);
@@ -79,7 +88,11 @@ export function coachTextStep(text: CoachText, event: CoachTextEvent): CoachText
     case "writing-failed":
     case "writing-abandoned":
       return text.kind === "writing"
-        ? stay({ kind: "failed", startedFor: text.startedFor })
+        ? stay({
+            kind: "failed",
+            startedFor: text.startedFor,
+            failedBy: event.type === "writing-failed" ? "model" : "interrupted",
+          })
         : stay(text);
   }
 }

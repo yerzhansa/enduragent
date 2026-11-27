@@ -11388,6 +11388,154 @@
       "sourceHash": "264392e17a06412c1c6aa99ff85ed9707cab35fc038e6d9df2725c2c75b780df",
       "translatedBy": "model"
     },
+    "activity.review.ask": {
+      "sourceHash": "057de9603bdbbff3dfe796d69d370c61296874c76f6bccb2c0342d88127b624c",
+      "translatedBy": "model"
+    },
+    "activity.review.askDraft": {
+      "sourceHash": "926af0dcf0038f4edbad5bbbcbb4904b20b7f7779fd87541bece1258096e2cc6",
+      "translatedBy": "model"
+    },
+    "activity.review.note.failed": {
+      "sourceHash": "849cb92dbcfddb9ea283fe50c6db55b410a261696c29a6c1e76b1e524ec5d3ec",
+      "translatedBy": "model"
+    },
+    "activity.review.note.hint": {
+      "sourceHash": "420c85233909230f3de6a3134f02e3c51150bbd897bcb75ac161d69fbd0b12aa",
+      "translatedBy": "model"
+    },
+    "activity.review.note.placeholder": {
+      "sourceHash": "ee5fada392ae14f94692dafef52d6695b1bf65f93601634d6c54d2756bb6d8ba",
+      "translatedBy": "model"
+    },
+    "activity.review.note.save": {
+      "sourceHash": "6501e1ced8da0bffc5e2c7e20a42162e80176b31980e7b073fbf9955854fda4a",
+      "translatedBy": "model"
+    },
+    "activity.review.note.saved": {
+      "sourceHash": "2a4a9548cd5f90909a3ced784c9388d1a2b88effb1a8cc68fca0a3e3968e584e",
+      "translatedBy": "model"
+    },
+    "activity.review.note.saving": {
+      "sourceHash": "a15792cb1bc98f82f1684136acdf51094c5c39ed1ff93334a3048dacb2b44c1d",
+      "translatedBy": "model"
+    },
+    "activity.review.note.title": {
+      "sourceHash": "5331e47d0d54681eef76dde709642aa19a90ce7552953fc8931e312fed73ce7a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.afterAnswer": {
+      "sourceHash": "3490bb108fa37555a5d5e0a27a3543121d718c8174ca5ea5a472edb39eee25ca",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.extra": {
+      "sourceHash": "77ac4c291138ecef01bf235a5b017c92603a93f5cba19e09ed3b91851b24ee3c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.pending": {
+      "sourceHash": "25a421190aae1d584ea5fdf83f809b553246776183b1656302587026264db5a3",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.workout": {
+      "sourceHash": "25486d782375f094c9d0b0a88848129759c359f5aa7ecbc03c81d6f10af8828c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.failed": {
+      "sourceHash": "0a829e9052f5d8a9c54224805efe66d571639c20b60f073d9af3292b39e46dc0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.failedKeepsEarlier": {
+      "sourceHash": "650d7a0cb3609e6929198044214d9c8cab7878033b3b09dbe2e4c83c79c98c3f",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.meta": {
+      "sourceHash": "c536a2baa339d60a3f9bccc604b477411683c22308f5e010c5e31590a6cfb881",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.metaNoPlan": {
+      "sourceHash": "397f2b4d7fd040232a00e83315bdde525df6da3176bb6818468b3c81ea3ef73a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.metaNoPlanOn": {
+      "sourceHash": "2b49e1196ca8ab9d9bf98bb33753a76b75bd4d9deaa2d9969bfea2e81621dd6b",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.noFile": {
+      "sourceHash": "c2d7eb3e618c38c920502389d739b1a4e773125ad23f0485e5bdcaa302b6f70c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.noModel": {
+      "sourceHash": "b6dea8c3011c6fc7d2f16564f0c0a7d0788591a83302ce7ee1030f5b087460c8",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.replies_one": {
+      "sourceHash": "25c69a5936691fc097ecddccc398889b7996c33518c8cda93523225292844d0c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.replies_other": {
+      "sourceHash": "5ad7a395a02c1a1472a4a0f0b544ef6fa3cd403d43a2b5b5e10c0bf2dc58b3d1",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.title": {
+      "sourceHash": "f36371ca35a90920bce0cbc470de912a5afc7d9f3678cc6c1b24498051a7051c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.unavailable": {
+      "sourceHash": "50529548be0fc321d36bce910dbfeeb300dff6bf4cd710b5df5e8cb97b326d7e",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writeAgain_one": {
+      "sourceHash": "3161b2f34dc626bc167eca19c99415d638655c7803aa178e75ca44e7ab15acd0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writeAgain_other": {
+      "sourceHash": "f9d9d0f0a4a4120649efc91376a365bd8efa64b9037cf450c456854e156be905",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writing": {
+      "sourceHash": "fd72797e8f9f035d5fc22e0afdc958d35afbf76e5aa253f0116360e2dc12f731",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.asked": {
+      "sourceHash": "7864d98ad4340798b9d6a6d0abddac5946e2e43fc52b3551184300ace7f05d4d",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedNote": {
+      "sourceHash": "365fb311d23d5d8345cdcf8e0f3bfc235aee4c367d364a1a289e0ccb6b6b5746",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedNoteOn": {
+      "sourceHash": "9fb697750e21d8553acdb4858d4e248542a476995a558b060b973191917f9c5a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedOn": {
+      "sourceHash": "50a11a441ba48bf7bc43093db0883567c8b20ffafd13b7e03444a312c11b7e65",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.firstOpen": {
+      "sourceHash": "c691345f24feffae1e910594d3f2cb99b1a945296dce4bd038c6a9778a14ba06",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.firstOpenOn": {
+      "sourceHash": "4b96c99781be82cc56ba78b771e83bb22afc32c1956e4af2b56fca8081eb41da",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.matched": {
+      "sourceHash": "601a1393e38c37949ace56442c0100b03d8724ea25923b794ab8097d2117a9ef",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.matchedOn": {
+      "sourceHash": "5171487a59f759e38c301008eb89e06155503e532f71c43f1fdbf05a906c22f0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.opened": {
+      "sourceHash": "eceea0115bd48937d68ed7f1311b9515624439f84f139c787e7ddd403f8b6e2e",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.openedOn": {
+      "sourceHash": "f6e33f3dc9c346015fca39d846f667cbae5fc817ac71500c95929cf240ac4f72",
+      "translatedBy": "model"
+    },
     "chat.planCreation.startBeforeEvent": {
       "sourceHash": "7978e3af473f1b484c7f55c2896a5cfec93f0bf81e8649794e330c0e903614c0",
       "translatedBy": "model"
@@ -11409,7 +11557,7 @@
       "translatedBy": "model"
     },
     "plan.calendar.workout.askDraft": {
-      "sourceHash": "39c5b1c36cfb9d2aa27220f2553f22e60bf6d38e474adfa313b1998f624c6598",
+      "sourceHash": "b20e16867a401ad6ef98872b604ef6429d27613b5bb948dd405c06bcb9dbad3d",
       "translatedBy": "model"
     },
     "plan.calendar.workout.close": {

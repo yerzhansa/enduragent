@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "De coach over deze rit vragen",
+      "askDraft": "Wat vind je van mijn rit “{{name}}” op {{day}}?",
       "empty": "Nog geen ritten uit de afgelopen 120 dagen. Ritten uit intervals.icu verschijnen hier na een synchronisatie.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Tot je antwoordt, telt deze rit niet mee voor het trainingsschema en toont de kalender {{weekday}} als wachtend, niet als gedaan of gemist.",
         "yes": "Ja, dat klopt"
       },
+      "note": {
+        "failed": "De notitie kon niet worden opgeslagen. Probeer het opnieuw.",
+        "hint": "Je notitie gaat met deze rit naar de coach. Opslaan herschrijft het oordeel niet, tenzij je daarom vraagt.",
+        "placeholder": "Hoe voelde het? Vertel de coach wat het bestand niet kan: slaap, eten, hoe zwaar het voelde.",
+        "save": "Notitie opslaan",
+        "saved": "Notitie opgeslagen.",
+        "saving": "Je notitie wordt opgeslagen…",
+        "title": "Je notitie"
+      },
       "refreshFailed": "De ritten konden niet worden vernieuwd. Dit is wat eerder is gelezen.",
       "retry": "Opnieuw proberen",
       "showInCalendar": "Tonen in kalender",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · geen trainingsschema",
       "unavailable": "De ritten konden niet worden gelezen. Probeer het opnieuw.",
-      "untitled": "Rit"
+      "untitled": "Rit",
+      "verdict": {
+        "afterAnswer": "De coach schrijft zijn oordeel nadat je hebt geantwoord: één antwoord via je eigen model.",
+        "before": {
+          "extra": "Geschreven voordat je deze rit als extra markeerde",
+          "pending": "Geschreven voordat de koppeling van deze rit veranderde",
+          "workout": "Geschreven voordat je deze rit aan {{name}} koppelde"
+        },
+        "failed": "De coach kon zijn oordeel deze keer niet schrijven, dus er is niets bewaard.",
+        "failedKeepsEarlier": "De coach kon deze keer geen nieuw oordeel schrijven, dus het vorige blijft staan.",
+        "meta": "{{written}} · {{replies}} · bewaard",
+        "metaNoPlan": "Geschreven om {{time}} · {{replies}}",
+        "metaNoPlanOn": "Geschreven op {{date}} om {{time}} · {{replies}}",
+        "noFile": "Deze rit heeft alleen een tijd en een afstand, zonder vermogen of hartslag uit een bestand, dus de coach schrijft er geen oordeel over.",
+        "noModel": "De coach schrijft zijn oordeel via je eigen model en er is er nog geen ingesteld. Kies er een in Instellingen en open deze rit daarna opnieuw.",
+        "replies_one": "{{count}} antwoord van de coach",
+        "replies_other": "{{count}} antwoorden van de coach",
+        "title": "Oordeel van de coach",
+        "unavailable": "Het oordeel van de coach kon niet worden gelezen. Probeer het opnieuw.",
+        "writeAgain_one": "Opnieuw schrijven · {{count}} antwoord",
+        "writeAgain_other": "Opnieuw schrijven · {{count}} antwoorden",
+        "writing": "Het oordeel van de coach wordt geschreven…",
+        "written": {
+          "asked": "Geschreven om {{time}}, toen je het opnieuw vroeg, op basis van het ritbestand en je trainingsschema",
+          "askedNote": "Geschreven om {{time}}, toen je het opnieuw vroeg, op basis van het ritbestand, je trainingsschema en je notitie",
+          "askedNoteOn": "Geschreven op {{date}} om {{time}}, toen je het opnieuw vroeg, op basis van het ritbestand, je trainingsschema en je notitie",
+          "askedOn": "Geschreven op {{date}} om {{time}}, toen je het opnieuw vroeg, op basis van het ritbestand en je trainingsschema",
+          "firstOpen": "Geschreven om {{time}}, toen je deze rit voor het eerst opende, op basis van het ritbestand en je trainingsschema",
+          "firstOpenOn": "Geschreven op {{date}} om {{time}}, toen je deze rit voor het eerst opende, op basis van het ritbestand en je trainingsschema",
+          "matched": "Geschreven om {{time}}, toen je aangaf welke training deze rit was, op basis van het ritbestand en je trainingsschema",
+          "matchedOn": "Geschreven op {{date}} om {{time}}, toen je aangaf welke training deze rit was, op basis van het ritbestand en je trainingsschema",
+          "opened": "Geschreven om {{time}}, toen je deze rit opnieuw opende, op basis van het ritbestand en je trainingsschema",
+          "openedOn": "Geschreven op {{date}} om {{time}}, toen je deze rit opnieuw opende, op basis van het ritbestand en je trainingsschema"
+        }
+      }
     }
   },
   "common": {
@@ -1893,7 +1938,7 @@
       },
       "workout": {
         "ask": "De coach vragen dit te wijzigen",
-        "askDraft": "Wijzig {{name}} op {{day}}:",
+        "askDraft": "Wijzig “{{name}}” op {{day}}:",
         "close": "Sluiten",
         "export": "Trainingen van deze dag exporteren",
         "move": "Verplaatsen…",

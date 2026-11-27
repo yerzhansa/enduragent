@@ -24,6 +24,9 @@ function actions(): ActivityReviewActions {
     extra: vi.fn(),
     rematch: vi.fn(),
     showInCalendar: vi.fn(),
+    writeAgain: vi.fn(),
+    saveNote: vi.fn(),
+    askCoach: vi.fn(),
   };
 }
 
