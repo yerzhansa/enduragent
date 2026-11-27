@@ -511,14 +511,7 @@ describe("desktop update controller", () => {
     expect(token.cancel).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    "0.1.0",
-    "0.0.9",
-    "0.1.1-beta.1",
-    "0.01.1",
-    "0.1.9007199254740992",
-    "not-a-version",
-  ])(
+  it.each(["0.1.0", "0.0.9", "0.1.1-beta.1", "0.01.1", "0.1.9007199254740992", "not-a-version"])(
     "does not download a non-newer or non-stable target %s",
     async (version) => {
       const fake = fakeUpdater();
@@ -636,44 +629,74 @@ describe("desktop update controller", () => {
     expect(fake.updater.quitAndInstall).not.toHaveBeenCalled();
   });
 
-  it.each(["wrapper-first", "native-first"] as const)(
-    "enables macOS restart once after %s native readiness",
-    async (order) => {
-      const fake = fakeUpdater();
-      const native = fakeNativeUpdater();
-      const download = deferred<string[]>();
-      vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
-      vi.mocked(fake.updater.downloadUpdate).mockImplementation(() => {
-        if (order === "native-first") native.emit("update-downloaded");
-        return download.promise;
-      });
-      const subject = activeController(fake.updater, {
-        platform: "darwin",
-        nativeUpdater: native.updater,
-      });
-      const startup = subject.controller.start();
-      await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+  it("enables macOS restart once after wrapper download followed by native readiness", async () => {
+    const fake = fakeUpdater();
+    const native = fakeNativeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
+    const subject = activeController(fake.updater, {
+      platform: "darwin",
+      nativeUpdater: native.updater,
+    });
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
 
-      expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.1" });
-      if (order === "wrapper-first") {
-        fake.emit("update-downloaded", { version: "0.1.1" });
-      }
-      expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.1" });
-      expect(subject.quit).not.toHaveBeenCalled();
+    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.1" });
+    fake.emit("update-downloaded", { version: "0.1.1" });
+    expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.1" });
+    expect(subject.quit).not.toHaveBeenCalled();
 
-      if (order === "wrapper-first") native.emit("update-downloaded");
-      else fake.emit("update-downloaded", { version: "0.1.1" });
+    native.emit("update-downloaded");
 
-      expect(subject.controller.state()).toEqual({ status: "downloaded", version: "0.1.1" });
-      fake.emit("update-downloaded", { version: "0.1.1" });
-      native.emit("update-downloaded");
-      expect(subject.controller.restart()).toEqual({ status: "installing", version: "0.1.1" });
-      subject.controller.restart();
-      expect(subject.quit).toHaveBeenCalledOnce();
-      download.resolve([]);
-      await startup;
-    },
-  );
+    expect(subject.controller.state()).toEqual({ status: "downloaded", version: "0.1.1" });
+    fake.emit("update-downloaded", { version: "0.1.1" });
+    native.emit("update-downloaded");
+    expect(subject.controller.restart()).toEqual({ status: "installing", version: "0.1.1" });
+    subject.controller.restart();
+    expect(subject.quit).toHaveBeenCalledOnce();
+    download.resolve([]);
+    await startup;
+  });
+
+  it("ignores stale macOS native readiness arriving before the current archive finishes", async () => {
+    const fake = fakeUpdater();
+    const native = fakeNativeUpdater();
+    const firstDownload = deferred<string[]>();
+    const secondDownload = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates)
+      .mockResolvedValueOnce(updateResult("0.1.1"))
+      .mockResolvedValueOnce(updateResult("0.1.2"));
+    vi.mocked(fake.updater.downloadUpdate)
+      .mockReturnValueOnce(firstDownload.promise)
+      .mockReturnValueOnce(secondDownload.promise);
+    const subject = activeController(fake.updater, {
+      platform: "darwin",
+      nativeUpdater: native.updater,
+    });
+
+    const first = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    fake.emit("update-downloaded", { version: "0.1.1" });
+    fake.emit("error", new Error("blockmap copy failed"));
+    await first;
+    expect(subject.controller.state()).toEqual({ status: "failed", stage: "download" });
+
+    const second = subject.controller.check();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledTimes(2));
+    expect(native.listenerCount()).toBe(0);
+    native.emit("update-downloaded");
+    fake.emit("update-downloaded", { version: "0.1.2" });
+
+    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.2" });
+    expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.2" });
+    expect(subject.quit).not.toHaveBeenCalled();
+
+    native.emit("update-downloaded");
+    await expect(second).resolves.toEqual({ status: "downloaded", version: "0.1.2" });
+    firstDownload.resolve([]);
+    secondDownload.resolve([]);
+  });
 
   it("does not enable macOS restart when only the download promise resolves", async () => {
     const fake = fakeUpdater();
@@ -836,5 +859,307 @@ describe("desktop update controller", () => {
     expect(log).toHaveBeenCalledWith("desktop-update-native-readiness-unavailable");
     expect(fake.updater.downloadUpdate).not.toHaveBeenCalled();
     expect(subject.quit).not.toHaveBeenCalled();
+  });
+
+  it("detaches a failed check so retry works even while the prior call stays pending", async () => {
+    const fake = fakeUpdater();
+    const hung = deferred<never>();
+    vi.mocked(fake.updater.checkForUpdates)
+      .mockReturnValueOnce(hung.promise)
+      .mockResolvedValueOnce(updateResult("0.1.0"));
+    const subject = activeController(fake.updater);
+
+    const first = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.checkForUpdates).toHaveBeenCalledOnce());
+    fake.emit("error", new Error("network error"));
+    await first;
+    expect(subject.controller.state()).toEqual({ status: "failed", stage: "check" });
+
+    await expect(subject.controller.check()).resolves.toEqual({ status: "current" });
+    expect(fake.updater.checkForUpdates).toHaveBeenCalledTimes(2);
+    subject.controller.close();
+  });
+
+  it("resets the download stall deadline when a differential download falls back to a full download", async () => {
+    const fake = fakeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
+    const subject = activeController(fake.updater);
+
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    fake.emit("download-progress", { transferred: 18_000_000, total: 18_000_000 });
+    const diffStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
+
+    fake.emit("download-progress", { transferred: 0, total: 146_000_000 });
+    fake.emit("download-progress", { transferred: 65_536, total: 146_000_000 });
+    const fallbackStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
+    expect(fallbackStall).toBeDefined();
+    expect(fallbackStall).not.toBe(diffStall);
+    expect(subject.deadlines.fire(diffStall!)).toBe(false);
+
+    fake.emit("download-progress", { transferred: 131_072, total: 146_000_000 });
+    const nextStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
+    expect(nextStall).not.toBe(fallbackStall);
+
+    fake.emit("update-downloaded", { version: "0.1.1" });
+    download.resolve([]);
+    await startup;
+    expect(subject.controller.state()).toEqual({ status: "downloaded", version: "0.1.1" });
+    subject.controller.close();
+  });
+
+  it("does not commit an unconfigured updater when setup throws", async () => {
+    let attempts = 0;
+    const broken = fakeUpdater();
+    Object.defineProperty(broken.updater, "disableWebInstaller", {
+      set() {
+        throw new Error("config failed");
+      },
+      get() {
+        return false;
+      },
+    });
+    const healthy = fakeUpdater();
+    vi.mocked(healthy.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
+    const loadUpdater = vi.fn(async () => {
+      attempts += 1;
+      return attempts === 1 ? broken.updater : healthy.updater;
+    });
+    const subject = activeController(healthy.updater, { loadUpdater });
+
+    await subject.controller.start();
+    expect(subject.controller.state()).toEqual({ status: "failed", stage: "check" });
+    expect(broken.updater.checkForUpdates).not.toHaveBeenCalled();
+
+    await expect(subject.controller.check()).resolves.toEqual({ status: "current" });
+    expect(loadUpdater).toHaveBeenCalledTimes(2);
+    expect(healthy.updater.autoDownload).toBe(false);
+    expect(healthy.updater.allowDowngrade).toBe(false);
+    expect(healthy.updater.disableWebInstaller).toBe(true);
+    expect(healthy.updater.checkForUpdates).toHaveBeenCalledOnce();
+    subject.controller.close();
+  });
+
+  it("keeps periodic recovery scheduled after a transient startup floor failure", async () => {
+    const fake = fakeUpdater();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
+    const recordRunningVersion = vi
+      .fn<DesktopUpdateVersionFloor["recordRunningVersion"]>()
+      .mockResolvedValueOnce({ status: "unavailable" })
+      .mockResolvedValueOnce({ status: "ready", version: "0.1.0" });
+    const subject = activeController(fake.updater, {
+      versionFloor: { recordRunningVersion },
+    });
+
+    await subject.controller.start();
+    expect(subject.controller.state()).toEqual({ status: "failed", stage: "check" });
+
+    subject.tick();
+    await vi.waitFor(() => expect(subject.controller.state()).toEqual({ status: "current" }));
+    expect(recordRunningVersion).toHaveBeenCalledTimes(2);
+    expect(fake.updater.checkForUpdates).toHaveBeenCalledOnce();
+    subject.controller.close();
+  });
+
+  it("keeps periodic recovery scheduled after a transient startup configuration failure", async () => {
+    let attempts = 0;
+    const broken = fakeUpdater();
+    Object.defineProperty(broken.updater, "disableWebInstaller", {
+      set() {
+        throw new Error("config failed");
+      },
+      get() {
+        return false;
+      },
+    });
+    const healthy = fakeUpdater();
+    vi.mocked(healthy.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
+    const loadUpdater = vi.fn(async () => {
+      attempts += 1;
+      return attempts === 1 ? broken.updater : healthy.updater;
+    });
+    const subject = activeController(healthy.updater, { loadUpdater });
+
+    await subject.controller.start();
+    expect(subject.controller.state()).toEqual({ status: "failed", stage: "check" });
+
+    subject.tick();
+    await vi.waitFor(() => expect(subject.controller.state()).toEqual({ status: "current" }));
+    expect(loadUpdater).toHaveBeenCalledTimes(2);
+    expect(healthy.updater.checkForUpdates).toHaveBeenCalledOnce();
+    subject.controller.close();
+  });
+
+  it("locks out restart and detaches macOS readiness watch on ordinary quit close", async () => {
+    const fake = fakeUpdater();
+    const native = fakeNativeUpdater();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    const subject = activeController(fake.updater, {
+      platform: "darwin",
+      nativeUpdater: native.updater,
+    });
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    fake.emit("update-downloaded", { version: "0.1.1" });
+    native.emit("update-downloaded");
+    await startup;
+    expect(native.listenerCount()).toBe(1);
+
+    subject.controller.close();
+    expect(native.listenerCount()).toBe(0);
+    expect(subject.controller.isInstallRequested?.()).toBe(false);
+    expect(subject.controller.restart()).toEqual({ status: "downloaded", version: "0.1.1" });
+    expect(subject.quit).not.toHaveBeenCalled();
+    expect(subject.controller.completeInstallAfterDrain(vi.fn())).toBe("not-requested");
+  });
+
+  it("handles macOS native readiness errors during drain, inside quitAndInstall, and asynchronously after handoff", async () => {
+    const drainFake = fakeUpdater();
+    const drainNative = fakeNativeUpdater();
+    vi.mocked(drainFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    const drainSubject = activeController(drainFake.updater, {
+      platform: "darwin",
+      nativeUpdater: drainNative.updater,
+    });
+    let restartedInSubscriber = false;
+    drainSubject.controller.subscribe((next) => {
+      if (next.status === "downloaded" && !restartedInSubscriber) {
+        restartedInSubscriber = true;
+        drainSubject.controller.restart();
+      }
+    });
+    const drainStart = drainSubject.controller.start();
+    await vi.waitFor(() => expect(drainFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    drainFake.emit("update-downloaded", { version: "0.1.1" });
+    drainNative.emit("update-downloaded");
+    await drainStart;
+    expect(restartedInSubscriber).toBe(true);
+    drainSubject.controller.close();
+    drainNative.emit("error", new Error("invalidated after close during drain"));
+    expect(drainSubject.controller.completeInstallAfterDrain(vi.fn())).toBe("failed");
+    expect(drainSubject.controller.completeInstallAfterDrain(vi.fn())).toBe("failed");
+    expect(drainFake.updater.quitAndInstall).not.toHaveBeenCalled();
+
+    const syncNativeFake = fakeUpdater();
+    const syncNative = fakeNativeUpdater();
+    vi.mocked(syncNativeFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(syncNativeFake.updater.quitAndInstall).mockImplementation(() => {
+      syncNative.emit("error", new Error("squirrel sync failure"));
+      syncNativeFake.emit("error", new Error("forwarded sync failure"));
+    });
+    const syncNativeSubject = activeController(syncNativeFake.updater, {
+      platform: "darwin",
+      nativeUpdater: syncNative.updater,
+    });
+    const syncNativeStart = syncNativeSubject.controller.start();
+    await vi.waitFor(() => expect(syncNativeFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    syncNativeFake.emit("update-downloaded", { version: "0.1.1" });
+    syncNative.emit("update-downloaded");
+    await syncNativeStart;
+    syncNativeSubject.controller.restart();
+    syncNativeSubject.controller.close();
+    const syncOnInstallError = vi.fn();
+    expect(
+      syncNativeSubject.controller.completeInstallAfterDrain(vi.fn(), syncOnInstallError),
+    ).toBe("failed");
+    expect(syncOnInstallError).not.toHaveBeenCalled();
+    expect(syncNativeSubject.controller.completeInstallAfterDrain(vi.fn())).toBe("failed");
+    expect(syncNativeFake.listenerCount()).toBe(0);
+    expect(syncNative.listenerCount()).toBe(0);
+
+    const asyncNativeFake = fakeUpdater();
+    const asyncNative = fakeNativeUpdater();
+    vi.mocked(asyncNativeFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    const asyncNativeSubject = activeController(asyncNativeFake.updater, {
+      platform: "darwin",
+      nativeUpdater: asyncNative.updater,
+    });
+    const asyncNativeStart = asyncNativeSubject.controller.start();
+    await vi.waitFor(() => expect(asyncNativeFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    asyncNativeFake.emit("update-downloaded", { version: "0.1.1" });
+    asyncNative.emit("update-downloaded");
+    await asyncNativeStart;
+    asyncNativeSubject.controller.restart();
+    asyncNativeSubject.controller.close();
+    const asyncOnInstallError = vi.fn();
+    expect(
+      asyncNativeSubject.controller.completeInstallAfterDrain(vi.fn(), asyncOnInstallError),
+    ).toBe("started");
+    asyncNative.emit("error", new Error("squirrel async failure"));
+    asyncNativeFake.emit("error", new Error("forwarded async failure"));
+    expect(asyncOnInstallError).toHaveBeenCalledOnce();
+    expect(asyncNativeFake.listenerCount()).toBe(0);
+    expect(asyncNative.listenerCount()).toBe(0);
+  });
+
+  it("reports synchronous and asynchronous quitAndInstall updater errors", async () => {
+    const syncFake = fakeUpdater();
+    vi.mocked(syncFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(syncFake.updater.quitAndInstall).mockImplementation(() => {
+      syncFake.emit("error", new Error("Windows installer spawn failed"));
+    });
+    const syncSubject = activeController(syncFake.updater);
+    const syncStart = syncSubject.controller.start();
+    await vi.waitFor(() => expect(syncFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    syncFake.emit("update-downloaded", { version: "0.1.1" });
+    await syncStart;
+    syncSubject.controller.restart();
+    syncSubject.controller.close();
+    expect(syncSubject.controller.completeInstallAfterDrain(vi.fn(), vi.fn())).toBe("failed");
+    expect(syncSubject.controller.completeInstallAfterDrain(vi.fn(), vi.fn())).toBe("failed");
+    expect(syncFake.listenerCount()).toBe(0);
+
+    const asyncFake = fakeUpdater();
+    vi.mocked(asyncFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    const asyncSubject = activeController(asyncFake.updater);
+    const asyncStart = asyncSubject.controller.start();
+    await vi.waitFor(() => expect(asyncFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    asyncFake.emit("update-downloaded", { version: "0.1.1" });
+    await asyncStart;
+    asyncSubject.controller.restart();
+    asyncSubject.controller.close();
+    const onInstallError = vi.fn();
+    expect(asyncSubject.controller.completeInstallAfterDrain(vi.fn(), onInstallError)).toBe(
+      "started",
+    );
+    asyncFake.emit("error", new Error("async installer failure"));
+    expect(onInstallError).toHaveBeenCalledOnce();
+  });
+
+  it("fences re-entrant close during publish and ignores duplicate macOS update-downloaded events", async () => {
+    const reentrantFake = fakeUpdater();
+    vi.mocked(reentrantFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
+    const reentrant = activeController(reentrantFake.updater);
+    reentrant.controller.subscribe((next) => {
+      if (next.status === "checking") reentrant.controller.close();
+    });
+    await reentrant.controller.start();
+    expect(reentrantFake.updater.checkForUpdates).not.toHaveBeenCalled();
+    expect(reentrantFake.listenerCount()).toBe(0);
+    expect(reentrant.deadlines.pending()).toBe(0);
+
+    const macFake = fakeUpdater();
+    const native = fakeNativeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(macFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(macFake.updater.downloadUpdate).mockReturnValue(download.promise);
+    const macSubject = activeController(macFake.updater, {
+      platform: "darwin",
+      nativeUpdater: native.updater,
+    });
+    const macStart = macSubject.controller.start();
+    await vi.waitFor(() => expect(macFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    macFake.emit("update-downloaded", { version: "0.1.1" });
+    const firstPrepTimer = macSubject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
+    macFake.emit("update-downloaded", { version: "0.1.1" });
+    expect(macSubject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS)).toBe(
+      firstPrepTimer,
+    );
+    native.emit("update-downloaded");
+    download.resolve([]);
+    await macStart;
+    macSubject.controller.close();
   });
 });

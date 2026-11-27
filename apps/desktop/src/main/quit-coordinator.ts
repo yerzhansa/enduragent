@@ -1,3 +1,4 @@
+import { createSafeLog } from "./safe-log.js";
 import type { DesktopUpdateController } from "./update-controller.js";
 
 export interface DesktopBeforeQuitEvent {
@@ -33,6 +34,16 @@ interface DesktopShutdownTimerHandle {
 }
 
 type DesktopDrainOutcome = "drained" | "failed" | "timed-out" | "cancelled";
+
+type QuitUpdateController = Pick<DesktopUpdateController, "completeInstallAfterDrain"> &
+  Partial<Pick<DesktopUpdateController, "isInstallRequested">>;
+
+type QuitCoordinatorPhase =
+  | { readonly kind: "running" }
+  | { readonly kind: "draining"; readonly intent: "quit" | "update-install" }
+  | { readonly kind: "handing-off"; handoffTimer?: DesktopShutdownTimerHandle }
+  | { readonly kind: "handoff-accepted" }
+  | { readonly kind: "terminated" };
 
 export const DESKTOP_SHUTDOWN_DEADLINE_MS = 30_000;
 export const DESKTOP_UPDATE_HANDOFF_DEADLINE_MS = 30_000;
@@ -77,9 +88,12 @@ function waitForDesktopDrain(input: {
 
 export async function completeDesktopShutdown(input: {
   readonly drain: () => Promise<void>;
-  readonly updateController: Pick<DesktopUpdateController, "completeInstallAfterDrain">;
+  readonly updateController: QuitUpdateController;
   readonly allowFinalQuit: () => void;
+  readonly revokeFinalQuit?: () => void;
   readonly exit: (code: number) => void;
+  readonly relaunch?: () => void;
+  readonly log?: (message: string) => void;
   readonly deadlineMs?: number;
   readonly signal?: AbortSignal;
   readonly updaterQuitAccepted?: () => boolean;
@@ -88,6 +102,22 @@ export async function completeDesktopShutdown(input: {
   readonly setTimeout?: (callback: () => void, delayMs: number) => DesktopShutdownTimerHandle;
   readonly clearTimeout?: (handle: DesktopShutdownTimerHandle) => void;
 }): Promise<void> {
+  const log = createSafeLog(input.log);
+  const isAborted = (): boolean => input.signal?.aborted === true;
+  const installRequested = input.updateController.isInstallRequested?.() === true;
+  let relaunched = false;
+  const relaunchAndExit = (code: number): void => {
+    if (isAborted() || relaunched) return;
+    relaunched = true;
+    if (input.relaunch !== undefined) {
+      try {
+        input.relaunch();
+      } catch {
+        log("desktop-update-relaunch-failed");
+      }
+    }
+    input.exit(code);
+  };
   const drainOutcome = await waitForDesktopDrain({
     drain: input.drain,
     deadlineMs: input.deadlineMs ?? DESKTOP_SHUTDOWN_DEADLINE_MS,
@@ -98,35 +128,43 @@ export async function completeDesktopShutdown(input: {
       input.clearTimeout ??
       ((handle) => globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>)),
   });
-  if (drainOutcome === "cancelled") return;
+  if (drainOutcome === "cancelled" || isAborted()) return;
   if (drainOutcome !== "drained") {
-    input.exit(1);
+    if (installRequested) relaunchAndExit(1);
+    else input.exit(1);
     return;
   }
-  if (input.signal?.aborted === true) return;
   let updateInstall: "started" | "not-requested" | "failed";
   try {
-    updateInstall = input.updateController.completeInstallAfterDrain(input.allowFinalQuit);
+    updateInstall = input.updateController.completeInstallAfterDrain(input.allowFinalQuit, () => {
+      if (isAborted() || input.updaterQuitAccepted?.() === true) return;
+      input.revokeFinalQuit?.();
+      log("desktop-update-install-error");
+      relaunchAndExit(1);
+    });
   } catch {
-    input.exit(1);
+    input.revokeFinalQuit?.();
+    if (installRequested) relaunchAndExit(1);
+    else if (!isAborted()) input.exit(1);
     return;
   }
   if (updateInstall === "started") {
-    if (input.updaterQuitAccepted?.() === true) return;
+    if (isAborted() || input.updaterQuitAccepted?.() === true) return;
     const scheduleTimeout =
       input.setTimeout ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
     const handle = scheduleTimeout(() => {
-      try {
-        process.stderr.write("desktop-update-handoff-timeout\n");
-      } catch {}
-      input.exit(1);
+      if (isAborted() || input.updaterQuitAccepted?.() === true) return;
+      input.revokeFinalQuit?.();
+      log("desktop-update-handoff-timeout");
+      relaunchAndExit(1);
     }, input.handoffDeadlineMs ?? DESKTOP_UPDATE_HANDOFF_DEADLINE_MS);
     handle.unref();
     input.retainHandoffTimer?.(handle);
     return;
   }
   if (updateInstall === "failed") {
-    input.exit(1);
+    input.revokeFinalQuit?.();
+    relaunchAndExit(1);
     return;
   }
   input.allowFinalQuit();
@@ -135,8 +173,10 @@ export async function completeDesktopShutdown(input: {
 
 export function createDesktopQuitCoordinator(input: {
   readonly drain: () => Promise<void>;
-  readonly updateController: Pick<DesktopUpdateController, "completeInstallAfterDrain">;
+  readonly updateController: QuitUpdateController;
   readonly exit: (code: number) => void;
+  readonly relaunch?: () => void;
+  readonly log?: (message: string) => void;
   readonly deadlineMs?: number;
   readonly handoffDeadlineMs?: number;
   readonly setTimeout?: (callback: () => void, delayMs: number) => DesktopShutdownTimerHandle;
@@ -145,49 +185,65 @@ export function createDesktopQuitCoordinator(input: {
   readonly beforeQuit: (event: DesktopBeforeQuitEvent) => "allowed" | "draining";
   readonly forceQuit: () => void;
 } {
-  let drainPromise: Promise<void> | undefined;
-  let finalQuitAllowed = false;
-  let updaterQuitAccepted = false;
-  let terminated = false;
-  let handoffTimer: DesktopShutdownTimerHandle | undefined;
+  const log = createSafeLog(input.log);
+  let phase: QuitCoordinatorPhase = { kind: "running" };
   const cancellation = new AbortController();
   const cancelTimeout =
     input.clearTimeout ??
     ((handle: DesktopShutdownTimerHandle) =>
       globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>));
-  const clearHandoffTimer = (): void => {
-    if (handoffTimer === undefined) return;
-    const handle = handoffTimer;
-    handoffTimer = undefined;
+  const clearTimer = (handle: DesktopShutdownTimerHandle | undefined): undefined => {
+    if (handle === undefined) return undefined;
     try {
       cancelTimeout(handle);
-    } catch {}
+    } catch {
+      log("desktop-quit-timer-cleanup-failed");
+    }
+    return undefined;
   };
   const exitOnce = (code: number): void => {
-    if (terminated) return;
-    terminated = true;
-    clearHandoffTimer();
+    if (phase.kind === "terminated") return;
+    if (phase.kind === "handing-off") {
+      phase.handoffTimer = clearTimer(phase.handoffTimer);
+    }
+    phase = { kind: "terminated" };
     cancellation.abort();
     input.exit(code);
   };
   return {
     beforeQuit(event) {
-      if (finalQuitAllowed || terminated) {
-        updaterQuitAccepted = true;
-        clearHandoffTimer();
+      if (phase.kind === "terminated" || phase.kind === "handoff-accepted") {
+        return "allowed";
+      }
+      if (phase.kind === "handing-off") {
+        phase.handoffTimer = clearTimer(phase.handoffTimer);
+        phase = { kind: "handoff-accepted" };
         return "allowed";
       }
       event.preventDefault();
-      drainPromise ??= completeDesktopShutdown({
+      if (phase.kind === "draining") return "draining";
+      const intent =
+        input.updateController.isInstallRequested?.() === true ? "update-install" : "quit";
+      phase = { kind: "draining", intent };
+      void completeDesktopShutdown({
         ...input,
         signal: cancellation.signal,
         exit: exitOnce,
-        updaterQuitAccepted: () => updaterQuitAccepted,
+        updaterQuitAccepted: () => phase.kind === "handoff-accepted",
         retainHandoffTimer: (handle) => {
-          handoffTimer = handle;
+          if (phase.kind !== "handing-off") {
+            clearTimer(handle);
+            return;
+          }
+          phase.handoffTimer = handle;
         },
         allowFinalQuit: () => {
-          finalQuitAllowed = true;
+          if (phase.kind === "draining") phase = { kind: "handing-off" };
+        },
+        revokeFinalQuit: () => {
+          if (phase.kind !== "handing-off") return;
+          phase.handoffTimer = clearTimer(phase.handoffTimer);
+          phase = { kind: "draining", intent };
         },
       });
       return "draining";

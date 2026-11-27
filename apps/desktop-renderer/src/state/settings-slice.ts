@@ -12,7 +12,7 @@ import type { SessionSettingField, SessionSettingsState } from "../settings/sess
 import type { TelegramSettingsState } from "../settings/telegram-controller";
 import { INITIAL_SPEND_METER_STATE, type SpendMeterState } from "../spend-meter/controller";
 import type { UnitsPreferenceViewState } from "../training-context/controller";
-import type { DesktopUpdateState } from "../update/controller";
+import type { DesktopUpdatePendingAction, DesktopUpdateState } from "../update/controller";
 import type { EnduragentState } from "./store";
 
 interface SettingsPanesPort {
@@ -105,7 +105,7 @@ export interface SpendSurfaceState extends SpendMeterState {
 
 export interface UpdateSurfaceState {
   readonly state: DesktopUpdateState;
-  readonly actionDisabled: boolean;
+  readonly pendingAction: DesktopUpdatePendingAction;
 }
 
 interface SettingsSurfaceState {
@@ -130,7 +130,7 @@ const EMPTY_SPEND_SURFACE: SpendSurfaceState = Object.freeze({
 
 const EMPTY_UPDATE_SURFACE: UpdateSurfaceState = Object.freeze({
   state: Object.freeze({ status: "idle" as const }),
-  actionDisabled: false,
+  pendingAction: "hydrating" as const,
 });
 
 export const EMPTY_SETTINGS_SURFACE: SettingsSurfaceState = Object.freeze({

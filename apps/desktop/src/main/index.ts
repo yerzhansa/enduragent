@@ -435,9 +435,12 @@ async function runDesktop(): Promise<void> {
         });
   const shutdown = (): Promise<void> => {
     shutdownPromise ??= (async () => {
-      const closingResidency = residency;
-      const residencyClose = closingResidency?.close();
-      if (closingResidency !== undefined) activation.unbind(closingResidency);
+      desktopUsagePingController?.close();
+      disposeUpdateIpc?.();
+      disposeUpdateIpc = undefined;
+      updateController.close();
+      const residencyClose = residency?.close();
+      if (residency !== undefined) activation.unbind(residency);
       residency = undefined;
       const intervalsIpcClose = disposeIntervalsIpc?.();
       disposeIntervalsIpc = undefined;
@@ -464,8 +467,6 @@ async function runDesktop(): Promise<void> {
       disposeExternalLinkIpc = undefined;
       disposeAppearanceIpc?.();
       disposeAppearanceIpc = undefined;
-      disposeUpdateIpc?.();
-      disposeUpdateIpc = undefined;
       disposeAthleteFeedbackIpc?.();
       disposeAthleteFeedbackIpc = undefined;
       await telegramPower?.close();
@@ -474,8 +475,6 @@ async function runDesktop(): Promise<void> {
       await closeTelegramCoordinator?.();
       closeTelegramCoordinator = undefined;
       await reportSecuritySmokeShutdownStage("telegram-coordinator-closed");
-      desktopUsagePingController?.close();
-      updateController.close();
       disposeOnboarding?.();
       disposeOnboarding = undefined;
       powerMonitor.off("resume", onModelCatalogResume);
@@ -493,6 +492,7 @@ async function runDesktop(): Promise<void> {
     drain: shutdown,
     updateController,
     exit: (code) => app.exit(code),
+    relaunch: () => app.relaunch(),
   });
   app.on("before-quit", (event) => {
     desktopIsClosing = true;

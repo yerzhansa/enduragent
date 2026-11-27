@@ -121,4 +121,99 @@ describe("desktop update renderer controller", () => {
     subject.publish({ status: "current" });
     expect(subject.view.render).toHaveBeenCalledOnce();
   });
+
+  it("blocks update actions until initial getUpdateState hydrates", async () => {
+    let resolveInitial!: (state: DesktopUpdateState) => void;
+    const subject = setupController();
+    vi.mocked(subject.bridge.getUpdateState).mockReturnValue(
+      new Promise((resolve) => {
+        resolveInitial = resolve;
+      }),
+    );
+
+    const startup = subject.controller.start();
+    subject.action();
+    expect(subject.bridge.checkForUpdates).not.toHaveBeenCalled();
+    expect(subject.bridge.restartToUpdate).not.toHaveBeenCalled();
+
+    resolveInitial({ status: "idle" });
+    await startup;
+    subject.action();
+    await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledOnce());
+  });
+
+  it("distinguishes pending checking from restarting even when downloaded arrives before invoke settles", async () => {
+    let resolveCheck!: (state: DesktopUpdateState) => void;
+    const subject = setupController({ status: "idle" });
+    vi.mocked(subject.bridge.checkForUpdates).mockReturnValue(
+      new Promise((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+    await subject.controller.start();
+
+    subject.action();
+    expect(subject.view.render).toHaveBeenLastCalledWith(
+      { status: "idle" },
+      { pendingAction: "checking" },
+    );
+
+    subject.publish({ status: "downloaded", version: "1998.7.7" });
+    expect(subject.view.render).toHaveBeenLastCalledWith(
+      { status: "downloaded", version: "1998.7.7" },
+      { pendingAction: "checking" },
+    );
+
+    resolveCheck({ status: "downloaded", version: "1998.7.7" });
+    await vi.waitFor(() =>
+      expect(subject.view.render).toHaveBeenLastCalledWith({
+        status: "downloaded",
+        version: "1998.7.7",
+      }),
+    );
+
+    subject.action();
+    expect(subject.view.render).toHaveBeenLastCalledWith(
+      { status: "downloaded", version: "1998.7.7" },
+      { pendingAction: "restarting" },
+    );
+  });
+
+  it("moves to failed when checkForUpdates rejects after checking or downloading pushes", async () => {
+    let rejectCheck: ((reason: unknown) => void) | undefined;
+    const subject = setupController({ status: "idle" });
+    vi.mocked(subject.bridge.checkForUpdates)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectCheck = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectCheck = reject;
+          }),
+      );
+    await subject.controller.start();
+
+    subject.action();
+    await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledTimes(1));
+    subject.publish({ status: "checking" });
+    rejectCheck?.(new Error("ipc dropped"));
+    await vi.waitFor(() =>
+      expect(subject.view.render).toHaveBeenLastCalledWith({ status: "failed", stage: "check" }),
+    );
+
+    subject.action();
+    await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledTimes(2));
+    subject.publish({ status: "downloading", version: "1998.7.7" });
+    rejectCheck?.(new Error("ipc dropped during download"));
+    await vi.waitFor(() =>
+      expect(subject.view.render).toHaveBeenLastCalledWith({
+        status: "failed",
+        stage: "download",
+      }),
+    );
+  });
 });
