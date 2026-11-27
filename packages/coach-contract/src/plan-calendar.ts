@@ -65,6 +65,8 @@ export const PlanCalendarCopySchema = z.discriminatedUnion("kind", [
       kind: z.literal("changed-in-intervals"),
       change: z.enum(["edited", "moved", "deleted"]),
       toDateKey: DateKeySchema.nullable(),
+      name: z.string().max(512).nullable(),
+      durationS: SecondsSchema.nullable(),
     })
     .strict(),
   z.object({ kind: z.literal("removed-by-you") }).strict(),

@@ -564,6 +564,11 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     await this.calendarDrain?.idle();
   }
 
+  async calendarRun(): Promise<void> {
+    await this.calendarDrain?.kick();
+    await this.calendarDrain?.idle();
+  }
+
   setCivilDate(date: string): void {
     this.civilDate = date;
     this.instant = Date.parse(`${date}T00:00:00.000Z`);
