@@ -190,6 +190,9 @@ describe("payment required", () => {
     expect(classifyFailure({ code: 402, message: "Insufficient credits" })).toBe(
       "payment_required",
     );
+    expect(classifyFailure({ code: "402", message: "Insufficient credits" })).toBe(
+      "payment_required",
+    );
     expect(classifyFailure({ code: 400, message: "Insufficient credits" })).toBe("unknown");
     expect(classifyFailure(Object.assign(new Error("x"), { code: 402 }))).toBe("unknown");
   });

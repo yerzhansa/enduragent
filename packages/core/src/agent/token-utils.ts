@@ -103,13 +103,15 @@ export function isAuthError(err: unknown): boolean {
   return APICallError.isInstance(err) && (err.statusCode === 401 || err.statusCode === 403);
 }
 
+const PAYMENT_REQUIRED_STREAM_CODES: ReadonlySet<unknown> = new Set([402, "402"]);
+
 export function isPaymentRequiredError(err: unknown): boolean {
   if (APICallError.isInstance(err)) return err.statusCode === 402;
   return (
     typeof err === "object" &&
     err !== null &&
     !(err instanceof Error) &&
-    (err as { code?: unknown }).code === 402
+    PAYMENT_REQUIRED_STREAM_CODES.has((err as { code?: unknown }).code)
   );
 }
 
