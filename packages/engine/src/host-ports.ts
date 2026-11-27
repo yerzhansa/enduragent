@@ -415,7 +415,8 @@ export type CallerRole =
   | "compact"
   | "sync-triage"
   | "dream"
-  | "intent-translation";
+  | "intent-translation"
+  | "coach-text";
 
 export interface UsageCost {
   readonly input: number;

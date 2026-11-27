@@ -211,6 +211,7 @@ export class LLM {
       return claudeCliGenerateText(
         {
           ...opts,
+          caller: keylessBridgeCaller(opts.caller),
           modelId: this.profile.model,
           stepLimit: opts.maxSteps,
         },
@@ -232,7 +233,7 @@ export class LLM {
         throw new Error("codex-agent provider requires llm.codexAgent configuration");
       }
       return codexAgentGenerateText(
-        { ...opts, modelId: this.profile.model },
+        { ...opts, caller: keylessBridgeCaller(opts.caller), modelId: this.profile.model },
         {
           runtime: {
             enabled: codexAgent.enabled,
@@ -682,6 +683,10 @@ function providerReportedCostFromSteps(steps: readonly unknown[]): number | unde
     if (!Number.isFinite(total)) return undefined;
   }
   return total;
+}
+
+export function keylessBridgeCaller(caller: GenerateOpts["caller"]): GenerateOpts["caller"] {
+  return caller === "coach-text" ? "intent-translation" : caller;
 }
 
 function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {

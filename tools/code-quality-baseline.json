@@ -204,7 +204,6 @@
     "packages/engine/tests/helpers/fake-llm.ts": 2,
     "packages/engine/tests/llm-cache-breakpoint.test.ts": 9,
     "packages/engine/tests/llm-cache-control.test.ts": 2,
-    "packages/engine/tests/llm-dispatch.test.ts": 5,
     "packages/engine/tests/llm-provider-build.test.ts": 8,
     "packages/engine/tests/prefix-token-ceiling.test.ts": 6,
     "packages/engine/tests/provider-error-taxonomy.test.ts": 14,
