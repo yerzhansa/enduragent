@@ -52,26 +52,44 @@ describe("intervalsMutationError", () => {
     ).toBeNull();
   });
 
+  it.each(["applied", "saved-not-active"] as const)(
+    "points a %s sign-in the coach can't use at Retry saved keys",
+    (outcome) => {
+      expect(
+        intervalsMutationError({
+          outcome,
+          current: { slot: "intervals-icu", state: "configured", runtimeState: "failed" },
+        }),
+      ).toBe("intervals-saved-not-active");
+    },
+  );
+
+  it("reports no error when the saved sign-in turns out to be active", () => {
+    expect(
+      intervalsMutationError({
+        outcome: "saved-not-active",
+        current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      }),
+    ).toBeNull();
+  });
+
   it.each([
     { state: "configured", runtimeState: "stored-inactive" },
-    { state: "configured", runtimeState: "failed" },
     { state: "configured", runtimeState: null },
     { state: "re-prompt", runtimeState: "active" },
     { state: "missing", runtimeState: null },
   ] as const)(
-    "reports runtime-unavailable for an applied sign-in that is $state and $runtimeState",
+    "reports runtime-unavailable for a saved sign-in that is $state and $runtimeState",
     (status) => {
-      expect(
-        intervalsMutationError({
-          outcome: "applied",
-          current: { slot: "intervals-icu", ...status },
-          athleteName: "Test Athlete",
-        }),
-      ).toBe("intervals-runtime-unavailable");
+      for (const outcome of ["applied", "saved-not-active"] as const) {
+        expect(
+          intervalsMutationError({ outcome, current: { slot: "intervals-icu", ...status } }),
+        ).toBe("intervals-runtime-unavailable");
+      }
     },
   );
 
-  it("separates uncertain storage from uncertain activation", () => {
+  it("reports uncertain storage", () => {
     expect(
       intervalsMutationError({
         outcome: "uncertain",
@@ -79,12 +97,5 @@ describe("intervalsMutationError", () => {
         current: MISSING,
       }),
     ).toBe("intervals-storage-uncertain");
-    expect(
-      intervalsMutationError({
-        outcome: "uncertain",
-        reason: "runtime-uncertain",
-        current: MISSING,
-      }),
-    ).toBe("intervals-runtime-uncertain");
   });
 });

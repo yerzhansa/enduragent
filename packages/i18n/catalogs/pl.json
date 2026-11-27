@@ -710,7 +710,7 @@
       "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
       "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że to konto {{intervals}} odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
       "intervalsRuntimeUnavailable": "Nie udało się aktywować logowania do {{intervals}}. Zaloguj się ponownie.",
-      "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy logowanie jest aktywne. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsSavedNotActive": "Twoje logowanie do {{intervals}} jest zapisane, ale trener nie mógł zacząć go używać. Wybierz Ponów zapisane klucze, aby spróbować ponownie.",
       "intervalsSignInDenied": "Nie przyznano dostępu w {{intervals}}. Zaloguj się ponownie, gdy zechcesz.",
       "intervalsSignInFailed": "Logowanie przez {{intervals}} nie zostało dokończone. Zaloguj się ponownie.",
       "intervalsSignInRejected": "{{intervals}} nie zaakceptował logowania. Zaloguj się ponownie.",

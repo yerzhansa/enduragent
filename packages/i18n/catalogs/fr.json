@@ -706,7 +706,7 @@
       "endpointInvalid": "Saisis un point de terminaison HTTPS valide, ou un point de terminaison HTTP de bouclage local.",
       "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que ce compte {{intervals}} correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
       "intervalsRuntimeUnavailable": "La connexion à {{intervals}} n’a pas pu être activée. Reconnecte-toi.",
-      "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la connexion est active. Recharge l’état des données d’authentification avant de réessayer.",
+      "intervalsSavedNotActive": "Ta connexion à {{intervals}} est enregistrée, mais le coach n’a pas pu commencer à l’utiliser. Choisis Réessayer les clés enregistrées pour réessayer.",
       "intervalsSignInDenied": "L’accès n’a pas été autorisé sur {{intervals}}. Reconnecte-toi quand tu le souhaites.",
       "intervalsSignInFailed": "La connexion avec {{intervals}} n’a pas abouti. Reconnecte-toi.",
       "intervalsSignInRejected": "{{intervals}} n’a pas accepté la connexion. Reconnecte-toi.",

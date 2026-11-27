@@ -153,6 +153,7 @@ export function TrainingRow(props: {
   const [connectPhase, setConnectPhase] = useState<"idle" | "connecting">("idle");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusHeadingAfterOpen = useRef<"delete" | "trigger" | null>(null);
   const panelId = "onboarding-training-panel";
@@ -163,10 +164,10 @@ export function TrainingRow(props: {
     if (connectPhase === "idle" || busy || surface.lastCommit !== "training") return;
     if (connected) {
       setOpen(false);
-      (rejected ? triggerRef : deleteRef).current?.focus();
+      (rejected ? triggerRef : !signInWorking && retryable ? retryRef : deleteRef).current?.focus();
     }
     setConnectPhase("idle");
-  }, [busy, connected, connectPhase, rejected, surface.lastCommit]);
+  }, [busy, connected, connectPhase, rejected, retryable, signInWorking, surface.lastCommit]);
 
   useEffect(() => {
     if (!repairRequired) return;
@@ -369,6 +370,7 @@ export function TrainingRow(props: {
         <SetupSubPanel name="training-recovery">
           {retryable ? (
             <Button
+              ref={retryRef}
               type="button"
               variant="link"
               size="sm"

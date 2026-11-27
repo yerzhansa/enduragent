@@ -706,7 +706,7 @@
       "endpointInvalid": "Skriv inn et gyldig HTTPS-endepunkt eller et lokalt HTTP-endepunkt med loopback-adresse.",
       "intervalsOwnerUnavailable": "{{product}} kunne ikke bekrefte at denne {{intervals}}-kontoen samsvarer med treningsdataene på {{computer}}. Prøv igjen når treningsdata er tilgjengelige.",
       "intervalsRuntimeUnavailable": "Påloggingen til {{intervals}} kunne ikke aktiveres. Logg på igjen.",
-      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekrefte om påloggingen er aktiv. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
+      "intervalsSavedNotActive": "Påloggingen din til {{intervals}} er lagret, men treneren kunne ikke begynne å bruke den. Velg Prøv lagrede nøkler igjen for å prøve på nytt.",
       "intervalsSignInDenied": "Tilgang ble ikke tillatt på {{intervals}}. Logg på igjen når du er klar.",
       "intervalsSignInFailed": "Påloggingen med {{intervals}} ble ikke fullført. Logg på igjen.",
       "intervalsSignInRejected": "{{intervals}} godtok ikke påloggingen. Logg på igjen.",

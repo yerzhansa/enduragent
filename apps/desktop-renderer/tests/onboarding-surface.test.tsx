@@ -44,6 +44,9 @@ function deferred<T>(): {
   return { promise, resolve };
 }
 
+const SAVED_SIGN_IN_NOT_WORKING =
+  "Your Intervals.icu sign-in is saved, but the coach couldn’t start using it. Choose Retry saved keys to try again.";
+
 function button(name: string): HTMLButtonElement {
   return screen.getByRole("button", { name });
 }
@@ -413,9 +416,12 @@ describe("mounted onboarding", () => {
     await user.click(panelButton("training", "Sign in with Intervals.icu"));
 
     await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intervals-runtime-unavailable");
+      expect(wizard.controller.state().busy).toBe(false);
     });
-    expect(errorText()).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+    expect(
+      errorText(),
+      "the row offers Retry saved keys, not Sign in again, so the message should too",
+    ).toBe(SAVED_SIGN_IN_NOT_WORKING);
     expect(retryButtons()).toHaveLength(1);
     expect(rowState("training"), "a sign-in that cannot be used should not look connected").toBe(
       "attention",
@@ -431,6 +437,49 @@ describe("mounted onboarding", () => {
     await waitFor(() => {
       expect(wizard.controller.state().busy).toBe(false);
     });
+    expect(retryButtons()).toHaveLength(1);
+    expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
+    wizard.controller.dispose();
+  });
+
+  it("says a saved Intervals sign-in the coach can't use needs Retry saved keys, and focuses it", async () => {
+    const user = userEvent.setup();
+    const failed = { slot: "intervals-icu", state: "configured", runtimeState: "failed" } as const;
+    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.credentialStatuses.mockResolvedValue([]);
+    bridge.retryFailedCredentials.mockResolvedValue([failed]);
+    bridge.signInWithIntervals.mockResolvedValue({ outcome: "saved-not-active", current: failed });
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await openTrainingPanel(user);
+
+    await user.click(panelButton("training", "Sign in with Intervals.icu"));
+
+    await waitFor(() => {
+      expect(wizard.controller.state().busy).toBe(false);
+    });
+    expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
+    expect(
+      errorText(),
+      "the message should say the sign-in is saved and name the Retry saved keys control",
+    ).toBe(SAVED_SIGN_IN_NOT_WORKING);
+    expect(errorText()).not.toContain("couldn’t confirm");
+    expect(errorText()).not.toContain("Reload credential status");
+    expect(retryButtons()).toHaveLength(1);
+    expect(
+      button("Retry saved keys"),
+      "keyboard focus should land on the control the message names",
+    ).toHaveFocus();
+
+    await user.click(button("Retry saved keys"));
+
+    await waitFor(() => {
+      expect(bridge.retryFailedCredentials).toHaveBeenCalledOnce();
+    });
+    await waitFor(() => {
+      expect(wizard.controller.state().busy).toBe(false);
+    });
+    expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
     expect(retryButtons()).toHaveLength(1);
     expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     wizard.controller.dispose();
