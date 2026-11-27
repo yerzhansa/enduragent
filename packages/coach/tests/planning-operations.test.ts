@@ -192,6 +192,7 @@ function weeklyReviewMatches(input: {
     readForWorkout: async () => [match],
     decide: async () => match,
     withdraw: async () => undefined,
+    clearUnpaired: async () => undefined,
     listActivities: async () => [activity, extra],
     readProviderIdentities: async () => [],
     readSyncStatus: async () => ({

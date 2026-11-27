@@ -58,6 +58,7 @@ export interface PlanWorkoutMatchRepository {
     endDateKey: number,
   ): Promise<readonly PlanActivityObservation[]>;
   withdraw(id: string): Promise<void>;
+  clearUnpaired(id: string): Promise<void>;
   readProviderIdentities(planId: string): Promise<readonly PlanWorkoutProviderIdentity[]>;
   readSyncStatus(): Promise<PlanWorkoutMatchSyncStatus>;
 }
@@ -354,6 +355,13 @@ hlc_physical_ms=?, hlc_counter=? WHERE id=? AND (? <> 'confirmed' OR NOT EXISTS 
       await store.run(
         `DELETE FROM plan_workout_match WHERE id=?
 AND (decision='suggested' OR (source='platform' AND decision='confirmed'))`,
+        [id],
+      );
+    },
+    async clearUnpaired(id) {
+      if (!ULID.test(id)) throw new PlanWorkoutMatchValidationError("invalid-match");
+      await store.run(
+        "DELETE FROM plan_workout_match WHERE id=? AND source='platform' AND decision='unpaired'",
         [id],
       );
     },

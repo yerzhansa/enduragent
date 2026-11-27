@@ -496,7 +496,9 @@ export async function decideRide(
         );
       }
       if (target === null) return null;
-      if (current === undefined) {
+      const unpaired = current?.source === "platform" && current.decision === "unpaired";
+      if (current === undefined || unpaired) {
+        if (unpaired) await matches.clearUnpaired(current.id);
         const stored = await matches.observe(
           record(target.id, { source: "heuristic", decision: "confirmed" }),
         );

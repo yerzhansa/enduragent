@@ -65,6 +65,9 @@ function memoryRepository(input: {
         1,
       );
     },
+    async clearUnpaired() {
+      throw new Error("unused");
+    },
     async listActivities() {
       return input.activities;
     },

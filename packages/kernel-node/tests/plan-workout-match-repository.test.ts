@@ -350,6 +350,25 @@ describe("Plan WorkoutMatch repository", () => {
     ).resolves.toMatchObject({ decision: "unpaired", source: "platform" });
   });
 
+  it("clears only an unpaired intervals.icu row for the athlete's own match", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    const id = (last: string) => `${"0".repeat(25)}${last}`;
+    const platform = {
+      source: "platform" as const,
+      providerEventId: 77,
+      decidedAtMs: 10,
+    };
+    await repository.observe(suggestion({ ...platform, id: id("6"), decision: "unpaired" }));
+    await repository.observe(
+      suggestion({ ...platform, id: id("7"), activityId: "b".repeat(64), decision: "confirmed" }),
+    );
+    await repository.clearUnpaired(id("7"));
+    await repository.clearUnpaired(id("6"));
+    expect(
+      (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
+    ).toEqual([["7", "confirmed"]]);
+  });
+
   it("reads canonical activities and reports stale Intervals sync honestly", async () => {
     const repository = createPlanWorkoutMatchRepository(store);
     await store.run(

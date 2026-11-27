@@ -955,4 +955,36 @@ describe("deciding a ride", () => {
     ).toEqual([["platform", "unpaired"]]);
     expect(await test.calendarOutcome(1)).toBe("missed");
   });
+  it("keeps the athlete's own match to a workout they once unpaired in intervals.icu", async () => {
+    const test = await harness();
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(A, MONDAY, 3_600, { name: "Paired ride", load: 50, pairedEventId: 777 });
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      by: "intervals",
+    });
+    await test.decide(A, confirmed(1), { kind: "extra" });
+    expect(
+      await test.decide(A, NONE, { kind: "rematch", planWorkoutId: workoutId(1) }),
+    ).toMatchObject({
+      status: "ride",
+      ride: { match: { kind: "confirmed", planWorkoutId: workoutId(1), by: "you" } },
+    });
+    await test.setPaired(A, null);
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      planWorkoutId: workoutId(1),
+      by: "you",
+    });
+    await test.setPaired(A, 777);
+    expect((await test.rides()).rides[0]?.match).toMatchObject({ kind: "confirmed", by: "you" });
+    expect(
+      (await test.matches.readForWorkout(workoutId(1))).map((row) => [
+        row.source,
+        row.decision,
+        row.providerEventId,
+      ]),
+    ).toEqual([["heuristic", "confirmed", null]]);
+    expect(await test.calendarOutcome(1)).toBe("done-as-planned");
+  });
 });
