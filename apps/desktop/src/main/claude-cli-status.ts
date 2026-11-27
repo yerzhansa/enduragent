@@ -247,31 +247,27 @@ export function createClaudeCliStatus(
       }, CLAUDE_CLI_STATUS_DEADLINE_MS);
       timeout.unref?.();
       const settleLate = (): void => {
-        try {
-          invalidate();
-        } catch {}
+        invalidate();
         latestReady = null;
       };
-      void rawTask
-        .then(
-          (status) => {
-            if (timedOut) {
-              settleLate();
-              return;
-            }
-            clearTimeout(timeout);
-            resolve(status);
-          },
-          (error: unknown) => {
-            if (timedOut) {
-              settleLate();
-              return;
-            }
-            clearTimeout(timeout);
-            resolve({ state: stateForFailure(error) });
-          },
-        )
-        .catch(() => undefined);
+      void rawTask.then(
+        (status) => {
+          if (timedOut) {
+            settleLate();
+            return;
+          }
+          clearTimeout(timeout);
+          resolve(status);
+        },
+        (error: unknown) => {
+          if (timedOut) {
+            settleLate();
+            return;
+          }
+          clearTimeout(timeout);
+          resolve({ state: stateForFailure(error) });
+        },
+      );
     });
     activeRead = { generation, task };
     const clear = (): void => {
@@ -292,11 +288,7 @@ export function createClaudeCliStatus(
       const previous = activeRead;
       const generation = ++recheckGeneration;
       const task = (async () => {
-        if (previous !== undefined) {
-          try {
-            await previous.task;
-          } catch {}
-        }
+        if (previous !== undefined) await Promise.allSettled([previous.task]);
         invalidate();
         latestReady = null;
         return await startRead(true);
