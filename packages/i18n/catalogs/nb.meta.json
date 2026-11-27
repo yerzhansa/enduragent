@@ -10167,6 +10167,10 @@
     "coach.error.openRouterCredits": {
       "sourceHash": "e4928f5da9a7fa07a3b0728c08a13ff7afd51f95db0f91fa18756f4dba5d2e83",
       "translatedBy": "model"
+    },
+    "setup.training.subtitle.notWorking": {
+      "sourceHash": "ae6a14a930a72bc19d0170e85d5d25f67a2e7fb813f5f139096fc715633cc446",
+      "translatedBy": "model"
     }
   }
 }

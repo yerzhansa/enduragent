@@ -817,6 +817,7 @@
         "connected": "Connecté · source de tes sorties",
         "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
         "missing": "Connecte un compte ou importe des fichiers de sortie.",
+        "notWorking": "Connecté, mais pas encore fonctionnel",
         "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation.",
         "savedRides": "Sorties enregistrées sur {{computer}} · connecte-toi pour synchroniser les nouvelles"
       },

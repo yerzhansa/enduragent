@@ -814,6 +814,7 @@
         "connected": "已連結 · 騎乘資料來源",
         "connectedAs": "已以 {{name}} 身分連結 · 騎乘資料來源",
         "missing": "連結服務或匯入騎乘檔案。",
+        "notWorking": "已登入，但尚未生效",
         "rejected": "{{intervals}} 已不再接受此登入。請重新登入以繼續同步。",
         "savedRides": "騎乘已儲存在 {{computer}} · 連結後可同步新的騎乘"
       },

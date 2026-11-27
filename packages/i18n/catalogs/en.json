@@ -2342,6 +2342,7 @@
         "connected": "Connected · where your rides come from",
         "connectedAs": "Connected as {{name}} · where your rides come from",
         "missing": "Connect or import ride files.",
+        "notWorking": "Signed in, but not working yet",
         "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing.",
         "savedRides": "Rides saved on {{computer}} · connect to sync new ones"
       },

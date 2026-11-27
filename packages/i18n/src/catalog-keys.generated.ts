@@ -1983,6 +1983,7 @@ export type CatalogKey =
   | "setup.training.subtitle.connected"
   | "setup.training.subtitle.connectedAs"
   | "setup.training.subtitle.missing"
+  | "setup.training.subtitle.notWorking"
   | "setup.training.subtitle.rejected"
   | "setup.training.subtitle.savedRides"
   | "setup.training.tooltip.body"

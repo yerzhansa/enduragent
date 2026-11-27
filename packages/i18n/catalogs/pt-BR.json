@@ -817,6 +817,7 @@
         "connected": "Conectado · de onde vêm suas pedaladas",
         "connectedAs": "Conectado como {{name}} · de onde vêm suas pedaladas",
         "missing": "Conecte ou importe arquivos de pedalada.",
+        "notWorking": "Sessão iniciada, mas ainda não está funcionando",
         "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando.",
         "savedRides": "Pedaladas salvas em {{computer}} · conecte para sincronizar as novas"
       },

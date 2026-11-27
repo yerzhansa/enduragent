@@ -11,6 +11,7 @@ import {
 import { desktopFixtureWindowHidden } from "../../helpers/desktop-fixture-launch-args.js";
 
 const token = "p".repeat(43);
+const intervalsApproval = "a".repeat(64);
 const turnId = "turn-playwright-chat";
 
 interface ScriptRequest {
@@ -56,6 +57,7 @@ interface ChatDesktop {
   readonly coach: ScriptedCoach;
   readonly streamRequests: readonly string[];
   openedExternalUrls(): Promise<readonly string[]>;
+  approveIntervalsSignIn(): Promise<void>;
 }
 
 interface ChatDesktopFixtures {
@@ -64,6 +66,7 @@ interface ChatDesktopFixtures {
 
 interface ChatDesktopOptions {
   readonly durableTrainingData: boolean;
+  readonly intervalsRuntimeApplies: boolean;
 }
 
 const emptyAttachmentComposer = {
@@ -356,7 +359,14 @@ function createScript(
           publication: { scope: "activities-and-streams", status: "available" },
         });
       }
+      if (request.method === "verify_intervals_credential") {
+        return response({ approval: intervalsApproval });
+      }
       if (request.method === "configureRuntime") {
+        const params = request.params as { readonly intervals?: unknown };
+        if (params.intervals !== undefined && !options.intervalsRuntimeApplies) {
+          throw new Error("Synthetic Coach could not apply the Intervals.icu sign-in");
+        }
         return response({
           schemaVersion: 3,
           status: "applied",
@@ -397,6 +407,22 @@ function createScript(
   };
 }
 
+async function approveIntervalsSignIn(authorizeLog: string): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  let logged = "";
+  while (logged === "" && Date.now() < deadline) {
+    logged = (await readFile(authorizeLog, "utf8").catch(() => "")).trim();
+    if (logged === "") await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  if (logged === "") throw new Error("The Intervals.icu sign-in page was never requested");
+  const authorize = new URL(logged.split("\n")[0] ?? "");
+  const callback = new URL(authorize.searchParams.get("redirect_uri") ?? "");
+  callback.searchParams.set("code", "acceptance-code");
+  callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
+  const reply = await fetch(callback);
+  if (!reply.ok) throw new Error(`The Intervals.icu sign-in callback answered ${reply.status}`);
+}
+
 function capturedLog(fixture: RunningDesktopFixture, messages: readonly string[]): string {
   const surfaces = ["location", "console", "stdout", "stderr"] as const;
   return [
@@ -407,18 +433,28 @@ function capturedLog(fixture: RunningDesktopFixture, messages: readonly string[]
 
 export const test = base.extend<ChatDesktopFixtures & ChatDesktopOptions>({
   durableTrainingData: [true, { option: true }],
-  chatDesktop: async ({ playwright, durableTrainingData }, use, testInfo) => {
+  intervalsRuntimeApplies: [true, { option: true }],
+  chatDesktop: async (
+    { playwright, durableTrainingData, intervalsRuntimeApplies },
+    use,
+    testInfo,
+  ) => {
     const turn = createScriptedTurn();
     const streamRequests: string[] = [];
     const directory = await mkdtemp(join(tmpdir(), "chat-desktop-e2e-"));
     const externalUrlLog = join(directory, "external-urls.log");
+    const intervalsAuthorizeLog = join(directory, "intervals-authorize.log");
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
     let page: Page | undefined;
     const messages: string[] = [];
     try {
       fixture = await launchDesktopFixture({
-        script: createScript(turn, { durableTrainingData }, streamRequests),
+        script: createScript(
+          turn,
+          { durableTrainingData, intervalsRuntimeApplies },
+          streamRequests,
+        ),
         token,
         width: 1180,
         height: 820,
@@ -426,7 +462,10 @@ export const test = base.extend<ChatDesktopFixtures & ChatDesktopOptions>({
         reducedMotion: true,
         hidden: desktopFixtureWindowHidden(process.env.PWDEBUG),
         routeChatAttachmentComposer: true,
-        extraEnv: { ENDURAGENT_ACCEPTANCE_OPENROUTER_AUTHORIZE_LOG: externalUrlLog },
+        extraEnv: {
+          ENDURAGENT_ACCEPTANCE_OPENROUTER_AUTHORIZE_LOG: externalUrlLog,
+          ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG: intervalsAuthorizeLog,
+        },
       });
       browser = await playwright.chromium.connectOverCDP(fixture.remoteDebuggingUrl);
       const context = browser.contexts()[0];
@@ -456,6 +495,7 @@ export const test = base.extend<ChatDesktopFixtures & ChatDesktopOptions>({
           const text = await readFile(externalUrlLog, "utf8").catch(() => "");
           return text.split("\n").filter((line) => line.length > 0);
         },
+        approveIntervalsSignIn: () => approveIntervalsSignIn(intervalsAuthorizeLog),
       });
     } finally {
       const failed = testInfo.status !== testInfo.expectedStatus;

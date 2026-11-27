@@ -817,6 +817,7 @@
         "connected": "Ligado · de onde vêm as tuas voltas",
         "connectedAs": "Ligado como {{name}} · de onde vêm as tuas voltas",
         "missing": "Liga uma conta ou importa ficheiros de voltas.",
+        "notWorking": "Sessão iniciada, mas ainda não está a funcionar",
         "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar.",
         "savedRides": "Voltas guardadas em {{computer}} · liga uma conta para sincronizar as novas"
       },

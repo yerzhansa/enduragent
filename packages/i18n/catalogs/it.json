@@ -817,6 +817,7 @@
         "connected": "Collegato · la fonte delle tue uscite",
         "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
         "missing": "Collega o importa i file delle uscite.",
+        "notWorking": "Accesso effettuato, ma non funziona ancora",
         "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione.",
         "savedRides": "Uscite salvate su {{computer}} · collega per sincronizzare le nuove"
       },
