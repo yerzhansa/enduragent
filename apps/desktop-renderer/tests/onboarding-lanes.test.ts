@@ -193,6 +193,7 @@ describe("setup lanes", () => {
       "model-selection-required": { provider: "provider", training: "provider" },
       "endpoint-invalid": { provider: "provider", training: "provider" },
       "model-runtime-unavailable": { provider: "provider", training: "provider" },
+      "claude-cli-check-failed": { provider: "provider", training: "provider" },
       "training-account-mismatch": { provider: "training", training: "training" },
       "intervals-sign-in-denied": { provider: "training", training: "training" },
       "intervals-sign-in-timed-out": { provider: "training", training: "training" },
