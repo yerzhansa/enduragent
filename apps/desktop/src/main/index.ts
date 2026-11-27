@@ -1111,10 +1111,10 @@ async function runDesktop(): Promise<void> {
         credentialRoot,
         telegramRoot: telegramCredentialRoot,
         serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,
-        deleteKeyForCredentialReset: (proof) =>
-          credentialEncryption.deleteKeyForCredentialReset(proof),
+        deleteKeyForCredentialReset: credentialEncryption.deleteKeyForCredentialReset,
         credentialRuntimeState,
         onRuntimeStateChange: markCredentialRuntimeChange,
+        vault,
       });
     const claudeCli = createClaudeCliStatus({
       settings: () => readClaudeCliSettings({ configPath: join(configDir, "config.yaml") }),
