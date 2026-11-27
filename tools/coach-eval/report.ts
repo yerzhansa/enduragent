@@ -96,7 +96,8 @@ export function completedRunStatus(
   judge: JudgeReport | undefined,
 ): RunStatus {
   const checks = [...turns.flatMap((turn) => turn.checks), ...acrossTurns];
-  if (checks.some((check) => !check.pass && check.inconclusive === true)) return "error";
+  if (checks.some((check) => !check.pass && check.inconclusive !== true)) return "fail";
+  if (checks.some((check) => !check.pass)) return "error";
   if (judge?.status === "error") return "error";
   if (!checksPass(turns, acrossTurns)) return "fail";
   return judge === undefined || judge.pass ? "pass" : "fail";

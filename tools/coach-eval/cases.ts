@@ -62,6 +62,12 @@ const INFERENCE_WORDS = [
   "assumed",
   "seem to be",
   "seems to be",
+  "as one ride",
+  "as one session",
+  "as a single ride",
+  "as a single session",
+  "treated them as",
+  "treating them as",
 ];
 
 const STALE_AGE_WORDS = [`${STALE_DAYS} days`, `${STALE_DAYS}-day`, "ten days", "ten-day"];

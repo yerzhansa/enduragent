@@ -293,8 +293,10 @@ export function targetsNear(reply: string, band: TargetBand): string[] {
   const text = normalizeReply(reply);
   const min = (band.ftp * band.minPercent) / 100;
   const max = (band.ftp * band.maxPercent) / 100;
+  const statesFtp = (index: number): boolean => /FTP/iu.test(text.slice(Math.max(0, index - 20), index + 12));
   const watts = wattMentions(text)
-    .filter((mention) => mention.value !== band.ftp && mention.value >= min && mention.value <= max)
+    .filter((mention) => mention.value >= min && mention.value <= max)
+    .filter((mention) => mention.value !== band.ftp || !statesFtp(mention.index))
     .filter((mention) => isTargetSentence(sentenceAt(text, mention.index)))
     .map((mention) => `${mention.value} W`);
   const percents = Array.from(text.matchAll(PERCENT_FTP), (match) =>
