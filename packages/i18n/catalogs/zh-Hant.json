@@ -1344,7 +1344,7 @@
       "successLabel": "成功的標準",
       "successLabelShort": "成功",
       "successRequired": "請描述怎樣算成功。",
-      "syncToday": "有日期的訓練課表將從今天同步至 {{date}}。",
+      "syncToday": "核准前，不會傳送任何內容到 intervals.icu。接下來會開啟行事曆，顯示前兩個訓練週。",
       "syncTomorrow": "有日期的訓練課表將從明天同步至 {{date}}。",
       "syncWait": "連結 {{service}} 後才會更新行事曆。",
       "timeOff": "{{start}} 至 {{end}} 休假",

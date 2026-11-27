@@ -1377,7 +1377,7 @@
       "successLabel": "Co oznacza sukces",
       "successLabelShort": "Sukces",
       "successRequired": "Opisz, co oznacza sukces.",
-      "syncToday": "Treningi z datą będą synchronizowane od dziś do {{date}}.",
+      "syncToday": "Nic nie trafi do intervals.icu, dopóki nie zatwierdzisz. Następnie otworzy się kalendarz z twoimi dwoma pierwszymi tygodniami treningowymi.",
       "syncTomorrow": "Treningi z datą będą synchronizowane od jutra do {{date}}.",
       "syncWait": "Aktualizacje kalendarza czekają na połączenie z {{service}}.",
       "timeOff": "Przerwa {{start}}–{{end}}",

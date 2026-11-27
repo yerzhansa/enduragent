@@ -1355,7 +1355,7 @@
       "successLabel": "Mitä onnistuminen tarkoittaa",
       "successLabelShort": "Onnistuminen",
       "successRequired": "Kuvaile, mitä onnistuminen tarkoittaa.",
-      "syncToday": "Päivätyt harjoitukset synkronoidaan tästä päivästä päivään {{date}} asti.",
+      "syncToday": "Mitään ei lähetetä intervals.icu-palveluun ennen kuin hyväksyt. Seuraavaksi avautuu kalenteri, jossa ovat kaksi ensimmäistä harjoitusviikkoasi.",
       "syncTomorrow": "Päivätyt harjoitukset synkronoidaan huomisesta päivään {{date}} asti.",
       "syncWait": "Kalenterin päivitykset odottavat, kunnes {{service}} on yhdistetty.",
       "timeOff": "Tauko {{start}}–{{end}}",

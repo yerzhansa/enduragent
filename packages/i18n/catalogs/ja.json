@@ -1344,7 +1344,7 @@
       "successLabel": "成功の基準",
       "successLabelShort": "成功",
       "successRequired": "何をもって成功とするかを記入してください。",
-      "syncToday": "今日から{{date}}までの日付指定のワークアウトを同期します。",
+      "syncToday": "承認するまで、intervals.icuには何も送信されません。次に、最初の2つのトレーニング週が入ったカレンダーが開きます。",
       "syncTomorrow": "明日から{{date}}までの日付指定のワークアウトを同期します。",
       "syncWait": "{{service}}に接続するまで、カレンダーの更新は保留されます。",
       "timeOff": "{{start}}〜{{end}}は休み",

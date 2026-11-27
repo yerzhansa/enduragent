@@ -1355,7 +1355,7 @@
       "successLabel": "Vad det innebär att lyckas",
       "successLabelShort": "Framgång",
       "successRequired": "Beskriv vad det innebär att lyckas.",
-      "syncToday": "Träningspass med datum synkroniseras från idag till och med {{date}}.",
+      "syncToday": "Inget skickas till intervals.icu förrän du godkänner. Sedan öppnas Kalender med dina två första träningsveckor.",
       "syncTomorrow": "Träningspass med datum synkroniseras från imorgon till och med {{date}}.",
       "syncWait": "Kalendern uppdateras först när {{service}} är anslutet.",
       "timeOff": "Ledig {{start}} till {{end}}",

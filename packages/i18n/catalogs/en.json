@@ -464,7 +464,7 @@
       "successLabel": "Success meaning",
       "successLabelShort": "Success",
       "successRequired": "Describe what success means.",
-      "syncToday": "Dated Workouts sync from today through {{date}}.",
+      "syncToday": "Nothing goes to intervals.icu until you approve. The Calendar opens next with your first two Training Weeks.",
       "syncTomorrow": "Dated Workouts sync from tomorrow through {{date}}.",
       "syncWait": "Calendar updates wait until {{service}} is connected.",
       "timeOff": "Off {{start}} to {{end}}",

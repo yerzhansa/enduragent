@@ -1355,7 +1355,7 @@
       "successLabel": "Hva det vil si å lykkes",
       "successLabelShort": "Suksess",
       "successRequired": "Beskriv hva det vil si å lykkes.",
-      "syncToday": "Treningsøkter med dato synkroniseres fra i dag til og med {{date}}.",
+      "syncToday": "Ingenting sendes til intervals.icu før du godkjenner. Deretter åpnes Kalender med de to første treningsukene dine.",
       "syncTomorrow": "Treningsøkter med dato synkroniseres fra i morgen til og med {{date}}.",
       "syncWait": "Kalenderoppdateringer venter til {{service}} er tilkoblet.",
       "timeOff": "Fravær fra {{start}} til {{end}}",

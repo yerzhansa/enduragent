@@ -1355,7 +1355,7 @@
       "successLabel": "O que significa ter sucesso",
       "successLabelShort": "Sucesso",
       "successRequired": "Descreve o que significa ter sucesso.",
-      "syncToday": "Os treinos com data são sincronizados de hoje até {{date}}.",
+      "syncToday": "Nada vai para o intervals.icu até aprovares. Depois, o Calendário abre com as tuas duas primeiras semanas de treino.",
       "syncTomorrow": "Os treinos com data são sincronizados de amanhã até {{date}}.",
       "syncWait": "As atualizações do calendário aguardam a ligação a {{service}}.",
       "timeOff": "Ausente de {{start}} a {{end}}",

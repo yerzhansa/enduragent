@@ -1355,7 +1355,7 @@
       "successLabel": "Wat succes betekent",
       "successLabelShort": "Succes",
       "successRequired": "Beschrijf wat succes voor je betekent.",
-      "syncToday": "Trainingen met een datum worden vanaf vandaag tot en met {{date}} gesynchroniseerd.",
+      "syncToday": "Er gaat niets naar intervals.icu totdat je goedkeurt. Daarna opent de Kalender met je eerste twee trainingsweken.",
       "syncTomorrow": "Trainingen met een datum worden vanaf morgen tot en met {{date}} gesynchroniseerd.",
       "syncWait": "Kalenderupdates wachten totdat {{service}} is verbonden.",
       "timeOff": "Afwezig van {{start}} tot {{end}}",

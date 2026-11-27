@@ -179,7 +179,7 @@ export function PlanCreationActivateDialog(): ReactElement | null {
             <p className="mt-inset mb-0 text-sm leading-5 text-ink-2">
               {calendarWindow !== null
                 ? activePlanName === null
-                  ? say("chat.planCreation.syncToday", { date: formatDate(calendarWindow.endDate) })
+                  ? say("chat.planCreation.syncToday")
                   : say("chat.planCreation.syncTomorrow", {
                       date: formatDate(calendarWindow.endDate),
                     })

@@ -1355,7 +1355,7 @@
       "successLabel": "Critère de réussite",
       "successLabelShort": "Réussite",
       "successRequired": "Décris ce que réussir signifie pour toi.",
-      "syncToday": "Les entraînements datés se synchronisent d’aujourd’hui jusqu’au {{date}} inclus.",
+      "syncToday": "Rien n’est envoyé à intervals.icu avant ton approbation. Le calendrier s’ouvre ensuite avec tes deux premières semaines d’entraînement.",
       "syncTomorrow": "Les entraînements datés se synchronisent de demain jusqu’au {{date}} inclus.",
       "syncWait": "Les mises à jour du calendrier attendent la connexion de {{service}}.",
       "timeOff": "Indisponible du {{start}} au {{end}}",
