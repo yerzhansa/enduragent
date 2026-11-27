@@ -7,6 +7,7 @@ import { readWeekDelivery, saveWeekDelivery, weekDeliveryStep } from "@enduragen
 import { createPlanCalendarMirrorRepository } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { readPlanCalendar } from "./plan-calendar-read.js";
 
 export interface PlanCalendarOperations {
   "plan.calendar"(request: PlanCalendarRpcParams): Promise<PlanCalendarRpcResult>;
@@ -16,6 +17,8 @@ export function createPlanCalendarOperations(deps: {
   readonly store: SqlStore & Pick<MigratorStore, "transaction">;
   readonly todayDateKey: () => number;
   readonly now: () => number;
+  readonly calendarConnected: () => boolean;
+  readonly dateKeyOfMs: (ms: number) => number;
 }): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const plans = createLegacyPlanRepository(deps.store);
@@ -23,6 +26,16 @@ export function createPlanCalendarOperations(deps: {
     async "plan.calendar"(raw) {
       const request = PlanCalendarRpcParamsSchema.parse(raw);
       switch (request.action) {
+        case "read":
+          return readPlanCalendar(
+            {
+              store: deps.store,
+              todayDateKey: deps.todayDateKey(),
+              calendarConnected: deps.calendarConnected(),
+              dateKeyOfMs: deps.dateKeyOfMs,
+            },
+            request,
+          );
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
         case "save-settings":

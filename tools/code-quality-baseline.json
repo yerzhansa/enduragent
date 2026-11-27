@@ -418,7 +418,6 @@
   "double-assertion": {
     "apps/desktop-renderer/src/coach-client.ts": 1,
     "apps/desktop-renderer/src/daemon-connection.ts": 1,
-    "apps/desktop-renderer/src/platform-copy.ts": 1,
     "apps/desktop/src/main/keychain-binding.ts": 1,
     "packages/coach/src/activity-attachment-operations.ts": 2,
     "packages/coach/src/backfill-benchmark.ts": 1,
@@ -579,7 +578,6 @@
     "apps/desktop/src/main/external-link-ipc.ts": 1,
     "apps/desktop/src/main/initial-refresh.ts": 1,
     "apps/desktop/src/main/renderer-navigation-load.ts": 1,
-    "apps/desktop/src/main/security.ts": 1,
     "apps/desktop/src/main/update-controller.ts": 2,
     "packages/coach-cli/src/verbs/dispatch.ts": 2,
     "packages/coach/src/activity-analysis-service.ts": 1,

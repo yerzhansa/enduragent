@@ -1,6 +1,7 @@
 import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
+import { startCalendar } from "./calendar/wiring";
 import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
 import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
@@ -459,6 +460,7 @@ export function bootRenderer(): Disposer {
     confirmDeletion: () => void archiveController.confirmDeletion(),
   });
 
+  const disposeCalendar = startCalendar(store, clients);
   const firstSyncController = createFirstSyncController({
     coordinator: trainingSyncCoordinator,
     focusComposer,
@@ -763,6 +765,7 @@ export function bootRenderer(): Disposer {
     disposePlanToChatRefresh();
     disposePlanLibraryRefresh();
     disposePendingChangeRestore();
+    disposeCalendar();
     store.getState().bindPlanLibraryActions(null);
     window.removeEventListener("enduragent-lifecycle", onLifecycle);
     window.removeEventListener("pagehide", dispose);

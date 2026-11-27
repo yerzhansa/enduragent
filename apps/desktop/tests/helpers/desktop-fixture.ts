@@ -11,6 +11,7 @@ import {
   PlanChangePreviewResultSchema,
   PlanChangeApplyResultSchema,
   PlanHistoryResultSchema,
+  PlanCalendarRpcResultSchema,
 } from "@enduragent/coach-contract";
 import type {
   CoachEngine,
@@ -603,6 +604,9 @@ export async function launchDesktopFixture(input: {
     },
     async "plan.history"(request) {
       return PlanHistoryResultSchema.parse(finalFrame(await invoke("plan.history", request)));
+    },
+    async "plan.calendar"(request) {
+      return PlanCalendarRpcResultSchema.parse(finalFrame(await invoke("plan.calendar", request)));
     },
     async "plan_creation.start"(request) {
       return finalFrame(await invoke("plan_creation.start", request)) as Awaited<

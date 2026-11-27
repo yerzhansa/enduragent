@@ -9,6 +9,7 @@ describe("desktop platform projection", () => {
   it("keeps the Darwin capability and rendered copy byte-identical", () => {
     expect(desktopPlatformProjection("darwin")).toEqual({
       platform: "darwin",
+      firstDayOfWeek: 1,
       capabilities: { codexAgent: true },
       copy: {
         computer: "this Mac",
@@ -23,11 +24,22 @@ describe("desktop platform projection", () => {
     });
   });
 
+  it("takes the first day of the week from the window's region argument", () => {
+    const argv = process.argv;
+    process.argv = [...argv, "--enduragent-first-day=7"];
+    try {
+      expect(desktopPlatformProjection("darwin").firstDayOfWeek).toBe(7);
+    } finally {
+      process.argv = argv;
+    }
+  });
+
   it("projects Windows capability and path-free DPAPI-backed wording", () => {
     const projection = desktopPlatformProjection("win32");
 
     expect(projection).toEqual({
       platform: "win32",
+      firstDayOfWeek: 1,
       capabilities: { codexAgent: false },
       copy: {
         computer: "this PC",

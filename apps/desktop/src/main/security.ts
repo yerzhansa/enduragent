@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  app,
   BrowserWindow,
   type IpcMainInvokeEvent,
   net,
@@ -10,6 +11,7 @@ import {
   type WebContents,
 } from "electron";
 import { desktopWindowBackgroundColor, type DesktopResolvedTheme } from "./appearance.js";
+import { regionFirstDayArgument } from "./region-week.js";
 import {
   DESKTOP_HOST,
   DESKTOP_SCHEME,
@@ -148,6 +150,7 @@ export function desktopWindowOptions(
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      additionalArguments: [regionFirstDayArgument(app.getLocaleCountryCode())],
     },
   };
 }
@@ -173,7 +176,7 @@ export function createDesktopRendererConsoleCapture(
 ): DesktopRendererConsoleCapture {
   if (!enabled) {
     return {
-      attach: () => {},
+      attach: () => undefined,
       hasMessageContaining: () => false,
     };
   }

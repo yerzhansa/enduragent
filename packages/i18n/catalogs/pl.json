@@ -843,6 +843,7 @@
     "checkingSetup": "Sprawdzanie konfiguracji…",
     "loading": {
       "archive": "Wczytywanie wcześniejszych rozmów…",
+      "calendar": "Wczytywanie kalendarza…",
       "chat": "Wczytywanie czatu…",
       "plan": "Wczytywanie planu…",
       "settings": "Wczytywanie ustawień…",
@@ -929,6 +930,7 @@
     },
     "views": {
       "archive": "Wcześniejsze rozmowy",
+      "calendar": "Kalendarz",
       "chat": "Czat",
       "plan": "Plan",
       "settings": "Ustawienia",
@@ -1547,6 +1549,101 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Dodatkowa"
+      },
+      "column": {
+        "trainingWeek": "Tydzień treningowy",
+        "week": "Tydzień"
+      },
+      "copy": {
+        "changed": "Zmieniono w intervals.icu",
+        "deleted": "Usunięto w intervals.icu",
+        "moved": "Przeniesiono na {{date}} w intervals.icu",
+        "notSent": "Nie wysłano: intervals.icu nie odpowiedział"
+      },
+      "day": {
+        "beforePlan": "Przed planem",
+        "rest": "Dzień odpoczynku",
+        "today": "{{day}} · Dzisiaj",
+        "weekStarts": "{{day}} · Tydzień {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} z {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} godz. {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Następny tydzień",
+      "noPlan": {
+        "body": "Plan umieszcza treningi w tych dniach i w twoim kalendarzu intervals.icu, skąd pobiera je twój licznik rowerowy. Trener tworzy go razem z tobą na czacie i nic nie zostanie wysłane, dopóki go nie zatwierdzisz.",
+        "start": "Zacznij tworzyć plan na czacie",
+        "title": "Nie masz jeszcze planu"
+      },
+      "outcome": {
+        "doneAsPlanned": "Wykonano zgodnie z planem",
+        "doneDifferently": "Wykonano inaczej",
+        "isThisIt": "Czy to ten?",
+        "missed": "Pominięty",
+        "missedDetail": "{{planned}} · brak aktywności",
+        "moved": "Przeniesiono na {{date}}",
+        "notSyncedYet": "Jeszcze nie zsynchronizowano",
+        "removedByYou": "Usunięty przez ciebie",
+        "rideSynced": "Zsynchronizowano przejazd",
+        "rideSyncedLength": "Zsynchronizowano przejazd trwający {{duration}}"
+      },
+      "previous": "Poprzedni tydzień",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Nie udało się odświeżyć kalendarza.",
+      "retry": "Spróbuj ponownie",
+      "season": {
+        "race": "Wyścig {{date}}",
+        "week": "Tydzień {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Zatwierdź od {{date}}",
+        "goesOut": "Wysyłka {{date}}",
+        "notSentYet": "Jeszcze nie w intervals.icu",
+        "onIntervals": "W intervals.icu",
+        "waitingForApprove": "Czeka na zatwierdzenie"
+      },
+      "subtitle": {
+        "ended": "{{name}} · zakończony",
+        "noPlan": "Brak planu · twoje aktywności z intervals.icu",
+        "starts": "{{name}} · początek: {{date}}",
+        "week": "{{name}} · Tydzień treningowy {{week}} z {{total}}",
+        "weekPhase": "{{name}} · Tydzień treningowy {{week}} z {{total}} · {{phase}}"
+      },
+      "today": "Dzisiaj",
+      "unavailable": "Nie udało się wczytać kalendarza.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} aktywność",
+        "activities_few": "{{duration}} · {{count}} aktywności",
+        "activities_many": "{{duration}} · {{count}} aktywności",
+        "activities_other": "{{duration}} · {{count}} aktywności",
+        "crossing": "Tydzień {{from}} → {{to}}",
+        "endsOn": "do {{date}}",
+        "label": "Tydzień {{week}}",
+        "load": "Obciążenie treningowe {{load}}",
+        "nextStarts": "Tydzień {{week}} zaczyna się {{date}}",
+        "nothingPlanned": "Nic nie zaplanowano",
+        "planned": "Zaplanowano: {{planned}}",
+        "planOnly": "{{planned}} · tylko w planie",
+        "soFar": "Dotąd: {{duration}}",
+        "startsOn": "zaczyna się {{date}}",
+        "toConfirm_one": "{{count}} przejazd do potwierdzenia",
+        "toConfirm_few": "{{count}} przejazdy do potwierdzenia",
+        "toConfirm_many": "{{count}} przejazdów do potwierdzenia",
+        "toConfirm_other": "{{count}} przejazdu do potwierdzenia"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Czyszczenie zakończone",

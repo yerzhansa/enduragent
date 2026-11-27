@@ -10,6 +10,7 @@ import {
   writeStoredPaletteId,
 } from "../theme/preferences";
 import { createArchiveSlice, type ArchiveSlice } from "./archive-slice";
+import { createCalendarSlice, type CalendarSlice } from "./calendar-slice";
 import { createActivityAnalysisSlice, type ActivityAnalysisSlice } from "./activity-analysis-slice";
 import { createChatSlice, type ChatSlice } from "./chat-slice";
 import { createOnboardingSlice, type OnboardingSlice } from "./onboarding-slice";
@@ -24,6 +25,7 @@ export interface EnduragentState
   extends
     ChatSlice,
     ArchiveSlice,
+    CalendarSlice,
     SettingsSlice,
     TrainingSlice,
     PlanSlice,
@@ -56,6 +58,7 @@ function stamp(paletteId: string, appearance: Appearance): ResolvedTheme {
 export const useEnduragentStore = create<EnduragentState>((set, get, api) => ({
   ...createChatSlice(set, get, api),
   ...createArchiveSlice(set, get, api),
+  ...createCalendarSlice(set, get, api),
   ...createSettingsSlice(set, get, api),
   ...createTrainingSlice(set, get, api),
   ...createPlanSlice(set, get, api),
