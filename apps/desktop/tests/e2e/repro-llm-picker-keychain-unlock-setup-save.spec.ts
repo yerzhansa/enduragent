@@ -1,13 +1,3 @@
-// Repro for issue 407, end to end in the built app with the window hidden: the app
-// starts while the macOS login Keychain is locked; the athlete unlocks it, then saves
-// an API key in Setup. The save fails with "macOS encryption is unavailable. Make sure
-// Keychain is available, then try again" until Settings' credential Retry or a restart.
-//
-// Real: the Electron main process (its credential encryption selection, the credential
-// vault, onboarding IPC) and the whole renderer. Stubbed: the coach process, a scripted
-// RPC backend, and the Keychain, which is the acceptance fake held locked while the
-// ENDURAGENT_ACCEPTANCE_KEYCHAIN_LOCK_FILE marker exists. No model provider or
-// intervals.icu request leaves the machine.
 import { spawn } from "node:child_process";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -25,8 +15,6 @@ import {
   type RunningDesktopFixture,
 } from "../helpers/desktop-fixture.js";
 
-// A video of the hidden window: CDP screencast frames, re-timed to 10 fps and encoded
-// with the ffmpeg build Playwright installs. Skipped if ffmpeg is missing.
 async function recordScreencast(context: BrowserContext, page: Page) {
   const session = await context.newCDPSession(page);
   const frames: { readonly data: Buffer; readonly at: number }[] = [];
@@ -76,7 +64,6 @@ const TOKEN = "q".repeat(43);
 const ANTHROPIC_KEY = `sk-ant-api03-${"0".repeat(80)}`;
 const ENCRYPTION_UNAVAILABLE =
   "macOS encryption is unavailable. Make sure Keychain is available, then try again.";
-// The hidden window repaints only on change, so the video holds each step this long.
 const STEP_HOLD_MS = 1_200;
 const LOCKED_AT_START = "desktop-credential-backend refused encryption-unavailable keychain-locked";
 
@@ -252,7 +239,6 @@ interface Desktop {
   readonly page: Page;
   readonly fixture: RunningDesktopFixture;
   readonly coach: ScriptedCoach;
-  /** The athlete unlocks the login Keychain outside the app. */
   unlockKeychain(): Promise<void>;
 }
 
@@ -333,7 +319,6 @@ test("Setup saves an API key once the athlete unlocks the Keychain the app start
   const aiRow = page.locator('[data-setup-row="ai"]');
   const panel = page.locator('[data-setup-panel="api-key"]');
 
-  // The app opened on first-run Setup while the login Keychain was locked.
   await expect(shell).toHaveAttribute("data-shell", "gate");
   await expect(badge).toHaveText("1 of 2 required ready");
   await expect
@@ -344,7 +329,6 @@ test("Setup saves an API key once the athlete unlocks the Keychain the app start
   await page.screenshot({ path: testInfo.outputPath("setup-keychain-locked-at-start.png") });
   await page.waitForTimeout(STEP_HOLD_MS);
 
-  // The athlete unlocks the Keychain outside the app, then pastes an Anthropic key.
   await desktop.unlockKeychain();
   await page.locator('[data-setup-trigger="ai"]').click();
   await page.locator('[data-setup-menu="ai"] [data-lane="api-key"]').click();
@@ -354,7 +338,6 @@ test("Setup saves an API key once the athlete unlocks the Keychain the app start
   await page.waitForTimeout(STEP_HOLD_MS);
   await panel.locator("button", { hasText: /^Save$/u }).click();
 
-  // What the athlete sees once the save settles.
   const outcome = async (): Promise<string> => {
     const refusal = page.getByText(ENCRYPTION_UNAVAILABLE);
     if ((await refusal.count()) > 0) return `refused: ${ENCRYPTION_UNAVAILABLE}`;

@@ -18,7 +18,6 @@ const TELEGRAM_ACCEPTANCE_PRODUCT_NAME_DIGEST =
   "1cda3287fbe8127102a851088456509106bf8369111bd8860f56d80d3493461a";
 const ACCEPTANCE_KEY_FILE = ".enduragent-acceptance-key";
 
-// lockMarkerPath: while that file exists, the fake Keychain answers like a locked one.
 export type AcceptanceCredentialBackend = (
   | Readonly<{ kind: "memory"; key: Buffer }>
   | Readonly<{ kind: "file"; keyPath: string }>
@@ -76,6 +75,30 @@ export function resolveAcceptanceCredentialBackend(
   return backend === undefined || marker === undefined || !isAbsolute(marker)
     ? backend
     : { ...backend, lockMarkerPath: marker };
+}
+
+export function acceptanceCredentialBackendForApp(input: {
+  readonly app: Readonly<{
+    isPackaged: boolean;
+    getName(): string;
+    getAppPath(): string;
+    getPath(name: "userData"): string;
+  }>;
+  readonly hidden: boolean;
+  readonly environment: Readonly<Record<string, string | undefined>>;
+}): AcceptanceCredentialBackend | undefined {
+  const { app, environment } = input;
+  return resolveAcceptanceCredentialBackend({
+    isPackaged: app.isPackaged,
+    hidden: input.hidden,
+    backend: environment.ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND,
+    appName: app.getName(),
+    appPath: app.getAppPath(),
+    userDataPath: app.getPath("userData"),
+    disposableContext:
+      environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
+    lockMarkerPath: environment.ENDURAGENT_ACCEPTANCE_KEYCHAIN_LOCK_FILE,
+  });
 }
 
 function eligibleBackend(
@@ -189,8 +212,6 @@ function fileTransport(keyPath: string): KeychainBindingTransport {
   };
 }
 
-// A locked login Keychain still answers the probe and a rollback retry with no debt;
-// every item read, create, or delete is refused (native CreateKey reports no rollback).
 function lockedWhileMarkerExists(
   transport: KeychainBindingTransport,
   markerPath: string,

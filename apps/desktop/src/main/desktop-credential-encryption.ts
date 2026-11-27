@@ -24,7 +24,10 @@ import {
   type KeychainBindingResponse,
   type KeychainBindingTransport,
 } from "./keychain-binding.js";
-import { resolveKeychainBindingPath, type KeychainBindingLocation } from "./keychain-binding-path.js";
+import {
+  resolveKeychainBindingPath,
+  type KeychainBindingLocation,
+} from "./keychain-binding-path.js";
 
 const UNAVAILABLE_BINDING_RESPONSE: KeychainBindingResponse = Object.freeze({
   ok: false,
@@ -194,10 +197,7 @@ export async function prepareDesktopCredentialEncryption(
       if (selection.status !== "keychain") return undefined;
       const retired = await selection.retireKey(proof);
       if (retired.status === "failed") {
-        transitionToUnavailable(
-          retired.code,
-          retired.keyCleanupPending ? "retirement" : "none",
-        );
+        transitionToUnavailable(retired.code, retired.keyCleanupPending ? "retirement" : "none");
       }
       return retired;
     },
