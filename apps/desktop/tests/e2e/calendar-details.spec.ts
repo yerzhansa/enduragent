@@ -27,7 +27,9 @@ test.describe("Plan details", () => {
       if (changed === undefined) throw new TypeError("No changed workout");
       await openCalendar(scenario);
       const page = scenario.page;
-      await page.getByRole("button", { name: "Plan details", exact: true }).click();
+      const details = page.getByRole("button", { name: "Plan details", exact: true });
+      await expect(details, "the Calendar offers Plan details").toBeVisible();
+      await details.click();
       const sheet = page.locator("[data-plan-details]");
       await expect(sheet.getByRole("heading", { name: "Plan details" })).toBeVisible();
       await expect(sheet).toContainText("Plan saved");
