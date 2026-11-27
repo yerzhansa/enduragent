@@ -149,7 +149,7 @@ describe("workouts changed in intervals.icu on the Calendar", () => {
     expect(
       within(table)
         .getAllByRole("row")
-        .map((row) => row.textContent),
+        .map((row) => row.textContent?.replaceAll("\u00a0", " ")),
     ).toEqual([
       "In your PlanIn intervals.icu now",
       "DayWed 14 JanWed 14 Jan",
@@ -160,7 +160,7 @@ describe("workouts changed in intervals.icu on the Calendar", () => {
     expect(sheet).toHaveTextContent("The Plan takes 45m for Wed 14 Jan. The week drops to 3h 45m.");
     expect(sheet).toHaveTextContent("intervals.icu goes back to 1h 0m.");
     await user.click(within(sheet).getByRole("button", { name: "Keep 45m" }));
-    await user.click(within(sheet).getByRole("button", { name: "Put back 1h 0m" }));
+    await user.click(within(sheet).getByRole("button", { name: /^Put back 1h\s0m$/u }));
     await user.click(within(sheet).getByRole("button", { name: "Close" }));
     expect(bound.keep).toHaveBeenCalledOnce();
     expect(bound.putBack).toHaveBeenCalledOnce();

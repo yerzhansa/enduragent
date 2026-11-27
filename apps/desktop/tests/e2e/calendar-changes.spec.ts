@@ -103,6 +103,7 @@ test.describe("Workouts changed in intervals.icu", () => {
       await openCalendar(scenario);
       const ghost = card(scenario, deleted.dateKey);
       await expect(ghost).toContainText("Deleted in intervals.icu");
+      await snap(scenario, "deleted-card-light");
       expect(
         scenario.calendar.creates.filter((entry) => entry.dateKey === deleted?.dateKey),
       ).toHaveLength(1);
