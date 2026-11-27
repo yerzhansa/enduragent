@@ -275,8 +275,15 @@ export function icuCopyPutBack(
   };
 }
 
-export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy {
+export type IcuWriteOwner = "plan-owns" | "keep-owner";
+
+export function icuCopyWritten(
+  copy: IcuCopy,
+  receipt: IcuWriteReceipt,
+  owner: IcuWriteOwner = "plan-owns",
+): IcuCopy {
   if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") return copy;
+  const kept = owner === "keep-owner" && copy.kind === "on-icu" ? copy.baseline.owner : "plan";
   return {
     kind: "on-icu",
     baseline: {
@@ -284,7 +291,7 @@ export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy
       dateKey: receipt.dateKey,
       planFingerprint: receipt.planFingerprint,
       readBack: receipt.readBack,
-      owner: "plan",
+      owner: kept,
     },
   };
 }
@@ -297,9 +304,25 @@ export function icuCopyAllowsMove(copy: IcuCopy): boolean {
   return copy.kind === "not-sent" || copy.kind === "on-icu";
 }
 
-export function icuCopyMovedInApp(copy: IcuCopy): IcuCopy {
-  if (copy.kind !== "on-icu" || copy.baseline.owner !== "athlete-edit") return copy;
-  return { ...copy, baseline: { ...copy.baseline, owner: "plan" } };
+export function icuCopyDrag(
+  copy: IcuCopy,
+  current: IcuSighting,
+  plan: IcuPlanSide,
+): IcuCopyChoiceResult {
+  if (copy.kind === "not-sent") return { kind: "done", ...decision(copy) };
+  if (copy.kind !== "on-icu") return { kind: "no-card", copy };
+  if (!matchesBaseline(copy.baseline, current)) {
+    return { kind: "refreshed", ...icuCopyOnRun(copy, plan, current) };
+  }
+  if (plan.kind === "withdraw") return { kind: "no-card", copy };
+  return {
+    kind: "done",
+    ...decision(copy, {
+      kind: "update",
+      eventId: copy.baseline.eventId,
+      expected: copy.baseline.readBack,
+    }),
+  };
 }
 
 export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCopy {

@@ -192,6 +192,7 @@ function onChecked(
     pause: pauseCovers(current.pause, event.todayDateKey) ? current.pause : { kind: "none" },
     ftpSeen: seenFtp(current.ftpSeen, event.icuFtpWatts, event.todayDateKey),
   };
+  const ftpChanged = current.ftpSeen.kind === "seen" && current.ftpSeen.watts !== event.icuFtpWatts;
   const evidence = event.evidence;
   if (evidence.kind === "planned-test") {
     if (alreadyAnswered(memory.answeredTest, evidence.activityId, evidence.dateKey)) {
@@ -204,7 +205,7 @@ function onChecked(
       memory,
     });
   }
-  if (evidence.kind === "drift" && memory.pause.kind === "none") {
+  if (evidence.kind === "drift" && memory.pause.kind === "none" && !ftpChanged) {
     return stay({ kind: "shown", watts: evidence.watts, basis: { kind: "drift" }, memory });
   }
   return stay({ kind: "quiet", memory });

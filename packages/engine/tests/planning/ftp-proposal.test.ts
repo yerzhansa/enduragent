@@ -83,7 +83,7 @@ function appChecks(world: World): World {
   const checked = step(world, {
     type: "checked",
     evidence: engineEvidence(world.evidence),
-    icuFtpWatts: ICU_NOW,
+    icuFtpWatts: world.icu,
     todayDateKey: world.today,
   });
   const shownTest =
@@ -361,5 +361,24 @@ describe("FTP", () => {
     });
     if (changed.proposal.kind !== "quiet") throw new Error("not quiet");
     expect(ftpSetSince(changed.proposal.memory, 0)).toBe(TODAY + 6);
+  });
+
+  it("does not raise drift on the first check after the FTP changed", () => {
+    const seen = step(START, {
+      type: "checked",
+      evidence: { kind: "none" },
+      icuFtpWatts: 285,
+      todayDateKey: TODAY,
+    });
+    const changed = ftpProposalStep(seen.proposal, {
+      type: "checked",
+      evidence: { kind: "drift", watts: 285 },
+      icuFtpWatts: 300,
+      todayDateKey: TODAY + 1,
+    });
+    expect(changed.proposal).toMatchObject({
+      kind: "quiet",
+      memory: { ftpSeen: { watts: 300, sinceDateKey: TODAY + 1 } },
+    });
   });
 });

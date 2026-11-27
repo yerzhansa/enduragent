@@ -6,7 +6,7 @@ import {
   icuCopyChangeApproved,
   icuCopyDeleted,
   icuCopyKeep,
-  icuCopyMovedInApp,
+  icuCopyDrag,
   icuCopyOnRun,
   icuCopyPutBack,
   icuCopyWritten,
@@ -250,12 +250,35 @@ function athleteOptions(world: World): readonly Icu[] {
 
 function athleteDrags(world: World): World {
   if (world.plan.kind !== "workout" || !icuCopyAllowsMove(world.copy)) return world;
-  const owned = world.copy.kind === "on-icu" && world.copy.baseline.owner === "athlete-edit";
+  const plan: PlanWorkout = {
+    ...world.plan,
+    day: world.plan.day === THURSDAY ? SATURDAY : THURSDAY,
+  };
+  const dragged: World = { ...world, plan };
+  const result = icuCopyDrag(world.copy, sighting(world.icu, world.version), planSide(dragged));
+  if (result.kind !== "done") return { ...world, copy: result.copy };
+  if (result.effect.kind !== "update") return { ...dragged, copy: result.copy };
+  const after: Icu = { kind: "there", content: norm(plan.content), day: plan.day };
+  const readBack = sighting(after, world.version + 1);
+  if (readBack.kind !== "present") throw new Error("write lost");
+  const keptWasHere = world.kept.kind !== "none" && sameIcu(world.kept, world.icu);
   return {
-    ...world,
-    plan: { ...world.plan, day: world.plan.day === THURSDAY ? SATURDAY : THURSDAY },
-    copy: icuCopyMovedInApp(world.copy),
-    approvedOverEdit: owned ? "yes" : world.approvedOverEdit,
+    ...dragged,
+    icu: after,
+    version: world.version + 1,
+    agreed: after,
+    kept: keptWasHere ? after : world.kept,
+    needless: world.needless || sameIcu(after, world.icu),
+    copy: icuCopyWritten(
+      result.copy,
+      {
+        eventId: EVENT_ID,
+        dateKey: after.day,
+        planFingerprint: planFingerprint(plan),
+        readBack: readBack.version,
+      },
+      "keep-owner",
+    ),
   };
 }
 
@@ -510,14 +533,22 @@ describe("a Plan Workout's copy on intervals.icu", () => {
     });
   });
 
-  it("sends a drag of a kept edit to intervals.icu", () => {
+  it("sends a drag of a kept edit to intervals.icu and keeps it the athlete's", () => {
     const kept = keep(
       appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
     );
     expect(kept.copy).toMatchObject({ kind: "on-icu", baseline: { owner: "athlete-edit" } });
-    const dragged = appRuns(athleteDrags(kept));
+    const dragged = athleteDrags(kept);
     expect(dragged.icu).toEqual({ kind: "there", content: "E", day: SATURDAY });
-    expect(dragged.lost).toBe(false);
-    expect(dragged.lostKept).toBe(false);
+    expect(dragged.copy).toMatchObject({ kind: "on-icu", baseline: { owner: "athlete-edit" } });
+    const proposed = coachProposes(dragged, { kind: "change-to-q" });
+    expect(proposed.proposal).toMatchObject({ view: { mark: "replaces-your-edit" } });
+  });
+
+  it("refuses a drag when intervals.icu changed since the last run", () => {
+    const changed = athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY });
+    const dragged = athleteDrags(changed);
+    expect(dragged.plan).toEqual({ kind: "workout", content: "P", day: THURSDAY });
+    expect(dragged.copy.kind).toBe("changed-in-icu");
   });
 });
