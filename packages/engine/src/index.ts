@@ -110,35 +110,44 @@ export interface CreateCoachEngineInput {
   readonly ports: EngineHostPorts;
 }
 
-interface QueueRetryRun {
-  readonly claimId: string;
-  readonly task: Promise<ChatQueueRunResult>;
+interface QueueEventChannel {
   readonly events: TurnEvent[];
   readonly subscribers: Set<(event: TurnEvent) => void>;
+}
+
+interface QueueRun extends QueueEventChannel {
+  readonly task: Promise<ChatQueueRunResult>;
+}
+
+interface QueueRetryRun extends QueueRun {
+  readonly claimId: string;
 }
 
 export function createCoachEngine(
   input: CreateCoachEngineInput,
 ): CoachEngine & IntentTranslationPort {
   const agent = new CoachAgent(input.sport, input.ports);
-  const queueRuns = new Map<string, Promise<ChatQueueRunResult>>();
+  const queueRuns = new Map<string, QueueRun>();
   const queueRetryRuns = new Map<string, QueueRetryRun>();
   const deferredPlanTurns = new Map<string, DeferredPlanTurn>();
   const deferredKey = (chatId: string, turnId: string): string => `${chatId}:${turnId}`;
   const queueAuthorities = new Map<string, Promise<void>>();
   const withQueueAuthority = async <T>(chatId: string, work: () => Promise<T>): Promise<T> => {
     const previous = queueAuthorities.get(chatId) ?? Promise.resolve();
-    let release = (): void => {};
+    let release: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const tail = previous.catch(() => {}).then(() => gate);
+    const tail = previous.then(
+      () => gate,
+      () => gate,
+    );
     queueAuthorities.set(chatId, tail);
-    await previous.catch(() => {});
+    await Promise.allSettled([previous]);
     try {
       return await work();
     } finally {
-      release();
+      release?.();
       if (queueAuthorities.get(chatId) === tail) queueAuthorities.delete(chatId);
     }
   };
@@ -172,26 +181,28 @@ export function createCoachEngine(
           "Use only these normalized local fields; raw attachment bytes were not provided.",
           JSON.stringify(activities),
         ].join("\n");
-  const subscribeQueueRetry = (
-    run: QueueRetryRun,
+  const deliverQueueEvent = (subscriber: (event: TurnEvent) => void, event: TurnEvent): void => {
+    try {
+      subscriber(event);
+    } catch (error) {
+      input.ports.logger.warn("chat_queue_event_consumer_failed", error);
+    }
+  };
+  const subscribeQueueRun = (
+    channel: QueueEventChannel,
     onEvent: ((event: TurnEvent) => void) | undefined,
   ): void => {
     if (onEvent === undefined) return;
-    if (run.subscribers.has(onEvent)) return;
-    for (const event of run.events) {
-      try {
-        onEvent(event);
-      } catch {}
+    if (channel.subscribers.has(onEvent)) return;
+    for (const event of channel.events) {
+      deliverQueueEvent(onEvent, event);
     }
-    run.subscribers.add(onEvent);
+    channel.subscribers.add(onEvent);
   };
-  const publishQueueRetry = (run: QueueRetryRun, event: TurnEvent): void => {
-    run.events.push(event);
-    const subscribers = Array.from(run.subscribers);
-    for (const subscriber of subscribers) {
-      try {
-        subscriber(event);
-      } catch {}
+  const publishQueueRun = (channel: QueueEventChannel, event: TurnEvent): void => {
+    channel.events.push(event);
+    for (const subscriber of Array.from(channel.subscribers)) {
+      deliverQueueEvent(subscriber, event);
     }
   };
   const runQueue = (
@@ -203,23 +214,26 @@ export function createCoachEngine(
   ): Promise<ChatQueueRunResult> => {
     const active = queueRuns.get(chatId);
     if (active !== undefined) {
-      if (mode !== "retry" || exactId === undefined) return active;
+      if (mode !== "retry" || exactId === undefined) {
+        subscribeQueueRun(active, onEvent);
+        return active.task;
+      }
       const existing = queueRetryRuns.get(chatId);
       if (existing?.claimId === exactId) {
-        subscribeQueueRetry(existing, onEvent);
+        subscribeQueueRun(existing, onEvent);
         return existing.task;
       }
       if (existing !== undefined) return snapshot(chatId).then((value) => ({ snapshot: value }));
       const events: TurnEvent[] = [];
       const subscribers = new Set<(event: TurnEvent) => void>();
       if (onEvent !== undefined) subscribers.add(onEvent);
-      let retryRun!: QueueRetryRun;
+      let retryRun: QueueRetryRun | undefined;
       const task = (async (): Promise<ChatQueueRunResult> => {
         const before = await snapshot(chatId);
         const recovery = before.retryRequired;
         if (recovery === undefined || recovery.claimId !== exactId) return { snapshot: before };
         agent.stopChat(chatId, recovery.turnId);
-        await active.catch(() => undefined);
+        await Promise.allSettled([active.task]);
         if (queueRuns.get(chatId) === active) queueRuns.delete(chatId);
         if (queueRetryRuns.get(chatId) === retryRun) queueRetryRuns.delete(chatId);
         return runQueue(chatId, "retry", exactId, undefined, retryRun);
@@ -232,12 +246,12 @@ export function createCoachEngine(
       void task.then(release, release);
       return task;
     }
-    const retryEvents = retryRunOverride?.events ?? [];
-    const retrySubscribers = retryRunOverride?.subscribers ?? new Set<(event: TurnEvent) => void>();
-    if (mode === "retry" && onEvent !== undefined && retryRunOverride === undefined) {
-      retrySubscribers.add(onEvent);
+    const events = retryRunOverride?.events ?? [];
+    const subscribers = retryRunOverride?.subscribers ?? new Set<(event: TurnEvent) => void>();
+    if (onEvent !== undefined && retryRunOverride === undefined) {
+      subscribers.add(onEvent);
     }
-    let retryRun = retryRunOverride;
+    const channel: QueueEventChannel = { events, subscribers };
     const task = withQueueAuthority(chatId, async (): Promise<ChatQueueRunResult> => {
       const before = await snapshot(chatId);
       const pendingDecision = input.ports.coachDecisions?.getDecision(chatId);
@@ -330,8 +344,7 @@ export function createCoachEngine(
           },
           (event) => {
             if (event.type === "interrupted") interrupted = true;
-            if (retryRun === undefined) onEvent?.(event);
-            else publishQueueRetry(retryRun, event);
+            publishQueueRun(channel, event);
           },
           (requested) => {
             decision = requested;
@@ -385,13 +398,19 @@ export function createCoachEngine(
         throw error;
       }
     });
-    queueRuns.set(chatId, task);
+    const run: QueueRun = { task, events, subscribers };
+    queueRuns.set(chatId, run);
     const release = (): void => {
-      if (queueRuns.get(chatId) === task) queueRuns.delete(chatId);
+      if (queueRuns.get(chatId) === run) queueRuns.delete(chatId);
     };
     void task.then(release, release);
     if (mode === "retry" && exactId !== undefined && queueRetryRuns.get(chatId) === undefined) {
-      retryRun ??= { claimId: exactId, task, events: retryEvents, subscribers: retrySubscribers };
+      const retryRun: QueueRetryRun = retryRunOverride ?? {
+        claimId: exactId,
+        task,
+        events,
+        subscribers,
+      };
       queueRetryRuns.set(chatId, retryRun);
       const releaseRetry = (): void => {
         if (queueRetryRuns.get(chatId) === retryRun) queueRetryRuns.delete(chatId);
