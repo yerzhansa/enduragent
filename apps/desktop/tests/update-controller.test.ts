@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  copyDesktopUpdateState,
   createDesktopUpdateController,
   desktopUpdateAutoInstallOnAppQuit,
   DESKTOP_UPDATE_CHECK_TIMEOUT_MS,
   DESKTOP_UPDATE_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
   DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
   DESKTOP_UPDATE_INTERVAL_MS,
+  DESKTOP_UPDATE_PROGRESS_THROTTLE_MS,
   type DesktopAutoUpdater,
+  type DesktopUpdateState,
 } from "../src/main/update-controller.js";
 import type { DesktopUpdateVersionFloor } from "../src/main/update-version-floor.js";
 
@@ -644,7 +647,8 @@ describe("desktop update controller", () => {
 
     expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.1" });
     fake.emit("update-downloaded", { version: "0.1.1" });
-    expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.1" });
+    expect(subject.controller.state()).toEqual({ status: "preparing", version: "0.1.1" });
+    expect(subject.controller.restart()).toEqual({ status: "preparing", version: "0.1.1" });
     expect(subject.quit).not.toHaveBeenCalled();
 
     native.emit("update-downloaded");
@@ -688,8 +692,8 @@ describe("desktop update controller", () => {
     native.emit("update-downloaded");
     fake.emit("update-downloaded", { version: "0.1.2" });
 
-    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.2" });
-    expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.2" });
+    expect(subject.controller.state()).toEqual({ status: "preparing", version: "0.1.2" });
+    expect(subject.controller.restart()).toEqual({ status: "preparing", version: "0.1.2" });
     expect(subject.quit).not.toHaveBeenCalled();
 
     native.emit("update-downloaded");
@@ -798,8 +802,8 @@ describe("desktop update controller", () => {
     const retry = subject.controller.check();
     await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledTimes(2));
     fake.emit("update-downloaded", { version: "0.1.2" });
-    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.2" });
-    expect(subject.controller.restart()).toEqual({ status: "downloading", version: "0.1.2" });
+    expect(subject.controller.state()).toEqual({ status: "preparing", version: "0.1.2" });
+    expect(subject.controller.restart()).toEqual({ status: "preparing", version: "0.1.2" });
     native.emit("update-downloaded");
     expect(subject.controller.state()).toEqual({ status: "downloaded", version: "0.1.2" });
     await retry;
@@ -880,28 +884,84 @@ describe("desktop update controller", () => {
     subject.controller.close();
   });
 
-  it("resets the download stall deadline when a differential download falls back to a full download", async () => {
+  it("resets the download stall deadline and progress when a differential download falls back to a full download", async () => {
     const fake = fakeUpdater();
     const download = deferred<string[]>();
     vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
     vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
-    const subject = activeController(fake.updater);
+    let currentTime = 1_000;
+    const subject = activeController(fake.updater, { now: () => currentTime });
 
     const startup = subject.controller.start();
     await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
-    fake.emit("download-progress", { transferred: 18_000_000, total: 18_000_000 });
+    fake.emit("download-progress", {
+      transferred: 18_000_000,
+      total: 18_000_000,
+      percent: 100,
+      bytesPerSecond: 4_000_000,
+    });
+    expect(subject.controller.state()).toEqual({
+      status: "downloading",
+      version: "0.1.1",
+      progress: {
+        percent: 100,
+        transferredBytes: 18_000_000,
+        totalBytes: 18_000_000,
+        bytesPerSecond: 4_000_000,
+      },
+    });
     const diffStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
 
-    fake.emit("download-progress", { transferred: 0, total: 146_000_000 });
-    fake.emit("download-progress", { transferred: 65_536, total: 146_000_000 });
+    currentTime += 50;
+    fake.emit("download-progress", {
+      transferred: 0,
+      total: 146_000_000,
+      percent: 0,
+      bytesPerSecond: 0,
+    });
+    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.1.1" });
+
+    currentTime += 50;
+    fake.emit("download-progress", {
+      transferred: 1_460_000,
+      total: 146_000_000,
+      percent: 1,
+      bytesPerSecond: 2_000_000,
+    });
+    expect(subject.controller.state()).toEqual({
+      status: "downloading",
+      version: "0.1.1",
+      progress: {
+        percent: 1,
+        transferredBytes: 1_460_000,
+        totalBytes: 146_000_000,
+        bytesPerSecond: 2_000_000,
+      },
+    });
     const fallbackStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
     expect(fallbackStall).toBeDefined();
     expect(fallbackStall).not.toBe(diffStall);
     expect(subject.deadlines.fire(diffStall!)).toBe(false);
 
-    fake.emit("download-progress", { transferred: 131_072, total: 146_000_000 });
+    currentTime += DESKTOP_UPDATE_PROGRESS_THROTTLE_MS;
+    fake.emit("download-progress", {
+      transferred: 14_600_000,
+      total: 146_000_000,
+      percent: 10,
+      bytesPerSecond: 3_000_000,
+    });
     const nextStall = subject.deadlines.latest(DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
     expect(nextStall).not.toBe(fallbackStall);
+    expect(subject.controller.state()).toEqual({
+      status: "downloading",
+      version: "0.1.1",
+      progress: {
+        percent: 10,
+        transferredBytes: 14_600_000,
+        totalBytes: 146_000_000,
+        bytesPerSecond: 3_000_000,
+      },
+    });
 
     fake.emit("update-downloaded", { version: "0.1.1" });
     download.resolve([]);
@@ -1161,5 +1221,185 @@ describe("desktop update controller", () => {
     download.resolve([]);
     await macStart;
     macSubject.controller.close();
+
+    const prepCloseFake = fakeUpdater();
+    const prepCloseNative = fakeNativeUpdater();
+    const prepCloseDownload = deferred<string[]>();
+    vi.mocked(prepCloseFake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
+    vi.mocked(prepCloseFake.updater.downloadUpdate).mockReturnValue(prepCloseDownload.promise);
+    const prepClose = activeController(prepCloseFake.updater, {
+      platform: "darwin",
+      nativeUpdater: prepCloseNative.updater,
+    });
+    prepClose.controller.subscribe((next) => {
+      if (next.status === "preparing") prepClose.controller.close();
+    });
+    const prepStart = prepClose.controller.start();
+    await vi.waitFor(() => expect(prepCloseFake.updater.downloadUpdate).toHaveBeenCalledOnce());
+    prepCloseFake.emit("update-downloaded", { version: "0.1.1" });
+    await prepStart;
+    expect(prepCloseNative.listenerCount()).toBe(0);
+    expect(prepCloseFake.listenerCount()).toBe(0);
+    expect(prepClose.deadlines.pending()).toBe(0);
+    prepCloseDownload.resolve([]);
+  });
+
+  it("throttles live download progress while publishing the first sample and 100% immediately", async () => {
+    const fake = fakeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.7.0"));
+    vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
+    let currentTime = 1_000;
+    const subject = activeController(fake.updater, { now: () => currentTime });
+    const states: DesktopUpdateState[] = [];
+    subject.controller.subscribe((next) => states.push(next));
+
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+
+    fake.emit("download-progress", {
+      transferred: 1_000_000,
+      total: 33_000_000,
+      percent: 3.03,
+      bytesPerSecond: 2_500_000,
+    });
+    currentTime += DESKTOP_UPDATE_PROGRESS_THROTTLE_MS - 50;
+    fake.emit("download-progress", {
+      transferred: 5_000_000,
+      total: 33_000_000,
+      percent: 15.15,
+      bytesPerSecond: 2_600_000,
+    });
+    currentTime += 50;
+    fake.emit("download-progress", {
+      transferred: 14_000_000,
+      total: 33_000_000,
+      percent: 42.42,
+      bytesPerSecond: 3_100_000,
+    });
+    currentTime += 20;
+    fake.emit("download-progress", {
+      transferred: 33_000_000,
+      total: 33_000_000,
+      percent: 100,
+      bytesPerSecond: 3_500_000,
+    });
+
+    expect(states).toEqual([
+      { status: "idle" },
+      { status: "checking" },
+      { status: "downloading", version: "0.7.0" },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 3,
+          transferredBytes: 1_000_000,
+          totalBytes: 33_000_000,
+          bytesPerSecond: 2_500_000,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 42,
+          transferredBytes: 14_000_000,
+          totalBytes: 33_000_000,
+          bytesPerSecond: 3_100_000,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 100,
+          transferredBytes: 33_000_000,
+          totalBytes: 33_000_000,
+          bytesPerSecond: 3_500_000,
+        },
+      },
+    ]);
+
+    fake.emit("update-downloaded", { version: "0.7.0" });
+    download.resolve([]);
+    await startup;
+  });
+
+  it("clamps noisy progress payloads, deep-copies state, and ignores late progress during preparing", async () => {
+    const fake = fakeUpdater();
+    const native = fakeNativeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.7.0"));
+    vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
+    let currentTime = 5_000;
+    const subject = activeController(fake.updater, {
+      platform: "darwin",
+      nativeUpdater: native.updater,
+      now: () => currentTime,
+    });
+
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+
+    fake.emit("download-progress", {
+      transferred: 32_950_000,
+      total: 33_000_000,
+      percent: 99.9,
+      bytesPerSecond: -50,
+    });
+    const snapshot = subject.controller.state();
+    expect(snapshot).toEqual({
+      status: "downloading",
+      version: "0.7.0",
+      progress: {
+        percent: 99,
+        transferredBytes: 32_950_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 0,
+      },
+    });
+    if (snapshot.status === "downloading" && snapshot.progress !== undefined) {
+      (snapshot.progress as { percent: number }).percent = 0;
+    }
+    expect(subject.controller.state()).toEqual({
+      status: "downloading",
+      version: "0.7.0",
+      progress: {
+        percent: 99,
+        transferredBytes: 32_950_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 0,
+      },
+    });
+
+    const copied = copyDesktopUpdateState(subject.controller.state());
+    expect(copied).toEqual(subject.controller.state());
+    if (copied.status === "downloading" && copied.progress !== undefined) {
+      const current = subject.controller.state();
+      if (current.status === "downloading") {
+        expect(copied.progress).not.toBe(current.progress);
+      }
+    }
+
+    fake.emit("update-downloaded", { version: "0.7.0" });
+    expect(subject.controller.state()).toEqual({ status: "preparing", version: "0.7.0" });
+
+    currentTime += DESKTOP_UPDATE_PROGRESS_THROTTLE_MS * 2;
+    fake.emit("download-progress", {
+      transferred: 33_000_000,
+      total: 33_000_000,
+      percent: 100,
+      bytesPerSecond: 1_000_000,
+    });
+    expect(subject.controller.state()).toEqual({ status: "preparing", version: "0.7.0" });
+
+    const concurrentCheck = subject.controller.check();
+    expect(fake.updater.checkForUpdates).toHaveBeenCalledOnce();
+
+    native.emit("update-downloaded");
+    await expect(concurrentCheck).resolves.toEqual({ status: "downloaded", version: "0.7.0" });
+    download.resolve([]);
+    await startup;
   });
 });

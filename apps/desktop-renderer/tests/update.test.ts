@@ -50,9 +50,29 @@ describe("desktop update renderer controller", () => {
     await vi.waitFor(() =>
       expect(subject.view.render).toHaveBeenLastCalledWith({ status: "current" }),
     );
-    subject.publish({ status: "downloading", version: "2026.7.23" });
+    subject.publish({
+      status: "downloading",
+      version: "2026.7.23",
+      progress: {
+        percent: 42,
+        transferredBytes: 14_000_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 4_200_000,
+      },
+    });
     expect(subject.view.render).toHaveBeenLastCalledWith({
       status: "downloading",
+      version: "2026.7.23",
+      progress: {
+        percent: 42,
+        transferredBytes: 14_000_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 4_200_000,
+      },
+    });
+    subject.publish({ status: "preparing", version: "2026.7.23" });
+    expect(subject.view.render).toHaveBeenLastCalledWith({
+      status: "preparing",
       version: "2026.7.23",
     });
   });
@@ -60,6 +80,11 @@ describe("desktop update renderer controller", () => {
   it("restarts only from downloaded and ignores actions while busy", async () => {
     const subject = setupController({ status: "checking" });
     await subject.controller.start();
+    subject.action();
+    expect(subject.bridge.checkForUpdates).not.toHaveBeenCalled();
+    expect(subject.bridge.restartToUpdate).not.toHaveBeenCalled();
+
+    subject.publish({ status: "preparing", version: "2026.7.23" });
     subject.action();
     expect(subject.bridge.checkForUpdates).not.toHaveBeenCalled();
     expect(subject.bridge.restartToUpdate).not.toHaveBeenCalled();

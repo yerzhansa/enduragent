@@ -136,4 +136,41 @@ describe("desktop update IPC", () => {
       stage: "check",
     });
   });
+
+  it("deep-copies download progress and preserves preparing state across request and push boundaries", () => {
+    const state = setup();
+    const progress = {
+      percent: 42,
+      transferredBytes: 14_000_000,
+      totalBytes: 33_000_000,
+      bytesPerSecond: 4_200_000,
+    };
+    const downloading: DesktopUpdateState = {
+      status: "downloading",
+      version: "0.7.0",
+      progress,
+    };
+    vi.mocked(state.controller.state).mockReturnValue(downloading);
+
+    const fetched = state.handlers.get(DESKTOP_UPDATE_GET_CHANNEL)!(
+      state.trusted,
+    ) as DesktopUpdateState;
+    expect(fetched).toEqual(downloading);
+    if (fetched.status === "downloading") {
+      expect(fetched.progress).not.toBe(progress);
+    }
+
+    state.publish(downloading);
+    const pushed = state.webContents.send.mock.calls.at(-1)?.[1] as DesktopUpdateState;
+    expect(pushed).toEqual(downloading);
+    if (pushed.status === "downloading") {
+      expect(pushed.progress).not.toBe(progress);
+    }
+
+    state.publish({ status: "preparing", version: "0.7.0" });
+    expect(state.webContents.send).toHaveBeenLastCalledWith(DESKTOP_UPDATE_STATE_CHANNEL, {
+      status: "preparing",
+      version: "0.7.0",
+    });
+  });
 });

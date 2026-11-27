@@ -35,6 +35,7 @@ function updateCopy(state: DesktopUpdateState, say: Phrasebook["say"]): UpdateCo
         announcement: say("settings.application.checking"),
       };
     case "downloading":
+    case "preparing":
       return {
         action: say("settings.application.downloadingAction"),
         label: say("settings.application.downloading", { version: state.version }),
@@ -90,7 +91,9 @@ export function ApplicationSection(): ReactElement {
   const updateBusy =
     mutating ||
     update.pendingAction !== "none" ||
-    ["disabled", "checking", "downloading", "installing"].includes(update.state.status);
+    ["disabled", "checking", "downloading", "preparing", "installing"].includes(
+      update.state.status,
+    );
 
   return (
     <>

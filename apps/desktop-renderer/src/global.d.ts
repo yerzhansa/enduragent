@@ -216,10 +216,22 @@ type DesktopTranscriptPage =
       readonly nextCursor: null;
     };
 
+interface DesktopUpdateDownloadProgress {
+  readonly percent: number;
+  readonly transferredBytes: number;
+  readonly totalBytes: number;
+  readonly bytesPerSecond: number;
+}
+
 type DesktopUpdateState =
   | { readonly status: "disabled" | "idle" | "checking" | "current" }
   | {
-      readonly status: "downloading" | "downloaded" | "installing";
+      readonly status: "downloading";
+      readonly version: string;
+      readonly progress?: DesktopUpdateDownloadProgress;
+    }
+  | {
+      readonly status: "preparing" | "downloaded" | "installing";
       readonly version: string;
     }
   | { readonly status: "restart-required"; readonly stage: "check" | "download" }

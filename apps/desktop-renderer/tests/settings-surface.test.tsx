@@ -3039,6 +3039,34 @@ describe("application section", () => {
       expect(subject.restartToUpdate).not.toHaveBeenCalled();
     },
   );
+
+  it.each<DesktopUpdateState>([
+    {
+      status: "downloading",
+      version: "1998.7.7",
+      progress: {
+        percent: 42,
+        transferredBytes: 14_000_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 4_200_000,
+      },
+    },
+    { status: "preparing", version: "1998.7.7" },
+  ])(
+    "keeps the Application update action busy and disabled during $status",
+    async (updateState) => {
+      const subject = await renderSettings({ updateState });
+      await act(async () => {
+        await subject.startUpdate();
+      });
+
+      const application = within(screen.getByRole("region", { name: "Application" }));
+      const action = application.getByRole("button", { name: "Downloading update 1998.7.7" });
+      expect(action).toBeDisabled();
+      expect(action).toHaveTextContent("Downloading…");
+      expect(application.queryByRole("button", { name: "Check for updates" })).toBeNull();
+    },
+  );
 });
 
 describe("spending", () => {
