@@ -154,7 +154,11 @@ describe("fetchLiveBundle", () => {
     });
 
     expect(res.bundle.wellness).toHaveLength(1);
-    expect(res.bundle.wellness[0]).toMatchObject({ fitness: 40, fatigue: 45, subjectiveFatigue: 3 });
+    expect(res.bundle.wellness[0]).toMatchObject({
+      fitness: 40,
+      fatigue: 45,
+      subjectiveFatigue: 3,
+    });
   });
 
   it("fetches streams only for cycling rides within the stream window, capped", async () => {
@@ -217,6 +221,52 @@ describe("fetchLiveBundle", () => {
       throttleMs: 0,
       log: () => {},
     });
+    expect(res.bundle.streams?.["1"]).toBeUndefined();
+    expect(res.bundle.streams?.["2"]).toBeDefined();
+  });
+
+  it("fails when intervals.icu refuses the sign-in during a stream fetch", async () => {
+    const { client, streamCalls } = fakeClient({
+      activities: [
+        camelActivity({ id: 1, startDateLocal: daysAgo(1) }),
+        camelActivity({ id: 2, startDateLocal: daysAgo(2) }),
+      ],
+      streamFor: () => ({ ok: false, error: { kind: "Unauthorized", status: 401, body: {} } }),
+    });
+
+    await expect(
+      fetchLiveBundle({
+        client,
+        signal: new AbortController().signal,
+        now: NOW,
+        calendarTimeZone: "UTC",
+        throttleMs: 0,
+        log: () => {},
+      }),
+    ).rejects.toThrow(/activities\.getStreams failed/);
+    expect(streamCalls).toEqual(["1"]);
+  });
+
+  it.each([
+    { kind: "Forbidden", status: 403 },
+    { kind: "NotFound", status: 404 },
+  ])("skips a stream fetch that fails with $status and keeps the others", async (failure) => {
+    const { client } = fakeClient({
+      activities: [
+        camelActivity({ id: 1, startDateLocal: daysAgo(1) }),
+        camelActivity({ id: 2, startDateLocal: daysAgo(2) }),
+      ],
+      streamFor: (id) => (id === "1" ? { ok: false, error: { ...failure, body: {} } } : STREAM_OK),
+    });
+    const res = await fetchLiveBundle({
+      client,
+      signal: new AbortController().signal,
+      now: NOW,
+      calendarTimeZone: "UTC",
+      throttleMs: 0,
+      log: () => {},
+    });
+
     expect(res.bundle.streams?.["1"]).toBeUndefined();
     expect(res.bundle.streams?.["2"]).toBeDefined();
   });
