@@ -1678,7 +1678,7 @@
         "columnIntervals": "Nyt intervals.icu-palvelussa",
         "columnPlan": "Suunnitelmassasi",
         "compare": "Suunnitelma ja intervals.icu rinnakkain",
-        "editedAt": "Muokattu intervals.icu-palvelussa {{when}}.",
+        "editedAt": "Muokattu intervals.icu-palvelussa {{day}} klo {{time}}.",
         "failed": "intervals.icu ei vastannut, joten mitään ei muutettu. Yritä uudelleen.",
         "keepDeleted": "Pidä poistettuna",
         "keepDeletedBody": "Suunnitelma merkitsee päivälle {{day}} merkinnän ”Poistit tämän”.",

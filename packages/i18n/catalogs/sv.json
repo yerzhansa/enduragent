@@ -2045,7 +2045,7 @@
         "columnIntervals": "I intervals.icu nu",
         "columnPlan": "I din plan",
         "compare": "Planen och intervals.icu sida vid sida",
-        "editedAt": "Ändrat i intervals.icu {{when}}.",
+        "editedAt": "Ändrat i intervals.icu {{day}} kl. {{time}}.",
         "failed": "intervals.icu svarade inte, så inget ändrades. Försök igen.",
         "keepDeleted": "Låt det vara raderat",
         "keepDeletedBody": "Planen markerar {{day}} som ”Borttaget av dig”.",

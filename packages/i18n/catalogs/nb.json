@@ -1678,7 +1678,7 @@
         "columnIntervals": "I intervals.icu nå",
         "columnPlan": "I planen din",
         "compare": "Planen og intervals.icu side om side",
-        "editedAt": "Endret i intervals.icu {{when}}.",
+        "editedAt": "Endret i intervals.icu {{day}} kl. {{time}}.",
         "failed": "intervals.icu svarte ikke, så ingenting ble endret. Prøv igjen.",
         "keepDeleted": "La den være slettet",
         "keepDeletedBody": "Planen merker {{day}} som «Fjernet av deg».",

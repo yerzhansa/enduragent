@@ -1678,7 +1678,7 @@
         "columnIntervals": "I intervals.icu nu",
         "columnPlan": "I din træningsplan",
         "compare": "Træningsplanen og intervals.icu side om side",
-        "editedAt": "Redigeret i intervals.icu {{when}}.",
+        "editedAt": "Redigeret i intervals.icu {{day}} kl. {{time}}.",
         "failed": "intervals.icu svarede ikke, så intet blev ændret. Prøv igen.",
         "keepDeleted": "Lad den være slettet",
         "keepDeletedBody": "Træningsplanen markerer {{day}} som »Fjernet af dig«.",

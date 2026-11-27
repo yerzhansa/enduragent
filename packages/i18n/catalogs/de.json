@@ -1678,7 +1678,7 @@
         "columnIntervals": "Jetzt in intervals.icu",
         "columnPlan": "In deinem Plan",
         "compare": "Plan und intervals.icu im Vergleich",
-        "editedAt": "Am {{when}} in intervals.icu bearbeitet.",
+        "editedAt": "Am {{day}} um {{time}} in intervals.icu bearbeitet.",
         "failed": "intervals.icu hat nicht geantwortet, daher wurde nichts geändert. Versuche es erneut.",
         "keepDeleted": "Gelöscht lassen",
         "keepDeletedBody": "Der Plan markiert {{day}} als „Von dir entfernt“.",

@@ -1678,7 +1678,7 @@
         "columnIntervals": "Agora no intervals.icu",
         "columnPlan": "No seu plano",
         "compare": "O plano e o intervals.icu lado a lado",
-        "editedAt": "Editado no intervals.icu em {{when}}.",
+        "editedAt": "Editado no intervals.icu em {{day}}, às {{time}}.",
         "failed": "O intervals.icu não respondeu, então nada mudou. Tente novamente.",
         "keepDeleted": "Manter excluído",
         "keepDeletedBody": "O plano marca {{day}} como “Removido por você”.",

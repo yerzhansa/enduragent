@@ -1678,7 +1678,7 @@
         "columnIntervals": "Nu in intervals.icu",
         "columnPlan": "In je trainingsschema",
         "compare": "Het trainingsschema en intervals.icu naast elkaar",
-        "editedAt": "Bewerkt in intervals.icu op {{when}}.",
+        "editedAt": "Bewerkt in intervals.icu op {{day}} om {{time}}.",
         "failed": "intervals.icu reageerde niet, dus er is niets gewijzigd. Probeer het opnieuw.",
         "keepDeleted": "Verwijderd laten",
         "keepDeletedBody": "Het trainingsschema markeert {{day}} als 'Door jou verwijderd'.",

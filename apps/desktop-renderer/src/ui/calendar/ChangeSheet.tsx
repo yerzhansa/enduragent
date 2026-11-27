@@ -206,17 +206,17 @@ function choices(
 
 function editedAt(
   value: string | null,
+  text: CalendarText,
   format: ReturnType<typeof usePhrasebook>["format"],
+  say: Say,
 ): string | null {
   if (value === null) return null;
-  const at = Date.parse(value);
-  if (!Number.isFinite(at)) return null;
-  return format.date(new Date(at), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
+  const at = new Date(Date.parse(value));
+  if (!Number.isFinite(at.getTime())) return null;
+  const dateKey = at.getFullYear() * 10_000 + (at.getMonth() + 1) * 100 + at.getDate();
+  return say("plan.calendar.change.editedAt", {
+    day: text.weekdayDayMonth(dateKey),
+    time: format.date(at, { hour: "numeric", minute: "2-digit" }),
   });
 }
 
@@ -272,7 +272,7 @@ export function ChangeSheet(props: {
       : say("plan.calendar.change.titleEdited");
   const options = choices(detail, props.read, text, say);
   const busy = state.kind === "working";
-  const when = editedAt(detail.editedAt, format);
+  const edited = editedAt(detail.editedAt, text, format, say);
   const caption = [text.weekdayDayMonth(detail.plan.dateKey), detail.plan.name];
   if (deleted && detail.plan.durationS !== null) caption.push(text.duration(detail.plan.durationS));
   return (
@@ -281,9 +281,7 @@ export function ChangeSheet(props: {
       <h2 ref={heading} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
         {title}
       </h2>
-      {when === null ? null : (
-        <span className="text-xs text-ink-2">{say("plan.calendar.change.editedAt", { when })}</span>
-      )}
+      {edited === null ? null : <span className="text-xs text-ink-2">{edited}</span>}
       {deleted ? null : <Comparison detail={detail} text={text} say={say} />}
       {state.kind === "failed" ? (
         <p

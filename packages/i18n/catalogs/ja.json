@@ -1653,7 +1653,7 @@
         "columnIntervals": "intervals.icuの現在の内容",
         "columnPlan": "プランの内容",
         "compare": "プランとintervals.icuの比較",
-        "editedAt": "{{when}}にintervals.icuで編集されました。",
+        "editedAt": "{{day}} {{time}}にintervals.icuで編集されました。",
         "failed": "intervals.icuから応答がなかったため、何も変更されていません。もう一度お試しください。",
         "keepDeleted": "削除したままにする",
         "keepDeletedBody": "プランでは{{day}}が「自分で削除済み」になります。",

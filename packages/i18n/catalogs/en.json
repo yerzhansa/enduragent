@@ -989,7 +989,7 @@
         "columnIntervals": "In intervals.icu now",
         "columnPlan": "In your Plan",
         "compare": "The Plan and intervals.icu side by side",
-        "editedAt": "Edited in intervals.icu on {{when}}.",
+        "editedAt": "Edited in intervals.icu on {{day}}, {{time}}.",
         "failed": "intervals.icu did not answer, so nothing changed. Try again.",
         "keepDeleted": "Keep it deleted",
         "keepDeletedBody": "The Plan marks {{day}} “Removed by you”.",

@@ -1653,7 +1653,7 @@
         "columnIntervals": "현재 intervals.icu",
         "columnPlan": "내 계획",
         "compare": "계획과 intervals.icu 비교",
-        "editedAt": "{{when}}에 intervals.icu에서 수정되었습니다.",
+        "editedAt": "{{day}} {{time}}에 intervals.icu에서 수정되었습니다.",
         "failed": "intervals.icu가 응답하지 않아 아무것도 변경되지 않았습니다. 다시 시도하세요.",
         "keepDeleted": "삭제된 상태로 유지",
         "keepDeletedBody": "계획에서 {{day}} 날짜가 “직접 삭제함”으로 표시됩니다.",

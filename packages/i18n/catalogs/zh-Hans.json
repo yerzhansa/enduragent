@@ -1653,7 +1653,7 @@
         "columnIntervals": "intervals.icu 当前版本",
         "columnPlan": "计划中的版本",
         "compare": "计划与 intervals.icu 对比",
-        "editedAt": "于 {{when}} 在 intervals.icu 中编辑。",
+        "editedAt": "于 {{day}} {{time}} 在 intervals.icu 中编辑。",
         "failed": "intervals.icu 没有响应，因此未做任何更改。请重试。",
         "keepDeleted": "保持删除",
         "keepDeletedBody": "计划会将 {{day}} 标记为“已由你移除”。",

@@ -1678,7 +1678,7 @@
         "columnIntervals": "Ora su intervals.icu",
         "columnPlan": "Nel tuo piano",
         "compare": "Il piano e intervals.icu a confronto",
-        "editedAt": "Modificato su intervals.icu il {{when}}.",
+        "editedAt": "Modificato su intervals.icu il {{day}} alle {{time}}.",
         "failed": "intervals.icu non ha risposto, quindi non è cambiato nulla. Riprova.",
         "keepDeleted": "Lascialo eliminato",
         "keepDeletedBody": "Il piano segna {{day}} come «Rimosso da te».",
