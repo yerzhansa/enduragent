@@ -204,7 +204,7 @@ export function icuCopyOnRun(
         return decideInSync(withFreshToken(copy.baseline, sighting), plan);
       }
       if (sighting.kind === "absent" && plan.kind === "withdraw" && plan.reason === "not-in-plan") {
-        return decision(ICU_COPY_NOT_SENT);
+        return decision({ kind: "not-sent", owner: copy.baseline.owner });
       }
       return decision({ kind: "changed-in-icu", baseline: copy.baseline, shown: sighting });
     }
@@ -213,7 +213,7 @@ export function icuCopyOnRun(
         return icuCopyOnRun({ kind: "on-icu", baseline: copy.baseline }, plan, sighting);
       }
       if (sighting.kind === "absent" && plan.kind === "withdraw" && plan.reason === "not-in-plan") {
-        return decision(ICU_COPY_NOT_SENT);
+        return decision({ kind: "not-sent", owner: copy.baseline.owner });
       }
       if (sameSighting(copy.shown, sighting)) return decision(copy);
       return decision({ ...copy, shown: sighting });
@@ -251,7 +251,7 @@ export function icuCopyKeep(
       kind: "done",
       ...decision(
         shown.kind === "absent"
-          ? ICU_COPY_NOT_SENT
+          ? { kind: "not-sent", owner: checked.card.baseline.owner }
           : { kind: "kept-as-yours", eventId: shown.eventId },
       ),
     };
@@ -291,7 +291,11 @@ export function icuCopyPutBack(
   if (checked.kind !== "ready") return checked;
   const shown = checked.card.shown;
   if (plan.kind === "withdraw") {
-    if (shown.kind === "absent") return { kind: "done", ...decision(ICU_COPY_NOT_SENT) };
+    if (shown.kind === "absent")
+      return {
+        kind: "done",
+        ...decision({ kind: "not-sent", owner: checked.card.baseline.owner }),
+      };
     return {
       kind: "done",
       ...decision(checked.card, {

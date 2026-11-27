@@ -630,4 +630,19 @@ describe("a Plan Workout's copy on intervals.icu", () => {
       view: { mark: "replaces-your-edit" },
     });
   });
+
+  it("keeps a kept edit the athlete's after a drag out, a delete in intervals.icu and Put back", () => {
+    const kept = keep(
+      appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
+    );
+    const card = appRuns(athleteChanges(athleteDrags(kept, LATER_WEEK), { kind: "gone" }));
+    expect(card.copy).toMatchObject({ kind: "changed-in-icu", shown: { kind: "absent" } });
+    const restored = putBack(card);
+    expect(restored.copy).toEqual({ kind: "not-sent", owner: "athlete-edit" });
+    const due = appRuns({ ...restored, laterWeek: "due" });
+    expect(due.icu).toEqual({ kind: "there", content: "E", day: LATER_WEEK });
+    expect(coachProposes(due, { kind: "change-to-q" }).proposal).toMatchObject({
+      view: { mark: "replaces-your-edit" },
+    });
+  });
 });
