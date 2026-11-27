@@ -41,6 +41,7 @@ import {
 } from "../schemas/inputs.js";
 import { LATEST_RETENTION_DAYS } from "../freshness.js";
 import { familyOf } from "../sport-adapter-dispatcher.js";
+import { ReferenceRateLimitedError } from "./run-sync.js";
 
 export { deriveFtpHistory, normalizeStreams } from "@enduragent/kernel/reference/local-bundle";
 
@@ -133,6 +134,23 @@ function renderEndpointError(error: unknown): string {
   );
 }
 
+function throwIfRateLimited(endpoint: string, result: FetchResult<unknown>): void {
+  if (result.ok) return;
+  const error = result.error;
+  if (typeof error !== "object" || error === null || !("kind" in error)) return;
+  if (error.kind !== "RateLimit") return;
+  const retryAfterMs =
+    "retryAfterMs" in error &&
+    typeof error.retryAfterMs === "number" &&
+    Number.isFinite(error.retryAfterMs)
+      ? Math.max(0, error.retryAfterMs)
+      : 0;
+  throw new ReferenceRateLimitedError(
+    `${endpoint} failed: ${renderEndpointError(error)}`,
+    retryAfterMs,
+  );
+}
+
 function shiftedDate(value: string, days: number): string {
   const instant = new Date(`${value}T00:00:00.000Z`);
   instant.setUTCDate(instant.getUTCDate() + days);
@@ -153,6 +171,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   const fetchErrors: FetchEndpointError[] = [];
 
   const athleteResult = await client.athlete.get();
+  throwIfRateLimited("athlete.get", athleteResult);
   if (!athleteResult.ok) {
     const detail = renderEndpointError(athleteResult.error);
     log(`Reference: athlete.get failed: ${detail}`);
@@ -161,6 +180,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   const athleteProfile = athleteResult.ok ? athleteResult.value : {};
 
   const actResult = await client.activities.list({ oldest, newest });
+  throwIfRateLimited("activities.list", actResult);
   if (!actResult.ok) {
     throw new Error(`activities.list failed: ${renderEndpointError(actResult.error)}`);
   }
@@ -174,6 +194,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   }
 
   const wellResult = await client.wellness.list({ oldest, newest });
+  throwIfRateLimited("wellness.list", wellResult);
   if (!wellResult.ok) {
     const detail = renderEndpointError(wellResult.error);
     log(`Reference: wellness.list failed: ${detail}`);
@@ -192,6 +213,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
     newest: planNewest,
     category: [...PLANNING_EVENT_CATEGORIES],
   });
+  throwIfRateLimited("events.list", eventResult);
   if (!eventResult.ok) {
     const detail = renderEndpointError(eventResult.error);
     log(`Reference: events.list failed: ${detail}`);

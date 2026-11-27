@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { AsyncMutex } from "../concurrency/mutex.js";
 import { Cooldown } from "../concurrency/cooldown.js";
 import { createRunSync } from "./sync/run-sync.js";
@@ -8,38 +9,29 @@ import { makeProductionFetcher } from "./sync/fetch-reference-data.js";
 import { readLatestVersioned } from "./io/read-latest-versioned.js";
 import { type LatestJson } from "./schemas/latest.js";
 import { SYNC_COOLDOWN_MS, SCHEDULED_SYNC_INTERVAL_MS } from "./freshness.js";
-import {
-  assertDisjointCoverage,
-  assertSubsetCoverage,
-} from "./sport-adapter-invariants.js";
-import type { FetchedReference } from "./sync/run-sync.js";
+import { assertDisjointCoverage, assertSubsetCoverage } from "./sport-adapter-invariants.js";
+import type { FetchedReference, RunSyncOpts, SyncResult } from "./sync/run-sync.js";
 import type { ReferenceServices } from "./services.js";
 import type { Sport } from "../sport.js";
 import type { PhysicalRequestLedger } from "@enduragent/kernel/store";
 import { resolveUserTimezone } from "@enduragent/engine/sport";
 
-/** Shared between runtime + tests so the strings stay in sync. */
 export const INITIAL_SYNC_FAILED_LOG_PREFIX = "Reference: initial sync failed";
+export const RATE_LIMIT_FOLLOW_UP_MIN_DELAY_MS = 1_000;
+export const RATE_LIMIT_FOLLOW_UP_MAX_DELAY_MS = 30_000;
 
-/**
- * Live, started Reference instance. Held by the binary entry-point
- * (`run-binary.ts`); channels see only `services`. The scheduler handle is
- * exposed for shutdown handlers and future operator-controlled lifecycle.
- */
 export interface ReferenceRuntime {
   readonly services: ReferenceServices;
   readonly scheduler: Scheduler;
-  runScheduledOnce(signal?: AbortSignal): Promise<import("./sync/run-sync.js").SyncResult>;
+  runScheduledOnce(signal?: AbortSignal): Promise<SyncResult>;
 }
 
 export interface BootstrapReferenceDeps {
-  /** Binary's per-coach data root (e.g., `~/.cycling-coach/`). */
   readonly dataDir: string;
   readonly intervals: { readonly apiKey: string; readonly athleteId?: string };
   readonly readIntervals?: () => { readonly apiKey: string; readonly athleteId?: string };
   readonly readCalendarTimeZone: () => string;
   readonly sport: Sport;
-  /** Inject a fetcher for tests. Defaults to `makeProductionFetcher`. */
   readonly fetchReferenceData?: (
     signal: AbortSignal,
     intervals: { readonly apiKey: string; readonly athleteId?: string },
@@ -49,27 +41,19 @@ export interface BootstrapReferenceDeps {
   readonly attemptLedgerForRun?: () => PhysicalRequestLedger;
 }
 
-/**
- * Construct + start the Reference layer. Pins the init order per ADR-0011's
- * two-phase scheduler discipline:
- *
- *   1. Construct services (mutex, cooldown, runSync factory, scheduler — NO timer).
- *   2. Await first runSync (best-effort; failure logs but does not throw).
- *   3. `scheduler.start()` registers the periodic timer using the now-current
- *      `.scheduler.json` that step 2 just wrote.
- *
- * Reordering these is a correctness regression — the cold-start
- * tick-vs-first-sync race re-emerges. The behavioral test in
- * `reference-runtime.test.ts` asserts the timer registration happens AFTER
- * the first fetch resolves.
- */
-export async function bootstrapReference(
-  deps: BootstrapReferenceDeps,
-): Promise<ReferenceRuntime> {
-  // Validate adapter coverage before any side effect: a misconfigured adapter
-  // array is a config error, not a transient one, so it must crash the boot
-  // synchronously — no data dir, no scheduler timer, no fetch — rather than
-  // degrade like a failed first sync would.
+async function runWithRateLimitFollowUp(
+  runSync: (opts: RunSyncOpts) => Promise<SyncResult>,
+  opts: RunSyncOpts,
+): Promise<SyncResult> {
+  const result = await runSync(opts);
+  if (result.kind !== "failed" || result.retryAfterMs === undefined) return result;
+  const followUpDelayMs = Math.max(RATE_LIMIT_FOLLOW_UP_MIN_DELAY_MS, result.retryAfterMs);
+  if (followUpDelayMs > RATE_LIMIT_FOLLOW_UP_MAX_DELAY_MS) return result;
+  await delay(followUpDelayMs, undefined, opts.signal === undefined ? {} : { signal: opts.signal });
+  return await runSync(opts);
+}
+
+export async function bootstrapReference(deps: BootstrapReferenceDeps): Promise<ReferenceRuntime> {
   const adapters = deps.sport.referenceAdapters?.() ?? [];
   assertDisjointCoverage(adapters);
   assertSubsetCoverage(adapters, deps.sport.intervalsActivityTypes);
@@ -86,11 +70,7 @@ export async function bootstrapReference(
       attemptLedgerForRun: deps.attemptLedgerForRun,
     });
   const fetchReferenceDataForRun = (signal: AbortSignal) =>
-    fetchReferenceData(
-      signal,
-      readIntervals(),
-      resolveUserTimezone(deps.readCalendarTimeZone()),
-    );
+    fetchReferenceData(signal, readIntervals(), resolveUserTimezone(deps.readCalendarTimeZone()));
 
   const mutex = new AsyncMutex();
   const cooldown = new Cooldown();
@@ -107,9 +87,6 @@ export async function bootstrapReference(
     intervalMs: SCHEDULED_SYNC_INTERVAL_MS,
   });
 
-  // First runSync — best-effort. Failure writes `error_state.json` and we
-  // continue with whatever cache (if any) is on disk; the scheduler's next
-  // tick will retry.
   if (deps.startScheduler !== false) {
     try {
       const firstSync = await runSyncInternal({ caller: "scheduled" });
@@ -130,7 +107,6 @@ export async function bootstrapReference(
     runSync: (req) => runSyncInternal({ caller: "/sync", chatId: req.chatId }),
     loadLatest: (): LatestJson | null =>
       readLatestVersioned(join(referenceDataPath, "latest.json")),
-    // Stub; the curator fills this (see ReferenceServices.maybeRefreshIfStale).
     maybeRefreshIfStale: () => Promise.resolve({ kind: "fresh" }),
   };
 
@@ -138,6 +114,9 @@ export async function bootstrapReference(
     services,
     scheduler,
     runScheduledOnce: (signal) =>
-      runSyncInternal({ caller: "scheduled", ...(signal === undefined ? {} : { signal }) }),
+      runWithRateLimitFollowUp(runSyncInternal, {
+        caller: "scheduled",
+        ...(signal === undefined ? {} : { signal }),
+      }),
   };
 }
