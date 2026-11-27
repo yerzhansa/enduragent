@@ -870,6 +870,7 @@
         "activation": "Driver din tränare · inloggad · aktivering krävs",
         "apiKey": "Driver din tränare · lägg till en nyckel för att slutföra",
         "chatgpt": "Driver din tränare · logga in för att slutföra",
+        "chatgptExpired": "Driver din tränare · inloggningen har gått ut, logga in igen",
         "checkingClaude": "Driver din tränare · kontrollerar inloggning i {{claudeCode}}",
         "claude": "Driver din tränare · logga in från en terminal för att slutföra",
         "openrouterCredits": "Inloggad · lägg till krediter hos {{openrouter}} för att få svar"
@@ -897,6 +898,7 @@
         "activatingCoach": "Aktiverar tränaren…",
         "completingSignIn": "Slutför inloggning…",
         "ready": "Klart",
+        "signInExpired": "Din {{chatgpt}}-inloggning har gått ut. Logga in igen för att fortsätta med din tränare.",
         "signedIn": "Inloggad",
         "waitingForBrowser": "Väntar på webbläsaren…"
       },

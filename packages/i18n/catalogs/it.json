@@ -870,6 +870,7 @@
         "activation": "Fa funzionare il tuo coach · accesso effettuato · attivazione necessaria",
         "apiKey": "Fa funzionare il tuo coach · aggiungi una chiave per completare",
         "chatgpt": "Fa funzionare il tuo coach · accedi per completare",
+        "chatgptExpired": "Fa funzionare il tuo coach · accesso scaduto, accedi di nuovo",
         "checkingClaude": "Fa funzionare il tuo coach · verifica dell’accesso a {{claudeCode}}",
         "claude": "Fa funzionare il tuo coach · accedi da un terminale per completare",
         "openrouterCredits": "Accesso effettuato · aggiungi crediti su {{openrouter}} per ricevere risposte"
@@ -897,6 +898,7 @@
         "activatingCoach": "Attivazione del coach…",
         "completingSignIn": "Completamento dell’accesso…",
         "ready": "Pronto",
+        "signInExpired": "Il tuo accesso a {{chatgpt}} è scaduto. Accedi di nuovo per continuare con il tuo coach.",
         "signedIn": "Accesso effettuato",
         "waitingForBrowser": "In attesa del browser…"
       },

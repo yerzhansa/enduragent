@@ -26,6 +26,7 @@ import {
   runtimeConfigurationForCredential,
 } from "../src/main/onboarding-ipc.js";
 import { createDesktopRendererUrl } from "../src/main/renderer-navigation.js";
+import type { ChatGptStatus } from "../src/main/chatgpt-auth.js";
 import {
   runtimeConfigurationForExistingSelection,
   type OnboardingLlmSelection,
@@ -165,7 +166,10 @@ function harness(
   };
   const chatGptAuth = {
     hasStoredProfile: vi.fn(async () => true),
-    status: vi.fn(async () => ({ state: "configured" as const, runtimeReady: true })),
+    status: vi.fn(async (): Promise<ChatGptStatus> => ({
+      state: "configured",
+      runtimeReady: true,
+    })),
     login: vi.fn(
       async (
         operationId: string,
@@ -1471,6 +1475,19 @@ describe("desktop onboarding IPC", () => {
       LOCAL_CATALOG.snapshot,
     );
     expect(subject.vault.applyLlmSelection).not.toHaveBeenCalled();
+  });
+
+  it("returns an expired ChatGPT sign-in status with its reason", async () => {
+    const subject = harness();
+    subject.chatGptAuth.status.mockResolvedValueOnce({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+
+    await expect(
+      subject.invoke(DESKTOP_CHATGPT_STATUS_CHANNEL, subject.trustedEvent),
+    ).resolves.toEqual({ state: "configured", runtimeReady: false, reason: "sign-in-expired" });
   });
 
   it("gates correlated ChatGPT login, progress, and cancellation invokes", async () => {

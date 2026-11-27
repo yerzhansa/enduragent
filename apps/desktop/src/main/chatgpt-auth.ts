@@ -5,6 +5,7 @@ import {
   loadStoredProfileSnapshot,
   loginCodex,
   recoverAndSaveStoredProfile,
+  signInRejected,
   type CodexCredentials,
   type CodexLoginProgressPhase,
   type CodexLoginOptions,
@@ -37,10 +38,13 @@ export type ChatGptLoginRefusalReason =
   | "storage-failed"
   | "runtime-unavailable";
 
-export interface ChatGptStatus {
-  readonly state: "configured" | "absent";
-  readonly runtimeReady: boolean;
-}
+export type ChatGptStatus =
+  | { readonly state: "configured" | "absent"; readonly runtimeReady: boolean }
+  | {
+      readonly state: "configured";
+      readonly runtimeReady: false;
+      readonly reason: "sign-in-expired";
+    };
 
 export type ChatGptLoginResult =
   | { readonly status: "stored"; readonly operationId: string }
@@ -134,16 +138,21 @@ function validProfile(value: unknown): boolean {
   );
 }
 
-export async function hasChatGptProfile(configDir: string): Promise<boolean> {
+function storedChatGptProfile(configDir: string): "absent" | "usable" | "rejected" {
   try {
     const snapshot = loadStoredProfileSnapshot(
       join(configDir, "auth-profiles.json"),
       CHATGPT_PROFILE_NAME,
     );
-    return snapshot !== null && validProfile(snapshot.profile);
+    if (snapshot === null || !validProfile(snapshot.profile)) return "absent";
+    return signInRejected(snapshot.profile) ? "rejected" : "usable";
   } catch {
-    return false;
+    return "absent";
   }
+}
+
+export async function hasChatGptProfile(configDir: string): Promise<boolean> {
+  return storedChatGptProfile(configDir) !== "absent";
 }
 
 export async function writeChatGptProfile(
@@ -328,10 +337,13 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
   return {
     hasStoredProfile: () => hasChatGptProfile(options.configDir),
     async status() {
-      const configured = await hasChatGptProfile(options.configDir);
+      const stored = storedChatGptProfile(options.configDir);
+      if (stored === "rejected") {
+        return { state: "configured", runtimeReady: false, reason: "sign-in-expired" };
+      }
       const runtimeReady = await configuredRuntime(options.getRuntimeConfig);
       return {
-        state: configured || runtimeReady === true ? "configured" : "absent",
+        state: stored === "usable" || runtimeReady === true ? "configured" : "absent",
         runtimeReady: runtimeReady ?? false,
       };
     },

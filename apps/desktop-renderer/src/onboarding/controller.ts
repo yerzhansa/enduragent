@@ -8,7 +8,6 @@ import type {
   OnboardingBridge,
   OnboardingCredentialWriteInput,
   OnboardingLlmConfiguration,
-  OnboardingLlmEndpointSelection,
   OnboardingLlmSelection,
 } from "./bridge";
 import { CUSTOM_MODEL_SELECTION } from "./constants";
@@ -27,6 +26,7 @@ import {
 } from "./openrouter-sign-in";
 import type { SetupCommit } from "./lanes";
 import {
+  chatGptOperationActive,
   chatGptSignedIn,
   chatGptUiPhase,
   createOnboardingState,
@@ -54,6 +54,7 @@ import {
   draftForProvider,
   initialLlmDraft,
   llmSelectionFromDraft,
+  parseEndpointMode,
   type LlmSelectionDraft,
 } from "./selection";
 import { ONBOARDING_STATUS_REFRESH_TIMEOUT_MS, readSetupStatus } from "./status-read";
@@ -133,6 +134,7 @@ export interface OnboardingController extends OnboardingActions {
   open(): Promise<void>;
   refresh(moveFocus?: boolean): Promise<void>;
   requireCompletion(): void;
+  refreshSignInStatus(): void;
   close(): void;
   dispose(): void;
   state(): OnboardingState;
@@ -165,12 +167,6 @@ export function setupStatusKnown(
 ): boolean {
   return surface.initialized && !surface.loadUnavailable;
 }
-
-const ENDPOINT_MODES: readonly OnboardingLlmEndpointSelection["mode"][] = [
-  "automatic",
-  "default",
-  "custom",
-];
 
 export function createOnboardingController(
   options: OnboardingControllerOptions,
@@ -829,6 +825,10 @@ export function createOnboardingController(
       completionRequired = true;
       publish();
     },
+    refreshSignInStatus(): void {
+      if (disposed || opening || state.busy || chatGptOperationActive(state)) return;
+      void refreshStatuses(visit).then(publish);
+    },
     close,
     dispose(): void {
       cancelActiveChatGptLogin();
@@ -1129,7 +1129,7 @@ export function createOnboardingController(
     },
     setEndpointMode(mode): void {
       if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      const parsed = ENDPOINT_MODES.find((candidate) => candidate === mode);
+      const parsed = parseEndpointMode(mode);
       if (parsed === undefined) return;
       setLlmDraft({ ...llmDraft, endpointMode: parsed }, "athlete");
       setFixedError(null);

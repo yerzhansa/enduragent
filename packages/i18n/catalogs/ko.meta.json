@@ -1956,6 +1956,10 @@
       "sourceHash": "3f3bba3b9e249699ae8e3be35ce08891ff9ff52ee4913a231e119d1e71a560ea",
       "translatedBy": "model"
     },
+    "setup.ai.pending.chatgptExpired": {
+      "sourceHash": "1c24ab7d82b502543b6e7e1c0bee9ed15373ecec80853189aa5459856750359c",
+      "translatedBy": "model"
+    },
     "setup.ai.pending.checkingClaude": {
       "sourceHash": "8d57159e96f7ff8a0552f51108aded186285f3d8eaa6ddc2e20e8c01e4db25ef",
       "translatedBy": "model"
@@ -2030,6 +2034,10 @@
     },
     "setup.chatgpt.phase.ready": {
       "sourceHash": "5fa7aac5375c5815787fba3f49559f9b45b14023147ce0652803387974144e5f",
+      "translatedBy": "model"
+    },
+    "setup.chatgpt.phase.signInExpired": {
+      "sourceHash": "5af68b7dd9a1215c6c9122cd7232b559f898cc46a8351ab9306688f90401824b",
       "translatedBy": "model"
     },
     "setup.chatgpt.phase.signedIn": {

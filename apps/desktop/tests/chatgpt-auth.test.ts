@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LlmProvider, RuntimeConfigSnapshot } from "@enduragent/coach-contract";
+import { loadStoredProfileSnapshot, markSignInRejected } from "@enduragent/core";
 import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
 import { createCredentialMutationLock } from "../src/main/credential-envelope-lock.js";
 import {
@@ -751,6 +752,46 @@ describe("desktop ChatGPT auth", () => {
     });
 
     await expect(hasChatGptProfile(directory)).resolves.toBe(false);
+    await expect(auth.status()).resolves.toEqual({ state: "configured", runtimeReady: true });
+  });
+
+  it("reports a rejected sign-in as expired until a new browser sign-in replaces it", async () => {
+    const directory = await configDir();
+    const profilesPath = join(directory, "auth-profiles.json");
+    await writeChatGptProfile(directory, credentials());
+    await markSignInRejected(
+      profilesPath,
+      "openai-codex",
+      loadStoredProfileSnapshot(profilesPath, "openai-codex")!,
+    );
+    const openExternal = vi.fn(async () => {});
+    const auth = createChatGptAuth({
+      configDir: directory,
+      openExternal,
+      applyRuntimeConfig: async () => {},
+      dependencies: {
+        loginCodex: async (options) => {
+          options.onAuth({
+            url: "https://auth.openai.com/obviously-fake",
+            callbackAvailable: true,
+          });
+          return { ...credentials(), refresh: "obviously-fake-new-refresh" };
+        },
+      },
+    });
+
+    await expect(auth.status()).resolves.toEqual({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+    await expect(auth.hasStoredProfile()).resolves.toBe(true);
+
+    await expect(auth.login("sign-in-again", selection())).resolves.toEqual({
+      status: "stored",
+      operationId: "sign-in-again",
+    });
+    expect(openExternal).toHaveBeenCalledOnce();
     await expect(auth.status()).resolves.toEqual({ state: "configured", runtimeReady: true });
   });
 

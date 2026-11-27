@@ -2693,6 +2693,7 @@
         "activation": "Powers your coach · signed in · activation needed",
         "apiKey": "Powers your coach · add a key to finish",
         "chatgpt": "Powers your coach · sign in to finish",
+        "chatgptExpired": "Powers your coach · sign-in expired, sign in again",
         "checkingClaude": "Powers your coach · checking {{claudeCode}} sign-in",
         "claude": "Powers your coach · sign in from a terminal to finish",
         "openrouterCredits": "Signed in · add credits on {{openrouter}} to get replies"
@@ -2720,6 +2721,7 @@
         "activatingCoach": "Activating coach…",
         "completingSignIn": "Completing sign-in…",
         "ready": "Ready",
+        "signInExpired": "Your {{chatgpt}} sign-in expired. Sign in again to keep coaching.",
         "signedIn": "Signed in",
         "waitingForBrowser": "Waiting for browser…"
       },

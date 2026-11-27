@@ -870,6 +870,7 @@
         "activation": "Stuurt je coach aan · aangemeld · activering nodig",
         "apiKey": "Stuurt je coach aan · voeg een sleutel toe om af te ronden",
         "chatgpt": "Stuurt je coach aan · meld je aan om af te ronden",
+        "chatgptExpired": "Stuurt je coach aan · aanmelding verlopen, meld je opnieuw aan",
         "checkingClaude": "Stuurt je coach aan · aanmelding bij {{claudeCode}} controleren",
         "claude": "Stuurt je coach aan · meld je aan via een terminal om af te ronden",
         "openrouterCredits": "Aangemeld · voeg tegoed toe bij {{openrouter}} om antwoorden te krijgen"
@@ -897,6 +898,7 @@
         "activatingCoach": "Coach activeren…",
         "completingSignIn": "Aanmelden afronden…",
         "ready": "Klaar",
+        "signInExpired": "Je aanmelding bij {{chatgpt}} is verlopen. Meld je opnieuw aan om verder te gaan met je coach.",
         "signedIn": "Aangemeld",
         "waitingForBrowser": "Wachten op browser…"
       },

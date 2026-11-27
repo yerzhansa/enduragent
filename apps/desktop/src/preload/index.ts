@@ -57,6 +57,7 @@ import {
 } from "../main/constants.js";
 import { createIntervalsSignInBridge } from "./intervals-bridge.js";
 import { createOpenRouterSignInBridge } from "./openrouter-bridge.js";
+import { parseChatGptStatus } from "./chatgpt-status.js";
 import { createStartAtLoginBridge } from "./start-at-login-bridge.js";
 import { createUpdateBridge } from "./update-bridge.js";
 import { parseCredentialDeleteInput, parseDeleteResult } from "./credential-delete-result.js";
@@ -876,18 +877,6 @@ function parseLlmSelectionResult(value: unknown): unknown {
     return { status: "refused", reason: value.reason };
   }
   throw new TypeError();
-}
-
-function parseChatGptStatus(value: unknown): unknown {
-  if (
-    !record(value) ||
-    !exactKeys(value, ["state", "runtimeReady"]) ||
-    (value.state !== "configured" && value.state !== "absent") ||
-    typeof value.runtimeReady !== "boolean"
-  ) {
-    throw new TypeError();
-  }
-  return { state: value.state, runtimeReady: value.runtimeReady };
 }
 
 function parseChatGptLogin(value: unknown, operationId: string): unknown {
