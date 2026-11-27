@@ -38,6 +38,8 @@ The Enduragent product repository: the Mac desktop app, the `cycling-coach` and 
 - Exercise every affected user-visible flow in the running application when the diff changes UI presentation or behavior.
 - For each issue a PR fixes that the desktop UI can show, add a before video from the base branch and an after video from the PR head to the PR body as GitHub attachments.
 - Record PR videos against stubbed model and intervals.icu responses with synthetic data.
+- Run the desktop app hidden for every test, UI check, and video: launch it with `ENDURAGENT_ACCEPTANCE_HIDDEN=1`. Clicks, typing, screenshots, and video recording all work in the hidden window.
+- Open a visible app window only when the operator asks to watch. Never write `ENDURAGENT_ACCEPTANCE_HIDDEN: "0"` or `hidden: false` in a test or harness.
 - Complete at most ten correction cycles for in-scope blockers found by review, UI QA, tests, or CI after initial review.
 - Count each correction batch and its required rechecks as one correction cycle.
 - Count correction cycles across all tasks and agents working on the same PR.

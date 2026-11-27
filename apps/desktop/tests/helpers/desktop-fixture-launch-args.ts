@@ -1,3 +1,7 @@
+export function desktopFixtureWindowHidden(playwrightDebug: string | undefined): boolean {
+  return playwrightDebug !== "1";
+}
+
 export function desktopFixtureLaunchArgs(
   platform: NodeJS.Platform,
   ci: string | undefined,
