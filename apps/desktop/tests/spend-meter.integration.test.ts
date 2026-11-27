@@ -127,7 +127,7 @@ const liveModel = {
   model: "claude-synthetic",
   compatibilityProfile: "anthropic-ai-sdk-v1" as const,
   contextWindowTokens: 200_000,
-  imageInput: "unsupported" as const,
+  imageInput: "supported" as const,
   pricing: {
     kind: "token-rates" as const,
     inputUsdPerMillion: 2,
