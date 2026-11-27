@@ -2413,7 +2413,8 @@
         "publishedRestricted_one": "Training-data check completed. {{source}} does not allow third-party AI tools to use data from its API, so one activity isn’t included.",
         "publishedRestricted_other": "Training-data check completed. {{source}} does not allow third-party AI tools to use data from its API, so {{formattedCount}} activities aren’t included.",
         "queued": "Sync queued.",
-        "running": "Syncing training data…"
+        "running": "Syncing training data…",
+        "signInNotInUse": "{{intervals}} isn’t connected right now, so nothing was synced. {{product}} will try again when your network is back."
       },
       "restriction": {
         "fixAction": "· How to fix this",

@@ -889,7 +889,8 @@
         "publishedRestricted_one": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluye una actividad.",
         "publishedRestricted_other": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluyen {{formattedCount}} actividades.",
         "queued": "Sincronización en cola.",
-        "running": "Sincronizando datos de entrenamiento…"
+        "running": "Sincronizando datos de entrenamiento…",
+        "signInNotInUse": "{{intervals}} no está conectado en este momento, así que no se ha sincronizado nada. {{product}} lo volverá a intentar cuando vuelva tu conexión de red."
       },
       "restriction": {
         "fixAction": "· Cómo solucionarlo",

@@ -53,6 +53,7 @@ import {
   shouldReleaseInitialRefreshAfterLoadRejection,
   shouldReleaseInitialRefreshForWindowEvent,
 } from "./initial-refresh.js";
+import { createIntervalsSignInRetry } from "./intervals-sign-in-retry.js";
 import { bindDesktopAppUserModelId, createDesktopActivationRelay } from "./desktop-lifecycle.js";
 import { installDesktopAppearanceIpc } from "./appearance-ipc.js";
 import { installDesktopExternalLinkIpc } from "./external-link-ipc.js";
@@ -957,25 +958,23 @@ async function runDesktop(): Promise<void> {
           throw new TypeError();
         }
       },
-      async reapplyCredential(slot, value, storedCredentialSlots) {
-        const binding = activeRuntimeBinding;
-        const lifecycleState = daemonLifecycle?.snapshot();
-        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
-        const status = await binding.credentials.reapplyStoredCredential(
-          slot,
-          value,
-          storedCredentialSlots,
-        );
-        const currentLifecycleState = daemonLifecycle?.snapshot();
-        if (
-          activeRuntimeBinding !== binding ||
-          currentLifecycleState?.status !== "ready" ||
-          currentLifecycleState.generation !== lifecycleState.generation
-        ) {
-          if (slot !== "intervals-icu") failModelCredentialRuntimeStates();
-          throw new TypeError();
-        }
-        return status;
+      reapplyCredential(slot, value, stored) {
+        return signInRetry.observe(slot, async () => {
+          const binding = activeRuntimeBinding;
+          const lifecycleState = daemonLifecycle?.snapshot();
+          if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
+          const status = await binding.credentials.reapplyStoredCredential(slot, value, stored);
+          const currentLifecycleState = daemonLifecycle?.snapshot();
+          if (
+            activeRuntimeBinding !== binding ||
+            currentLifecycleState?.status !== "ready" ||
+            currentLifecycleState.generation !== lifecycleState.generation
+          ) {
+            if (slot !== "intervals-icu") failModelCredentialRuntimeStates();
+            throw new TypeError();
+          }
+          return status;
+        });
       },
       async clearCredential(slot) {
         const binding = activeRuntimeBinding;
@@ -994,6 +993,7 @@ async function runDesktop(): Promise<void> {
         return result;
       },
     });
+    const signInRetry = createIntervalsSignInRetry({ vault, net, powerMonitor }, controller.signal);
     const reapplyCredentials = async (
       connection: DesktopDaemonConnection,
       signal: AbortSignal,

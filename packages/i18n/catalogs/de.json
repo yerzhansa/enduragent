@@ -889,7 +889,8 @@
         "publishedRestricted_one": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher ist eine Aktivität nicht enthalten.",
         "publishedRestricted_other": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher sind {{formattedCount}} Aktivitäten nicht enthalten.",
         "queued": "Synchronisierung vorgemerkt.",
-        "running": "Trainingsdaten werden synchronisiert…"
+        "running": "Trainingsdaten werden synchronisiert…",
+        "signInNotInUse": "{{intervals}} ist gerade nicht verbunden, deshalb wurde nichts synchronisiert. {{product}} versucht es erneut, sobald dein Netzwerk wieder da ist."
       },
       "restriction": {
         "fixAction": "· So lässt sich das beheben",

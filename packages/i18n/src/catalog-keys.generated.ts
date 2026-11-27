@@ -2034,6 +2034,7 @@ export type CatalogKey =
   | "sidebar.sync.message.publishedRestricted_other"
   | "sidebar.sync.message.queued"
   | "sidebar.sync.message.running"
+  | "sidebar.sync.message.signInNotInUse"
   | "sidebar.sync.restriction.fixAction"
   | "sidebar.sync.restriction.fixLabel"
   | "sidebar.sync.restriction.label"

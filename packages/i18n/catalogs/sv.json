@@ -889,7 +889,8 @@
         "publishedRestricted_one": "Kontrollen av träningsdata är klar. {{source}} tillåter inte att AI-verktyg från tredje part använder data från API:t, så en aktivitet ingår inte.",
         "publishedRestricted_other": "Kontrollen av träningsdata är klar. {{source}} tillåter inte att AI-verktyg från tredje part använder data från API:t, så {{formattedCount}} aktiviteter ingår inte.",
         "queued": "Synkroniseringen står i kö.",
-        "running": "Synkroniserar träningsdata…"
+        "running": "Synkroniserar träningsdata…",
+        "signInNotInUse": "{{intervals}} är inte anslutet just nu, så inget synkroniserades. {{product}} försöker igen när ditt nätverk är tillbaka."
       },
       "restriction": {
         "fixAction": "· Så åtgärdar du detta",

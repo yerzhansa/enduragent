@@ -889,7 +889,8 @@
         "publishedRestricted_one": "Verificação dos dados de treinamento concluída. O {{source}} não permite que ferramentas de IA de terceiros usem dados da API, então uma atividade não está incluída.",
         "publishedRestricted_other": "Verificação dos dados de treinamento concluída. O {{source}} não permite que ferramentas de IA de terceiros usem dados da API, então {{formattedCount}} atividades não estão incluídas.",
         "queued": "Sincronização na fila.",
-        "running": "Sincronizando dados de treinamento…"
+        "running": "Sincronizando dados de treinamento…",
+        "signInNotInUse": "O {{intervals}} não está conectado no momento, então nada foi sincronizado. {{product}} vai tentar novamente quando sua rede voltar."
       },
       "restriction": {
         "fixAction": "· Como resolver",
