@@ -7,7 +7,7 @@ description: Model-check the desktop window's shared coach connection, the inter
 
 A TLA+ model of the desktop window's one shared connection to the coach, the calls that ride on it, the coach's sync windows, and the stored intervals.icu sign-in. TLC checks every order of those steps within the bounds below. Tests check the orders someone wrote down.
 
-Sync commit: `79588af5`. The model was last confirmed against the code at that commit. `references/coverage.json` holds the same commit and a fingerprint of every function the model describes.
+Sync commit: `51ab878b`. The model was last confirmed against the code at that commit. `references/coverage.json` holds the same commit and a fingerprint of every function the model describes.
 
 ## When to run it
 
