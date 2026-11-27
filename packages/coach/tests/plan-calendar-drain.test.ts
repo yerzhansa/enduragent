@@ -1052,6 +1052,86 @@ describe("Plan calendar drain", () => {
     });
   });
 
+  it("lists the Plan's history and what End Plan removes, keeping the athlete's changes apart", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const later = test.calendar.events
+      .filter((event) => event.dateKey > test.today())
+      .sort((left, right) => left.dateKey - right.dateKey);
+    const edited = later[0];
+    if (edited === undefined) throw new Error("Expected a later event");
+    const editedWorkout = edited.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(edited.id, { durationS: 1_800 });
+    await test.drain.kick();
+    expect(
+      await choose(test, "keep-change", { planId, planWorkoutId: editedWorkout }),
+    ).toEqual({ status: "change-resolved", outcome: "kept" });
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    if (details.status !== "plan-details") throw new Error("Expected Plan details");
+    expect(details.history[0]).toMatchObject({
+      kind: "kept",
+      dateKey: edited.dateKey,
+      durationS: 1_800,
+    });
+    expect(details.history.at(-1)?.kind).toBe("saved");
+    expect(details.ending.athleteChanges.map((entry) => entry.planWorkoutId)).toEqual([
+      editedWorkout,
+    ]);
+    expect(details.ending.athleteChanges[0]?.tick).toMatchObject({
+      planWorkoutId: editedWorkout,
+      eventId: edited.id,
+      dateKey: edited.dateKey,
+    });
+    expect(details.ending.removes.map((entry) => entry.planWorkoutId).sort()).toEqual(
+      later
+        .slice(1)
+        .map((event) => event.externalId?.split(":").at(-1) ?? "")
+        .sort(),
+    );
+  });
+
+  it("removes the athlete's ticked changes at End and keeps the ones left unticked", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const later = test.calendar.events
+      .filter((event) => event.dateKey > test.today())
+      .sort((left, right) => left.dateKey - right.dateKey);
+    const [ticked, kept] = later;
+    if (ticked === undefined || kept === undefined) throw new Error("Expected two later events");
+    test.calendar.editByAthlete(ticked.id, { name: "Remove this one" });
+    test.calendar.editByAthlete(kept.id, { name: "Keep this one" });
+    await test.drain.kick();
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    if (details.status !== "plan-details") throw new Error("Expected Plan details");
+    const tick = details.ending.athleteChanges.find((entry) => entry.tick.eventId === ticked.id);
+    if (tick === undefined) throw new Error("Expected the ticked change");
+    expect(
+      await test.calendarOperations["plan.calendar"]({
+        action: "save-end-choice",
+        planId,
+        ticked: [tick.tick],
+      }),
+    ).toEqual({ status: "end-choice-saved" });
+    const todayEvents = test.calendar.events.filter((event) => event.dateKey === test.today());
+    expect(
+      await test.creation["plan.close"]({ commandId: "close", planId, expectedVersion: 1 }),
+    ).toMatchObject({ status: "closed" });
+    await test.drain.kick();
+    expect(test.calendar.events.map((event) => event.id).sort()).toEqual(
+      [...todayEvents.map((event) => event.id), kept.id].sort(),
+    );
+  });
+
   it("does nothing when the calendar is disconnected", async () => {
     const test = await harness();
     const { planId } = await test.activate();

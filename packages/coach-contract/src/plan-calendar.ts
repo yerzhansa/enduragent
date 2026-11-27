@@ -13,6 +13,16 @@ export const PlanCalendarApproveScopeSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCalendarApproveScope = z.infer<typeof PlanCalendarApproveScopeSchema>;
 
+export const PlanCalendarTickSchema = z
+  .object({
+    planWorkoutId: UlidSchema,
+    eventId: z.number().int().nonnegative(),
+    dateKey: DateKeySchema,
+    fingerprint: z.string().min(1).max(4_096),
+  })
+  .strict();
+export type PlanCalendarTick = z.infer<typeof PlanCalendarTickSchema>;
+
 export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
   z
     .object({
@@ -41,6 +51,14 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       action: z.literal("change-detail"),
       planId: UlidSchema,
       planWorkoutId: UlidSchema,
+    })
+    .strict(),
+  z.object({ action: z.literal("plan-details"), planId: UlidSchema }).strict(),
+  z
+    .object({
+      action: z.literal("save-end-choice"),
+      planId: UlidSchema,
+      ticked: z.array(PlanCalendarTickSchema).max(64),
     })
     .strict(),
   z
@@ -205,6 +223,45 @@ export const PlanCalendarWorkoutVersionSchema = z
   .strict();
 export type PlanCalendarWorkoutVersion = z.infer<typeof PlanCalendarWorkoutVersionSchema>;
 
+export const PlanCalendarHistoryEntrySchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("saved"), atMs: z.number().int().nonnegative() }).strict(),
+  z
+    .object({
+      kind: z.literal("change"),
+      atMs: z.number().int().nonnegative(),
+      title: z.string().min(1).max(20_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("kept"),
+      atMs: z.number().int().nonnegative(),
+      dateKey: DateKeySchema.nullable(),
+      durationS: SecondsSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("moved"),
+      atMs: z.number().int().nonnegative(),
+      name: z.string().min(1).max(512),
+      fromDateKey: DateKeySchema,
+      toDateKey: DateKeySchema,
+    })
+    .strict(),
+]);
+export type PlanCalendarHistoryEntry = z.infer<typeof PlanCalendarHistoryEntrySchema>;
+
+export const PlanCalendarEndingWorkoutSchema = z
+  .object({
+    planWorkoutId: UlidSchema,
+    name: z.string().max(512),
+    dateKey: DateKeySchema,
+    durationS: SecondsSchema.nullable(),
+  })
+  .strict();
+export type PlanCalendarEndingWorkout = z.infer<typeof PlanCalendarEndingWorkoutSchema>;
+
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z
     .object({
@@ -231,6 +288,24 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z
     .object({
       status: z.literal("moved"),
+    })
+    .strict(),
+  z.object({ status: z.literal("end-choice-saved") }).strict(),
+  z
+    .object({
+      status: z.literal("plan-details"),
+      planId: UlidSchema,
+      version: z.number().int().positive(),
+      history: z.array(PlanCalendarHistoryEntrySchema).max(500),
+      ending: z
+        .object({
+          removes: z.array(PlanCalendarEndingWorkoutSchema).max(500),
+          staysToday: z.array(PlanCalendarEndingWorkoutSchema).max(20),
+          athleteChanges: z
+            .array(PlanCalendarEndingWorkoutSchema.extend({ tick: PlanCalendarTickSchema }))
+            .max(500),
+        })
+        .strict(),
     })
     .strict(),
   z
