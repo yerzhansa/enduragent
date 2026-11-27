@@ -624,7 +624,7 @@ describe("provider and model settings controller", () => {
     });
   });
 
-  it("closes Settings before opening Setup for credential recovery", async () => {
+  it("keeps the Coach pane open while Setup opens for credential recovery", async () => {
     const sequence: string[] = [];
     const { controller, subject } = createSubject({
       apply: vi.fn(async (): Promise<OnboardingLlmSelectionResult> => ({
@@ -640,8 +640,12 @@ describe("provider and model settings controller", () => {
 
     subject.openSetup();
 
-    expect(sequence).toEqual(["close", "setup"]);
-    expect(controller.state()).toEqual({ status: "closed" });
+    expect(sequence).toEqual(["setup"]);
+    expect(controller.state()).toMatchObject({
+      status: "error",
+      kind: "save",
+      reason: "credential-required",
+    });
   });
 
   it("ignores a stale load after close and reopen", async () => {

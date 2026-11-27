@@ -7,12 +7,12 @@ import type { ChatStreamTimeouts } from "../src/index.js";
 const timeoutTypeProof: ChatStreamTimeouts = { ttftMs: 1, interChunkMs: 1 };
 
 describe("engine public export surface", () => {
-  it("keeps only the root and sport package subpaths", () => {
+  it("keeps only the root, sport and calendar package subpaths", () => {
     const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
     const packageJson = JSON.parse(readFileSync(packagePath, "utf-8")) as {
       exports: Record<string, unknown>;
     };
-    expect(Object.keys(packageJson.exports).sort()).toEqual([".", "./sport"]);
+    expect(Object.keys(packageJson.exports).sort()).toEqual([".", "./calendar", "./sport"]);
   });
 
   it("exports only the canonical factory and the authorized JWT account helper at runtime", () => {

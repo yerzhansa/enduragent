@@ -139,13 +139,15 @@ describe("WorkoutMatch", () => {
     expect(result.matches).toEqual([
       expect.objectContaining({ source: "heuristic", decision: "suggested" }),
     ]);
-    expect(projectWorkoutMatches({
-      workouts: [workout({ id: ENDURANCE_ID })],
-      activities: result.activities,
-      matches: result.matches,
-      todayDateKey: 20260826,
-      awaitingSync: false,
-    })).toEqual([
+    expect(
+      projectWorkoutMatches({
+        workouts: [workout({ id: ENDURANCE_ID })],
+        activities: result.activities,
+        matches: result.matches,
+        todayDateKey: 20260826,
+        awaitingSync: false,
+      }),
+    ).toEqual([
       expect.objectContaining({
         workoutId: ENDURANCE_ID,
         activityId: ACTIVITY_ID,
@@ -153,12 +155,14 @@ describe("WorkoutMatch", () => {
         requiresConfirmation: true,
       }),
     ]);
-    expect(projectWorkoutMatches({
-      workouts: [workout({ id: ENDURANCE_ID, dateKey: 20260824 })],
-      activities: [],
-      matches: [],
-      todayDateKey: 20260826,
-      awaitingSync: false,
-    })[0]).toMatchObject({ status: "missed" });
+    expect(
+      projectWorkoutMatches({
+        workouts: [workout({ id: ENDURANCE_ID, dateKey: 20260824 })],
+        activities: [],
+        matches: [],
+        todayDateKey: 20260826,
+        awaitingSync: false,
+      })[0],
+    ).toMatchObject({ status: "missed" });
   });
 });

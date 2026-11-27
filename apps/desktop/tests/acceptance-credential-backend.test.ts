@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -127,6 +127,68 @@ describe("acceptance credential backend eligibility", () => {
         },
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("acceptance Keychain lock marker", () => {
+  const lockMarkerPath = "/tmp/acceptance-keychain-locked";
+
+  it("is carried only by a backend the acceptance gates allow", () => {
+    expect(eligibility({ lockMarkerPath })).toMatchObject({ kind: "file", lockMarkerPath });
+    expect(
+      eligibility({ isPackaged: false, hidden: false, backend: "memory", lockMarkerPath }),
+    ).toMatchObject({ kind: "memory", lockMarkerPath });
+    expect(eligibility({ hidden: false, lockMarkerPath })).toBeUndefined();
+    expect(
+      eligibility({
+        isPackaged: false,
+        backend: "memory",
+        disposableContext: false,
+        lockMarkerPath,
+      }),
+    ).toBeUndefined();
+    expect(eligibility({ lockMarkerPath: "relative/locked" })).not.toHaveProperty("lockMarkerPath");
+  });
+
+  it("answers like a locked Keychain while the marker exists, and normally once it is gone", async () => {
+    const root = await mkdtemp(join(tmpdir(), "acceptance-lock-"));
+    temporaryRoots.push(root);
+    const marker = join(root, "locked");
+    await writeFile(marker, "");
+    const selected = eligibility({
+      isPackaged: false,
+      backend: "memory",
+      lockMarkerPath: marker,
+    });
+    if (selected?.kind !== "memory") throw new Error("memory backend was not selected");
+    const transport = createAcceptanceKeychainTransport(selected);
+    const service = "acceptance";
+
+    await expect(transport.send({ op: "probe", service })).resolves.toMatchObject({ ok: true });
+    await expect(transport.send({ op: "retry-created-key-rollback", service })).resolves.toEqual({
+      ok: true,
+      op: "retry-created-key-rollback",
+    });
+    await expect(transport.send({ op: "read-key", service })).resolves.toEqual({
+      ok: false,
+      code: "keychain-locked",
+    });
+    await expect(transport.send({ op: "create-key", service })).resolves.toEqual({
+      ok: false,
+      code: "keychain-locked",
+      creationRollbackPending: false,
+    });
+    await expect(transport.send({ op: "delete-key", service })).resolves.toEqual({
+      ok: false,
+      code: "keychain-locked",
+    });
+
+    await rm(marker);
+    await expect(transport.send({ op: "read-key", service })).resolves.toEqual({
+      ok: true,
+      op: "read-key",
+      key: selected.key,
+    });
   });
 });
 

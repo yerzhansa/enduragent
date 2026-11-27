@@ -457,6 +457,7 @@ FROM training_history_backfill_checkpoint`,
           async runOutsideWindow(work) {
             return work(new AbortController().signal);
           },
+          abortActiveWindow: () => () => {},
           async runActivityWrite(work) {
             return {
               value: await work(new AbortController().signal),

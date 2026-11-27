@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify a coach change"
+  short_description: "Model-check coach changes during a reply and the summary model choice"
+  default_prompt: "Use $verify-coach-change to check a change to the coach's runtime replacement, the runtime-config lane, the key delete path or the summary model choice."

@@ -250,6 +250,75 @@ describe("store work during a sync that waits on intervals.icu", () => {
     }
   });
 
+  it("stops a running sync so Disconnect clears the intervals.icu sign-in without waiting for it", async () => {
+    const coach = await syncingCoach();
+    try {
+      const sync = coach.operations.sync({}).then(
+        () => "finished" as const,
+        () => "stopped" as const,
+      );
+      await coach.provider.nextRequest();
+      const disconnect = coach.operations.configureRuntime({
+        intervals: { clear_credential: true },
+      });
+      const outcome = await Promise.race([
+        disconnect.then(() => "cleared" as const),
+        new Promise<"waiting for the sync">((resolve) =>
+          setTimeout(() => resolve("waiting for the sync"), 1_000),
+        ),
+      ]);
+      expect(outcome).toBe("cleared");
+      await expect(disconnect).resolves.toMatchObject({ status: "applied" });
+      expect(coach.applyRuntimeConfig).toHaveBeenCalledTimes(1);
+      expect(await sync).toBe("stopped");
+    } finally {
+      await coach.close();
+    }
+  });
+
+  it("lets a sync queued behind Disconnect run once the sign-in is cleared", async () => {
+    const coach = await syncingCoach();
+    try {
+      const first = coach.operations.sync({}).then(
+        () => "finished" as const,
+        () => "stopped" as const,
+      );
+      await coach.provider.nextRequest();
+      const disconnect = coach.operations.configureRuntime({
+        intervals: { clear_credential: true },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const queued = coach.operations.sync({}).then(
+        () => "finished" as const,
+        () => "stopped" as const,
+      );
+      await expect(disconnect).resolves.toMatchObject({ status: "applied" });
+      (await coach.provider.nextRequest()).answer();
+      (await coach.provider.nextRequest()).answer();
+      expect({ first: await first, queued: await queued }).toEqual({
+        first: "stopped",
+        queued: "finished",
+      });
+    } finally {
+      await coach.close();
+    }
+  });
+
+  it("lets a sync that starts after Disconnect has finished run normally", async () => {
+    const coach = await syncingCoach();
+    try {
+      await expect(
+        coach.operations.configureRuntime({ intervals: { clear_credential: true } }),
+      ).resolves.toMatchObject({ status: "applied" });
+      const sync = coach.operations.sync({});
+      (await coach.provider.nextRequest()).answer();
+      (await coach.provider.nextRequest()).answer();
+      await expect(sync).resolves.toMatchObject({ schemaVersion: 1 });
+    } finally {
+      await coach.close();
+    }
+  });
+
   it("holds an intervals.icu sign-in change until the sync has finished", async () => {
     const coach = await syncingCoach();
     try {

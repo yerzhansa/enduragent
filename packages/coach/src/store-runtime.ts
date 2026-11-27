@@ -157,6 +157,8 @@ export class StoreRuntime {
   private readonly windowLane: Lane = { held: false, waiting: [] };
   private readonly storeLane: Lane = { held: false, waiting: [] };
   private readonly admissionControllers = new Set<AbortController>();
+  private readonly windowControllers = new Set<AbortController>();
+  private readonly windowAborts = new Set<Error>();
   private readonly admissionDrainWaiters = new Set<() => void>();
   private closePromise: Promise<void> | undefined;
   private closed = false;
@@ -247,8 +249,10 @@ export class StoreRuntime {
   runWindow(): Promise<StoreWindowResult> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
     if (this.activeWindow !== undefined) return this.activeWindow;
-    const task = this.admit([this.windowLane, this.storeLane], (signal, offStoreLane) =>
-      this.runWindowInternal(signal, offStoreLane),
+    const task = this.admit(
+      [this.windowLane, this.storeLane],
+      (signal, offStoreLane) => this.runWindowInternal(signal, offStoreLane),
+      "window",
     );
     this.installActiveWindow(task);
     return task;
@@ -260,11 +264,15 @@ export class StoreRuntime {
     if (typeof work !== "function")
       return Promise.reject(new TypeError("Window work must be a function."));
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
-    const task = this.admit([this.windowLane, this.storeLane], async (signal, offStoreLane) => {
-      await work(signal, this.fetchOffStoreLane(offStoreLane));
-      signal.throwIfAborted();
-      return await this.runWindowInternal(signal, offStoreLane);
-    });
+    const task = this.admit(
+      [this.windowLane, this.storeLane],
+      async (signal, offStoreLane) => {
+        await work(signal, this.fetchOffStoreLane(offStoreLane));
+        signal.throwIfAborted();
+        return await this.runWindowInternal(signal, offStoreLane);
+      },
+      "window",
+    );
     this.installActiveWindow(task);
     return task;
   }
@@ -292,9 +300,18 @@ export class StoreRuntime {
     return this.admit([this.windowLane, this.storeLane], (signal) => work(signal));
   }
 
+  abortActiveWindow(reason: Error): () => void {
+    this.windowAborts.add(reason);
+    for (const controller of this.windowControllers) controller.abort(reason);
+    return () => {
+      this.windowAborts.delete(reason);
+    };
+  }
+
   private admit<T>(
     lanes: readonly Lane[],
     work: (signal: AbortSignal, offStoreLane: OffStoreLane) => Promise<T>,
+    kind: "window" | "other" = "other",
   ): Promise<T> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
     return new Promise<T>((resolve, reject) => {
@@ -322,6 +339,11 @@ export class StoreRuntime {
       const run = (): void => {
         const controller = new AbortController();
         this.admissionControllers.add(controller);
+        if (kind === "window") {
+          this.windowControllers.add(controller);
+          const pending = this.windowAborts.values().next();
+          if (!pending.done) controller.abort(pending.value);
+        }
         let task: Promise<T>;
         try {
           task = Promise.resolve(work(controller.signal, offStoreLane));
@@ -330,6 +352,7 @@ export class StoreRuntime {
         }
         void task.then(resolve, reject).finally(() => {
           this.admissionControllers.delete(controller);
+          this.windowControllers.delete(controller);
           leaveHeld();
         });
       };

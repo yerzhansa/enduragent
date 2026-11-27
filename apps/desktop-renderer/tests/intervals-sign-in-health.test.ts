@@ -53,6 +53,7 @@ function subject(initial: RuntimeConfigSnapshot = snapshot({})) {
       listener({ status: "idle" });
       return () => listeners.delete(listener);
     }),
+    request: vi.fn(async () => undefined),
   };
   const emit = (state: TrainingSyncState): void => {
     for (const listener of listeners) listener(state);
@@ -76,6 +77,17 @@ function subject(initial: RuntimeConfigSnapshot = snapshot({})) {
 function runtimeReads(call: ReturnType<typeof vi.fn>): number {
   return call.mock.calls.filter(([method]) => method === "getRuntimeConfig").length;
 }
+
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+const NOT_IN_USE: TrainingSyncState = {
+  status: "failed",
+  operation: 1,
+  kind: "not-in-use",
+  retryable: true,
+};
 
 describe("intervals.icu sign-in health", () => {
   it("publishes the rejected flag from every runtime configuration read", async () => {
@@ -173,6 +185,109 @@ describe("intervals.icu sign-in health", () => {
     await vi.waitFor(() => expect(test.published).toEqual([false]));
     await test.health.clients.close();
     expect(test.provider.close).toHaveBeenCalledOnce();
+  });
+
+  it("re-reads every 30 seconds while the sign-in is not in use and syncs once the coach has it", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const test = subject(snapshot({ credential_configured: false }));
+      const dispose = test.health.follow(test.coordinator, test.focusTarget);
+      await settle();
+      expect(runtimeReads(test.call)).toBe(1);
+
+      test.emit(NOT_IN_USE);
+      await settle();
+      expect(runtimeReads(test.call)).toBe(2);
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(runtimeReads(test.call)).toBe(2);
+      await vi.advanceTimersByTimeAsync(1);
+      await settle();
+      expect(runtimeReads(test.call)).toBe(3);
+      expect(test.coordinator.request).not.toHaveBeenCalled();
+
+      test.setRuntime(snapshot({ credential_configured: true }));
+      await vi.advanceTimersByTimeAsync(30_000);
+      await settle();
+      expect(test.coordinator.request).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(90_000);
+      await settle();
+      expect(runtimeReads(test.call)).toBe(7);
+      expect(test.coordinator.request).toHaveBeenCalledOnce();
+
+      test.emit({ status: "queued", operation: 2 });
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(runtimeReads(test.call)).toBe(7);
+      dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("syncs on window focus once the coach has the saved sign-in", async () => {
+    const test = subject(snapshot({ credential_configured: false }));
+    const dispose = test.health.follow(test.coordinator, test.focusTarget);
+    test.emit(NOT_IN_USE);
+    await vi.waitFor(() => expect(runtimeReads(test.call)).toBe(2));
+
+    test.setRuntime(snapshot({ credential_configured: true }));
+    test.focusTarget.dispatchEvent(new Event("focus"));
+    await vi.waitFor(() => expect(test.coordinator.request).toHaveBeenCalledOnce());
+    dispose();
+  });
+
+  it("does not sync again while the coach keeps reporting the key and sync keeps refusing", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const test = subject(snapshot({ credential_configured: true }));
+      const dispose = test.health.follow(test.coordinator, test.focusTarget);
+      test.emit(NOT_IN_USE);
+      await settle();
+      expect(test.coordinator.request).toHaveBeenCalledOnce();
+
+      test.emit({ status: "queued", operation: 2 });
+      test.emit({ status: "running", operation: 2 });
+      test.emit({ ...NOT_IN_USE, operation: 2 });
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      test.focusTarget.dispatchEvent(new Event("focus"));
+      await settle();
+      expect(runtimeReads(test.call)).toBeGreaterThan(10);
+      expect(test.coordinator.request).toHaveBeenCalledOnce();
+
+      test.setRuntime(snapshot({ credential_configured: false }));
+      await vi.advanceTimersByTimeAsync(30_000);
+      test.setRuntime(snapshot({ credential_configured: true }));
+      await vi.advanceTimersByTimeAsync(30_000);
+      await settle();
+      expect(test.coordinator.request).toHaveBeenCalledTimes(2);
+      dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not poll for other sync failures and stops polling on dispose", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const test = subject(snapshot({ credential_configured: true }));
+      const dispose = test.health.follow(test.coordinator, test.focusTarget);
+      test.emit({ status: "failed", operation: 1, kind: "operation", retryable: true });
+      await settle();
+      expect(runtimeReads(test.call)).toBe(2);
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(runtimeReads(test.call)).toBe(2);
+
+      test.setRuntime(snapshot({ credential_configured: false }));
+      test.emit({ ...NOT_IN_USE, operation: 2 });
+      await settle();
+      expect(runtimeReads(test.call)).toBe(3);
+      dispose();
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(runtimeReads(test.call)).toBe(3);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(test.coordinator.request).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("passes call arguments through unchanged", async () => {

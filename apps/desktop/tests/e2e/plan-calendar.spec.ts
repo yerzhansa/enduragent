@@ -3,13 +3,36 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test, type Browser, type Page, type PlaywrightWorkerArgs } from "@playwright/test";
 import { planMirrorExternalId, planMirrorExternalIdPrefix } from "@enduragent/engine";
+import { addCivilDays } from "@enduragent/kernel/planning";
 import { launchDesktopFixture, type RunningDesktopFixture } from "../helpers/desktop-fixture.js";
 import { createMemoryPlanCalendar } from "../helpers/plan-calendar-fake.js";
 import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
 
 const token = "d".repeat(43);
 const today = "1998-01-03";
-const windowLabel = "Calendar · 3 Jan 1998 to 9 Jan 1998 · Up to date";
+const windowLabel = "Calendar · 3 Jan 1998 to 16 Jan 1998 · Up to date";
+const windowEnd = 19980116;
+
+function twoWeekEnd(start: string): number {
+  return addCivilDays(Number(start.replaceAll("-", "")), 13);
+}
+
+function upToDate(endDateKey: number): string {
+  const end = new Date(
+    Date.UTC(
+      Math.floor(endDateKey / 10_000),
+      (Math.floor(endDateKey / 100) % 100) - 1,
+      endDateKey % 100,
+    ),
+  );
+  const day = end.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `Calendar · 3 Jan 1998 to ${day} · Up to date`;
+}
 type Playwright = PlaywrightWorkerArgs["playwright"];
 
 interface Scenario {
@@ -222,7 +245,7 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   await navigate(scenario, "Chat");
 }
 
-test("shows calendar progress and the verified seven-day window", async ({ playwright }) => {
+test("shows calendar progress and the verified two-week window", async ({ playwright }) => {
   test.setTimeout(120_000);
   const scenario = await launch(playwright, { delayMs: 30_000 });
   try {
@@ -235,9 +258,14 @@ test("shows calendar progress and the verified seven-day window", async ({ playw
     await expect(active(scenario).getByText(windowLabel, { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    expect(scenario.calendar.events.map((event) => event.dateKey)).toEqual([
-      19980103, 19980105, 19980107,
-    ]);
+    const workouts = (await scenario.backend.physicalWorkouts(scenario.seed.planId)).filter(
+      (workout) =>
+        workout.dateKey !== null && workout.dateKey >= 19980103 && workout.dateKey <= windowEnd,
+    );
+    expect(workouts.length).toBeGreaterThan(3);
+    expect(scenario.calendar.events.map((event) => event.dateKey).sort()).toEqual(
+      workouts.map((workout) => workout.dateKey).sort(),
+    );
   } finally {
     await close(scenario);
   }
@@ -273,9 +301,9 @@ test("retries a failed calendar mirror from the library", async ({ playwright })
       active(scenario).getByText("Calendar sync failed. Retry available.", { exact: true }),
     ).toBeVisible();
     await scenario.backend.calendarIdle();
-    expect((await scenario.backend.inspectActivation()).jobs).toEqual([
-      expect.objectContaining({ status: "failed" }),
-    ]);
+    expect((await scenario.backend.inspectActivation()).jobs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ status: "failed" })]),
+    );
     scenario.calendar.delayMs = 30_000;
     const reads = scenario.backend.planListRequests.length;
     await active(scenario).getByRole("button", { name: "Retry calendar", exact: true }).click();
@@ -324,9 +352,9 @@ test("recovers unfinished calendar work after crashing during a provider call", 
     });
     const workouts = (await scenario.backend.physicalWorkouts(scenario.seed.planId)).filter(
       (workout) =>
-        workout.dateKey !== null && workout.dateKey >= 19980103 && workout.dateKey <= 19980109,
+        workout.dateKey !== null && workout.dateKey >= 19980103 && workout.dateKey <= windowEnd,
     );
-    expect(workouts).toHaveLength(3);
+    expect(workouts.length).toBeGreaterThan(3);
     expect(scenario.calendar.events.map((event) => event.externalId).sort()).toEqual(
       workouts.map((workout) => planMirrorExternalId(scenario.seed.planId, workout.id)).sort(),
     );
@@ -355,10 +383,14 @@ test("keeps today's old Workout when replacement mirroring starts tomorrow", asy
         event.externalId?.startsWith(planMirrorExternalIdPrefix(scenario.seed.planId)),
       ),
     ).toEqual([oldToday]);
+    const end = twoWeekEnd(library.active.start);
     const expected = draft.weeks
       .flatMap((week) => week.workouts)
       .filter(
-        (workout) => workout.date !== null && workout.date > today && workout.date <= "1998-01-09",
+        (workout) =>
+          workout.date !== null &&
+          workout.date > today &&
+          Number(workout.date.replaceAll("-", "")) <= end,
       );
     expect(expected.length).toBeGreaterThan(0);
     const physicalIds = await physicalWorkoutIds(scenario.backend, currentPlanId);
@@ -376,7 +408,7 @@ test("keeps today's old Workout when replacement mirroring starts tomorrow", asy
       oldToday,
     ]);
     await navigate(scenario, "Plan");
-    await expect(active(scenario).getByText(windowLabel, { exact: true })).toBeVisible({
+    await expect(active(scenario).getByText(upToDate(end), { exact: true })).toBeVisible({
       timeout: 15_000,
     });
   } finally {
@@ -403,9 +435,9 @@ test("never mirrors undated Workouts", async ({ playwright }) => {
     expect(
       physical.filter((workout) => undatedIds.has(draftWorkoutId(workout.structureJson))),
     ).toEqual([]);
+    const end = twoWeekEnd(library.active.start);
     const expected = physical.filter(
-      (workout) =>
-        workout.dateKey !== null && workout.dateKey > 19980103 && workout.dateKey <= 19980109,
+      (workout) => workout.dateKey !== null && workout.dateKey > 19980103 && workout.dateKey <= end,
     );
     expect(
       scenario.calendar.events

@@ -817,6 +817,7 @@
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja.",
+        "notWorking": "Kirjautunut, mutta ei vielä toimi",
         "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu.",
         "savedRides": "Lenkit tallennettu tietokoneelle {{computer}} · yhdistä, niin uudet synkronoidaan"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Harjoitustietojen tarkistus valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten yhtä suoritusta ei ole mukana.",
         "publishedRestricted_other": "Harjoitustietojen tarkistus valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten {{formattedCount}} suoritusta ei ole mukana.",
         "queued": "Synkronointi jonossa.",
-        "running": "Synkronoidaan harjoitustietoja…"
+        "running": "Synkronoidaan harjoitustietoja…",
+        "signInNotInUse": "{{intervals}} ei ole juuri nyt yhdistettynä, joten mitään ei synkronoitu. {{product}} yrittää uudelleen, kun verkkoyhteytesi palaa."
       },
       "restriction": {
         "fixAction": "· Näin korjaat tämän",
