@@ -19,6 +19,7 @@ import {
   type IntervalsIcuSource,
 } from "@enduragent/sync-intervals-icu";
 import { addCivilDays, todayInTZ } from "@enduragent/engine/sport";
+import { parseBackfillCursor } from "./backfill-state.js";
 import { enforceIntervalsStoreOwner } from "./account-identity.js";
 import { coverageGapsWithinWindow } from "./coverage-gaps.js";
 import {
@@ -66,23 +67,6 @@ function configured(value: unknown, fallback: number, minimum: number, maximum: 
     throw new TypeError(`invalid ${name}`);
   }
   return selected;
-}
-
-interface Cursor { readonly v: 1; readonly cycle: number; readonly window_start: string; readonly window_end: string;
-  readonly last_key: string | null; readonly complete: boolean; }
-
-function cursor(value: string | null): Cursor {
-  if (value === null) throw new TypeError("source cursor is invalid");
-  let parsed: unknown;
-  try { parsed = JSON.parse(value); } catch { throw new TypeError("source cursor is invalid"); }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)
-    || Object.keys(parsed).join(",") !== "v,cycle,window_start,window_end,last_key,complete") throw new TypeError("source cursor is invalid");
-  const item = parsed as Record<string, unknown>;
-  if (item.v !== 1 || !Number.isSafeInteger(item.cycle) || (item.cycle as number) < 0
-    || typeof item.window_start !== "string" || typeof item.window_end !== "string"
-    || (item.last_key !== null && typeof item.last_key !== "string") || typeof item.complete !== "boolean"
-    || JSON.stringify(item) !== value) throw new TypeError("source cursor is invalid");
-  return item as unknown as Cursor;
 }
 
 function draft(externalId: string, archiveInstant: ArchiveInstant, archive: ArchiveWriteResult,
@@ -144,7 +128,7 @@ export async function runActivityAuditPages(
   for (;;) {
     const before = await createSyncStateRepository(options.store).readWatermark("intervals-icu", "activities");
     const beforeValue = before.value;
-    const beforeCursor = beforeValue === null ? null : cursor(beforeValue);
+    const beforeCursor = beforeValue === null ? null : parseBackfillCursor(beforeValue);
     const controller = new AbortController();
     const abort = (): void => controller.abort(options.signal?.reason);
     if (options.signal?.aborted) abort(); else options.signal?.addEventListener("abort", abort, { once: true });
@@ -175,7 +159,7 @@ export async function runActivityAuditPages(
     }
     const checkpointValue = checkpoint.watermark.value;
     if (checkpointValue === null) throw new Error("invalid source checkpoint");
-    const parsed = cursor(checkpointValue);
+    const parsed = parseBackfillCursor(checkpointValue);
     if (authoritativeCycle === undefined) {
       if (beforeValue === null || beforeCursor === null || beforeCursor.complete) {
         authoritativeCycle = {
@@ -351,7 +335,7 @@ export async function runBackfillPages(options: RunBackfillPagesOptions): Promis
     }
     if (terminalCursor === null) droppedActivityRows = addDropped(droppedActivityRows, checkpoint.droppedActivityRows);
     const checkpointValue = checkpoint.watermark.value;
-    const parsed = cursor(checkpointValue);
+    const parsed = parseBackfillCursor(checkpointValue);
     let report: ImportReport | null = null;
     if (files.length === 0) {
       await options.store.transaction(async () => {
