@@ -131,7 +131,7 @@ export interface OnboardingActions {
 
 export interface OnboardingController extends OnboardingActions {
   open(): Promise<void>;
-  refresh(): Promise<void>;
+  refresh(moveFocus?: boolean): Promise<void>;
   requireCompletion(): void;
   close(): void;
   dispose(): void;
@@ -730,11 +730,11 @@ export function createOnboardingController(
     publish();
   });
 
-  const load = async (hydrate: boolean, retryWhileStarting: boolean): Promise<void> => {
+  const load = async (fromOpen: boolean, moveFocus = true): Promise<void> => {
     if (disposed || opening) return;
     const currentDraft = llmDraft;
     const currentDrafts = llmDrafts;
-    const keepAthleteDraft = !hydrate && hasSuccessfulLoad && draftOrigin === "athlete";
+    const keepAthleteDraft = !fromOpen && hasSuccessfulLoad && draftOrigin === "athlete";
     opening = true;
     presenting = true;
     loading = true;
@@ -753,13 +753,13 @@ export function createOnboardingController(
       initialized = true;
       loading = false;
       setRideImportPresentation(true);
-      focusTitle();
+      if (moveFocus) focusTitle();
       publish();
       opening = false;
     };
     const read = await readSetupStatus(
       options.bridge,
-      retryWhileStarting && !hasSuccessfulLoad,
+      fromOpen && !hasSuccessfulLoad,
       () => !disposed && visit === openVisit,
     );
     const [statusesResult, chatGptResult, configurationResult, setupResult] = read;
@@ -809,7 +809,7 @@ export function createOnboardingController(
     initialized = true;
     loading = false;
     setRideImportPresentation(true);
-    focusTitle();
+    if (moveFocus) focusTitle();
     publish();
     openRouter.refreshCredit();
     opening = false;
@@ -818,11 +818,11 @@ export function createOnboardingController(
   return {
     open(): Promise<void> {
       if (disposed || presenting || opening) return Promise.resolve();
-      return load(true, true);
+      return load(true);
     },
-    refresh(): Promise<void> {
+    refresh(moveFocus = true): Promise<void> {
       if (disposed || opening) return Promise.resolve();
-      return load(false, false);
+      return load(false, moveFocus);
     },
     requireCompletion(): void {
       if (disposed || completionRequired) return;

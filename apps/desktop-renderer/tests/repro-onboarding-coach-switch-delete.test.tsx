@@ -61,4 +61,55 @@ describe("repro onboarding A: Coach switch then key delete", () => {
     });
     wizard.controller.dispose();
   });
+  async function mountOnAnthropic() {
+    const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
+    bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
+    bridge.llmConfiguration.mockResolvedValue(
+      configuration({ provider: "anthropic", model: "claude-sonnet-4-6" }),
+    );
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+      { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+    ]);
+    const wizard = mountWizard({ bridge, placement: "settings" });
+    await wizard.open();
+    bridge.llmConfiguration.mockResolvedValue(
+      configuration({ provider: "openrouter", model: "deepseek/deepseek-v4-flash" }),
+    );
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "anthropic", state: "configured", runtimeState: "stored-inactive" },
+      { slot: "openrouter", state: "configured", runtimeState: "active" },
+    ]);
+    return wizard;
+  }
+
+  it("follows the coach when the athlete has not edited Setup's choice", async () => {
+    const wizard = await mountOnAnthropic();
+    await act(async () => wizard.controller.refresh());
+    expect(useEnduragentStore.getState().onboarding.draft?.provider.provider).toBe("openrouter");
+    wizard.controller.dispose();
+  });
+
+  it("keeps a choice the athlete edited in Setup across a refresh", async () => {
+    const wizard = await mountOnAnthropic();
+    act(() => wizard.controller.selectModel("claude-opus-4-6"));
+    await act(async () => wizard.controller.refresh());
+    const onboarding = useEnduragentStore.getState().onboarding;
+    expect({
+      active: onboarding.configuration?.active?.provider,
+      draft: onboarding.draft?.provider.provider,
+      model: onboarding.draft?.modelChoice,
+    }).toEqual({ active: "openrouter", draft: "anthropic", model: "claude-opus-4-6" });
+    wizard.controller.dispose();
+  });
+
+  it("leaves focus alone on a refresh that the athlete did not ask for", async () => {
+    const wizard = await mountOnAnthropic();
+    const before = useEnduragentStore.getState().onboarding.focusSeq;
+    await act(async () => wizard.controller.refresh(false));
+    expect(useEnduragentStore.getState().onboarding.focusSeq).toBe(before);
+    await act(async () => wizard.controller.refresh());
+    expect(useEnduragentStore.getState().onboarding.focusSeq).toBeGreaterThan(before);
+    wizard.controller.dispose();
+  });
 });

@@ -659,7 +659,7 @@ export function bootRenderer(): Disposer {
     apply: (selection) => window.enduragentAuth.applyLlmSelection(selection),
     onSaved: () => {
       void chatController.refreshAttachments();
-      void onboarding.refresh();
+      void onboarding.refresh(false);
     },
     openSetup: openSetupFromSettings,
     beginMutation: () => store.getState().beginSettingsMutation("provider-model"),
