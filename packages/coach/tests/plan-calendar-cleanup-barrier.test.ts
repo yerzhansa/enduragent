@@ -22,6 +22,7 @@ async function harness() {
   let sequence = 100;
   let today = closedOn;
   let nowMs = 904_694_400_000;
+  let connected = true;
   const calendar = createMemoryPlanCalendar();
   const identity = {
     deviceId: async () => "cleanup-barrier-device",
@@ -34,7 +35,7 @@ async function harness() {
     crypto: globalThis.crypto,
     todayDateKey: () => today,
     now: () => nowMs,
-    calendarConnected: () => true,
+    calendarConnected: () => connected,
   };
   const creation = createPlanCreationOperations({
     ...dependencies,
@@ -113,6 +114,9 @@ async function harness() {
     },
     advanceMs: (ms: number) => {
       nowMs += ms;
+    },
+    disconnect: () => {
+      connected = false;
     },
     cleanup: (planId: string) => reconciliation.readLatestJob(planId, "cleanup"),
     retry: async () => {
@@ -276,6 +280,18 @@ describe("Plan calendar cleanup barrier", () => {
       window: { start: "1998-09-02" },
     });
     expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+  });
+
+  it("shows the waiting calendar as not connected once intervals.icu is not connected", async () => {
+    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail();
+    await test.drain.kick();
+    test.disconnect();
+
+    expect(test.writesOf(newPlan)).toEqual([]);
+    expect(
+      (await test.creation["plan.list"]({})).active?.calendar,
+      "active Plan card while its calendar waits and intervals.icu is not connected",
+    ).toMatchObject({ status: "not-connected" });
   });
 
   it("removes the old Plan from the day after it closed on a late Retry and never shares a day", async () => {

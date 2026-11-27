@@ -1617,7 +1617,13 @@ describe("Plan Creation activation", () => {
     all.mockClear();
     get.mockClear();
     const expanded = await test.host["plan.list"]({});
-    expect(expanded.active).toEqual(initial.active);
+    expect(expanded.active).toEqual({
+      ...initial.active,
+      calendar: {
+        ...initial.active?.calendar,
+        window: { start: "1998-09-02", end: "1998-09-29" },
+      },
+    });
     expect(expanded.closed).toHaveLength(3);
     expect(expanded.closed.map((plan) => plan.calendar.window)).toEqual([
       { start: "1998-09-02", end: "1998-09-29" },
@@ -1944,7 +1950,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
         creationId: test.request.creationId,
         calendar: {
           status: "not-connected",
-          window: { start: "1998-01-01", end: "1998-01-07" },
+          window: { start: "1998-01-02", end: "1998-01-18" },
           currentThrough: null,
           error: null,
         },

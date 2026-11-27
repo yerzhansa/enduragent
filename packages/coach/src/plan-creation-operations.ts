@@ -394,7 +394,7 @@ export function createPlanCreationOperations(input: {
           ]),
         );
         const barrier = await reconciliation.readCleanupBarrier();
-        const holding = calendarConnected() && barrier?.status !== "verified" ? barrier : undefined;
+        const holding = barrier?.status !== "verified" ? barrier : undefined;
         const summaries = records.map((plan) => ({
           ...summarizePlan(plan),
           calendar: summarizeCalendar(
