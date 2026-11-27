@@ -12,7 +12,7 @@ import {
   type CoachClientTerminalEnvelope,
 } from "@enduragent/coach-client";
 import type { CoachRpcNotification, SyncRpcResult } from "@enduragent/coach-contract";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import { createTrainingSyncCoordinator, type TrainingSyncState } from "../src/training-sync";
 
@@ -887,5 +887,128 @@ describe("training sync coordinator after the window reconnects", () => {
 
     expect(provider.listening()).toBe(0);
     expect(replacement.callMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("training sync coordinator when re-asks keep getting interrupted", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function interruptedSyncs(replies: ReadonlyArray<"dropped" | "published"> = []) {
+    let replied = 0;
+    const current = clientWith(async () => {
+      throw new CoachClientDisconnectedError(1006, "synthetic");
+    });
+    const replacement = clientWith(async (options) => {
+      const reply = replies[replied] ?? "dropped";
+      replied += 1;
+      if (reply === "dropped") throw new CoachClientDisconnectedError(1006, "synthetic");
+      return exactCall(options, published);
+    });
+    const provider = reopeningProvider({ current, replacement });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: provider.clients,
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    const syncs = (): number =>
+      current.callMock.mock.calls.length + replacement.callMock.mock.calls.length;
+    return { coordinator, provider, syncs };
+  }
+
+  it("asks again at once, then waits 5 s, 30 s, 2 min and every 5 min between re-asks", async () => {
+    const { coordinator, provider, syncs } = interruptedSyncs();
+    await coordinator.request();
+    expect(syncs()).toBe(1);
+
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(syncs()).toBe(2);
+
+    let expected = 2;
+    for (const wait of [5_000, 30_000, 120_000, 300_000, 300_000]) {
+      provider.open();
+      await vi.advanceTimersByTimeAsync(wait - 1);
+      expect(syncs()).toBe(expected);
+      await vi.advanceTimersByTimeAsync(1);
+      expected += 1;
+      expect(syncs()).toBe(expected);
+    }
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: expected,
+      kind: "indeterminate",
+      retryable: true,
+    });
+  });
+
+  it("keeps one re-ask waiting however many connections open meanwhile", async () => {
+    const { coordinator, provider, syncs } = interruptedSyncs();
+    await coordinator.request();
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(syncs()).toBe(2);
+
+    provider.open();
+    provider.open();
+    provider.open();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(syncs()).toBe(3);
+
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(syncs()).toBe(3);
+  });
+
+  it("asks again at once after an interrupted sync the athlete started, dropping the waiting re-ask", async () => {
+    const { coordinator, provider, syncs } = interruptedSyncs();
+    await coordinator.request();
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    provider.open();
+    expect(syncs()).toBe(2);
+
+    await coordinator.request();
+    expect(syncs()).toBe(3);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(syncs()).toBe(3);
+
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(syncs()).toBe(4);
+  });
+
+  it("asks again at once after a sync that ended in a coach answer", async () => {
+    const { coordinator, provider, syncs } = interruptedSyncs(["dropped", "published"]);
+    await coordinator.request();
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    provider.open();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(syncs()).toBe(3);
+    expect(coordinator.getState()).toMatchObject({ status: "succeeded", operation: 3 });
+
+    await coordinator.request();
+    expect(coordinator.getState()).toMatchObject({ status: "failed", kind: "indeterminate" });
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(syncs()).toBe(5);
+  });
+
+  it("drops a waiting re-ask once disposed", async () => {
+    const { coordinator, provider, syncs } = interruptedSyncs();
+    await coordinator.request();
+    provider.open();
+    await vi.advanceTimersByTimeAsync(0);
+    provider.open();
+    expect(syncs()).toBe(2);
+
+    coordinator.dispose();
+    await vi.advanceTimersByTimeAsync(600_000);
+
+    expect(syncs()).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
