@@ -61,9 +61,13 @@ function chatActions(): ChatActions {
       store.setState({ chat: { ...store.getState().chat, attachments: surface(text) } }),
     );
   });
-  return new Proxy({ saveAttachmentDraftText, submit: vi.fn(async () => true) } as never, {
-    get: (target: Record<string, unknown>, property: string) => target[property] ?? vi.fn(),
-  });
+  const actions: Record<string, unknown> = {
+    saveAttachmentDraftText,
+    submit: vi.fn(async () => true),
+  };
+  return new Proxy(actions, {
+    get: (target, property: string) => target[property] ?? vi.fn(),
+  }) as never;
 }
 
 function review(patch: Partial<PlanCalendarRideReview> = {}): PlanCalendarRideReview {
