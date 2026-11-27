@@ -1160,11 +1160,44 @@ describe("Plan calendar drain", () => {
     });
     const replacement = await test.activate();
     expect(replacement.closedPlanId).toBe(planId);
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.approve(replacement.planId);
     await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toMatchObject({
+      status: "verified",
+    });
     expect(
       test.calendar.events.find((event) => event.id === edited.id)?.name,
       "the athlete's own edit after Replace",
     ).toBe("My own ride");
+  });
+
+  it("runs a held cleanup once its replacement no longer waits for the first Approve", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const replacement = await test.activate();
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toBeUndefined();
+    await test.store.run(
+      "UPDATE plan_week_delivery SET state_kind='approved',state_json=? WHERE plan_id=?",
+      [
+        JSON.stringify({ kind: "approved", firstSetWeeks: [], approvedWeeks: [] }),
+        replacement.planId,
+      ],
+    );
+    await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toMatchObject({
+      status: "verified",
+      windowStartDateKey: addCivilDays(test.today(), 1),
+    });
+    expect(
+      test.calendar.events.filter(
+        (event) => event.externalId?.includes(planId) === true && event.dateKey > test.today(),
+      ),
+    ).toEqual([]);
   });
 
   it("keeps the athlete's changes when another command closes the Plan after a failed End", async () => {

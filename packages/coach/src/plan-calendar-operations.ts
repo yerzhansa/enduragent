@@ -21,6 +21,7 @@ import type { PlanCalendarEditDeps } from "./plan-calendar-edit.js";
 import { planDetails, saveEndChoice } from "./plan-calendar-details.js";
 import { moveWorkout } from "./plan-calendar-move.js";
 import { readPlanCalendar } from "./plan-calendar-read.js";
+import { releaseReplacedPlans } from "./plan-calendar-replace.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
 
@@ -118,6 +119,15 @@ export function createPlanCalendarOperations(
             await saveWeekDelivery(mirror, plan.id, result.state, deps.now());
             if (result.state.kind !== "approved") {
               return { status: "refused", reason: "not-approved-yet" } as const;
+            }
+            if (request.scope.kind === "first-weeks") {
+              await releaseReplacedPlans(deps.store, {
+                planId: plan.id,
+                todayDateKey,
+                nowMs: deps.now(),
+                newId: () => deps.identity.newUlid(),
+                ticked: request.ticked ?? [],
+              });
             }
             await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
             return {

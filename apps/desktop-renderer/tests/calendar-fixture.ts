@@ -102,6 +102,7 @@ export function calendarRead(
     calendarConnected: true,
     weekDelivery: "send-each-week",
     plan: planned,
+    replacing: null,
     activities: [...activities],
   };
 }

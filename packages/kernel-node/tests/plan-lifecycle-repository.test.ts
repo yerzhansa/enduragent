@@ -45,7 +45,6 @@ const activationInput = (key = "1") => {
     activatedAt: "1998-01-01",
     todayDateKey: 19980101,
     mirrorJobId: id(`5${key}`),
-    cleanupJobId: id(`6${key}`),
     revisionId: id(`2${key}`),
     materialize: () => ({
       plan: {

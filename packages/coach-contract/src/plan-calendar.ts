@@ -29,6 +29,7 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       action: z.literal("approve-weeks"),
       planId: UlidSchema,
       scope: PlanCalendarApproveScopeSchema,
+      ticked: z.array(PlanCalendarTickSchema).max(500).optional(),
     })
     .strict(),
   z.object({ action: z.literal("read-settings") }).strict(),
@@ -263,6 +264,22 @@ export const PlanCalendarEndingWorkoutSchema = z
   .strict();
 export type PlanCalendarEndingWorkout = z.infer<typeof PlanCalendarEndingWorkoutSchema>;
 
+export const PlanCalendarAthleteChangeSchema = PlanCalendarEndingWorkoutSchema.extend({
+  tick: PlanCalendarTickSchema,
+});
+export type PlanCalendarAthleteChange = z.infer<typeof PlanCalendarAthleteChangeSchema>;
+
+export const PlanCalendarReplacingSchema = z
+  .object({
+    planName: z.string().max(512),
+    cleanup: z.enum(["held", "pending", "running", "failed"]),
+    removes: z.array(PlanCalendarEndingWorkoutSchema).max(500),
+    staysToday: z.array(PlanCalendarEndingWorkoutSchema).max(20),
+    athleteChanges: z.array(PlanCalendarAthleteChangeSchema).max(500),
+  })
+  .strict();
+export type PlanCalendarReplacing = z.infer<typeof PlanCalendarReplacingSchema>;
+
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z
     .object({
@@ -302,9 +319,7 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
         .object({
           removes: z.array(PlanCalendarEndingWorkoutSchema).max(500),
           staysToday: z.array(PlanCalendarEndingWorkoutSchema).max(20),
-          athleteChanges: z
-            .array(PlanCalendarEndingWorkoutSchema.extend({ tick: PlanCalendarTickSchema }))
-            .max(500),
+          athleteChanges: z.array(PlanCalendarAthleteChangeSchema).max(500),
         })
         .strict(),
     })
@@ -322,6 +337,7 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
       calendarConnected: z.boolean(),
       weekDelivery: PlanCalendarWeekDeliverySchema,
       plan: PlanCalendarPlanSchema.nullable(),
+      replacing: PlanCalendarReplacingSchema.nullable(),
       activities: z.array(PlanCalendarActivitySchema).max(1_000),
     })
     .strict(),

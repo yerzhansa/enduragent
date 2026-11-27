@@ -11,7 +11,10 @@ export async function plansWaitingForApprove(
   store: Pick<SqlStore, "all">,
 ): Promise<ReadonlySet<string>> {
   const rows = await store.all(
-    "SELECT plan_id FROM plan_week_delivery WHERE state_kind='waiting-for-first-approve'",
+    `SELECT delivery.plan_id FROM plan_week_delivery delivery
+JOIN planning_plan plan ON plan.plan_id=delivery.plan_id
+WHERE delivery.state_kind='waiting-for-first-approve' AND plan.status='active'
+UNION SELECT plan_id FROM plan_cleanup_hold WHERE released_at_ms IS NULL`,
   );
   return new Set(rows.flatMap((row) => (typeof row.plan_id === "string" ? [row.plan_id] : [])));
 }

@@ -35,6 +35,7 @@ import {
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import { movesByYou, workoutMovable } from "./plan-calendar-move.js";
 import { phaseForWeek } from "./plan-phase.js";
+import { readReplacing } from "./plan-calendar-replace.js";
 
 export type PlanCalendarRead = Extract<PlanCalendarRpcResult, { status: "calendar" }>;
 
@@ -238,6 +239,7 @@ async function readInside(
     return {
       ...base,
       plan: null,
+      replacing: null,
       activities: activities.map((activity) => ({ ...activity, workoutId: null })),
     };
   }
@@ -336,6 +338,10 @@ async function readInside(
       weeks,
       workouts: calendarWorkouts,
     },
+    replacing: await readReplacing(deps.store, {
+      planId: plan.id,
+      todayDateKey: deps.todayDateKey,
+    }),
     activities: activities.map((activity) => ({
       ...activity,
       workoutId: confirmedBy.get(activity.activityId) ?? null,

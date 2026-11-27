@@ -376,7 +376,7 @@ export function createPlanCreationOperations(input: {
           calendar: summarizeCalendar(
             (plan.status === "active" ? holding : undefined) ??
               jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
-            plan.status === "active" && waiting.has(plan.planId),
+            waiting.has(plan.planId),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;
@@ -757,7 +757,6 @@ export function createPlanCreationOperations(input: {
           activatedAt: today(),
           todayDateKey: todayDateKey(),
           mirrorJobId: input.identity.newUlid(),
-          cleanupJobId: input.identity.newUlid(),
           revisionId: input.identity.newUlid(),
           isDraftCurrent(snapshot) {
             if (

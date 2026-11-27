@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import type { PlanCreationAnswerInput } from "@enduragent/coach-contract";
+import type { PlanCalendarTick, PlanCreationAnswerInput } from "@enduragent/coach-contract";
 import { PLAN_MIRROR_EXTERNAL_ID_PREFIX, planMirrorExternalIdPrefix } from "@enduragent/engine";
 import {
   addCivilDays,
@@ -148,6 +148,37 @@ async function harness() {
     disconnect: () => {
       connected = false;
     },
+    connect: () => {
+      connected = true;
+    },
+    approveTicking: async (planId: string, ticked: readonly PlanCalendarTick[]) => {
+      const approved = await calendarOperations["plan.calendar"]({
+        action: "approve-weeks",
+        planId,
+        scope: { kind: "first-weeks" },
+        ticked: [...ticked],
+      });
+      if (approved.status !== "approved") throw new Error("Expected Approve");
+    },
+    end: async (planId: string) => {
+      const { active } = await creation["plan.list"]({});
+      if (active?.planId !== planId) throw new Error("Expected the Plan to be active");
+      const closed = await creation["plan.close"]({
+        commandId: `end-${++sequence}`,
+        planId,
+        expectedVersion: active.version,
+      });
+      if (closed.status !== "closed") throw new Error("Expected End");
+    },
+    replacing: async () => {
+      const read = await calendarOperations["plan.calendar"]({
+        action: "read",
+        startDateKey: today,
+        endDateKey: addCivilDays(today, 13),
+      });
+      if (read.status !== "calendar") throw new Error("Expected the Calendar");
+      return read.replacing;
+    },
     cleanup: (planId: string) => reconciliation.readLatestJob(planId, "cleanup"),
     retry: async () => {
       await creation["plan.list"]({ retryCalendar: true });
@@ -172,6 +203,19 @@ async function harness() {
       return [...owners].filter(([, planIds]) => planIds.size > 1).map(([dateKey]) => dateKey);
     },
   };
+}
+
+async function mirroredPlanEndedWhileDeletesFail() {
+  const test = await harness();
+  const oldPlan = await test.activate();
+  await test.drain.kick();
+  expect(test.datesOf(oldPlan)).toContain(closedOn);
+  test.calendar.refuseDeletes = true;
+  await test.end(oldPlan);
+  await test.drain.kick();
+  expect(await test.cleanup(oldPlan)).toMatchObject({ status: "failed" });
+  const newPlan = await test.activate(false);
+  return { test, oldPlan, newPlan };
 }
 
 async function mirroredPlanReplacedWhileDeletesFail(approve = true) {
@@ -313,18 +357,11 @@ describe("Plan calendar cleanup barrier", () => {
     expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
   });
 
-  it("shows a failed cleanup ahead of Waiting for Approve, then Waiting for Approve once it is fixed", async () => {
-    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
+  it("shows a failed End cleanup ahead of Waiting for Approve, then Waiting for Approve once it is fixed", async () => {
+    const { test, newPlan } = await mirroredPlanEndedWhileDeletesFail();
     expect(
       (await test.creation["plan.list"]({})).active?.calendar,
-      "active Plan card before the old Plan's cleanup runs",
-    ).toMatchObject({ status: "waiting-for-approve" });
-
-    await test.drain.kick();
-
-    expect(
-      (await test.creation["plan.list"]({})).active?.calendar,
-      "active Plan card while the old Plan's cleanup fails and the new Plan waits for Approve",
+      "active Plan card while an ended Plan's cleanup fails and the new Plan waits for Approve",
     ).toMatchObject({ status: "failed", error: retryableCleanup, waitingForApprove: true });
 
     test.calendar.refuseDeletes = false;
@@ -365,26 +402,27 @@ describe("Plan calendar cleanup barrier", () => {
   });
 
   it("runs a cleanup that failed five times again when the athlete approves", async () => {
-    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
-    for (let run = 0; run < 6; run += 1) {
+    const { test, oldPlan, newPlan } = await mirroredPlanEndedWhileDeletesFail();
+    for (let run = 0; run < 5; run += 1) {
       test.advanceMs(1_000);
       await test.drain.kick();
     }
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "failed", failureCount: 5 });
     test.calendar.refuseDeletes = false;
     await test.approve(newPlan);
     await test.drain.kick();
     await test.drain.kick();
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "verified" });
     expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
   });
 
   it("runs a cleanup that failed five times again when the Calendar's Retry sends again", async () => {
-    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
+    const { test, oldPlan, newPlan } = await mirroredPlanReplacedWhileDeletesFail();
     for (let run = 0; run < 6; run += 1) {
       test.advanceMs(1_000);
       await test.drain.kick();
     }
-    await test.approve(newPlan);
-    await test.drain.kick();
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "failed", failureCount: 5 });
     test.calendar.refuseDeletes = false;
     await test.drain.kick();
     expect(test.writesOf(newPlan), "before Retry").toEqual([]);
@@ -435,5 +473,202 @@ describe("Plan calendar cleanup barrier", () => {
     expect(newDates.length).toBeGreaterThan(0);
     expect(Math.min(...newDates)).toBeGreaterThanOrEqual(test.today());
     expect(test.sharedDays(new Set([edited.id])), "two Plans' workouts on one day").toEqual([]);
+  });
+});
+
+async function mirroredPlanWithAnEdit() {
+  const test = await harness();
+  const oldPlan = await test.activate();
+  await test.drain.kick();
+  const edited = test.calendar.events
+    .filter((event) => event.dateKey > addCivilDays(closedOn, 2))
+    .sort((left, right) => left.dateKey - right.dateKey)[0];
+  if (edited === undefined) throw new Error("Expected a later old-Plan workout");
+  test.calendar.editByAthlete(edited.id, { name: "My own ride" });
+  await test.drain.kick();
+  const later = test.datesOf(oldPlan).filter((dateKey) => dateKey > closedOn);
+  expect(later.length).toBeGreaterThan(1);
+  return { test, oldPlan, edited, before: test.datesOf(oldPlan) };
+}
+
+describe("Replace as one Change Set", () => {
+  it("leaves the old Plan on intervals.icu and sends nothing new after Replace and Not now", async () => {
+    const { test, oldPlan, edited, before } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    for (let run = 0; run < 3; run += 1) {
+      test.advanceMs(900_000);
+      await test.drain.kick();
+    }
+
+    expect(test.datesOf(oldPlan), "the old Plan's workouts before Approve").toEqual(before);
+    expect(test.calendar.deletes, "deletes before Approve").toEqual([]);
+    expect(test.writesOf(newPlan), "new Plan workouts written before Approve").toEqual([]);
+    expect(await test.cleanup(oldPlan), "cleanup job before Approve").toBeUndefined();
+    expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
+      status: "waiting-for-approve",
+    });
+    const replacing = await test.replacing();
+    expect(replacing).toMatchObject({ cleanup: "held", planName: "Improve fitness" });
+    expect(replacing?.staysToday.map((entry) => entry.dateKey)).toEqual([closedOn]);
+    expect(replacing?.athleteChanges.map((entry) => entry.tick.eventId)).toEqual([edited.id]);
+    expect(replacing?.removes.map((entry) => entry.dateKey)).toEqual(
+      before.filter((dateKey) => dateKey > closedOn && dateKey !== edited.dateKey),
+    );
+  });
+
+  it("takes the old Plan's workouts off and checks them before the new Plan's weeks go on", async () => {
+    const { test, oldPlan, edited } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    await test.drain.kick();
+    let oldLaterAtFirstWrite: readonly number[] | undefined;
+    test.calendar.beforeWrite = () => {
+      oldLaterAtFirstWrite ??= test
+        .datesOf(oldPlan)
+        .filter((dateKey) => dateKey > closedOn && dateKey !== edited.dateKey);
+    };
+    await test.approve(newPlan);
+    expect(await test.replacing()).toMatchObject({ cleanup: "pending" });
+    await test.drain.kick();
+
+    expect(
+      oldLaterAtFirstWrite,
+      "old Plan workouts left when the new Plan's first one went on",
+    ).toEqual([]);
+    expect(await test.cleanup(oldPlan)).toMatchObject({
+      status: "verified",
+      windowStartDateKey: addCivilDays(closedOn, 1),
+    });
+    expect(test.datesOf(oldPlan), "today's workout and the athlete's edit stay").toEqual([
+      closedOn,
+      edited.dateKey,
+    ]);
+    expect(test.calendar.events.find((event) => event.id === edited.id)?.name).toBe("My own ride");
+    expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+    expect(Math.min(...test.writesOf(newPlan))).toBeGreaterThan(closedOn);
+    expect(test.sharedDays(new Set([edited.id]))).toEqual([]);
+    expect(await test.replacing()).toBeNull();
+  });
+
+  it("removes the old Plan from the day after the Approve when the athlete approves days later", async () => {
+    const { test, oldPlan, edited, before } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    test.advanceDay();
+    await test.drain.kick();
+    await test.approve(newPlan);
+    await test.drain.kick();
+
+    const approvedOn = addCivilDays(closedOn, 1);
+    expect(await test.cleanup(oldPlan)).toMatchObject({
+      status: "verified",
+      windowStartDateKey: addCivilDays(approvedOn, 1),
+    });
+    expect(test.datesOf(oldPlan)).toEqual(
+      before.filter((dateKey) => dateKey <= approvedOn || dateKey === edited.dateKey),
+    );
+    expect(Math.min(...test.writesOf(newPlan))).toBeGreaterThan(approvedOn);
+  });
+
+  it("removes the athlete's changes too when they tick them in the Approve sheet", async () => {
+    const { test, oldPlan, edited } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    const replacing = await test.replacing();
+    const ticks = replacing?.athleteChanges.map((entry) => entry.tick) ?? [];
+    expect(ticks.map((tick) => tick.eventId)).toEqual([edited.id]);
+    await test.approveTicking(newPlan, ticks);
+    await test.drain.kick();
+
+    expect(test.datesOf(oldPlan)).toEqual([closedOn]);
+    expect(test.calendar.events.find((event) => event.id === edited.id)).toBeUndefined();
+    expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+  });
+
+  it("keeps an edit the athlete makes in intervals.icu after Replace and before Approve", async () => {
+    const { test, oldPlan, edited } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    await test.drain.kick();
+    const later = test.calendar.events.filter(
+      (event) =>
+        event.dateKey > closedOn &&
+        event.id !== edited.id &&
+        event.externalId?.startsWith(planMirrorExternalIdPrefix(oldPlan)) === true,
+    )[0];
+    if (later === undefined) throw new Error("Expected another later old-Plan workout");
+    test.calendar.editByAthlete(later.id, { name: "Changed during the hold" });
+    await test.approve(newPlan);
+    await test.drain.kick();
+
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "verified" });
+    expect(test.calendar.events.find((event) => event.id === later.id)?.name).toBe(
+      "Changed during the hold",
+    );
+    expect(test.calendar.events.find((event) => event.id === edited.id)?.name).toBe("My own ride");
+  });
+
+  it("still removes the old Plan when the athlete ends the new Plan without approving", async () => {
+    const { test, oldPlan, edited, before } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    await test.drain.kick();
+    expect(test.datesOf(oldPlan)).toEqual(before);
+    await test.end(newPlan);
+    await test.drain.kick();
+
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "verified" });
+    expect(test.datesOf(oldPlan)).toEqual([closedOn, edited.dateKey]);
+    expect(test.writesOf(newPlan)).toEqual([]);
+    expect(await test.cleanup(newPlan)).toMatchObject({ status: "verified" });
+  });
+
+  it("holds the first Plan's cleanup through a second Replace and runs it at the last Approve", async () => {
+    const { test, oldPlan, edited, before } = await mirroredPlanWithAnEdit();
+    const middlePlan = await test.activate(false);
+    const newPlan = await test.activate(false);
+    for (let run = 0; run < 2; run += 1) {
+      test.advanceMs(900_000);
+      await test.drain.kick();
+    }
+    expect(test.datesOf(oldPlan), "the first Plan after two Replaces and Not now").toEqual(before);
+    expect(test.writesOf(middlePlan)).toEqual([]);
+    expect(test.writesOf(newPlan)).toEqual([]);
+    expect(await test.replacing()).toMatchObject({ cleanup: "held", planName: "Improve fitness" });
+    expect(
+      await test.approve(middlePlan).then(
+        () => "approved",
+        () => "refused",
+      ),
+      "the replaced middle Plan cannot be approved",
+    ).toBe("refused");
+
+    await test.approve(newPlan);
+    await test.drain.kick();
+
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "verified" });
+    expect(await test.cleanup(middlePlan)).toMatchObject({ status: "verified" });
+    expect(test.datesOf(oldPlan)).toEqual([closedOn, edited.dateKey]);
+    expect(test.writesOf(middlePlan)).toEqual([]);
+    expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+    expect(test.sharedDays(new Set([edited.id]))).toEqual([]);
+  });
+
+  it("releases the hold on an Approve while intervals.icu is not connected, and cleans up first once it is", async () => {
+    const { test, oldPlan, edited, before } = await mirroredPlanWithAnEdit();
+    const newPlan = await test.activate(false);
+    await test.drain.kick();
+    test.disconnect();
+    await test.approve(newPlan);
+    await test.drain.kick();
+
+    expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
+      status: "not-connected",
+    });
+    expect(await test.cleanup(oldPlan)).toMatchObject({ status: "pending" });
+    expect(test.datesOf(oldPlan)).toEqual(before);
+    expect(test.writesOf(newPlan)).toEqual([]);
+
+    test.connect();
+    await test.drain.kick();
+
+    expect(test.datesOf(oldPlan)).toEqual([closedOn, edited.dateKey]);
+    expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+    expect(test.sharedDays(new Set([edited.id]))).toEqual([]);
   });
 });

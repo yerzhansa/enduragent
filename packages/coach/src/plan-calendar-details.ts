@@ -128,6 +128,46 @@ function endingWorkout(
   };
 }
 
+export async function planEndingView(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  planId: string,
+  closedOnDateKey: number,
+): Promise<Details["ending"]> {
+  const workouts = new Map(
+    (await createLegacyPlanRepository(store).readWorkouts(planId)).map((workout) => [
+      workout.id,
+      workout,
+    ]),
+  );
+  const copies = await readIcuCopies(createPlanCalendarMirrorRepository(store), planId);
+  const summary = planEndingSummary(
+    [...copies.values()].map((record) => {
+      const workout = workouts.get(record.planWorkoutId);
+      return {
+        planWorkoutId: record.planWorkoutId,
+        dateKey: workout?.dateKey ?? record.dateKey,
+        copy: storedIcuCopy(record),
+      };
+    }),
+    closedOnDateKey,
+  );
+  return {
+    removes: summary.removes.map((entry) => endingWorkout(entry, workouts)),
+    staysToday: summary.staysToday.map((entry) => endingWorkout(entry, workouts)),
+    athleteChanges: summary.athleteChanges.map((entry) => {
+      const shown = icuFingerprintParts(entry.tick.fingerprint);
+      const planned = endingWorkout(entry, workouts);
+      return {
+        ...planned,
+        name: shortName(shown?.name ?? planned.name),
+        durationS: shown?.durationS ?? planned.durationS,
+        dateKey: entry.tick.dateKey,
+        tick: entry.tick,
+      };
+    }),
+  };
+}
+
 export async function planDetails(
   deps: PlanCalendarDetailsDeps,
   request: { readonly planId: string },
@@ -161,38 +201,12 @@ export async function planDetails(
     }
     history.splice(HISTORY_LIMIT);
     history.push({ kind: "saved", atMs: active.activated_at_ms });
-    const copies = await readIcuCopies(createPlanCalendarMirrorRepository(deps.store), plan.id);
-    const summary = planEndingSummary(
-      [...copies.values()].map((record) => {
-        const workout = workouts.get(record.planWorkoutId);
-        return {
-          planWorkoutId: record.planWorkoutId,
-          dateKey: workout?.dateKey ?? record.dateKey,
-          copy: storedIcuCopy(record),
-        };
-      }),
-      deps.todayDateKey(),
-    );
     return {
       status: "plan-details",
       planId: plan.id,
       version: active.version,
       history,
-      ending: {
-        removes: summary.removes.map((entry) => endingWorkout(entry, workouts)),
-        staysToday: summary.staysToday.map((entry) => endingWorkout(entry, workouts)),
-        athleteChanges: summary.athleteChanges.map((entry) => {
-          const shown = icuFingerprintParts(entry.tick.fingerprint);
-          const planned = endingWorkout(entry, workouts);
-          return {
-            ...planned,
-            name: shortName(shown?.name ?? planned.name),
-            durationS: shown?.durationS ?? planned.durationS,
-            dateKey: entry.tick.dateKey,
-            tick: entry.tick,
-          };
-        }),
-      },
+      ending: await planEndingView(deps.store, plan.id, deps.todayDateKey()),
     } as const;
   });
 }

@@ -10,6 +10,7 @@ import {
 } from "@enduragent/engine/calendar";
 import {
   createPlanCalendarMirrorRepository,
+  createPlanCleanupHoldRepository,
   createPlanReconciliationRepository,
   type PlanIcuWriteErrorCode,
   type PlanReconciliationErrorCode,
@@ -102,6 +103,13 @@ export function createPlanCalendarDrain(deps: {
       now: deps.now,
     };
     const today = deps.todayDateKey();
+    await store.transaction(() =>
+      createPlanCleanupHoldRepository(store).releaseOrphans({
+        closedOnDateKey: today,
+        nowMs: deps.now(),
+        newId: () => deps.identity.newUlid(),
+      }),
+    );
     const jobs = await repository.listRunnable({
       nowMs: deps.now(),
       leaseMs: reclaim ? 0 : 300_000,
