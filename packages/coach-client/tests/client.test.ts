@@ -2333,6 +2333,21 @@ describe("disconnect, close, and send bounds", () => {
     expect(socket.closeCalls).toEqual([]);
   });
 
+  it("names the aborted call in the close frame when its abort ends the connection", async () => {
+    const { socket, connecting } = acceptedSocket("service-managed");
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const controller = new AbortController();
+    const running = client
+      .call("getAthleteState", {}, { signal: controller.signal })
+      .catch((error: unknown) => error);
+
+    controller.abort();
+
+    await expect(running).resolves.toBeInstanceOf(CoachClientCallAbortedError);
+    expect(socket.closeCalls).toEqual([{ code: 1000, reason: "getAthleteState" }]);
+  });
+
   it("latches one mid-flight abort across pending and future calls without replay", async () => {
     const observer = vi.fn(() => {
       throw new Error("advisory");

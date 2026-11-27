@@ -411,7 +411,7 @@ class CoachClientRuntime {
       const onAbort =
         signal === undefined
           ? undefined
-          : () => this.latchTerminal(new CoachClientCallAbortedError(method));
+          : () => this.latchTerminal(new CoachClientCallAbortedError(method), 1000, method);
       const pending: PendingCall = {
         method,
         request: params,

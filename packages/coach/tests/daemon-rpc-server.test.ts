@@ -55,6 +55,7 @@ import type { MonotonicTimer, ScheduledMonotonicTimer } from "../src/daemon/upgr
 import type { DesktopTelegramController } from "../src/desktop-telegram-controller.js";
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { LocalCoachLifecycle } from "../src/local-runner.js";
+import { currentRpcMethod } from "../src/rpc-diagnostics.js";
 import { createTestCoachLanguage } from "./language-fixture.js";
 import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
@@ -1421,6 +1422,107 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     await client.close();
   });
 
+  it("logs a window connection that closes while calls are still running, naming the aborted call", async () => {
+    const token = "x".repeat(43);
+    const athleteHome = await mkdtemp(join(tmpdir(), "rpc-connection-log-"));
+    const started = deferred<void>();
+    const release = deferred<void>();
+    const getLanguagePreference = vi.fn(async () => {
+      started.resolve(undefined);
+      await release.promise;
+      return { value: null };
+    });
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: { ...operations, getLanguagePreference },
+      token,
+      owner: "app-supervised",
+      athleteHome,
+    });
+    const connectionLog = async (): Promise<Record<string, unknown>[]> => {
+      const raw = await readFile(join(athleteHome, "logs", "log.jsonl"), "utf8");
+      return raw
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as Record<string, unknown>)
+        .filter((record) => record.event === "rpc_connection_closed_with_calls_running");
+    };
+    const idle = await openSocket(rpc);
+    idle.ws.send(JSON.stringify(createClientHandshakeFrame(token)));
+    await idle.frames.next();
+    const idleClosed = new Promise<void>((resolve) => idle.ws.once("close", () => resolve()));
+    idle.ws.close(1000, "getUnitsPreference");
+    await idleClosed;
+
+    const busy = await openSocket(rpc);
+    busy.ws.send(JSON.stringify(createClientHandshakeFrame(token)));
+    await busy.frames.next();
+    busy.ws.send(
+      JSON.stringify({ jsonrpc: "2.0", id: "held", method: "getLanguagePreference", params: {} }),
+    );
+    await started.promise;
+    const busyClosed = new Promise<void>((resolve) => busy.ws.once("close", () => resolve()));
+    busy.ws.close(1000, "getAthleteState");
+    await busyClosed;
+
+    await vi.waitFor(async () =>
+      expect(await connectionLog()).toEqual([
+        expect.objectContaining({
+          level: "warn",
+          component: "rpc",
+          code: 1000,
+          abortedCall: "getAthleteState",
+          running: 1,
+        }),
+      ]),
+    );
+    release.resolve(undefined);
+    for (let tick = 0; tick < 5; tick += 1) await turn();
+    await busy.close();
+    await idle.close();
+    await rm(athleteHome, { recursive: true, force: true });
+  });
+
+  it("logs no client-chosen close reason that is not a coach method", async () => {
+    const token = "x".repeat(43);
+    const athleteHome = await mkdtemp(join(tmpdir(), "rpc-connection-log-"));
+    const started = deferred<void>();
+    const release = deferred<void>();
+    const getLanguagePreference = vi.fn(async () => {
+      started.resolve(undefined);
+      await release.promise;
+      return { value: null };
+    });
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: { ...operations, getLanguagePreference },
+      token,
+      owner: "app-supervised",
+      athleteHome,
+    });
+    const client = await openSocket(rpc);
+    client.ws.send(JSON.stringify(createClientHandshakeFrame(token)));
+    await client.frames.next();
+    client.ws.send(
+      JSON.stringify({ jsonrpc: "2.0", id: "held", method: "getLanguagePreference", params: {} }),
+    );
+    await started.promise;
+    const closed = new Promise<void>((resolve) => client.ws.once("close", () => resolve()));
+    client.ws.close(4000, "synthetic-private-text");
+    await closed;
+
+    await vi.waitFor(async () => {
+      const raw = await readFile(join(athleteHome, "logs", "log.jsonl"), "utf8");
+      expect(raw).toContain("rpc_connection_closed_with_calls_running");
+      expect(raw).toContain('"abortedCall":null');
+      expect(raw).not.toContain("synthetic-private-text");
+    });
+    release.resolve(undefined);
+    for (let tick = 0; tick < 5; tick += 1) await turn();
+    await client.close();
+    await rm(athleteHome, { recursive: true, force: true });
+  });
+
   it("dispatches strict intervals credential preflight results without echoing the candidate", async () => {
     const token = "x".repeat(43);
     let refuse = false;
@@ -1736,6 +1838,40 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       id: "language-invalid",
       error: { code: -32602, message: "Invalid params" },
     });
+    await client.close();
+  });
+
+  it("runs each request with its own method as the RPC call context", async () => {
+    const token = "x".repeat(43);
+    const seen: (string | undefined)[] = [];
+    const getLanguagePreference = vi.fn(async () => {
+      seen.push(currentRpcMethod());
+      return { value: null };
+    });
+    const getUnitsPreference = vi.fn(async () => {
+      seen.push(currentRpcMethod());
+      return { value: "metric" as const, source: "athlete" as const };
+    });
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: { ...operations, getLanguagePreference, getUnitsPreference },
+      token,
+      owner: "app-supervised",
+    });
+    const client = await openSocket(rpc);
+    client.ws.send(JSON.stringify(createClientHandshakeFrame(token)));
+    await client.frames.next();
+    client.ws.send(
+      JSON.stringify({ jsonrpc: "2.0", id: "a", method: "getLanguagePreference", params: {} }),
+    );
+    await client.frames.next();
+    client.ws.send(
+      JSON.stringify({ jsonrpc: "2.0", id: "b", method: "getUnitsPreference", params: {} }),
+    );
+    await client.frames.next();
+
+    expect(seen).toEqual(["getLanguagePreference", "getUnitsPreference"]);
+    expect(currentRpcMethod()).toBeUndefined();
     await client.close();
   });
 

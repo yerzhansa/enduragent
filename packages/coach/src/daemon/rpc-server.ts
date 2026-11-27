@@ -50,6 +50,7 @@ import {
 } from "@enduragent/coach-contract";
 import { PlanCreationStoreError } from "@enduragent/kernel/planning";
 import { unavailableChatAttachmentAdmission } from "../attachment-operations.js";
+import { reportClosedRpcConnection, withRpcMethod } from "../rpc-diagnostics.js";
 import type { WriterProtocolHandlers } from "@enduragent/kernel-node/lock";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 import type { DaemonHealthState } from "./healthz-server.js";
@@ -2154,9 +2155,8 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
         : undefined;
     let task: Promise<void>;
     try {
-      task = invocations.invoke(
-        { key: invocationKey, signal: state.detachController.signal },
-        runRequest,
+      task = invocations.invoke({ key: invocationKey, signal: state.detachController.signal }, () =>
+        withRpcMethod(registry.wireName, runRequest),
       );
     } catch (error) {
       state.activeIds.delete(requestIdKey);
@@ -2169,16 +2169,15 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       return;
     }
     state.requestTasks.add(task);
-    void Promise.allSettled([task]).then(() => {
-      state.requestTasks.delete(task);
-    });
+    void Promise.allSettled([task]).then(() => state.requestTasks.delete(task));
   };
 
   const acceptClient = (ws: WebSocket): void => {
     connectionSequence += 1;
     const state = createClientState(ws, `connection-${connectionSequence}`);
     clients.add(state);
-    ws.on("close", () => {
+    ws.on("close", (code, reason) => {
+      reportClosedRpcConnection(input.athleteHome, code, String(reason), state.requestTasks.size);
       clearAuthTimer(state);
       detach(state);
       if (reservation?.connectionId === state.connectionId && reservation.state === "reserved") {
