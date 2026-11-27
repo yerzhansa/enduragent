@@ -106,6 +106,7 @@ function harness(
     ["intervals-icu", "active"],
   ]);
   const onRuntimeStateChange = vi.fn<(slot: DesktopCredentialSlot) => void>();
+  const vault = { forgetStorageStateAfterReset: vi.fn(async () => {}) };
   const reset = createDesktopCredentialReset({
     serializeCredentialMutation:
       options.serializeCredentialMutation ?? ((operation) => operation()),
@@ -121,9 +122,11 @@ function harness(
     deleteKeyForCredentialReset,
     credentialRuntimeState,
     onRuntimeStateChange,
+    vault,
     resetEncryptedCredentialStorage,
   });
   return {
+    vault,
     events,
     proof,
     initialBinding,
@@ -398,6 +401,7 @@ describe("desktop credential reset orchestration", () => {
     resolveStorage({ status: "reset", keyCleanupPending: false });
     await expect(reset).resolves.toEqual({ status: "reset", keyCleanupPending: false });
     expect(subject.credentialRuntimeState.size).toBe(0);
+    expect(subject.vault.forgetStorageStateAfterReset).toHaveBeenCalledTimes(1);
   });
 
   it("wires the shared envelope lock and reset-only Keychain deletion in production", async () => {
@@ -416,5 +420,6 @@ describe("desktop credential reset orchestration", () => {
       /deleteKeyForCredentialReset: \(proof\) =>\s+credentialEncryption\.deleteKeyForCredentialReset\(proof\)/u,
     );
     expect(composition).toContain("onRuntimeStateChange: markCredentialRuntimeChange,");
+    expect(composition).toContain("vault,");
   });
 });

@@ -173,6 +173,8 @@ export interface CredentialVault {
   ): Promise<CredentialDeleteResult>;
   reapplyConfigured(): Promise<void>;
   retryFailed(): Promise<void>;
+  /** Call while holding the credential mutation lock, after the storage was reset. */
+  forgetStorageStateAfterReset(): Promise<void>;
 }
 
 interface CredentialVaultOptions {
@@ -1043,5 +1045,13 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
 
     reapplyConfigured: () => serializeCredentialMutation(() => exclusive(reapplyConfigured)),
     retryFailed: () => serializeCredentialMutation(() => exclusive(retryFailed)),
+    forgetStorageStateAfterReset: () =>
+      exclusive(async () => {
+        uncertainSlots.clear();
+        durabilityState = "pending";
+        durabilityReconciliation = undefined;
+        parentDirectoryVerified = false;
+        windowsDirectory = undefined;
+      }),
   };
 }

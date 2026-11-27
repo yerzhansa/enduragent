@@ -130,6 +130,7 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
       deleteKeyForCredentialReset: async () => ({ status: "already-absent" as const }),
       credentialRuntimeState: new Map(),
       onRuntimeStateChange: () => {},
+      vault,
     });
     await expect(reset()).resolves.toMatchObject({ status: "reset" });
 

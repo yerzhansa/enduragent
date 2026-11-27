@@ -1115,6 +1115,7 @@ async function runDesktop(): Promise<void> {
           credentialEncryption.deleteKeyForCredentialReset(proof),
         credentialRuntimeState,
         onRuntimeStateChange: markCredentialRuntimeChange,
+        vault,
       });
     const claudeCli = createClaudeCliStatus({
       settings: () => readClaudeCliSettings({ configPath: join(configDir, "config.yaml") }),
