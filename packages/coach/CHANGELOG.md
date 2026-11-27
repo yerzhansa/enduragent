@@ -1,5 +1,30 @@
 # @enduragent/coach
 
+## 0.1.9
+
+### Patch Changes
+
+- c404a91: User-facing: You can now chat with your coach while your first training-data sync is still running. Before, typing a message or opening Settings during a long first sync could leave the app on "Connection interrupted" until you quit and reopened it.
+
+  A sync no longer holds the store lane while an intervals.icu request is in flight. The backfill, the capture and the curve refresh fetch through the store runtime, which frees the lane until the whole response has arrived and takes it back before the next store step; the wait for the legacy refresh frees it too. Preference reads, setup status, chat drafts and chat turns now run between the sync's store steps. File imports and intervals.icu sign-in changes still wait for the whole sync. A coach call that times out now fails alone instead of closing the shared connection and failing every other call on it; a caller's abort and a protocol fault still close it.
+
+- 0992b39: User-facing: Plan workouts that the app puts on your intervals.icu calendar no longer pile up as extra copies each time the app checks the calendar. Workouts with steps now show those steps and their training load in intervals.icu. Copies made by earlier versions stay on your calendar.
+
+  intervals.icu replaces a client's `uid` with its own, so the calendar mirror could never find the events it had made: it created them again on every run and never verified. The mirror now marks its events with `external_id`, which intervals.icu keeps, and no longer sends `upsertOnUid`. It sends only the description, because intervals.icu keeps a client `workout_doc` as is and then cannot read it.
+
+  The reconciler and the outside-edit check no longer compare `workout_doc`, nor the duration of a described workout, since intervals.icu derives both from the description. Adopting an outside edit no longer copies intervals.icu's `workout_doc` into the Plan. Plan calendar events stay outside the chat workout tools, now that their `external_id` is visible. Events made by earlier versions are not recognised or removed.
+
+- Updated dependencies [b0c88aa]
+- Updated dependencies [0eb83f7]
+- Updated dependencies [0992b39]
+- Updated dependencies [78ecb9c]
+  - @enduragent/core@0.2.0
+  - @enduragent/i18n@0.3.0
+  - @enduragent/coach-contract@0.2.0
+  - @enduragent/engine@0.1.0
+  - @enduragent/coach-cli@0.1.8
+  - @enduragent/sport-cycling@0.0.14
+
 ## 0.1.8
 
 ### Patch Changes
