@@ -1195,9 +1195,7 @@ describe("setup card", () => {
     expect(document.querySelector("[data-setup-readiness]")).toHaveTextContent(
       "2 of 2 required ready",
     );
-    expect(rowState("training"), "training row should agree with the 2 of 2 badge").toBe(
-      "ready",
-    );
+    expect(rowState("training"), "training row should agree with the 2 of 2 badge").toBe("ready");
     expect(setupRow("training").querySelector('[data-setup-disc="ready"]')).not.toBeNull();
     expect(rowSubtitle("training")).toBe(LOCAL_RIDES_SUBTITLE);
     expect(trigger("training").textContent).toBe("Connect");
@@ -1237,9 +1235,7 @@ describe("setup card", () => {
     await waitFor(() => {
       expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     });
-    expect(rowState("training"), "training row should read ready after the import").toBe(
-      "ready",
-    );
+    expect(rowState("training"), "training row should read ready after the import").toBe("ready");
     expect(rowSubtitle("training")).toBe(LOCAL_RIDES_SUBTITLE);
     expect(trigger("training").textContent).toBe("Connect");
     expect(screen.getByRole("button", { name: "Connect Intervals.icu" })).toBeEnabled();
