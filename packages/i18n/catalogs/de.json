@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Den Coach zu dieser Fahrt fragen",
+      "askDraft": "Was hältst du von meiner Fahrt „{{name}}“ am {{day}}?",
       "empty": "Noch keine Fahrten aus den letzten 120 Tagen. Fahrten aus intervals.icu erscheinen hier nach einer Synchronisierung.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Bis du antwortest, zählt diese Fahrt nicht für den Plan, und der Kalender zeigt {{weekday}} als wartend, nicht als absolviert oder verpasst.",
         "yes": "Ja, das ist es"
       },
+      "note": {
+        "failed": "Die Notiz konnte nicht gespeichert werden. Versuche es erneut.",
+        "hint": "Deine Notiz geht mit dieser Fahrt an den Coach. Das Speichern schreibt das Fazit nicht neu, außer du bittest darum.",
+        "placeholder": "Wie hat es sich angefühlt? Sag dem Coach, was die Datei nicht zeigen kann: Schlaf, Essen, wie hart es sich anfühlte.",
+        "save": "Notiz speichern",
+        "saved": "Notiz gespeichert.",
+        "saving": "Deine Notiz wird gespeichert…",
+        "title": "Deine Notiz"
+      },
       "refreshFailed": "Die Fahrten konnten nicht aktualisiert werden. Angezeigt wird der zuletzt gelesene Stand.",
       "retry": "Erneut versuchen",
       "showInCalendar": "Im Kalender anzeigen",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · kein Plan",
       "unavailable": "Die Fahrten konnten nicht gelesen werden. Versuche es erneut.",
-      "untitled": "Fahrt"
+      "untitled": "Fahrt",
+      "verdict": {
+        "afterAnswer": "Der Coach schreibt sein Fazit, nachdem du geantwortet hast: eine Antwort über dein eigenes Modell.",
+        "before": {
+          "extra": "Geschrieben, bevor du diese Fahrt als zusätzlich eingeordnet hast",
+          "pending": "Geschrieben, bevor sich die Zuordnung dieser Fahrt geändert hat",
+          "workout": "Geschrieben, bevor du diese Fahrt dem Training {{name}} zugeordnet hast"
+        },
+        "failed": "Der Coach konnte sein Fazit diesmal nicht schreiben, daher wurde nichts gespeichert.",
+        "failedKeepsEarlier": "Der Coach konnte diesmal kein neues Fazit schreiben, daher bleibt das bisherige.",
+        "meta": "{{written}} · {{replies}} · gespeichert",
+        "metaNoPlan": "Geschrieben um {{time}} · {{replies}}",
+        "metaNoPlanOn": "Geschrieben am {{date}} um {{time}} · {{replies}}",
+        "noFile": "Diese Fahrt hat nur eine Zeit und eine Distanz, ohne Leistung oder Herzfrequenz aus einer Datei, daher schreibt der Coach kein Fazit dazu.",
+        "noModel": "Der Coach schreibt sein Fazit über dein eigenes Modell, und es ist noch keins eingerichtet. Wähle eins in den Einstellungen und öffne diese Fahrt dann erneut.",
+        "replies_one": "{{count}} Coach-Antwort",
+        "replies_other": "{{count}} Coach-Antworten",
+        "title": "Fazit des Coachs",
+        "unavailable": "Das Fazit des Coachs konnte nicht gelesen werden. Versuche es erneut.",
+        "writeAgain_one": "Neu schreiben · {{count}} Antwort",
+        "writeAgain_other": "Neu schreiben · {{count}} Antworten",
+        "writing": "Das Fazit des Coachs wird geschrieben…",
+        "written": {
+          "asked": "Geschrieben um {{time}}, als du erneut gefragt hast, aus der Fahrtdatei und deinem Plan",
+          "askedNote": "Geschrieben um {{time}}, als du erneut gefragt hast, aus der Fahrtdatei, deinem Plan und deiner Notiz",
+          "askedNoteOn": "Geschrieben am {{date}} um {{time}}, als du erneut gefragt hast, aus der Fahrtdatei, deinem Plan und deiner Notiz",
+          "askedOn": "Geschrieben am {{date}} um {{time}}, als du erneut gefragt hast, aus der Fahrtdatei und deinem Plan",
+          "firstOpen": "Geschrieben um {{time}}, als du diese Fahrt zum ersten Mal geöffnet hast, aus der Fahrtdatei und deinem Plan",
+          "firstOpenOn": "Geschrieben am {{date}} um {{time}}, als du diese Fahrt zum ersten Mal geöffnet hast, aus der Fahrtdatei und deinem Plan",
+          "matched": "Geschrieben um {{time}}, als du angegeben hast, welches Training diese Fahrt war, aus der Fahrtdatei und deinem Plan",
+          "matchedOn": "Geschrieben am {{date}} um {{time}}, als du angegeben hast, welches Training diese Fahrt war, aus der Fahrtdatei und deinem Plan",
+          "opened": "Geschrieben um {{time}}, als du diese Fahrt erneut geöffnet hast, aus der Fahrtdatei und deinem Plan",
+          "openedOn": "Geschrieben am {{date}} um {{time}}, als du diese Fahrt erneut geöffnet hast, aus der Fahrtdatei und deinem Plan"
+        }
+      }
     }
   },
   "common": {

@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Perguntar ao treinador sobre esta pedalada",
+      "askDraft": "O que você acha da minha pedalada “{{name}}” de {{day}}?",
       "empty": "Ainda não há pedaladas dos últimos 120 dias. As pedaladas do intervals.icu aparecem aqui depois de uma sincronização.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Até você responder, esta pedalada não conta para o plano e o calendário mostra {{weekday}} como pendente, não como feito nem como não realizado.",
         "yes": "Sim, é"
       },
+      "note": {
+        "failed": "Não foi possível salvar a nota. Tente novamente.",
+        "hint": "Sua nota vai para o treinador junto com esta pedalada. Salvá-la não reescreve a avaliação, a menos que você peça.",
+        "placeholder": "Como você se sentiu? Conte ao treinador o que o arquivo não mostra: sono, alimentação, o quanto foi difícil.",
+        "save": "Salvar nota",
+        "saved": "Nota salva.",
+        "saving": "Salvando sua nota…",
+        "title": "Sua nota"
+      },
       "refreshFailed": "Não foi possível atualizar as pedaladas. Isto mostra o que foi lido antes.",
       "retry": "Tentar novamente",
       "showInCalendar": "Mostrar no calendário",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · sem plano",
       "unavailable": "Não foi possível ler as pedaladas. Tente novamente.",
-      "untitled": "Pedalada"
+      "untitled": "Pedalada",
+      "verdict": {
+        "afterAnswer": "O treinador escreve a avaliação depois que você responde: uma resposta com o seu próprio modelo.",
+        "before": {
+          "extra": "Escrita antes de você marcar esta pedalada como extra",
+          "pending": "Escrita antes de a associação desta pedalada mudar",
+          "workout": "Escrita antes de você associar esta pedalada a {{name}}"
+        },
+        "failed": "O treinador não conseguiu escrever a avaliação desta vez, então nada foi salvo.",
+        "failedKeepsEarlier": "O treinador não conseguiu escrever uma nova avaliação desta vez, então a anterior continua.",
+        "meta": "{{written}} · {{replies}} · salva",
+        "metaNoPlan": "Escrita às {{time}} · {{replies}}",
+        "metaNoPlanOn": "Escrita em {{date}}, às {{time}} · {{replies}}",
+        "noFile": "Esta pedalada tem apenas um tempo e uma distância, sem potência nem frequência cardíaca de um arquivo, então o treinador não escreve uma avaliação para ela.",
+        "noModel": "O treinador escreve a avaliação com o seu próprio modelo, e nenhum foi configurado ainda. Escolha um nas Configurações e abra esta pedalada novamente.",
+        "replies_one": "{{count}} resposta do treinador",
+        "replies_other": "{{count}} respostas do treinador",
+        "title": "Avaliação do treinador",
+        "unavailable": "Não foi possível ler a avaliação do treinador. Tente novamente.",
+        "writeAgain_one": "Escrever de novo · {{count}} resposta",
+        "writeAgain_other": "Escrever de novo · {{count}} respostas",
+        "writing": "Escrevendo a avaliação do treinador…",
+        "written": {
+          "asked": "Escrita às {{time}}, quando você perguntou de novo, com base no arquivo da pedalada e no seu plano",
+          "askedNote": "Escrita às {{time}}, quando você perguntou de novo, com base no arquivo da pedalada, no seu plano e na sua nota",
+          "askedNoteOn": "Escrita em {{date}}, às {{time}}, quando você perguntou de novo, com base no arquivo da pedalada, no seu plano e na sua nota",
+          "askedOn": "Escrita em {{date}}, às {{time}}, quando você perguntou de novo, com base no arquivo da pedalada e no seu plano",
+          "firstOpen": "Escrita às {{time}}, quando você abriu esta pedalada pela primeira vez, com base no arquivo da pedalada e no seu plano",
+          "firstOpenOn": "Escrita em {{date}}, às {{time}}, quando você abriu esta pedalada pela primeira vez, com base no arquivo da pedalada e no seu plano",
+          "matched": "Escrita às {{time}}, quando você indicou qual treino era esta pedalada, com base no arquivo da pedalada e no seu plano",
+          "matchedOn": "Escrita em {{date}}, às {{time}}, quando você indicou qual treino era esta pedalada, com base no arquivo da pedalada e no seu plano",
+          "opened": "Escrita às {{time}}, quando você abriu esta pedalada novamente, com base no arquivo da pedalada e no seu plano",
+          "openedOn": "Escrita em {{date}}, às {{time}}, quando você abriu esta pedalada novamente, com base no arquivo da pedalada e no seu plano"
+        }
+      }
     }
   },
   "archive": {

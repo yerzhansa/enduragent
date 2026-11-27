@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "向教练询问这次骑行",
+      "askDraft": "你觉得我{{day}}的骑行“{{name}}”怎么样？",
       "empty": "最近 120 天内还没有骑行。同步后，intervals.icu 中的骑行会显示在这里。",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "在你回答之前，此骑行不计入计划，日历会将{{weekday}}显示为等待中，而不是已完成或未完成。",
         "yes": "是的"
       },
+      "note": {
+        "failed": "无法保存备注。请重试。",
+        "hint": "备注会随此骑行一起发送给教练。保存备注不会重写点评，除非你提出要求。",
+        "placeholder": "感觉如何？告诉教练文件无法体现的信息：睡眠、饮食、主观感受到的难度。",
+        "save": "保存备注",
+        "saved": "备注已保存。",
+        "saving": "正在保存备注…",
+        "title": "备注"
+      },
       "refreshFailed": "无法刷新骑行。这里显示的是之前读取的内容。",
       "retry": "重试",
       "showInCalendar": "在日历中显示",
@@ -73,7 +84,39 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · 无计划",
       "unavailable": "无法读取骑行。请重试。",
-      "untitled": "骑行"
+      "untitled": "骑行",
+      "verdict": {
+        "afterAnswer": "你回答后，教练会撰写点评：使用你自己的模型回复一次。",
+        "before": {
+          "extra": "撰写于你将此骑行标记为额外之前",
+          "pending": "撰写于此骑行的匹配变更之前",
+          "workout": "撰写于你将此骑行匹配到{{name}}之前"
+        },
+        "failed": "教练这次未能写出点评，因此未保存任何内容。",
+        "failedKeepsEarlier": "教练这次未能写出新的点评，因此保留之前的点评。",
+        "meta": "{{written}} · {{replies}} · 已保存",
+        "metaNoPlan": "撰写于 {{time}} · {{replies}}",
+        "metaNoPlanOn": "撰写于 {{date}} {{time}} · {{replies}}",
+        "noFile": "此骑行只有时间和距离，没有来自文件的功率或心率，因此教练不会为其撰写点评。",
+        "noModel": "教练使用你自己的模型撰写点评，但尚未设置模型。请在设置中选择一个，然后重新打开此骑行。",
+        "replies_other": "教练回复 {{count}} 次",
+        "title": "教练点评",
+        "unavailable": "无法读取教练点评。请重试。",
+        "writeAgain_other": "重新撰写 · 回复 {{count}} 次",
+        "writing": "正在撰写教练点评…",
+        "written": {
+          "asked": "撰写于 {{time}}，在你再次询问时，依据骑行文件和你的计划",
+          "askedNote": "撰写于 {{time}}，在你再次询问时，依据骑行文件、你的计划和你的备注",
+          "askedNoteOn": "撰写于 {{date}} {{time}}，在你再次询问时，依据骑行文件、你的计划和你的备注",
+          "askedOn": "撰写于 {{date}} {{time}}，在你再次询问时，依据骑行文件和你的计划",
+          "firstOpen": "撰写于 {{time}}，在你首次打开此骑行时，依据骑行文件和你的计划",
+          "firstOpenOn": "撰写于 {{date}} {{time}}，在你首次打开此骑行时，依据骑行文件和你的计划",
+          "matched": "撰写于 {{time}}，在你回答此骑行是哪次训练课程时，依据骑行文件和你的计划",
+          "matchedOn": "撰写于 {{date}} {{time}}，在你回答此骑行是哪次训练课程时，依据骑行文件和你的计划",
+          "opened": "撰写于 {{time}}，在你再次打开此骑行时，依据骑行文件和你的计划",
+          "openedOn": "撰写于 {{date}} {{time}}，在你再次打开此骑行时，依据骑行文件和你的计划"
+        }
+      }
     }
   },
   "common": {

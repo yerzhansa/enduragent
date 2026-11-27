@@ -1,6 +1,8 @@
 {
   "activity": {
     "review": {
+      "ask": "Interroger le coach sur cette sortie",
+      "askDraft": "Que penses-tu de ma sortie « {{name}} » du {{day}} ?",
       "empty": "Aucune sortie des 120 derniers jours pour l’instant. Les sorties d’intervals.icu apparaissent ici après une synchronisation.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -52,6 +54,15 @@
         "waiting": "Tant que tu n’as pas répondu, cette sortie ne compte pas pour le plan, et le calendrier affiche {{weekday}} comme en attente, ni réalisé ni manqué.",
         "yes": "Oui, c’est ça"
       },
+      "note": {
+        "failed": "La note n’a pas pu être enregistrée. Réessaie.",
+        "hint": "Ta note est transmise au coach avec cette sortie. L’enregistrer ne réécrit pas le verdict, sauf si tu le demandes.",
+        "placeholder": "Quelles étaient tes sensations ? Dis au coach ce que le fichier ne peut pas dire : sommeil, alimentation, difficulté ressentie.",
+        "save": "Enregistrer la note",
+        "saved": "Note enregistrée.",
+        "saving": "Enregistrement de ta note…",
+        "title": "Ta note"
+      },
       "refreshFailed": "Les sorties n’ont pas pu être actualisées. Voici ce qui a été lu auparavant.",
       "retry": "Réessayer",
       "showInCalendar": "Afficher dans le calendrier",
@@ -73,7 +84,41 @@
       "subtitle": "{{day}} · {{name}}",
       "subtitleNoPlan": "{{day}} · {{name}} · aucun plan",
       "unavailable": "Les sorties n’ont pas pu être lues. Réessaie.",
-      "untitled": "Sortie"
+      "untitled": "Sortie",
+      "verdict": {
+        "afterAnswer": "Le coach écrit son verdict une fois que tu as répondu : une réponse sur ton propre modèle.",
+        "before": {
+          "extra": "Écrit avant que tu aies classé cette sortie comme supplémentaire",
+          "pending": "Écrit avant que l’association de cette sortie ait changé",
+          "workout": "Écrit avant que tu aies associé cette sortie à {{name}}"
+        },
+        "failed": "Le coach n’a pas pu écrire son verdict cette fois, donc rien n’a été conservé.",
+        "failedKeepsEarlier": "Le coach n’a pas pu écrire un nouveau verdict cette fois, donc le précédent reste.",
+        "meta": "{{written}} · {{replies}} · conservé",
+        "metaNoPlan": "Écrit à {{time}} · {{replies}}",
+        "metaNoPlanOn": "Écrit le {{date}} à {{time}} · {{replies}}",
+        "noFile": "Cette sortie n’a qu’une durée et une distance, sans puissance ni fréquence cardiaque issues d’un fichier, donc le coach n’écrit pas de verdict pour elle.",
+        "noModel": "Le coach écrit son verdict sur ton propre modèle, et aucun n’est encore configuré. Choisis-en un dans les Paramètres, puis rouvre cette sortie.",
+        "replies_one": "{{count}} réponse du coach",
+        "replies_other": "{{count}} réponses du coach",
+        "title": "Verdict du coach",
+        "unavailable": "Le verdict du coach n’a pas pu être lu. Réessaie.",
+        "writeAgain_one": "Réécrire · {{count}} réponse",
+        "writeAgain_other": "Réécrire · {{count}} réponses",
+        "writing": "Rédaction du verdict du coach…",
+        "written": {
+          "asked": "Écrit à {{time}}, quand tu as redemandé, à partir du fichier de la sortie et de ton plan",
+          "askedNote": "Écrit à {{time}}, quand tu as redemandé, à partir du fichier de la sortie, de ton plan et de ta note",
+          "askedNoteOn": "Écrit le {{date}} à {{time}}, quand tu as redemandé, à partir du fichier de la sortie, de ton plan et de ta note",
+          "askedOn": "Écrit le {{date}} à {{time}}, quand tu as redemandé, à partir du fichier de la sortie et de ton plan",
+          "firstOpen": "Écrit à {{time}}, quand tu as ouvert cette sortie pour la première fois, à partir du fichier de la sortie et de ton plan",
+          "firstOpenOn": "Écrit le {{date}} à {{time}}, quand tu as ouvert cette sortie pour la première fois, à partir du fichier de la sortie et de ton plan",
+          "matched": "Écrit à {{time}}, quand tu as indiqué à quel entraînement correspondait cette sortie, à partir du fichier de la sortie et de ton plan",
+          "matchedOn": "Écrit le {{date}} à {{time}}, quand tu as indiqué à quel entraînement correspondait cette sortie, à partir du fichier de la sortie et de ton plan",
+          "opened": "Écrit à {{time}}, quand tu as rouvert cette sortie, à partir du fichier de la sortie et de ton plan",
+          "openedOn": "Écrit le {{date}} à {{time}}, quand tu as rouvert cette sortie, à partir du fichier de la sortie et de ton plan"
+        }
+      }
     }
   },
   "common": {
