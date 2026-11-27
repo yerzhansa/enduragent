@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -68,13 +68,23 @@ async function startReference(network: ReturnType<typeof intervals>) {
   vi.stubGlobal("fetch", network.fetch);
   const dataDir = mkdtempSync(join(tmpdir(), "reference-legacy-rate-limit-"));
   roots.push(dataDir);
-  return await bootstrapReference({
+  const reference = await bootstrapReference({
     dataDir,
     intervals: { apiKey: "synthetic-intervals-key", athleteId: "0" },
     readCalendarTimeZone: () => "UTC",
     sport: SPORT,
     startScheduler: false,
   });
+  return { reference, dataDir };
+}
+
+function syncHistoryKinds(dataDir: string): string[] {
+  const path = join(dataDir, "data", "sync-history.jsonl");
+  if (!existsSync(path)) return [];
+  return readFileSync(path, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => (JSON.parse(line) as { kind: string }).kind);
 }
 
 function outcome(result: SyncResult) {
@@ -86,7 +96,7 @@ function outcome(result: SyncResult) {
 }
 
 async function runOnce(network: ReturnType<typeof intervals>) {
-  const reference = await startReference(network);
+  const { reference } = await startReference(network);
   return await reference.runScheduledOnce(new AbortController().signal);
 }
 
@@ -146,10 +156,10 @@ describe("legacy reference refresh after a 429 from intervals.icu", () => {
 
   it("stops waiting for the follow-up when the window is aborted", async () => {
     const network = intervals({ path: "/activities", times: 1, retryAfter: "1" });
-    const reference = await startReference(network);
+    const { reference, dataDir } = await startReference(network);
     const window = new AbortController();
     const run = reference.runScheduledOnce(window.signal);
-    await vi.waitFor(() => expect(network.lists("/activities")).toBe(1));
+    await vi.waitFor(() => expect(syncHistoryKinds(dataDir)).toEqual(["failed"]));
     window.abort(new Error("window closed"));
     await expect(run).rejects.toMatchObject({ name: "AbortError" });
     expect(network.lists("/activities")).toBe(1);
