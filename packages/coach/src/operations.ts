@@ -69,7 +69,9 @@ import { importFilesWithReport } from "@enduragent/kernel-node/ingest";
 import { isIntervalsCredentialRejected } from "@enduragent/core";
 import type { ImportReport } from "@enduragent/kernel/ingest";
 import { runIntervalsBackfillInWriter } from "./backfill.js";
+import { readBackfillState } from "./backfill-state.js";
 import type { LocalStoreRuntime } from "./composition.js";
+import { isIntervalsCredentialUsable } from "./intervals-credential-usable.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { createUnitsPreferenceService } from "./units-preference.js";
 
@@ -113,6 +115,13 @@ export interface CreateCoachOperationsInput {
     signal: AbortSignal,
   ) => Promise<VerifyIntervalsCredentialRpcResult>;
   readonly readRuntimeConfig?: () => GetRuntimeConfigRpcResult;
+}
+
+export interface LocalCoachOperations extends CoachOperations {
+  resumeHistoryDownload(
+    signal: AbortSignal,
+    fetchOffStoreLane: typeof globalThis.fetch,
+  ): Promise<void>;
 }
 
 export interface CoachOperationsDependencies {
@@ -170,7 +179,7 @@ export const RUNTIME_CONFIGURATION_DEADLINE_MS =
 export function createCoachOperations(
   input: CreateCoachOperationsInput,
   dependencies: CoachOperationsDependencies = {},
-): CoachOperations {
+): LocalCoachOperations {
   if (!sameHome(input.home, input.context.home)) {
     throw new TypeError("Writer home does not match the selected athlete home.");
   }
@@ -196,6 +205,22 @@ export function createCoachOperations(
     [applied, offeredIntervalsCredential].some(
       (credential) => credential.length > 0 && isIntervalsCredentialRejected(credential),
     );
+
+  const downloadHistory = (
+    credentials: Readonly<{ apiKey: string; athleteId: string }>,
+    signal: AbortSignal,
+    fetchOffStoreLane: typeof globalThis.fetch,
+  ) =>
+    backfill({
+      home: input.home,
+      store,
+      apiKey: credentials.apiKey,
+      athleteId: credentials.athleteId === "" ? "0" : credentials.athleteId,
+      historyNewestDate: input.historyNewestDate(),
+      calendarTimeZone: input.calendarTimeZone(),
+      signal,
+      baseFetch: fetchOffStoreLane,
+    });
 
   const deliver = (
     onEvent: ((event: OperationProgressEvent) => void) | undefined,
@@ -256,16 +281,7 @@ export function createCoachOperations(
                 : "skipped-no-credential";
             return;
           }
-          await backfill({
-            home: input.home,
-            store: input.context.store,
-            apiKey: credentials.apiKey,
-            athleteId: credentials.athleteId === "" ? "0" : credentials.athleteId,
-            historyNewestDate: input.historyNewestDate(),
-            calendarTimeZone: input.calendarTimeZone(),
-            signal,
-            baseFetch: fetchOffStoreLane,
-          });
+          await downloadHistory(credentials, signal, fetchOffStoreLane);
         })
         .then((window) => {
           const result = SyncRpcResultSchema.parse({
@@ -283,6 +299,12 @@ export function createCoachOperations(
           deliver(onEvent, { phase: "completed", completed: 1, total: 1 });
           return result;
         });
+    },
+    async resumeHistoryDownload(signal, fetchOffStoreLane): Promise<void> {
+      const credentials = await input.intervalsCredentials.read();
+      if (!isIntervalsCredentialUsable(credentials.apiKey)) return;
+      if ((await readBackfillState(store)).kind !== "in-progress") return;
+      await downloadHistory(credentials, signal, fetchOffStoreLane);
     },
     getSetupStatus(request: GetSetupStatusRpcParams): Promise<GetSetupStatusRpcResult> {
       GetSetupStatusRpcParamsSchema.parse(request);

@@ -1707,16 +1707,14 @@ export async function createLocalCoachComposition(
           });
         return initialRefreshPromise;
       }
-      if (initialRefreshRetryTimer !== undefined) {
-        clearTimeout(initialRefreshRetryTimer);
-        initialRefreshRetryTimer = undefined;
-      }
+      clearTimeout(initialRefreshRetryTimer);
+      initialRefreshRetryTimer = undefined;
       initialRefreshStarted = true;
       const refreshRevision = intervalsConfigRevision;
       let ownerSucceeded = false;
       initialRefreshPromise = initialPlanCompletion
         .then(() =>
-          runtime.runWindowAfter(async (signal) => {
+          runtime.runWindowAfter(async (signal, fetchOffStoreLane) => {
             const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
             initializationSignal.throwIfAborted();
             initialRefreshConfigCaptured = true;
@@ -1744,6 +1742,7 @@ export async function createLocalCoachComposition(
                 return replacement;
               },
             );
+            await coachOperations.resumeHistoryDownload(initializationSignal, fetchOffStoreLane);
           }),
         )
         .then(() => {

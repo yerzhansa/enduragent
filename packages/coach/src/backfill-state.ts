@@ -1,3 +1,5 @@
+import { createSyncStateRepository, type SqlStore } from "@enduragent/kernel/store";
+
 export interface BackfillCursor {
   readonly v: 1;
   readonly cycle: number;
@@ -6,6 +8,11 @@ export interface BackfillCursor {
   readonly last_key: string | null;
   readonly complete: boolean;
 }
+
+export type BackfillState =
+  | { readonly kind: "not-started" }
+  | { readonly kind: "in-progress"; readonly cursor: BackfillCursor }
+  | { readonly kind: "complete" };
 
 export function parseBackfillCursor(value: string | null): BackfillCursor {
   if (value === null) throw new TypeError("source cursor is invalid");
@@ -45,4 +52,11 @@ export function parseBackfillCursor(value: string | null): BackfillCursor {
     last_key: item.last_key,
     complete: item.complete,
   };
+}
+
+export async function readBackfillState(store: SqlStore): Promise<BackfillState> {
+  const saved = await createSyncStateRepository(store).readWatermark("intervals-icu", "bulk-fit");
+  if (saved.value === null) return { kind: "not-started" };
+  const cursor = parseBackfillCursor(saved.value);
+  return cursor.complete ? { kind: "complete" } : { kind: "in-progress", cursor };
 }
