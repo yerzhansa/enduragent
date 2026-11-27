@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRuntimeConfig } from "../src/runtime-config.js";
+import { resolveRuntimeConfig, type LlmProvider } from "../src/runtime-config.js";
 
 describe("runtime configuration authority", () => {
   it("preserves same-provider custom fields for a credential-only patch", () => {
@@ -62,6 +62,42 @@ describe("runtime configuration authority", () => {
       baseUrl: "https://api.z.ai/api/openai/v1",
     });
     expect(next.contextWindowTokens).toBe(1_000_000);
+  });
+
+  it("moves saved models their provider retired to the replacement and keeps the rest", () => {
+    const load = (provider: LlmProvider, model: string, compactModel?: string) =>
+      resolveRuntimeConfig({
+        llm: {
+          provider,
+          model,
+          apiKey: "obviously-fake-key",
+          ...(compactModel === undefined ? {} : { compactModel }),
+        },
+      }).llm;
+
+    expect(load("deepseek", "deepseek-v4-flash")).toMatchObject({
+      model: "deepseek-flash",
+      compactModel: "deepseek-flash",
+    });
+    expect(load("google", "gemini-3.7-flash").model).toBe("gemini-3.8-flash");
+    expect(load("minimax", "MiniMax-M2.7").model).toBe("MiniMax-M3");
+    expect(load("minimax", "MiniMax-M2.7-highspeed").model).toBe("MiniMax-M3.1-Flash");
+    expect(load("openrouter", "qwen/qwen3.8-max", "qwen/qwen3.8-max")).toMatchObject({
+      model: "qwen/qwen4-max",
+      compactModel: "qwen/qwen4-max",
+    });
+    expect(
+      resolveRuntimeConfig({
+        llm: { provider: "deepseek", model: "deepseek-v4-flash", apiKey: "obviously-fake-key" },
+      }).contextWindowTokens,
+    ).toBe(1_000_000);
+
+    expect(load("anthropic", "claude-opus-5").model).toBe("claude-opus-5");
+    expect(load("kimi", "kimi-k2.6").model).toBe("kimi-k2.6");
+    expect(load("openrouter", "deepseek/deepseek-v4-flash").model).toBe(
+      "deepseek/deepseek-v4-flash",
+    );
+    expect(load("deepseek", "qwen/qwen3.8-max").model).toBe("qwen/qwen3.8-max");
   });
 
   it("keeps ChatGPT compaction aligned at startup and after model changes", () => {

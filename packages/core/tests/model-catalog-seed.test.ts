@@ -6,12 +6,17 @@ import {
   type CatalogPricing,
 } from "@enduragent/coach-contract/model-catalog";
 import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
-import { LLM_MODEL_CATALOGUE } from "../src/runtime-config.js";
+import {
+  COMPACT_MODEL_DEFAULTS,
+  DEFAULT_MODELS,
+  LLM_MODEL_CATALOGUE,
+  RETIRED_MODEL_REPLACEMENTS,
+} from "../src/runtime-config.js";
 import { MODEL_CATALOG_BASELINE } from "./fixtures/model-catalog-baseline.js";
 
 const MILLION = 1_000_000;
 
-function perMillion(usdPerMillion: number): number {
+function costOfOneMillionTokens(usdPerMillion: number): number {
   return (usdPerMillion / MILLION) * MILLION;
 }
 
@@ -20,12 +25,31 @@ function baselinePricing(pricing: CatalogPricing) {
     ? pricing
     : {
         kind: pricing.kind,
-        input: perMillion(pricing.inputUsdPerMillion),
-        output: perMillion(pricing.outputUsdPerMillion),
-        cacheRead: perMillion(pricing.cacheReadUsdPerMillion),
-        cacheWrite: perMillion(pricing.cacheWriteUsdPerMillion),
+        input: costOfOneMillionTokens(pricing.inputUsdPerMillion),
+        output: costOfOneMillionTokens(pricing.outputUsdPerMillion),
+        cacheRead: costOfOneMillionTokens(pricing.cacheReadUsdPerMillion),
+        cacheWrite: costOfOneMillionTokens(pricing.cacheWriteUsdPerMillion),
       };
 }
+
+function seedModel(provider: string, model: string) {
+  return BUNDLED_MODEL_CATALOG.providers
+    .find((candidate) => candidate.providerId === provider)
+    ?.models.find((candidate) => candidate.modelId === model);
+}
+
+const MEASURED_DEFAULT_PRICES = {
+  "anthropic/claude-sonnet-5-5": [2, 10, 0.1, 2.5],
+  "anthropic/claude-haiku-5-5": [0.5, 2.5, 0.05, 0.625],
+  "openai/gpt-6.2-sol": [4, 15, 0.2, 5],
+  "google/gemini-4-hydrogen": [1.5, 7.5, 0.075, 0],
+  "deepseek/deepseek-flash": [0.3, 1.2, 0.006, 0],
+  "qwen/qwen4-max": [1.5, 4.5, 0.3, 1.5],
+  "minimax/MiniMax-M3": [0.6, 2.4, 0.12, 0],
+  "kimi/kimi-k3.1-pro": [2, 10, 0.2, 2],
+  "zai/glm-5.3": [1.4, 4.4, 0.26, 0],
+  "openrouter/deepseek/deepseek-v4.1-flash-1017": [0.15, 0.6, 0.003, 0],
+} as const;
 
 describe("bundled model catalog seed", () => {
   it("imports the snapshot schema from the built coach-contract export", () => {
@@ -72,6 +96,39 @@ describe("bundled model catalog seed", () => {
           })),
         })),
     ).toEqual(MODEL_CATALOG_BASELINE);
+  });
+
+  it("prices every direct-key default and summariser at the measured provider rate", () => {
+    const keyed = Object.entries({ ...DEFAULT_MODELS }).filter(
+      ([provider]) => !["openai-codex", "claude-cli", "codex-agent"].includes(provider),
+    );
+    const defaults = [...keyed, ["anthropic", COMPACT_MODEL_DEFAULTS.anthropic] as const];
+    const priced = Object.fromEntries(
+      defaults.map(([provider, model]) => {
+        const pricing = seedModel(provider, model)?.pricing;
+        return [
+          `${provider}/${model}`,
+          pricing?.kind === "token-rates"
+            ? [
+                pricing.inputUsdPerMillion,
+                pricing.outputUsdPerMillion,
+                pricing.cacheReadUsdPerMillion,
+                pricing.cacheWriteUsdPerMillion,
+              ]
+            : pricing,
+        ];
+      }),
+    );
+    expect(priced).toEqual(MEASURED_DEFAULT_PRICES);
+  });
+
+  it("replaces each retired model with one the bundled list offers", () => {
+    for (const [provider, replacements] of Object.entries(RETIRED_MODEL_REPLACEMENTS)) {
+      for (const [retired, replacement] of Object.entries(replacements)) {
+        expect(seedModel(provider, retired), `${provider} ${retired}`).toBeUndefined();
+        expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
+      }
+    }
   });
 
   it("contains metadata only", () => {

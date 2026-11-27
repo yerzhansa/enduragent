@@ -32,6 +32,19 @@ export function isModelEnabledForProvider(provider: LlmProvider, model: string):
   return model !== "gpt-6-astra" || (provider !== "openai-codex" && provider !== "codex-agent");
 }
 
+export const RETIRED_MODEL_REPLACEMENTS = {
+  google: { "gemini-3.7-flash": "gemini-3.8-flash" },
+  deepseek: { "deepseek-v4-flash": "deepseek-flash" },
+  minimax: { "MiniMax-M2.7": "MiniMax-M3", "MiniMax-M2.7-highspeed": "MiniMax-M3.1-Flash" },
+  openrouter: { "qwen/qwen3.8-max": "qwen/qwen4-max" },
+} as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string>>>>;
+
+export function currentModelId(provider: LlmProvider, model: string): string {
+  const replacements: Readonly<Record<string, string>> | undefined =
+    RETIRED_MODEL_REPLACEMENTS[provider as keyof typeof RETIRED_MODEL_REPLACEMENTS];
+  return replacements?.[model] ?? model;
+}
+
 export const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-5-5",
   openai: "gpt-6.2-sol",
@@ -364,10 +377,11 @@ function compactModelDefault(provider: LlmProvider): string | undefined {
 function optionalModel(
   patch: NonNullable<RuntimeConfigPatch["llm"]>,
   field: "flushModel" | "compactModel",
+  provider: LlmProvider,
 ): string | null | undefined {
   if (!isSpecified(patch, field)) return undefined;
   const value = patch[field];
-  return value === null ? null : requireString(value, `llm.${field}`);
+  return value === null ? null : currentModelId(provider, requireString(value, `llm.${field}`));
 }
 
 function requireBoolean(value: unknown, name: string): boolean {
@@ -468,7 +482,7 @@ export function resolveRuntimeConfig(
     : (current?.llm.provider ?? "anthropic");
   const providerChanged = current !== undefined && provider !== current.llm.provider;
   const model = isSpecified(llmPatch, "model")
-    ? requireString(llmPatch.model, "llm.model")
+    ? currentModelId(provider, requireString(llmPatch.model, "llm.model"))
     : current !== undefined && !providerChanged
       ? current.llm.model
       : DEFAULT_MODELS[provider];
@@ -516,7 +530,7 @@ export function resolveRuntimeConfig(
       ? current.llm.model
       : DEFAULT_MODELS.openai
     : model;
-  const requestedFlushModel = optionalModel(llmPatch, "flushModel");
+  const requestedFlushModel = optionalModel(llmPatch, "flushModel", provider);
   const flushModel =
     requestedFlushModel === null
       ? undefined
@@ -524,7 +538,7 @@ export function resolveRuntimeConfig(
         (current !== undefined && !providerChanged ? current.llm.flushModel : undefined) ??
         (astra ? backgroundModel : undefined));
 
-  const requestedCompactModel = optionalModel(llmPatch, "compactModel");
+  const requestedCompactModel = optionalModel(llmPatch, "compactModel", provider);
   const compactModel =
     provider === "openai-codex"
       ? model

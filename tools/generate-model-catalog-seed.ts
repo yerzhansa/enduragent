@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ModelCatalogSnapshotSchema } from "../packages/coach-contract/src/model-catalog.js";
 import { LLM_MODEL_CATALOGUE } from "../packages/core/src/runtime-config.js";
@@ -37,12 +39,13 @@ const snapshot = ModelCatalogSnapshotSchema.parse({
   providers,
 });
 
+const oxfmtManifestPath = createRequire(import.meta.url).resolve("oxfmt/package.json");
+const oxfmtManifest = JSON.parse(readFileSync(oxfmtManifestPath, "utf8")) as {
+  bin: { oxfmt: string };
+};
 const formatted = spawnSync(
   process.execPath,
-  [
-    fileURLToPath(new URL("../node_modules/oxfmt/bin/oxfmt", import.meta.url)),
-    `--stdin-filepath=${outputFile}`,
-  ],
+  [join(dirname(oxfmtManifestPath), oxfmtManifest.bin.oxfmt), `--stdin-filepath=${outputFile}`],
   {
     input: `export const GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(snapshot, null, 2)} as const;\n`,
     encoding: "utf8",
