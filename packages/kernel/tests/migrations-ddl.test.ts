@@ -55,6 +55,9 @@ const EXPECTED_FULL_TABLES = [
   "plan_race_outcome",
   "plan_replacement",
   "plan_settings",
+  "plan_icu_copy",
+  "plan_week_delivery",
+  "planning_calendar_setting",
   "plan_source_request",
   "plan_weekly_review",
   "plan_workout",
@@ -235,6 +238,7 @@ describe("001_init migration", () => {
       { version: 32, name: "032_planning_authority" },
       { version: 33, name: "033_athlete_language" },
       { version: 34, name: "034_planning_pending_checks" },
+      { version: 35, name: "035_plan_calendar_mirror" },
     ]);
     expect(typeof MIGRATIONS[0].sql).toBe("string");
     expect(MIGRATIONS[0].sql).toContain("CREATE TABLE athlete");
@@ -326,7 +330,7 @@ describe("001_init migration", () => {
     expect(MIGRATIONS[2]!.sql).toBe(MIGRATION_003);
   });
 
-  it("applies all migrations with exactly eighty-three tables and no foreign-key violations", () => {
+  it("applies all migrations with exactly eighty-six tables and no foreign-key violations", () => {
     db = openFull();
     const names = (
       db
@@ -336,7 +340,7 @@ describe("001_init migration", () => {
       .map((row) => row.name)
       .sort();
     expect(names).toEqual([...EXPECTED_FULL_TABLES].sort());
-    expect(names).toHaveLength(83);
+    expect(names).toHaveLength(86);
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 
@@ -890,6 +894,9 @@ describe("001_init migration", () => {
       { table: "plan_race_outcome", orderBy: "plan_id" },
       { table: "plan_replacement", orderBy: "previous_plan_id, created_at_ms, id" },
       { table: "plan_settings", orderBy: "plan_id" },
+      { table: "plan_icu_copy", orderBy: "plan_id, date_key, plan_workout_id" },
+      { table: "plan_week_delivery", orderBy: "plan_id" },
+      { table: "planning_calendar_setting", orderBy: "id" },
       { table: "plan_source_request", orderBy: "conversation_id, created_at_ms, id" },
       { table: "plan_workout", orderBy: "plan_id, date_key, id" },
       { table: "plan_workout_drift", orderBy: "plan_id, detected_at_ms, id" },
@@ -917,7 +924,7 @@ describe("001_init migration", () => {
       { table: "workout", orderBy: "workout_key" },
       { table: "zone_set_history", orderBy: "id" },
     ]);
-    expect(DUMP_TABLES).toHaveLength(70);
+    expect(DUMP_TABLES).toHaveLength(73);
     expect(DUMP_TABLES.map(({ table }) => String(table))).not.toContain("source_watermark");
     expect(DUMP_TABLES.map(({ table }) => String(table))).not.toContain("sync_operation");
     expect(DUMP_TABLES.map(({ table }) => String(table))).not.toContain("sync_failure");
@@ -974,7 +981,7 @@ candidate_id,artifact_kind,artifact_id,member_id,source_kind,source_session_seq,
     }>;
     expect(tables.find((row) => row.name === "sync_failure")?.strict).toBe(1);
     expect(db.prepare("PRAGMA foreign_key_list(sync_failure)").all()).toEqual([]);
-    expect(DUMP_TABLES).toHaveLength(70);
+    expect(DUMP_TABLES).toHaveLength(73);
     expect(DERIVED_TABLES).toHaveLength(12);
     expect(PURE_AUTHORED_TABLES).not.toContain("sync_failure");
     expect(MIXED_AUTHORED_TABLES).not.toContain("sync_failure");
@@ -1033,7 +1040,7 @@ candidate_id,artifact_kind,artifact_id,member_id,source_kind,source_session_seq,
       expect(tables.find((row) => row.name === name)?.strict).toBe(1);
     }
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-    expect(DUMP_TABLES).toHaveLength(70);
+    expect(DUMP_TABLES).toHaveLength(73);
     expect(DUMP_TABLES.map(({ table }) => table)).not.toContain("analytics_curve_refresh_failure");
     expect(DERIVED_TABLES).not.toContain("analytics_curve_generation");
   });
@@ -1373,7 +1380,7 @@ candidate_id,artifact_kind,artifact_id,member_id,source_kind,source_session_seq,
     expect(() => db!.prepare("DELETE FROM training_history_backfill_checkpoint").run()).toThrow(
       /append-only/,
     );
-    expect(DUMP_TABLES).toHaveLength(70);
+    expect(DUMP_TABLES).toHaveLength(73);
     expect(DERIVED_TABLES).toHaveLength(12);
   });
 });

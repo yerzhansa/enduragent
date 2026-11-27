@@ -7,6 +7,7 @@ import type {
   TurnEvent,
 } from "@enduragent/coach-contract";
 import {
+  createPlanCalendarMirrorRepository,
   createPlanConversationRepository,
   createPlanCreationRepository,
   createPlanReconciliationRepository,
@@ -42,6 +43,14 @@ import {
   type PlanFtpSnapshot,
   type PlanMirrorCalendarPort,
 } from "@enduragent/engine";
+import {
+  firstChangeSetWeeks,
+  mirrorPlanCalendar,
+  readIcuCopies,
+  saveWeekDelivery,
+  storedIcuCopy,
+} from "@enduragent/engine/calendar";
+import { createMemoryPlanCalendar } from "../../../apps/desktop/tests/helpers/plan-calendar-fake.js";
 import { createPlanningOperations, type PlanDraftBuilder } from "../src/planning-operations.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import type { PlanRaceCourseAdapter } from "../src/planning-race-course.js";
@@ -4563,6 +4572,76 @@ describe("Plan operations", () => {
       status: "completed",
       state: { lifecycle: "ended", scenarioId: "PL-S089" },
     });
+  });
+
+  it("refuses the old End and leaves a Chat Plan's intervals.icu workouts and edits alone", async () => {
+    const planId = `${"0".repeat(25)}F`;
+    const today = 20260826;
+    const activePlan = { ...plan(planId, 10), status: "active" as const };
+    const workouts: PlanWorkoutRecord[] = [
+      ["G", 20260827],
+      ["H", 20260828],
+    ].map(([suffix, dateKey]) => ({
+      id: `${"0".repeat(25)}${suffix}`,
+      planId,
+      dateKey: Number(dateKey),
+      sport: "cycling",
+      name: `Endurance ${suffix}`,
+      durationS: 3_600,
+      structureJson: "{}",
+      origin: "coach",
+      deviceId: "device-1",
+      hlcPhysicalMs: 10,
+      hlcCounter: 0,
+    }));
+    const plans = createPlanRepository(store);
+    await plans.replace(activePlan, workouts);
+    await store.run(
+      `INSERT INTO planning_plan (
+        plan_id,status,version,current_revision_number,activated_at_ms,updated_at_ms,
+        device_id,hlc_physical_ms,hlc_counter
+      ) VALUES (?,'active',1,1,10,10,'device-1',10,0)`,
+      [planId],
+    );
+    const calendar = createMemoryPlanCalendar();
+    const mirror = createPlanCalendarMirrorRepository(store);
+    await saveWeekDelivery(
+      mirror,
+      planId,
+      {
+        kind: "approved",
+        firstSetWeeks: firstChangeSetWeeks(activePlan, today),
+        approvedWeeks: [],
+      },
+      10,
+    );
+    const input = { plan: activePlan, workouts, todayDateKey: today, firstEligibleDateKey: today };
+    const mirrorDeps = { calendar: calendar.mirror, mirror, now: () => 10 };
+    await mirrorPlanCalendar(input, mirrorDeps);
+    const edited = calendar.events.find((event) => event.dateKey === 20260828);
+    if (edited === undefined) throw new Error("Expected an event");
+    calendar.editByAthlete(edited.id, { name: "Mine now" });
+    await mirrorPlanCalendar(input, mirrorDeps);
+    const operations = createPlanningOperations(
+      { context, engine: engine(), identity: identity() },
+      { plans, calendar, todayDateKey: () => today },
+    );
+    const before = calendar.events.map((event) => ({ ...event }));
+    for (const mode of ["cleanup", "verify"] as const) {
+      await expect(
+        operations.executePlanTransition?.({
+          transitionId: "PL-T24",
+          commandId: `command-end-${mode}`,
+          planId,
+          mode,
+        }),
+      ).resolves.toMatchObject({ status: "rejected", error: { code: "conflict" } });
+    }
+    expect(calendar.events).toEqual(before);
+    expect(calendar.deletes).toEqual([]);
+    expect(
+      storedIcuCopy((await readIcuCopies(mirror, planId)).get(`${"0".repeat(25)}H`)).kind,
+    ).toBe("changed-in-icu");
   });
 
   it("ends naturally after the target date and persists a separate completed race outcome", async () => {

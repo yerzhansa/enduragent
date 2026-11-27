@@ -817,6 +817,7 @@
         "connected": "Ligado · de onde vêm as tuas voltas",
         "connectedAs": "Ligado como {{name}} · de onde vêm as tuas voltas",
         "missing": "Liga uma conta ou importa ficheiros de voltas.",
+        "notWorking": "Sessão iniciada, mas ainda não está a funcionar",
         "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar.",
         "savedRides": "Voltas guardadas em {{computer}} · liga uma conta para sincronizar as novas"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Verificação dos dados de treino concluída. O {{source}} não permite que ferramentas de IA de terceiros usem dados da sua API, pelo que uma atividade não foi incluída.",
         "publishedRestricted_other": "Verificação dos dados de treino concluída. O {{source}} não permite que ferramentas de IA de terceiros usem dados da sua API, pelo que {{formattedCount}} atividades não foram incluídas.",
         "queued": "Sincronização em fila de espera.",
-        "running": "A sincronizar dados de treino…"
+        "running": "A sincronizar dados de treino…",
+        "signInNotInUse": "O {{intervals}} não está ligado neste momento, por isso nada foi sincronizado. {{product}} vai tentar novamente quando a tua rede voltar."
       },
       "restriction": {
         "fixAction": "· Como resolver",

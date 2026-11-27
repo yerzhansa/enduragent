@@ -67,6 +67,9 @@ export const DUMP_TABLES = [
   { table: "plan_race_outcome", orderBy: "plan_id" },
   { table: "plan_replacement", orderBy: "previous_plan_id, created_at_ms, id" },
   { table: "plan_settings", orderBy: "plan_id" },
+  { table: "plan_icu_copy", orderBy: "plan_id, date_key, plan_workout_id" },
+  { table: "plan_week_delivery", orderBy: "plan_id" },
+  { table: "planning_calendar_setting", orderBy: "id" },
   { table: "plan_source_request", orderBy: "conversation_id, created_at_ms, id" },
   { table: "plan_workout", orderBy: "plan_id, date_key, id" },
   { table: "plan_workout_drift", orderBy: "plan_id, detected_at_ms, id" },
@@ -95,12 +98,10 @@ export const DUMP_TABLES = [
   { table: "zone_set_history", orderBy: "id" },
 ] as const;
 
-/** Pure: already-ordered rows → the canonical section for one table (header line + one line per row). */
 export function canonicalizeTable(table: string, rows: readonly Row[]): string {
   return [`# ${table}`, ...rows.map(canonicalRowJson)].join("\n");
 }
 
-/** Async: SELECT * ORDER BY <key> per table, canonicalize, concatenate. */
 export async function dumpStore(store: SqlStore): Promise<string> {
   const sections: string[] = [];
   for (const { table, orderBy } of DUMP_TABLES) {

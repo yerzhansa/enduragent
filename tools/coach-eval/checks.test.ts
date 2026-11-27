@@ -17,15 +17,17 @@ import {
   type ToolAttempt,
   type TurnObservation,
 } from "./checks.js";
-import { DEFAULT_MAX_USD, RunStoppedError, SpendMeter, lineCost, parseRunArgs } from "./spend.js";
+import { DEFAULT_JUDGE_MODEL, DEFAULT_MAX_USD, RunStoppedError, SpendMeter, lineCost, parseRunArgs } from "./spend.js";
 
 function turn(overrides: Partial<TurnObservation> = {}): TurnObservation {
   return {
     reply: "",
     offeredTools: [],
     attempts: [],
+    results: [],
     proposals: [],
     pendingProposal: false,
+    approvalCodes: [],
     writes: [],
     ...overrides,
   };
@@ -257,14 +259,20 @@ describe("run arguments", () => {
   it("defaults the spend limit to 10 dollars", () => {
     expect(parseRunArgs(["--model", "deepseek/deepseek-v4-flash"])).toEqual({
       ok: true,
-      options: { model: "deepseek/deepseek-v4-flash", maxUsd: DEFAULT_MAX_USD, caseIds: [] },
+      options: {
+        mode: "live",
+        model: "deepseek/deepseek-v4-flash",
+        judgeModel: DEFAULT_JUDGE_MODEL,
+        maxUsd: DEFAULT_MAX_USD,
+        caseIds: [],
+      },
     });
   });
 
   it("accepts a lower limit and repeated case ids", () => {
     expect(parseRunArgs(["--", "--model", "m", "--max-usd", "2", "--case", "status", "--case", "review-deep"])).toEqual({
       ok: true,
-      options: { model: "m", maxUsd: 2, caseIds: ["status", "review-deep"] },
+      options: { mode: "live", model: "m", judgeModel: DEFAULT_JUDGE_MODEL, maxUsd: 2, caseIds: ["status", "review-deep"] },
     });
   });
 

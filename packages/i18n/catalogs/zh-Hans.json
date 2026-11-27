@@ -814,6 +814,7 @@
         "connected": "已连接 · 骑行数据来源",
         "connectedAs": "已以 {{name}} 身份连接 · 骑行数据来源",
         "missing": "请连接或导入骑行文件。",
+        "notWorking": "已登录，但尚未生效",
         "rejected": "{{intervals}} 不再接受此登录。请重新登录以继续同步。",
         "savedRides": "骑行已保存在 {{computer}} 上 · 连接后可同步新的骑行"
       },
@@ -883,7 +884,8 @@
         "published": "训练数据检查已完成。",
         "publishedRestricted_other": "训练数据检查已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "queued": "同步已加入队列。",
-        "running": "正在同步训练数据…"
+        "running": "正在同步训练数据…",
+        "signInNotInUse": "{{intervals}} 当前未连接，因此没有同步任何内容。网络恢复后，{{product}} 会再次尝试。"
       },
       "restriction": {
         "fixAction": "· 如何解决",

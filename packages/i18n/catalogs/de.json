@@ -817,6 +817,7 @@
         "connected": "Verbunden · Quelle deiner Fahrten",
         "connectedAs": "Verbunden als {{name}} · Quelle deiner Fahrten",
         "missing": "Verbinden oder Fahrtdateien importieren.",
+        "notWorking": "Angemeldet, funktioniert aber noch nicht",
         "rejected": "{{intervals}} akzeptiert die Anmeldung nicht mehr. Melde dich erneut an, damit weiter synchronisiert wird.",
         "savedRides": "Fahrten auf {{computer}} gespeichert · verbinde, um neue zu synchronisieren"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher ist eine Aktivität nicht enthalten.",
         "publishedRestricted_other": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher sind {{formattedCount}} Aktivitäten nicht enthalten.",
         "queued": "Synchronisierung vorgemerkt.",
-        "running": "Trainingsdaten werden synchronisiert…"
+        "running": "Trainingsdaten werden synchronisiert…",
+        "signInNotInUse": "{{intervals}} ist gerade nicht verbunden, deshalb wurde nichts synchronisiert. {{product}} versucht es erneut, sobald dein Netzwerk wieder da ist."
       },
       "restriction": {
         "fixAction": "· So lässt sich das beheben",

@@ -1,9 +1,11 @@
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type {
   PlanMirrorCalendarPort,
+  PlanMirrorCreateInput,
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
+import { icuEventType, type CalendarMirrorPort } from "@enduragent/engine/calendar";
 
 function clientValue<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error("Intervals calendar request failed.", { cause: result.error });
@@ -21,24 +23,10 @@ function dateKey(value: string): number {
   return parsed;
 }
 
-function eventType(sport: string): NonNullable<EventInput["type"]> {
-  const normalized = sport.toLowerCase();
-  if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("ride"))
-    return "Ride";
-  if (normalized.includes("run")) return "Run";
-  if (normalized.includes("swim")) return "Swim";
-  return "Workout";
-}
-
-function eventContent(structureJson: string): Pick<EventInput, "description" | "workoutDoc"> {
+function eventContent(structureJson: string): Pick<EventInput, "description"> {
   try {
     const value = JSON.parse(structureJson) as Record<string, unknown>;
-    return {
-      ...(typeof value.description === "string" ? { description: value.description } : {}),
-      ...(typeof value.workoutDoc === "object" && value.workoutDoc !== null
-        ? { workoutDoc: value.workoutDoc as NonNullable<EventInput["workoutDoc"]> }
-        : {}),
-    };
+    return typeof value.description === "string" ? { description: value.description } : {};
   } catch {
     return {};
   }
@@ -47,7 +35,6 @@ function eventContent(structureJson: string): Pick<EventInput, "description" | "
 function mappedEvent(event: {
   readonly id: number;
   readonly startDateLocal: string;
-  readonly uid?: string | null;
   readonly category?: string | null;
   readonly name?: string | null;
   readonly movingTime?: number | null;
@@ -58,11 +45,12 @@ function mappedEvent(event: {
   return {
     id: event.id,
     dateKey: dateKey(event.startDateLocal),
-    externalId: event.uid ?? null,
+    externalId: typeof event.externalId === "string" ? event.externalId : null,
     ...(event.category === undefined ? {} : { category: event.category }),
     ...(event.name === undefined ? {} : { name: event.name }),
     ...(event.movingTime === undefined ? {} : { durationS: event.movingTime }),
     ...(event.description === undefined ? {} : { description: event.description }),
+    ...(typeof event.type === "string" ? { type: event.type } : {}),
     ...(event.workoutDoc === undefined
       ? {}
       : {
@@ -87,15 +75,88 @@ function updateBody(input: PlanMirrorUpdateInput): EventInput {
   };
 }
 
-export function createPlanMirrorCalendarAdapter(
+function mirrorUpdateBody(input: PlanMirrorUpdateInput): EventInput {
+  return {
+    ...updateBody(input),
+    ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
+    description: eventContent(input.structureJson).description ?? "",
+  };
+}
+
+function createBody(input: PlanMirrorCreateInput): EventInput {
+  return {
+    startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
+    category: "WORKOUT",
+    name: input.name,
+    type: icuEventType(input.sport),
+    externalId: input.externalId,
+    ...(input.durationS === null ? {} : { movingTime: input.durationS }),
+    ...eventContent(input.structureJson),
+  };
+}
+
+function missing(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "kind" in error &&
+    (error.kind === "NotFound" || ("status" in error && error.status === 404))
+  );
+}
+
+export function createCalendarMirrorAdapter(
   readClient: () => IntervalsClient | null,
-): PlanMirrorCalendarPort {
+): CalendarMirrorPort {
   const requiredClient = (): IntervalsClient => {
     const client = readClient();
     if (client === null) throw new Error("Intervals credentials are required.");
     return client;
   };
-  const adapter: PlanMirrorCalendarPort = {
+  const adapter: CalendarMirrorPort = {
+    async listEvents(input) {
+      const events = clientValue(
+        await requiredClient().events.list({
+          oldest: dateText(input.startDateKey),
+          newest: dateText(input.endDateKey),
+          category: ["WORKOUT"],
+        }),
+      );
+      return events.map((event) => mappedEvent(event));
+    },
+    async readEvent(input) {
+      const result = await requiredClient().events.get(input.eventId);
+      if (!result.ok && missing(result.error)) return null;
+      return mappedEvent(clientValue(result));
+    },
+    async createEvent(input) {
+      return mappedEvent(clientValue(await requiredClient().events.create(createBody(input))));
+    },
+    async updateEvent(input) {
+      return mappedEvent(
+        clientValue(await requiredClient().events.update(input.eventId, mirrorUpdateBody(input))),
+      );
+    },
+    async deleteEvent(input) {
+      clientValue(await requiredClient().events.delete(input.eventId));
+    },
+  };
+  return Object.freeze(adapter);
+}
+
+export interface PlanMirrorCalendarAdapter extends PlanMirrorCalendarPort {
+  readonly mirror: CalendarMirrorPort;
+}
+
+export function createPlanMirrorCalendarAdapter(
+  readClient: () => IntervalsClient | null,
+): PlanMirrorCalendarAdapter {
+  const requiredClient = (): IntervalsClient => {
+    const client = readClient();
+    if (client === null) throw new Error("Intervals credentials are required.");
+    return client;
+  };
+  const adapter: PlanMirrorCalendarAdapter = {
+    mirror: createCalendarMirrorAdapter(readClient),
     async listEvents(input) {
       const events = clientValue(
         await requiredClient().events.list({
@@ -107,20 +168,7 @@ export function createPlanMirrorCalendarAdapter(
       return events.map((event) => mappedEvent(event));
     },
     async createEvent(input) {
-      return clientValue(
-        await requiredClient().events.create(
-          {
-            startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
-            category: "WORKOUT",
-            name: input.name,
-            type: eventType(input.sport),
-            uid: input.externalId,
-            ...(input.durationS === null ? {} : { movingTime: input.durationS }),
-            ...eventContent(input.structureJson),
-          },
-          { upsertOnUid: true },
-        ),
-      );
+      return clientValue(await requiredClient().events.create(createBody(input)));
     },
     async deleteEvent(input) {
       return clientValue(await requiredClient().events.delete(input.eventId));

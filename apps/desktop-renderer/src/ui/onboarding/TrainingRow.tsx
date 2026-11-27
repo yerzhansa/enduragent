@@ -46,7 +46,13 @@ import { SETUP_LINK_BUTTON } from "./SetupCard";
 import { SetupError, SetupRow, SetupSubPanel, type SetupRowStatus } from "./SetupRow";
 import type { SetupPlacement } from "./OnboardingWizard";
 
-type TrainingRowState = "checking" | "missing" | "saved-rides" | "connected" | "rejected";
+type TrainingRowState =
+  | "checking"
+  | "missing"
+  | "saved-rides"
+  | "connected"
+  | "not-working"
+  | "rejected";
 
 type TrainingRowAction = "connect" | "disconnect" | "sign-in-again";
 
@@ -72,6 +78,11 @@ const TRAINING_ROW_STATES: Readonly<
     subtitle: TRAINING_ROW_SUBTITLES.connected,
     actions: ["disconnect"],
   },
+  "not-working": {
+    disc: "attention",
+    subtitle: TRAINING_ROW_SUBTITLES.notWorking,
+    actions: ["disconnect"],
+  },
   rejected: {
     disc: "attention",
     subtitle: TRAINING_ROW_SUBTITLES.rejected,
@@ -82,12 +93,13 @@ const TRAINING_ROW_STATES: Readonly<
 function trainingRowState(input: {
   readonly statusKnown: boolean;
   readonly connected: boolean;
+  readonly signInWorking: boolean;
   readonly rejected: boolean;
   readonly trainingDataReady: boolean;
 }): TrainingRowState {
   if (!input.statusKnown) return "checking";
   if (input.rejected) return "rejected";
-  if (input.connected) return "connected";
+  if (input.connected) return input.signInWorking ? "connected" : "not-working";
   return input.trainingDataReady ? "saved-rides" : "missing";
 }
 
@@ -122,6 +134,7 @@ export function TrainingRow(props: {
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const importing = surface.rideImport.status === "running";
   const connected = wizard.credentialStatus["intervals-icu"] === "configured";
+  const signInWorking = wizard.credentialRuntimeStatus["intervals-icu"] === "active";
   const signInRejected = useHeldWhile(
     useEnduragentStore(intervalsSignInNeedsRenewal),
     credentialSettings.status === "deleting",
@@ -181,6 +194,7 @@ export function TrainingRow(props: {
   const rowState = trainingRowState({
     statusKnown: setupStatusKnown(surface),
     connected,
+    signInWorking,
     rejected,
     trainingDataReady: surface.readiness.trainingData,
   });

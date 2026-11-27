@@ -17,6 +17,11 @@ import {
 } from "./engine.js";
 import { TurnEventSchema, type TurnEvent } from "./turn-event.js";
 import { PlatformAbsolutePathSchema } from "./platform-path.js";
+import {
+  PlanCalendarRpcParamsSchema,
+  PlanCalendarRpcResultSchema,
+  type PlanCalendarRpcService,
+} from "./plan-calendar.js";
 import { PlanHandoffSuggestionSchema, PlanReferenceSelectionSchema } from "./plan-chat-card.js";
 import {
   AdmitPastedChatAttachmentRequestSchema,
@@ -295,6 +300,7 @@ export const COACH_RPC_METHOD_NAMES = [
   "plan.list",
   "plan.close",
   "plan.history",
+  "plan.calendar",
   "getActivityAnalysis",
   "exportTrainingFile",
   "importFiles",
@@ -1326,10 +1332,20 @@ export type CoachRpcService = CoachEngine &
   PlanningRequestOperations &
   PlanCreationOperations &
   PlanChangeOperations &
+  PlanCalendarRpcService &
   SpendOperations &
   CoachSelfTestOperations &
   TelegramControlOperations &
   PlanningOperations;
+
+function requestEnvelope<Method extends string, Params extends z.ZodType>(
+  method: Method,
+  params: Params,
+) {
+  return z
+    .object({ jsonrpc: z.literal("2.0"), id: JsonRpcIdSchema, method: z.literal(method), params })
+    .strict();
+}
 
 export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
   z
@@ -1540,62 +1556,14 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       params: GetArchivedTranscriptPageRpcParamsSchema,
     })
     .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("getAthleteState"),
-      params: EmptyRpcParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("getPlanningReadModel"),
-      params: GetPlanningReadModelRpcParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("plan.list"),
-      params: ListPlansParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("plan.close"),
-      params: PlanCloseRpcParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("plan.history"),
-      params: PlanHistoryParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("getActivityAnalysis"),
-      params: ActivityAnalysisRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("exportTrainingFile"),
-      params: ExportTrainingFileRpcParamsSchema,
-    })
-    .strict(),
+  requestEnvelope("getAthleteState", EmptyRpcParamsSchema),
+  requestEnvelope("getPlanningReadModel", GetPlanningReadModelRpcParamsSchema),
+  requestEnvelope("plan.list", ListPlansParamsSchema),
+  requestEnvelope("plan.close", PlanCloseRpcParamsSchema),
+  requestEnvelope("plan.history", PlanHistoryParamsSchema),
+  requestEnvelope("plan.calendar", PlanCalendarRpcParamsSchema),
+  requestEnvelope("getActivityAnalysis", ActivityAnalysisRequestSchema),
+  requestEnvelope("exportTrainingFile", ExportTrainingFileRpcParamsSchema),
   z
     .object({
       jsonrpc: z.literal("2.0"),
@@ -2276,6 +2244,12 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "plan.history",
     requestSchema: PlanHistoryParamsSchema,
     responseSchema: PlanHistoryResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan.calendar": {
+    wireName: "plan.calendar",
+    requestSchema: PlanCalendarRpcParamsSchema,
+    responseSchema: PlanCalendarRpcResultSchema,
     eventSchema: NoRpcEventSchema,
   },
   getActivityAnalysis: {

@@ -584,6 +584,14 @@ async function planCalendarFixture(credentials: {
     incumbent: null,
   });
   if (activated.planId === null) throw new Error("Expected active Plan");
+  await expect(
+    lifecycle.operations["plan.calendar"]({
+      action: "approve-weeks",
+      planId: activated.planId,
+      scope: { kind: "first-weeks" },
+    }),
+  ).resolves.toMatchObject({ status: "approved" });
+  await created.value.idle();
   return {
     lifecycle,
     requests,
@@ -2233,6 +2241,7 @@ describe("local coach composition", () => {
     for (let poll = 0; poll < 5; poll += 1) await fixture.listPlans();
     expect(fixture.requests).toHaveLength(1);
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "failed", failure_count: 1 },
     ]);
     await expect(fixture.listPlans()).resolves.toMatchObject({
@@ -2247,6 +2256,7 @@ describe("local coach composition", () => {
       path: "/api/v1/athlete/synthetic/events",
     });
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "verified", failure_count: 1 },
     ]);
     await expect(fixture.listPlans()).resolves.toMatchObject({
@@ -2269,6 +2279,7 @@ describe("local coach composition", () => {
       })),
     );
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "failed", failure_count: 5 },
     ]);
     await fixture.lifecycle.close();

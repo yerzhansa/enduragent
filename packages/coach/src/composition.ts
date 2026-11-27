@@ -119,16 +119,10 @@ import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
   type CoachEngine,
-  type CoachOperations,
   type ConfigureRuntimeRpcParams,
   type ConfigureRuntimeRpcRefusalReason,
   type GetRuntimeConfigRpcResult,
-  type PlanningReadOperations,
   type CreatePlanningRequestPayload,
-  type PlanCreationOperations,
-  type PlanChangeOperations,
-  type PlanningRequestOperations,
-  type PlanningOperations,
   type VerifyIntervalsCredentialRpcParams,
   type VerifyIntervalsCredentialRpcResult,
 } from "@enduragent/coach-contract";
@@ -205,6 +199,8 @@ import {
 import { createTrainingExportService } from "./training-export.js";
 import { createPlanningOperations } from "./planning-operations.js";
 import { createCyclingPlanDraftBuilder } from "./cycling-plan-draft-builder.js";
+import { createPlanCalendarOperations } from "./plan-calendar-operations.js";
+import type { LocalCoachOperations } from "./composition-operations.js";
 import { createPlanMirrorCalendarAdapter } from "./planning-calendar.js";
 import { createNodePlanRaceCourseAdapter } from "./planning-race-course.js";
 import { serializeBoundaryError } from "./daemon/error-boundary.js";
@@ -236,12 +232,7 @@ interface OAuthCredential extends StoredProfile {
 export interface LocalCoachComposition {
   readonly language: CoachLanguage;
   readonly engine: CoachEngine;
-  readonly operations: CoachOperations &
-    PlanningReadOperations &
-    PlanningRequestOperations &
-    PlanCreationOperations &
-    PlanChangeOperations &
-    PlanningOperations;
+  readonly operations: LocalCoachOperations;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
   startInitialRefresh(): Promise<void>;
@@ -2285,12 +2276,15 @@ export async function createLocalCoachComposition(
         activityAnalysis.getActivityAnalysis(request, signal),
       exportTrainingFile: (request, signal) => trainingExport.export(request, signal),
       ...planningRequestOperations,
-      "plan.list": async (params) => {
-        const result = await planCreationOperations["plan.list"](params);
-        if (!closing) void drain.kick();
-        return result;
-      },
+      "plan.list": kickAfter(planCreationOperations["plan.list"]),
       "plan.close": kickAfter(planCreationOperations["plan.close"]),
+      "plan.calendar": kickAfter(
+        createPlanCalendarOperations({
+          store: input.context.store,
+          todayDateKey: planningDateKey,
+          now,
+        })["plan.calendar"],
+      ),
       ...planChangeOperations,
       "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
       "plan.history": planCreationOperations["plan.history"],
@@ -2300,12 +2294,7 @@ export async function createLocalCoachComposition(
       "plan_creation.discard": planCreationOperations["plan_creation.discard"],
       "plan_creation.activate": kickAfter(planCreationOperations["plan_creation.activate"]),
       ...planningOperations,
-    } satisfies CoachOperations &
-      PlanningReadOperations &
-      PlanningRequestOperations &
-      PlanCreationOperations &
-      PlanChangeOperations &
-      PlanningOperations;
+    } satisfies LocalCoachOperations;
     return {
       language: coachLanguage,
       engine: reconfigurable.engine,

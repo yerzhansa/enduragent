@@ -1,5 +1,43 @@
 # @enduragent/desktop-renderer
 
+## 0.5.0
+
+### Minor Changes
+
+- b0c88aa: User-facing: You can now connect OpenRouter by signing in through your browser instead of pasting a key. Pasting an OpenRouter key still works, and Setup tells you when your OpenRouter account still needs credits.
+
+  Setup and Settings gain an OpenRouter lane next to ChatGPT subscription. Sign-in uses OpenRouter's PKCE flow with a loopback callback on 127.0.0.1, or a code copied by hand when the browser cannot hand back. The key goes into the existing `openrouter` vault slot through the same write as a pasted key, and only an operation id, a phase, a closed refusal or the credit status reaches the renderer. The credit status comes from `is_free_tier` on `GET /api/v1/key` and is never stored. Intervals.icu now shares the loopback sign-in module in core.
+
+- 0eb83f7: User-facing: When your OpenRouter account runs out of credits, Chat now says so and offers an Add credits button that opens OpenRouter's credits page. Your message stays in Chat, so you can send it again once you have added credits.
+
+  Core classifies an HTTP 402, or OpenRouter's mid-stream `{ code: 402 }` error part, as the new `payment_required` failure ahead of the message-text heuristics. The engine turns it into the new `openrouter-credits` error kind only when the chat model runs on OpenRouter; a 402 from any other provider, and Telegram and the terminal, keep the generic message. The turn is not retried. Chat shows the message under the kept athlete message with Retry, and Add credits calls the existing main-process `openOpenRouterPage("credits")` bridge, so the renderer never builds a URL. The kind lives only on the in-memory turn, so after a relaunch the failed message shows the usual Retry without the credits text.
+
+### Patch Changes
+
+- 2cbc4a5: User-facing: The Model list in Setup and Settings now shows every model's full name, and the check mark next to the selected model no longer covers its name.
+
+  The open model list now grows to fit its longest name instead of matching its button's width, stays inside the window, and the button keeps its width.
+
+- aef6b47: User-facing: Moving to another ride while its analysis is still loading no longer interrupts a sync that is running or cuts off the coach's reply.
+
+  The ride analysis passed an abort signal to `getActivityAnalysis`, and the coach client closes the window's whole shared connection on any caller's abort, so every other call on it failed. The analysis no longer passes a signal; a superseded load is dropped by its generation when its answer arrives. The client's abort behavior is unchanged.
+
+- b0c88aa: User-facing: Settings now shows your new coach route and the Delete button for a newly connected AI provider right away, without leaving Settings and coming back.
+
+  Every successful provider connection in Setup, pasted key, browser sign-in or reactivation, now refreshes the open Settings coach and credential panes in place, even when the Setup status refresh fails. The Coach pane keeps its current values until the new route arrives, keeps an unsaved model draft, and reloads after Review setup closed it.
+
+- 78ecb9c: User-facing: When your rides come from imported ride files or are already saved on your computer, the Intervals.icu row in Setup now shows a green check and says your rides are saved, matching the "2 of 2 required ready" badge. Connect stays there if you want to sync new rides from Intervals.icu.
+
+  The Setup training row now reads the same training-data readiness that the badge and Start coaching use. Without an Intervals.icu connection but with imported or kept rides, it shows a ready disc, a new `setup.training.subtitle.savedRides` subtitle (translated for every catalog), and keeps the Connect action.
+
+- Updated dependencies [c404a91]
+- Updated dependencies [b0c88aa]
+- Updated dependencies [0eb83f7]
+- Updated dependencies [78ecb9c]
+  - @enduragent/coach-client@0.1.8
+  - @enduragent/i18n@0.3.0
+  - @enduragent/coach-contract@0.2.0
+
 ## 0.4.1
 
 ### Patch Changes

@@ -858,6 +858,33 @@ describe("Plan reconciler", () => {
     expect(value.calendar.creates).toEqual([]);
   });
 
+  it("verifies a described event whose provider duration is its own count of the steps", async () => {
+    const value = harness();
+    const target = {
+      ...workout("01K00000000000000000000101", 20260825),
+      durationS: 3_725,
+      structureJson: JSON.stringify({ description: "- 10m 45%" }),
+    };
+    value.calendar.events.push({
+      id: 42,
+      dateKey: target.dateKey,
+      externalId: planMirrorExternalId(PLAN_ID, target.id),
+      name: target.name,
+      durationS: 3_726,
+      description: "- 10m 45%",
+      workoutDoc: { duration: 3_726, steps: [{ duration: 600 }] },
+    });
+
+    const result = await reconcileActivePlanWindow(
+      { plan: plan(), workouts: [target], todayDateKey: 20260825 },
+      value.deps,
+    );
+
+    expect(result).toMatchObject({ state: "reconcile-verified", failed: 0 });
+    expect(value.calendar.updates).toEqual([]);
+    expect(value.calendar.creates).toEqual([]);
+  });
+
   it("updates a sparse verified event when the expected workout content changes", async () => {
     const value = harness();
     const target = workout("01K00000000000000000000101", 20260827);

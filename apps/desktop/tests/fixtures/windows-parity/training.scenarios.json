@@ -41,12 +41,13 @@
     {
       "id": "training.setup.readiness-sources",
       "surface": "training-setup",
-      "expected": "Training-data readiness is satisfied by an active Intervals.icu connection or durable local rides, and the visible Intervals.icu row reads ready with saved rides while it still offers Connect.",
+      "expected": "Training-data readiness is satisfied by an active Intervals.icu connection or durable local rides, and the visible Intervals.icu row reads ready with saved rides while it still offers Connect, and needs attention when its saved sign-in is not active.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/setup-readiness.test.tsx > accepts durable local rides without a training credential",
         "apps/desktop-renderer/tests/setup-readiness.test.tsx > re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady and durable data is $durableTrainingData",
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > shows saved rides as ready on the still-connectable Intervals row"
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > shows saved rides as ready on the still-connectable Intervals row",
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > marks a saved Intervals sign-in that is not working as needing attention (%s)"
       ]
     },
     {

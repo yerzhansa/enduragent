@@ -53,7 +53,10 @@ export interface PlanWorkoutMatchRepository {
     readonly hlcPhysicalMs: number;
     readonly hlcCounter: number;
   }): Promise<PlanWorkoutMatchRecord>;
-  listActivities(startDateKey: number, endDateKey: number): Promise<readonly PlanActivityObservation[]>;
+  listActivities(
+    startDateKey: number,
+    endDateKey: number,
+  ): Promise<readonly PlanActivityObservation[]>;
   readProviderIdentities(planId: string): Promise<readonly PlanWorkoutProviderIdentity[]>;
   readSyncStatus(): Promise<PlanWorkoutMatchSyncStatus>;
 }
@@ -194,7 +197,8 @@ export function createPlanWorkoutMatchRepository(store: SqlStore): PlanWorkoutMa
   const repository: PlanWorkoutMatchRepository = {
     async observe(record) {
       validate(record);
-      await store.run(`INSERT INTO plan_workout_match (${COLUMNS})
+      await store.run(
+        `INSERT INTO plan_workout_match (${COLUMNS})
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (plan_workout_id, activity_id) DO UPDATE SET
   provider_activity_id=excluded.provider_activity_id,
@@ -209,24 +213,26 @@ ON CONFLICT (plan_workout_id, activity_id) DO UPDATE SET
   device_id=excluded.device_id,
   hlc_physical_ms=excluded.hlc_physical_ms,
   hlc_counter=excluded.hlc_counter
-WHERE plan_workout_match.decision='suggested'`, [
-        record.id,
-        record.planId,
-        record.planWorkoutId,
-        record.activityId,
-        record.providerActivityId,
-        record.providerEventId,
-        record.source,
-        record.decision,
-        record.activityDateKey,
-        record.activitySport,
-        record.activityDurationS,
-        record.observedAtMs,
-        record.decidedAtMs,
-        record.deviceId,
-        record.hlcPhysicalMs,
-        record.hlcCounter,
-      ]);
+WHERE plan_workout_match.decision='suggested'`,
+        [
+          record.id,
+          record.planId,
+          record.planWorkoutId,
+          record.activityId,
+          record.providerActivityId,
+          record.providerEventId,
+          record.source,
+          record.decision,
+          record.activityDateKey,
+          record.activitySport,
+          record.activityDurationS,
+          record.observedAtMs,
+          record.decidedAtMs,
+          record.deviceId,
+          record.hlcPhysicalMs,
+          record.hlcCounter,
+        ],
+      );
       const stored = await store.get(
         `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_workout_id=? AND activity_id=?`,
         [record.planWorkoutId, record.activityId],
@@ -236,17 +242,21 @@ WHERE plan_workout_match.decision='suggested'`, [
     },
     async readForPlan(planId) {
       if (!ULID.test(planId)) throw new PlanWorkoutMatchValidationError("invalid-match");
-      return (await store.all(
-        `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_id=? ORDER BY activity_date_key,id`,
-        [planId],
-      )).map(fromRow);
+      return (
+        await store.all(
+          `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_id=? ORDER BY activity_date_key,id`,
+          [planId],
+        )
+      ).map(fromRow);
     },
     async readForWorkout(planWorkoutId) {
       if (!ULID.test(planWorkoutId)) throw new PlanWorkoutMatchValidationError("invalid-match");
-      return (await store.all(
-        `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_workout_id=? ORDER BY observed_at_ms DESC,id`,
-        [planWorkoutId],
-      )).map(fromRow);
+      return (
+        await store.all(
+          `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_workout_id=? ORDER BY observed_at_ms DESC,id`,
+          [planWorkoutId],
+        )
+      ).map(fromRow);
     },
     async decide(input) {
       if (
@@ -274,15 +284,18 @@ WHERE plan_workout_match.decision='suggested'`, [
           current.decision === "unpaired" &&
           input.decision === "confirmed");
       if (!allowed) throw new PlanWorkoutMatchValidationError("invalid-transition");
-      await store.run(`UPDATE plan_workout_match SET decision=?, decided_at_ms=?, device_id=?,
-hlc_physical_ms=?, hlc_counter=? WHERE id=?`, [
-        input.decision,
-        input.decidedAtMs,
-        input.deviceId,
-        input.hlcPhysicalMs,
-        input.hlcCounter,
-        input.id,
-      ]);
+      await store.run(
+        `UPDATE plan_workout_match SET decision=?, decided_at_ms=?, device_id=?,
+hlc_physical_ms=?, hlc_counter=? WHERE id=?`,
+        [
+          input.decision,
+          input.decidedAtMs,
+          input.deviceId,
+          input.hlcPhysicalMs,
+          input.hlcCounter,
+          input.id,
+        ],
+      );
       const stored = await readById(input.id);
       if (stored === undefined) throw new PlanWorkoutMatchValidationError("missing-match");
       return stored;
@@ -291,7 +304,8 @@ hlc_physical_ms=?, hlc_counter=? WHERE id=?`, [
       if (!validDateKey(startDateKey) || !validDateKey(endDateKey) || endDateKey < startDateKey) {
         throw new PlanWorkoutMatchValidationError("invalid-match");
       }
-      const rows = await store.all(`SELECT s.session_key, s.local_date_key, s.sport,
+      const rows = await store.all(
+        `SELECT s.session_key, s.local_date_key, s.sport,
 COALESCE(s.timer_s,s.moving_s,s.elapsed_s) AS duration_s,
 sr.external_id, COALESCE(rev.payload_json,sr.payload_json) AS payload_json
 FROM session s
@@ -300,7 +314,9 @@ LEFT JOIN source_record_current current ON current.source_record_id=sr.id
 LEFT JOIN source_record_revision rev ON rev.source_record_id=current.source_record_id
   AND rev.revision_id=current.revision_id
 WHERE s.local_date_key BETWEEN ? AND ?
-ORDER BY s.local_date_key,s.session_key,sr.external_id`, [startDateKey, endDateKey]);
+ORDER BY s.local_date_key,s.session_key,sr.external_id`,
+        [startDateKey, endDateKey],
+      );
       const seen = new Set<string>();
       const observations: PlanActivityObservation[] = [];
       for (const row of rows) {
@@ -308,36 +324,51 @@ ORDER BY s.local_date_key,s.session_key,sr.external_id`, [startDateKey, endDateK
         if (seen.has(activityId)) continue;
         seen.add(activityId);
         const payload = nullableText(row, "payload_json");
-        observations.push(Object.freeze({
-          activityId,
-          providerActivityId: nullableText(row, "external_id"),
-          dateKey: integer(row, "local_date_key"),
-          sport: text(row, "sport"),
-          durationS: nullableInteger(row, "duration_s"),
-          pairedEventId: payload === null ? null : pairedEventId(payload),
-        }));
+        observations.push(
+          Object.freeze({
+            activityId,
+            providerActivityId: nullableText(row, "external_id"),
+            dateKey: integer(row, "local_date_key"),
+            sport: text(row, "sport"),
+            durationS: nullableInteger(row, "duration_s"),
+            pairedEventId: payload === null ? null : pairedEventId(payload),
+          }),
+        );
       }
       return observations;
     },
     async readProviderIdentities(planId) {
       if (!ULID.test(planId)) throw new PlanWorkoutMatchValidationError("invalid-match");
-      const rows = await store.all(`SELECT item.plan_workout_id,item.provider_event_id
+      const rows = await store.all(
+        `SELECT plan_workout_id,provider_event_id FROM (
+SELECT copy.plan_workout_id,
+  CAST(json_extract(copy.state_json,'$.baseline.eventId') AS INTEGER) AS provider_event_id,
+  0 AS source_rank,copy.updated_at_ms AS updated_at_ms,copy.plan_workout_id AS tie
+FROM plan_icu_copy copy
+WHERE copy.plan_id=? AND copy.state_kind IN ('on-icu','moving-by-you','changed-in-icu')
+UNION ALL
+SELECT item.plan_workout_id,item.provider_event_id,1,job.updated_at_ms,item.id
 FROM plan_reconciliation_item item
 JOIN plan_reconciliation_job job ON job.id=item.job_id
 WHERE job.plan_id=? AND job.kind='mirror' AND job.status='verified'
   AND item.status='verified' AND item.plan_workout_id IS NOT NULL
   AND item.provider_event_id IS NOT NULL
-ORDER BY job.updated_at_ms DESC,item.id`, [planId]);
+) WHERE provider_event_id IS NOT NULL
+ORDER BY source_rank,updated_at_ms DESC,tie`,
+        [planId, planId],
+      );
       const seen = new Set<string>();
       const identities: PlanWorkoutProviderIdentity[] = [];
       for (const row of rows) {
         const planWorkoutId = text(row, "plan_workout_id");
         if (seen.has(planWorkoutId)) continue;
         seen.add(planWorkoutId);
-        identities.push(Object.freeze({
-          planWorkoutId,
-          providerEventId: integer(row, "provider_event_id"),
-        }));
+        identities.push(
+          Object.freeze({
+            planWorkoutId,
+            providerEventId: integer(row, "provider_event_id"),
+          }),
+        );
       }
       return identities;
     },

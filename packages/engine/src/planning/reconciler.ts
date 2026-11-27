@@ -1,4 +1,3 @@
-import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
   type PlanRecord,
@@ -8,9 +7,10 @@ import {
   type PlanReconciliationRepository,
   type PlanWorkoutRecord,
 } from "@enduragent/kernel/planning";
+import { PLAN_MIRROR_EXTERNAL_ID_PREFIX } from "../sport/event-provenance.js";
 
+export { PLAN_MIRROR_EXTERNAL_ID_PREFIX };
 export const PLAN_MIRROR_DAYS = 7 as const;
-export const PLAN_MIRROR_EXTERNAL_ID_PREFIX = "cycling-coach:plan:";
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 export interface PlanMirrorEvent {
@@ -21,6 +21,7 @@ export interface PlanMirrorEvent {
   readonly name?: string | null;
   readonly durationS?: number | null;
   readonly description?: string | null;
+  readonly type?: string | null;
   readonly workoutDoc?: Readonly<Record<string, unknown>> | null;
   readonly updated?: string | null;
 }
@@ -31,6 +32,7 @@ export interface PlanMirrorUpdateInput {
   readonly name: string;
   readonly durationS: number | null;
   readonly structureJson: string;
+  readonly sport?: string;
 }
 
 export interface PlanMirrorCreateInput {
@@ -208,19 +210,13 @@ function eventMatchesExpected(expectedJson: string, event: PlanMirrorEvent): boo
     const structure = JSON.parse(expected.structureJson) as Record<string, unknown>;
     const expectedDescription =
       typeof structure.description === "string" ? structure.description : null;
-    const expectedWorkoutDoc =
-      structure.workoutDoc !== null &&
-      typeof structure.workoutDoc === "object" &&
-      !Array.isArray(structure.workoutDoc)
-        ? structure.workoutDoc
-        : null;
     return (
       event.dateKey === expected.dateKey &&
       (event.name === undefined || event.name === expected.name) &&
-      (event.durationS === undefined || event.durationS === expected.durationS) &&
-      (event.description === undefined || event.description === expectedDescription) &&
-      (event.workoutDoc === undefined ||
-        canonicalJson(event.workoutDoc) === canonicalJson(expectedWorkoutDoc))
+      (expectedDescription !== null ||
+        event.durationS === undefined ||
+        event.durationS === expected.durationS) &&
+      (event.description === undefined || event.description === expectedDescription)
     );
   } catch {
     return false;
@@ -229,10 +225,7 @@ function eventMatchesExpected(expectedJson: string, event: PlanMirrorEvent): boo
 
 function eventHasCompleteMirrorFields(event: PlanMirrorEvent): boolean {
   return (
-    event.name !== undefined &&
-    event.durationS !== undefined &&
-    event.description !== undefined &&
-    event.workoutDoc !== undefined
+    event.name !== undefined && event.durationS !== undefined && event.description !== undefined
   );
 }
 
@@ -283,14 +276,16 @@ async function verifyMirrorItems(
     const matches = (grouped.get(item.externalId) ?? []).filter(
       (event) => item.operation !== "delete" || event.dateKey >= firstEligibleDateKey,
     );
-    if (item.operation === "delete" && matches.length === 0) {
+    const [match] = matches;
+    if (item.operation === "delete" && match === undefined) {
       await deps.repository.verifyItem(item.id, null, deps.now());
     } else if (
       item.operation === "create" &&
       matches.length === 1 &&
-      canVerifyMirrorEvent(item, matches[0]!)
+      match !== undefined &&
+      canVerifyMirrorEvent(item, match)
     ) {
-      await deps.repository.verifyItem(item.id, matches[0]!.id, deps.now());
+      await deps.repository.verifyItem(item.id, match.id, deps.now());
     } else {
       await deps.repository.failItem(item.id, "calendar-verification-failed", deps.now());
     }
@@ -363,7 +358,8 @@ export async function reconcileActivePlanWindow(
   for (const [externalId, events] of before) {
     if (!externalId.startsWith(prefix) || selectedExternalIds.has(externalId)) continue;
     const eligible = events.filter((event) => event.dateKey >= firstEligibleDateKey);
-    if (eligible.length === 0) continue;
+    const [firstEligible] = eligible;
+    if (firstEligible === undefined) continue;
     const workoutId = externalId.slice(prefix.length);
     if (!ULID.test(workoutId)) continue;
     const workout = workoutById.get(workoutId);
@@ -373,7 +369,7 @@ export async function reconcileActivePlanWindow(
       jobId: job.id,
       planWorkoutId: null,
       operation: "delete",
-      dateKey: eligible[0]!.dateKey,
+      dateKey: firstEligible.dateKey,
       externalId,
       expectedJson: JSON.stringify(eligible.map((event) => ({ eventId: event.id }))),
       createdAtMs: deps.now(),
@@ -414,12 +410,13 @@ export async function reconcileActivePlanWindow(
       await deps.repository.failItem(item.id, "calendar-verification-failed", deps.now());
       continue;
     }
-    if (matches.length === 1) {
-      if (canVerifyMirrorEvent(item, matches[0]!)) {
-        await deps.repository.verifyItem(item.id, matches[0]!.id, deps.now());
+    const [match] = matches;
+    if (match !== undefined) {
+      if (canVerifyMirrorEvent(item, match)) {
+        await deps.repository.verifyItem(item.id, match.id, deps.now());
         continue;
       }
-      await updateMirrorEvent(deps, item, matches[0]!, workout);
+      await updateMirrorEvent(deps, item, match, workout);
       continue;
     }
     let immediate: Map<string, PlanMirrorEvent[]>;
@@ -438,12 +435,13 @@ export async function reconcileActivePlanWindow(
       await deps.repository.failItem(item.id, "calendar-verification-failed", deps.now());
       continue;
     }
-    if (immediateMatches.length === 1) {
-      if (canVerifyMirrorEvent(item, immediateMatches[0]!)) {
-        await deps.repository.verifyItem(item.id, immediateMatches[0]!.id, deps.now());
+    const [immediateMatch] = immediateMatches;
+    if (immediateMatch !== undefined) {
+      if (canVerifyMirrorEvent(item, immediateMatch)) {
+        await deps.repository.verifyItem(item.id, immediateMatch.id, deps.now());
         continue;
       }
-      await updateMirrorEvent(deps, item, immediateMatches[0]!, workout);
+      await updateMirrorEvent(deps, item, immediateMatch, workout);
       continue;
     }
     await deps.repository.startItem(item.id, deps.now());
@@ -554,7 +552,8 @@ export async function cleanupPlanMirror(
       events.some((event) => event.dateKey >= startDateKey && event.dateKey <= input.endDateKey),
   );
   for (const [externalId, events] of eligible) {
-    const first = events[0]!;
+    const [first] = events;
+    if (first === undefined) continue;
     await deps.repository.prepareItem({
       id: deps.identity.newId(),
       jobId: job.id,
@@ -632,8 +631,8 @@ export async function verifyPlanCleanup(
   }
   const prefix = planMirrorExternalIdPrefix(running.planId);
   for (const [externalId, matches] of events) {
-    if (!externalId.startsWith(prefix) || matches.length === 0) continue;
-    const first = matches[0]!;
+    const [first] = matches;
+    if (!externalId.startsWith(prefix) || first === undefined) continue;
     await deps.repository.prepareItem({
       id: deps.identity.newId(),
       jobId: running.id,
