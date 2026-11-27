@@ -850,6 +850,40 @@ describe("desktop credential vault", () => {
     });
   });
 
+  it("keeps an active key stored and active when the coach is busy replying", async () => {
+    const root = await temporaryRoot();
+    const value = randomUUID();
+    const clearCredential = vi.fn(async (): Promise<"cleared"> => "cleared");
+    clearCredential.mockRejectedValueOnce(new CredentialRuntimeRefusal("busy-replying"));
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      clearCredential,
+    });
+    await vault.writeCredential({ slot: "anthropic", value });
+
+    await expect(vault.deleteCredential("anthropic")).resolves.toEqual({
+      slot: "anthropic",
+      status: "refused",
+      reason: "runtime-unavailable",
+    });
+
+    expect(clearCredential).toHaveBeenCalledOnce();
+    expect((await lstat(join(root, "anthropic.bin"))).isFile()).toBe(true);
+    await expect(vault.credentialStatuses()).resolves.toContainEqual(
+      expect.objectContaining({ slot: "anthropic", state: "configured", runtimeState: "active" }),
+    );
+    expect(encryption().decryptString(await readFile(join(root, "anthropic.bin")))).toBe(value);
+
+    await expect(vault.deleteCredential("anthropic")).resolves.toEqual({
+      slot: "anthropic",
+      status: "deleted",
+      cleanupPending: false,
+    });
+    expect(clearCredential).toHaveBeenCalledTimes(2);
+  });
+
   it("retains a configured envelope when removal key revalidation fails", async () => {
     const root = await temporaryRoot();
     const encryptionPort = keychainEncryption();
