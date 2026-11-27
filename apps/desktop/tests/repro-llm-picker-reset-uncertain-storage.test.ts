@@ -75,7 +75,8 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
       encryption: encryption(),
       applyCredential: vi.fn(async () => undefined),
       removeCredentialFile: (async (path: string, options: { force?: boolean }) => {
-        if (!cleanupAvailable && path === leftover) throw new TypeError("synthetic cleanup failure");
+        if (!cleanupAvailable && path === leftover)
+          throw new TypeError("synthetic cleanup failure");
         await rm(path, options);
       }) as never,
     });
@@ -89,33 +90,37 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
 
     // Settings -> Remove all credentials, as main wires it.
     const runtimeBinding = {
-        authority: {
-          getRuntimeConfig: async () => ({
-            schemaVersion: 3,
-            llm: { provider: "anthropic", model: "claude-sonnet-5", credential_configured: false },
-            intervals: {
-              athlete_id: "0",
-              credential_configured: false,
-              managedByEnvironment: { athleteId: false },
+      authority: {
+        getRuntimeConfig: async () => ({
+          schemaVersion: 3 as const,
+          llm: {
+            provider: "anthropic" as const,
+            model: "claude-sonnet-5",
+            credential_configured: false,
+          },
+          intervals: {
+            athlete_id: "0",
+            credential_configured: false,
+            managedByEnvironment: { athleteId: false },
+          },
+          session: {
+            historyTokenBudgetRatio: 0.3,
+            idleMinutes: 0,
+            dailyResetHour: 4,
+            resetArchiveRetentionDays: 0,
+            timezone: "UTC",
+            managedByEnvironment: {
+              historyTokenBudgetRatio: false,
+              idleMinutes: false,
+              dailyResetHour: false,
+              resetArchiveRetentionDays: false,
+              timezone: false,
             },
-            session: {
-              historyTokenBudgetRatio: 0.3,
-              idleMinutes: 0,
-              dailyResetHour: 4,
-              resetArchiveRetentionDays: 0,
-              timezone: "UTC",
-              managedByEnvironment: {
-                historyTokenBudgetRatio: false,
-                idleMinutes: false,
-                dailyResetHour: false,
-                resetArchiveRetentionDays: false,
-                timezone: false,
-              },
-            },
-          }),
-        },
-        credentials: { clearCredential: async () => "cleared" as const },
-      };
+          },
+        }),
+      },
+      credentials: { clearCredential: async () => "cleared" as const },
+    };
     const reset = createDesktopCredentialReset({
       serializeCredentialMutation: createCredentialMutationLock(),
       serializeEnvelopeMutation: createCredentialEnvelopeMutationLock(),
