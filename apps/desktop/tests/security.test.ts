@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
+  app: { getLocaleCountryCode: () => "US" },
+  systemPreferences: { getUserDefault: () => ({}) },
   BrowserWindow: class {},
   net: { fetch: vi.fn() },
   protocol: { registerSchemesAsPrivileged: vi.fn() },
@@ -267,6 +269,7 @@ describe("desktop security boundary", () => {
         nodeIntegration: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
+        additionalArguments: ["--enduragent-first-day=7"],
       },
     });
   });

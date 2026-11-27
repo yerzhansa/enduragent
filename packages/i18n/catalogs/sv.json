@@ -837,6 +837,7 @@
     "checkingSetup": "Kontrollerar konfigurationen…",
     "loading": {
       "archive": "Läser in tidigare chattar…",
+      "calendar": "Läser in kalendern…",
       "chat": "Läser in chatten…",
       "plan": "Läser in planen…",
       "settings": "Läser in inställningar…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Tidigare chattar",
+      "calendar": "Kalender",
       "chat": "Chatt",
       "plan": "Plan",
       "settings": "Inställningar",
@@ -1888,6 +1890,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Extra",
+        "untitled": "Cykeltur"
+      },
+      "column": {
+        "trainingWeek": "Träningsvecka",
+        "week": "Vecka"
+      },
+      "copy": {
+        "changed": "Ändrat i intervals.icu",
+        "deleted": "Raderat i intervals.icu",
+        "moved": "Flyttat till {{date}} i intervals.icu",
+        "notSent": "Inte skickat: intervals.icu svarade inte"
+      },
+      "day": {
+        "beforePlan": "Före planen",
+        "rest": "Vilodag",
+        "today": "{{day}} · Idag",
+        "weekStarts": "{{day}} · Vecka {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} av {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Nästa vecka",
+      "noPlan": {
+        "body": "En plan lägger träningspass på de här dagarna och i din intervals.icu-kalender, där din cykeldator hämtar dem. Tränaren tar fram planen tillsammans med dig i Chatten, och inget skickas förrän du godkänner den.",
+        "start": "Börja skapa en plan i Chatten",
+        "title": "Ingen plan än"
+      },
+      "outcome": {
+        "doneAsPlanned": "Genomfört som planerat",
+        "doneDifferently": "Genomfört annorlunda",
+        "isThisIt": "Är det den här?",
+        "missed": "Missat",
+        "missedDetail": "{{planned}} · ingen aktivitet",
+        "moved": "Flyttat till {{date}}",
+        "notSyncedYet": "Inte synkroniserat än",
+        "removedByYou": "Borttaget av dig",
+        "rideSynced": "En cykeltur synkroniserades",
+        "rideSyncedLength": "En cykeltur på {{duration}} synkroniserades",
+        "noActivity": "Ingen aktivitet"
+      },
+      "previous": "Föregående vecka",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Kalendern kunde inte uppdateras.",
+      "retry": "Försök igen",
+      "season": {
+        "race": "Tävling {{date}}",
+        "week": "Vecka {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Godkänn från {{date}}",
+        "goesOut": "Skickas {{date}}",
+        "notSentYet": "Inte på intervals.icu än",
+        "onIntervals": "På intervals.icu",
+        "waitingForApprove": "Väntar på godkännande",
+        "notConnected": "intervals.icu är inte anslutet"
+      },
+      "subtitle": {
+        "ended": "{{name}} · avslutad",
+        "noPlan": "Ingen plan · dina aktiviteter från intervals.icu",
+        "starts": "{{name}} · börjar {{date}}",
+        "week": "{{name}} · Träningsvecka {{week}} av {{total}}",
+        "weekPhase": "{{name}} · Träningsvecka {{week}} av {{total}} · {{phase}}"
+      },
+      "today": "Idag",
+      "unavailable": "Kalendern kunde inte läsas in.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} aktivitet",
+        "activities_other": "{{duration}} · {{count}} aktiviteter",
+        "crossing": "Vecka {{from}} → {{to}}",
+        "endsOn": "till {{date}}",
+        "label": "Vecka {{week}}",
+        "load": "Belastning {{load}}",
+        "nextStarts": "Vecka {{week}} börjar {{date}}",
+        "nothingPlanned": "Inget planerat",
+        "planned": "{{planned}} planerat",
+        "planOnly": "{{planned}} · bara i planen",
+        "soFar": "{{duration}} hittills",
+        "startsOn": "börjar {{date}}",
+        "toConfirm_one": "{{count}} cykeltur att bekräfta",
+        "toConfirm_other": "{{count}} cykelturer att bekräfta"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Rensning klar",

@@ -342,7 +342,14 @@ describe("Plan Intervals calendar adapter", () => {
       now,
       logger: { warn: vi.fn() },
     });
-    await createPlanCalendarOperations({ store, todayDateKey: () => today, now })["plan.calendar"]({
+    await createPlanCalendarOperations({
+      store,
+      todayDateKey: () => today,
+      now,
+      calendarConnected: () => true,
+      dateKeyOfMs: () => today,
+      changed: () => undefined,
+    })["plan.calendar"]({
       action: "approve-weeks",
       planId: plan.id,
       scope: { kind: "first-weeks" },

@@ -837,6 +837,7 @@
     "checkingSetup": "A verificar configuração…",
     "loading": {
       "archive": "A carregar conversas anteriores…",
+      "calendar": "A carregar calendário…",
       "chat": "A carregar conversa…",
       "plan": "A carregar plano…",
       "settings": "A carregar definições…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Conversas anteriores",
+      "calendar": "Calendário",
       "chat": "Conversa",
       "plan": "Plano",
       "settings": "Definições",
@@ -1521,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Extra",
+        "untitled": "Volta"
+      },
+      "column": {
+        "trainingWeek": "Semana de treino",
+        "week": "Semana"
+      },
+      "copy": {
+        "changed": "Alterado no intervals.icu",
+        "deleted": "Eliminado no intervals.icu",
+        "moved": "Movido para {{date}} no intervals.icu",
+        "notSent": "Não enviado: o intervals.icu não respondeu"
+      },
+      "day": {
+        "beforePlan": "Antes do plano",
+        "rest": "Dia de descanso",
+        "today": "{{day}} · Hoje",
+        "weekStarts": "{{day}} · Semana {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} de {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}}h {{minutes}}min",
+        "minutes": "{{minutes}}min"
+      },
+      "next": "Semana seguinte",
+      "noPlan": {
+        "body": "Um plano coloca treinos nestes dias e no teu calendário do intervals.icu, de onde o teu ciclocomputador os obtém. O treinador cria-o contigo na Conversa, e nada é enviado até o aprovares.",
+        "start": "Iniciar um plano na Conversa",
+        "title": "Ainda sem plano"
+      },
+      "outcome": {
+        "doneAsPlanned": "Feito conforme planeado",
+        "doneDifferently": "Feito de outra forma",
+        "isThisIt": "É esta?",
+        "missed": "Não realizado",
+        "missedDetail": "{{planned}} · sem atividade",
+        "moved": "Movido para {{date}}",
+        "notSyncedYet": "Ainda não sincronizado",
+        "removedByYou": "Removido por ti",
+        "rideSynced": "Uma volta sincronizada",
+        "rideSyncedLength": "Uma volta de {{duration}} sincronizada",
+        "noActivity": "Sem atividade"
+      },
+      "previous": "Semana anterior",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Não foi possível atualizar o calendário.",
+      "retry": "Tentar novamente",
+      "season": {
+        "race": "Prova a {{date}}",
+        "week": "Semana {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Aprovar a partir de {{date}}",
+        "goesOut": "Envio a {{date}}",
+        "notSentYet": "Ainda não está no intervals.icu",
+        "onIntervals": "No intervals.icu",
+        "waitingForApprove": "A aguardar aprovação",
+        "notConnected": "O intervals.icu não está ligado"
+      },
+      "subtitle": {
+        "ended": "{{name}} · terminado",
+        "noPlan": "Sem plano · as tuas atividades do intervals.icu",
+        "starts": "{{name}} · começa a {{date}}",
+        "week": "{{name}} · Semana de treino {{week}} de {{total}}",
+        "weekPhase": "{{name}} · Semana de treino {{week}} de {{total}} · {{phase}}"
+      },
+      "today": "Hoje",
+      "unavailable": "Não foi possível carregar o calendário.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} atividade",
+        "activities_other": "{{duration}} · {{count}} atividades",
+        "crossing": "Semana {{from}} → {{to}}",
+        "endsOn": "até {{date}}",
+        "label": "Semana {{week}}",
+        "load": "Carga {{load}}",
+        "nextStarts": "A semana {{week}} começa a {{date}}",
+        "nothingPlanned": "Nada planeado",
+        "planned": "Planeado: {{planned}}",
+        "planOnly": "{{planned}} · só no plano",
+        "soFar": "{{duration}} até agora",
+        "startsOn": "começa a {{date}}",
+        "toConfirm_one": "{{count}} volta por confirmar",
+        "toConfirm_other": "{{count}} voltas por confirmar"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Limpeza concluída",

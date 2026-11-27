@@ -1,8 +1,10 @@
 import type { Phrasebook } from "@enduragent/i18n/messages";
 import englishCatalog from "../../../../packages/i18n/catalogs/en.json" with { type: "json" };
+import { regionFirstDayFromArguments, type RegionFirstDay } from "./region-week.js";
 
 export interface DesktopPlatformProjection {
   readonly platform: "darwin" | "win32";
+  readonly firstDayOfWeek: RegionFirstDay;
   readonly capabilities: { readonly codexAgent: boolean };
   readonly copy: {
     readonly computer: string;
@@ -37,6 +39,7 @@ export function desktopPlatformProjection(
       .replaceAll("{{product}}", tokens.product);
   return Object.freeze({
     platform: windows ? "win32" : "darwin",
+    firstDayOfWeek: regionFirstDayFromArguments(process.argv),
     capabilities: Object.freeze({ codexAgent: !windows }),
     copy: Object.freeze({
       computer,

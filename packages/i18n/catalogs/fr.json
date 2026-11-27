@@ -837,6 +837,7 @@
     "checkingSetup": "Vérification de la configuration…",
     "loading": {
       "archive": "Chargement des conversations passées…",
+      "calendar": "Chargement du calendrier…",
       "chat": "Chargement de la discussion…",
       "plan": "Chargement du plan…",
       "settings": "Chargement des paramètres…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Conversations passées",
+      "calendar": "Calendrier",
       "chat": "Discussion",
       "plan": "Plan",
       "settings": "Paramètres",
@@ -1521,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Supplémentaire",
+        "untitled": "Sortie"
+      },
+      "column": {
+        "trainingWeek": "Semaine d’entraînement",
+        "week": "Semaine"
+      },
+      "copy": {
+        "changed": "Modifié dans intervals.icu",
+        "deleted": "Supprimé dans intervals.icu",
+        "moved": "Déplacé au {{date}} dans intervals.icu",
+        "notSent": "Non envoyé : intervals.icu n’a pas répondu"
+      },
+      "day": {
+        "beforePlan": "Avant le plan",
+        "rest": "Jour de repos",
+        "today": "{{day}} · Aujourd’hui",
+        "weekStarts": "{{day}} · Semaine {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} sur {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Semaine suivante",
+      "noPlan": {
+        "body": "Un plan place des entraînements sur ces jours et dans ton calendrier intervals.icu, où ton compteur vélo les récupère. Le coach le construit avec toi dans la conversation, et rien n’est envoyé avant ton approbation.",
+        "start": "Commencer un plan dans la conversation",
+        "title": "Pas encore de plan"
+      },
+      "outcome": {
+        "doneAsPlanned": "Réalisé comme prévu",
+        "doneDifferently": "Réalisé autrement",
+        "isThisIt": "C’est celle-ci ?",
+        "missed": "Manqué",
+        "missedDetail": "{{planned}} · aucune activité",
+        "moved": "Déplacé au {{date}}",
+        "notSyncedYet": "Pas encore synchronisé",
+        "removedByYou": "Retiré par toi",
+        "rideSynced": "Une sortie synchronisée",
+        "rideSyncedLength": "Une sortie de {{duration}} synchronisée",
+        "noActivity": "Aucune activité"
+      },
+      "previous": "Semaine précédente",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Le calendrier n’a pas pu être actualisé.",
+      "retry": "Réessayer",
+      "season": {
+        "race": "Course le {{date}}",
+        "week": "Semaine {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Approuver à partir du {{date}}",
+        "goesOut": "Envoi le {{date}}",
+        "notSentYet": "Pas encore sur intervals.icu",
+        "onIntervals": "Sur intervals.icu",
+        "waitingForApprove": "En attente d’approbation",
+        "notConnected": "intervals.icu n’est pas connecté"
+      },
+      "subtitle": {
+        "ended": "{{name}} · terminé",
+        "noPlan": "Aucun plan · tes activités d’intervals.icu",
+        "starts": "{{name}} · début le {{date}}",
+        "week": "{{name}} · Semaine d’entraînement {{week}} sur {{total}}",
+        "weekPhase": "{{name}} · Semaine d’entraînement {{week}} sur {{total}} · {{phase}}"
+      },
+      "today": "Aujourd’hui",
+      "unavailable": "Le calendrier n’a pas pu être chargé.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} activité",
+        "activities_other": "{{duration}} · {{count}} activités",
+        "crossing": "Semaine {{from}} → {{to}}",
+        "endsOn": "jusqu’au {{date}}",
+        "label": "Semaine {{week}}",
+        "load": "Charge {{load}}",
+        "nextStarts": "La semaine {{week}} commence le {{date}}",
+        "nothingPlanned": "Rien de prévu",
+        "planned": "Prévu : {{planned}}",
+        "planOnly": "{{planned}} · seulement dans le plan",
+        "soFar": "{{duration}} jusqu’ici",
+        "startsOn": "début le {{date}}",
+        "toConfirm_one": "{{count}} sortie à confirmer",
+        "toConfirm_other": "{{count}} sorties à confirmer"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Nettoyage terminé",

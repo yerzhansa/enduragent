@@ -837,6 +837,7 @@
     "checkingSetup": "Verifica della configurazione…",
     "loading": {
       "archive": "Caricamento delle chat passate…",
+      "calendar": "Caricamento del calendario…",
       "chat": "Caricamento della chat…",
       "plan": "Caricamento del piano…",
       "settings": "Caricamento delle impostazioni…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Chat passate",
+      "calendar": "Calendario",
       "chat": "Chat",
       "plan": "Piano",
       "settings": "Impostazioni",
@@ -1521,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Extra",
+        "untitled": "Uscita"
+      },
+      "column": {
+        "trainingWeek": "Settimana di allenamento",
+        "week": "Settimana"
+      },
+      "copy": {
+        "changed": "Modificato su intervals.icu",
+        "deleted": "Eliminato su intervals.icu",
+        "moved": "Spostato a {{date}} su intervals.icu",
+        "notSent": "Non inviato: intervals.icu non ha risposto"
+      },
+      "day": {
+        "beforePlan": "Prima del piano",
+        "rest": "Giorno di riposo",
+        "today": "{{day}} · Oggi",
+        "weekStarts": "{{day}} · Settimana {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} di {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Settimana successiva",
+      "noPlan": {
+        "body": "Un piano inserisce gli allenamenti in questi giorni e nel tuo calendario intervals.icu, da cui il tuo ciclocomputer li scarica. Il coach lo crea con te in chat e non viene inviato nulla finché non lo approvi.",
+        "start": "Inizia un piano in chat",
+        "title": "Ancora nessun piano"
+      },
+      "outcome": {
+        "doneAsPlanned": "Svolto come programmato",
+        "doneDifferently": "Svolto diversamente",
+        "isThisIt": "È questa?",
+        "missed": "Saltato",
+        "missedDetail": "{{planned}} · nessuna attività",
+        "moved": "Spostato a {{date}}",
+        "notSyncedYet": "Non ancora sincronizzato",
+        "removedByYou": "Rimosso da te",
+        "rideSynced": "Un’uscita sincronizzata",
+        "rideSyncedLength": "Un’uscita di {{duration}} sincronizzata",
+        "noActivity": "Nessuna attività"
+      },
+      "previous": "Settimana precedente",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Impossibile aggiornare il calendario.",
+      "retry": "Riprova",
+      "season": {
+        "race": "Gara il {{date}}",
+        "week": "Settimana {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Approva dal {{date}}",
+        "goesOut": "Invio il {{date}}",
+        "notSentYet": "Non ancora su intervals.icu",
+        "onIntervals": "Su intervals.icu",
+        "waitingForApprove": "In attesa di approvazione",
+        "notConnected": "intervals.icu non è connesso"
+      },
+      "subtitle": {
+        "ended": "{{name}} · terminato",
+        "noPlan": "Nessun piano · le tue attività da intervals.icu",
+        "starts": "{{name}} · inizia il {{date}}",
+        "week": "{{name}} · Settimana di allenamento {{week}} di {{total}}",
+        "weekPhase": "{{name}} · Settimana di allenamento {{week}} di {{total}} · {{phase}}"
+      },
+      "today": "Oggi",
+      "unavailable": "Impossibile caricare il calendario.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} attività",
+        "activities_other": "{{duration}} · {{count}} attività",
+        "crossing": "Settimana {{from}} → {{to}}",
+        "endsOn": "fino al {{date}}",
+        "label": "Settimana {{week}}",
+        "load": "Carico {{load}}",
+        "nextStarts": "La settimana {{week}} inizia il {{date}}",
+        "nothingPlanned": "Niente in programma",
+        "planned": "{{planned}} in programma",
+        "planOnly": "{{planned}} · solo nel piano",
+        "soFar": "{{duration}} finora",
+        "startsOn": "inizia il {{date}}",
+        "toConfirm_one": "{{count}} uscita da confermare",
+        "toConfirm_other": "{{count}} uscite da confermare"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Pulizia completata",

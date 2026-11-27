@@ -837,6 +837,7 @@
     "checkingSetup": "Einrichtung wird geprüft…",
     "loading": {
       "archive": "Bisherige Chats werden geladen…",
+      "calendar": "Kalender wird geladen…",
       "chat": "Chat wird geladen…",
       "plan": "Plan wird geladen…",
       "settings": "Einstellungen werden geladen…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Bisherige Chats",
+      "calendar": "Kalender",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Einstellungen",
@@ -1521,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Zusätzlich",
+        "untitled": "Fahrt"
+      },
+      "column": {
+        "trainingWeek": "Trainingswoche",
+        "week": "Woche"
+      },
+      "copy": {
+        "changed": "In intervals.icu geändert",
+        "deleted": "In intervals.icu gelöscht",
+        "moved": "In intervals.icu auf {{date}} verschoben",
+        "notSent": "Nicht gesendet: intervals.icu hat nicht geantwortet"
+      },
+      "day": {
+        "beforePlan": "Vor dem Plan",
+        "rest": "Ruhetag",
+        "today": "{{day}} · Heute",
+        "weekStarts": "{{day}} · Woche {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} von {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Nächste Woche",
+      "noPlan": {
+        "body": "Ein Plan setzt Trainings auf diese Tage und in deinen intervals.icu-Kalender, von wo dein Radcomputer sie übernimmt. Der Coach erstellt ihn mit dir im Chat, und nichts wird gesendet, bevor du zustimmst.",
+        "start": "Einen Plan im Chat starten",
+        "title": "Noch kein Plan"
+      },
+      "outcome": {
+        "doneAsPlanned": "Wie geplant absolviert",
+        "doneDifferently": "Anders absolviert",
+        "isThisIt": "Ist es das?",
+        "missed": "Verpasst",
+        "missedDetail": "{{planned}} · keine Aktivität",
+        "moved": "Verschoben auf {{date}}",
+        "notSyncedYet": "Noch nicht synchronisiert",
+        "removedByYou": "Von dir entfernt",
+        "rideSynced": "Eine Fahrt wurde synchronisiert",
+        "rideSyncedLength": "Eine Fahrt von {{duration}} wurde synchronisiert",
+        "noActivity": "Keine Aktivität"
+      },
+      "previous": "Vorherige Woche",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}.–{{end}}"
+      },
+      "refreshFailed": "Der Kalender konnte nicht aktualisiert werden.",
+      "retry": "Erneut versuchen",
+      "season": {
+        "race": "Rennen am {{date}}",
+        "week": "Woche {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Zustimmen ab {{date}}",
+        "goesOut": "Wird am {{date}} gesendet",
+        "notSentYet": "Noch nicht in intervals.icu",
+        "onIntervals": "In intervals.icu",
+        "waitingForApprove": "Wartet auf Zustimmung",
+        "notConnected": "intervals.icu ist nicht verbunden"
+      },
+      "subtitle": {
+        "ended": "{{name}} · beendet",
+        "noPlan": "Kein Plan · deine Aktivitäten aus intervals.icu",
+        "starts": "{{name}} · beginnt am {{date}}",
+        "week": "{{name}} · Trainingswoche {{week}} von {{total}}",
+        "weekPhase": "{{name}} · Trainingswoche {{week}} von {{total}} · {{phase}}"
+      },
+      "today": "Heute",
+      "unavailable": "Der Kalender konnte nicht geladen werden.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} Aktivität",
+        "activities_other": "{{duration}} · {{count}} Aktivitäten",
+        "crossing": "Woche {{from}} → {{to}}",
+        "endsOn": "bis {{date}}",
+        "label": "Woche {{week}}",
+        "load": "Trainingsbelastung {{load}}",
+        "nextStarts": "Woche {{week}} beginnt am {{date}}",
+        "nothingPlanned": "Nichts geplant",
+        "planned": "{{planned}} geplant",
+        "planOnly": "{{planned}} · nur im Plan",
+        "soFar": "{{duration}} bisher",
+        "startsOn": "beginnt am {{date}}",
+        "toConfirm_one": "{{count}} Fahrt zu bestätigen",
+        "toConfirm_other": "{{count}} Fahrten zu bestätigen"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Bereinigung abgeschlossen",

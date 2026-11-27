@@ -71,10 +71,14 @@ async function harness() {
   });
   const reconciliation = createPlanReconciliationRepository(store);
   const plans = createPlanRepository(store);
+  const changed = vi.fn();
   const calendarOperations = createPlanCalendarOperations({
     store,
     todayDateKey: () => today,
-    now: () => 904_694_400_000,
+    now: () => nowMs,
+    calendarConnected: () => connected,
+    dateKeyOfMs: (ms) => Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
+    changed,
   });
   const approve = (planId: string, week?: number) =>
     calendarOperations["plan.calendar"]({
@@ -244,6 +248,7 @@ async function harness() {
     plans,
     legacyPlans,
     calendarOperations,
+    changed,
     approve,
     expectedOnIcu,
     onIcu,
@@ -285,7 +290,9 @@ describe("Plan calendar drain", () => {
     );
     await test.drain.kick();
     expect(test.calendar.creates).toEqual([]);
+    expect(test.changed).not.toHaveBeenCalled();
     expect(await test.approve(planId)).toEqual({ status: "approved", weeks: [1, 2] });
+    expect(test.changed).toHaveBeenCalledOnce();
     await test.drain.kick();
     const expected = await test.expectedOnIcu(planId, [1, 2]);
     expect(expected.length).toBeGreaterThan(0);
