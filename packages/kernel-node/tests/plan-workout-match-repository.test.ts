@@ -191,6 +191,8 @@ describe("Plan WorkoutMatch repository", () => {
         hlcPhysicalMs: at,
         hlcCounter: 0,
       });
+    await decide(otherRideMatch, "rejected", 11);
+    await decide(secondWorkoutMatch, "rejected", 11);
     await decide(MATCH_ID, "confirmed", 11);
     await expect(decide(otherRideMatch, "confirmed", 12)).rejects.toEqual(
       new PlanWorkoutMatchValidationError("already-confirmed"),
@@ -209,7 +211,7 @@ describe("Plan WorkoutMatch repository", () => {
     });
   });
 
-  it("turns down the workout's and the ride's other suggestions once a match is confirmed", async () => {
+  it("clears the workout's and the ride's other suggestions once a match is confirmed", async () => {
     const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
     await createPlanRepository(store).replace(plan, [workout, second]);
     const repository = createPlanWorkoutMatchRepository(store);
@@ -233,8 +235,6 @@ describe("Plan WorkoutMatch repository", () => {
       (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
     ).toEqual([
       ["3", "confirmed"],
-      ["6", "rejected"],
-      ["7", "rejected"],
       ["8", "suggested"],
     ]);
     await repository.observe(
@@ -252,12 +252,65 @@ describe("Plan WorkoutMatch repository", () => {
     );
     expect(
       (await repository.readForWorkout(second.id)).map((row) => [row.activityId, row.decision]),
-    ).toEqual(
-      expect.arrayContaining([
-        [otherRide, "confirmed"],
-        [thirdRide, "rejected"],
-      ]),
+    ).toEqual([[otherRide, "confirmed"]]);
+  });
+
+  it("lets the system withdraw only what it derived, never the athlete's own answers", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    const third = { ...workout, id: `${"0".repeat(25)}A`, dateKey: 20260827 };
+    await createPlanRepository(store).replace(plan, [workout, second, third]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const id = (last: string) => `${"0".repeat(25)}${last}`;
+    await repository.observe(suggestion());
+    await repository.observe(
+      suggestion({
+        id: id("6"),
+        planWorkoutId: second.id,
+        activityId: "b".repeat(64),
+        source: "platform",
+        providerEventId: 77,
+        decision: "confirmed",
+        decidedAtMs: 10,
+      }),
     );
+    await repository.observe(
+      suggestion({
+        id: id("7"),
+        activityId: "c".repeat(64),
+        source: "platform",
+        providerEventId: 78,
+        decision: "unpaired",
+        decidedAtMs: 10,
+      }),
+    );
+    await repository.observe(suggestion({ id: id("8"), activityId: "d".repeat(64) }));
+    await repository.observe(
+      suggestion({
+        id: id("9"),
+        planWorkoutId: third.id,
+        activityId: "e".repeat(64),
+        decision: "confirmed",
+        decidedAtMs: 10,
+      }),
+    );
+    await repository.decide({
+      id: id("8"),
+      decision: "rejected",
+      decidedAtMs: 11,
+      deviceId: "device-1",
+      hlcPhysicalMs: 11,
+      hlcCounter: 0,
+    });
+    for (const row of [MATCH_ID, id("6"), id("7"), id("8"), id("9")]) {
+      await repository.withdraw(row);
+    }
+    expect(
+      (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
+    ).toEqual([
+      ["7", "unpaired"],
+      ["8", "rejected"],
+      ["9", "confirmed"],
+    ]);
   });
 
   it("leaves an unchanged suggestion as it was, and refreshes one whose ride changed", async () => {

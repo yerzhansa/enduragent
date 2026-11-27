@@ -57,6 +57,7 @@ export interface PlanWorkoutMatchRepository {
     startDateKey: number,
     endDateKey: number,
   ): Promise<readonly PlanActivityObservation[]>;
+  withdraw(id: string): Promise<void>;
   readProviderIdentities(planId: string): Promise<readonly PlanWorkoutProviderIdentity[]>;
   readSyncStatus(): Promise<PlanWorkoutMatchSyncStatus>;
 }
@@ -194,29 +195,11 @@ export function createPlanWorkoutMatchRepository(store: SqlStore): PlanWorkoutMa
     return row === undefined ? undefined : fromRow(row);
   };
 
-  const turnDownOthers = async (
-    confirmed: PlanWorkoutMatchRecord,
-    stamp: {
-      readonly decidedAtMs: number;
-      readonly deviceId: string;
-      readonly hlcPhysicalMs: number;
-      readonly hlcCounter: number;
-    },
-  ): Promise<void> => {
+  const clearOtherSuggestions = async (confirmed: PlanWorkoutMatchRecord): Promise<void> => {
     await store.run(
-      `UPDATE plan_workout_match SET decision='rejected', decided_at_ms=MAX(?, observed_at_ms),
-device_id=?, hlc_physical_ms=?, hlc_counter=?
+      `DELETE FROM plan_workout_match
 WHERE plan_id=? AND decision='suggested' AND id<>? AND (plan_workout_id=? OR activity_id=?)`,
-      [
-        stamp.decidedAtMs,
-        stamp.deviceId,
-        stamp.hlcPhysicalMs,
-        stamp.hlcCounter,
-        confirmed.planId,
-        confirmed.id,
-        confirmed.planWorkoutId,
-        confirmed.activityId,
-      ],
+      [confirmed.planId, confirmed.id, confirmed.planWorkoutId, confirmed.activityId],
     );
   };
 
@@ -285,12 +268,7 @@ WHERE plan_workout_match.decision='suggested' AND (
       );
       const stored = row === undefined ? null : fromRow(row);
       if (stored?.decision === "confirmed" && record.decision === "confirmed") {
-        await turnDownOthers(stored, {
-          decidedAtMs: record.decidedAtMs ?? record.observedAtMs,
-          deviceId: record.deviceId,
-          hlcPhysicalMs: record.hlcPhysicalMs,
-          hlcCounter: record.hlcCounter,
-        });
+        await clearOtherSuggestions(stored);
       }
       return stored;
     },
@@ -368,8 +346,16 @@ hlc_physical_ms=?, hlc_counter=? WHERE id=? AND (? <> 'confirmed' OR NOT EXISTS 
       if (stored.decision !== input.decision) {
         throw new PlanWorkoutMatchValidationError("already-confirmed");
       }
-      if (stored.decision === "confirmed") await turnDownOthers(stored, input);
+      if (stored.decision === "confirmed") await clearOtherSuggestions(stored);
       return stored;
+    },
+    async withdraw(id) {
+      if (!ULID.test(id)) throw new PlanWorkoutMatchValidationError("invalid-match");
+      await store.run(
+        `DELETE FROM plan_workout_match WHERE id=?
+AND (decision='suggested' OR (source='platform' AND decision='confirmed'))`,
+        [id],
+      );
     },
     async listActivities(startDateKey, endDateKey) {
       if (!validDateKey(startDateKey) || !validDateKey(endDateKey) || endDateKey < startDateKey) {
