@@ -13,6 +13,7 @@ type ButtonPlacement = "centered" | "bottom-edge";
 interface ModelListMeasure {
   readonly problems: string[];
   readonly widestRow: number;
+  readonly side: string | null;
 }
 
 async function settledOpenList(page: Page): Promise<Locator> {
@@ -47,12 +48,24 @@ async function visibleModelListProblems(
     (element, position) => element.scrollIntoView({ block: position, behavior: "instant" }),
     block,
   );
-  const closedWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
-  await trigger.click();
-  const list = await settledOpenList(page);
+  const closed = await trigger.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      width: rect.width,
+      viewport: document.documentElement.clientHeight,
+    };
+  });
+  const closedWidth = closed.width;
   if (placement === "centered") {
-    await expect(list).toHaveAttribute("data-side", "none");
+    expect(
+      closed.top >= 20 && closed.bottom <= closed.viewport - 40,
+      `${capture}: the button must sit clear of the window's edges, but it is at ${closed.top}-${closed.bottom}px of ${closed.viewport}px`,
+    ).toBe(true);
   }
+  await trigger.click({ scroll: "none" });
+  const list = await settledOpenList(page);
   const openWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
   const measure = await list.evaluate((element): ModelListMeasure => {
     const found: string[] = [];
@@ -107,8 +120,11 @@ async function visibleModelListProblems(
         found.push(`the check mark for "${label}" is cut off by the list's edge`);
       }
     }
-    return { problems: found, widestRow };
+    return { problems: found, widestRow, side: element.getAttribute("data-side") };
   });
+  if (placement === "centered") {
+    expect(measure.side, `${capture}: the list should line up over a centered button`).toBe("none");
+  }
   const problems = [...measure.problems];
   if (Math.abs(openWidth - closedWidth) > 0.5) {
     problems.push(`the picker button changed from ${closedWidth}px to ${openWidth}px when opened`);
@@ -124,7 +140,7 @@ async function visibleModelListProblems(
   expect(
     measure.widestRow,
     `${capture}: no model name needs more room than its ${closedWidth}px button, so this list cannot show the clipping`,
-  ).toBeGreaterThan(closedWidth);
+  ).toBeGreaterThan(closedWidth + 0.5);
   return problems;
 }
 
