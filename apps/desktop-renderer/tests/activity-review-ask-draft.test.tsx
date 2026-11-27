@@ -171,4 +171,51 @@ describe("Ask the coach with Chat already mounted, as Shell keeps it", () => {
     await waitFor(() => expect(composer()).toHaveValue("About my ride on Thu 20 Aug?"), SETTLED);
     test.dispose();
   });
+
+  it("puts the question alone while a send waits for its acknowledgement", async () => {
+    let acknowledge: (acknowledged: boolean) => void = () => undefined;
+    const submit = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    store.setState({
+      chatActions: { ...(store.getState().chatActions as ChatActions), submit } as never,
+    });
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "Sent before the ride question{Enter}");
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledOnce(), SETTLED);
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
+    await waitFor(() => expect(composer()).toHaveValue("About my ride on Thu 20 Aug?"), SETTLED);
+    await act(async () => acknowledge(true));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(composer()).toHaveValue("About my ride on Thu 20 Aug?");
+    expect(store.getState().chat.attachments?.draft?.text).toBe("About my ride on Thu 20 Aug?");
+    test.dispose();
+  });
+
+  it("adds the question once when the athlete asks twice", async () => {
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "Keep my question");
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
+    await waitFor(
+      () => expect(composer()).toHaveValue("Keep my question\n\nAbout my ride on Thu 20 Aug?"),
+      SETTLED,
+    );
+    act(() => store.getState().setActiveView("activity-review"));
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
+    expect(store.getState().activeView).toBe("chat");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(composer()).toHaveValue("Keep my question\n\nAbout my ride on Thu 20 Aug?");
+    test.dispose();
+  });
 });

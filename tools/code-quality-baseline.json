@@ -663,7 +663,6 @@
     "apps/desktop-renderer/src/chat/markdown.ts": 27,
     "apps/desktop-renderer/src/state/adapters/plan.ts": 2,
     "apps/desktop-renderer/src/ui/chat/AttachmentPanel.tsx": 1,
-    "apps/desktop-renderer/src/ui/chat/Composer.tsx": 3,
     "apps/desktop-renderer/src/ui/chat/PlanChangeCards.tsx": 3,
     "apps/desktop-renderer/src/ui/chat/use-chat-date.ts": 1,
     "apps/desktop-renderer/src/ui/plan/PlanView.tsx": 6,
@@ -775,8 +774,5 @@
     "tools/snapshot-section-11.ts": 1,
     "tools/ui-release-artifact.ts": 1,
     "tools/usage-baseline.ts": 1
-  },
-  "ui-restricted-api": {
-    "apps/desktop-renderer/src/ui/chat/Composer.tsx": 2
   }
 }

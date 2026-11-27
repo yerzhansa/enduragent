@@ -16,6 +16,7 @@ import {
 } from "react";
 import { Paperclip } from "lucide-react";
 import { filterSlashCommands } from "../../chat/commands";
+import { createDraftSaveTimer } from "../../chat/draft-save-timer";
 import { Button } from "@enduragent/ui";
 import { planChangePendingCheck, planChangePendingInLibrary } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -25,6 +26,7 @@ import { SlashPopup } from "./SlashPopup";
 export interface ComposerHandle {
   focus(): void;
   reset(): void;
+  sending(): boolean;
 }
 
 export function Composer(props: {
@@ -51,8 +53,9 @@ export function Composer(props: {
   const [selected, setSelected] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false);
   const restoredRevision = useRef<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveTimer] = useState(createDraftSaveTimer);
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const changeCheckDocked = useEnduragentStore(
@@ -114,10 +117,9 @@ export function Composer(props: {
       ) {
         actions?.saveAttachmentDraftText(textarea.current.value);
       }
-      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-      saveTimer.current = null;
+      saveTimer.cancel();
     },
-    [actions, props.surface],
+    [actions, props.surface, saveTimer],
   );
 
   useImperativeHandle(
@@ -127,8 +129,7 @@ export function Composer(props: {
         textarea.current?.focus();
       },
       reset() {
-        if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-        saveTimer.current = null;
+        saveTimer.cancel();
         const input = textarea.current;
         if (input !== null) {
           input.value = "";
@@ -139,40 +140,36 @@ export function Composer(props: {
         setSelected(0);
         setDismissed(false);
       },
+      sending: () => sending.current,
     }),
     [],
   );
 
   const submit = async (): Promise<void> => {
     const input = textarea.current;
-    if (
-      input === null ||
-      sendDisabled ||
-      submitting ||
-      !canChat ||
-      (props.surface === undefined && actions === null)
-    ) {
-      return;
-    }
+    const surface = props.surface;
+    const send =
+      surface !== undefined
+        ? (value: string) => surface.submit(value)
+        : actions === null
+          ? null
+          : (value: string) =>
+              attachmentIds.length === 0
+                ? actions.submit(value)
+                : actions.submit(value, attachmentIds);
+    if (input === null || send === null || sendDisabled || submitting || !canChat) return;
     const value = input.value;
-    if (!/\S/u.test(value) && (props.surface !== undefined || attachmentIds.length === 0)) return;
-    if (saveTimer.current !== null) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    if (props.surface === undefined) actions!.saveAttachmentDraftText(value);
+    if (!/\S/u.test(value) && (surface !== undefined || attachmentIds.length === 0)) return;
+    saveTimer.cancel();
+    if (surface === undefined) actions?.saveAttachmentDraftText(value);
     setSubmitting(true);
+    sending.current = true;
     try {
-      const acknowledged =
-        props.surface !== undefined
-          ? await props.surface.submit(value)
-          : attachmentIds.length === 0
-            ? await actions!.submit(value)
-            : await actions!.submit(value, attachmentIds);
+      const acknowledged = await send(value);
       if (!acknowledged) return;
       if (input.value === value) {
         input.value = "";
-        if (props.draftMemory !== undefined) props.draftMemory.current = "";
+        if (props.draftMemory?.current === value) props.draftMemory.current = "";
         setDraft("");
         setSelected(0);
         setDismissed(false);
@@ -180,6 +177,7 @@ export function Composer(props: {
     } catch {
       input.focus();
     } finally {
+      sending.current = false;
       setSubmitting(false);
     }
   };
@@ -335,16 +333,14 @@ export function Composer(props: {
             setDraft(value);
             setSelected(0);
             setDismissed(false);
-            if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-            saveTimer.current = setTimeout(() => {
-              saveTimer.current = null;
+            saveTimer.schedule(() => {
               if (
                 props.surface === undefined &&
                 useEnduragentStore.getState().chat.composerStatus === null
               ) {
                 actions?.saveAttachmentDraftText(value);
               }
-            }, 300);
+            });
           }}
           onKeyDown={onKeyDown}
           onPaste={props.surface === undefined ? onPaste : undefined}
