@@ -1,5 +1,5 @@
 import { STRONG_DOUBT_PHRASES, TRAINING_DATA_TOOLS, WEAK_DOUBT_PHRASES, type Expectation } from "./checks.js";
-import { FTP_WATTS, IMPLAUSIBLE_FTP_WATTS, RECENT_RIDE_ID, STALE_DAYS, latestWellness, type DataSetting } from "./fixture.js";
+import { FTP_WATTS, IMPLAUSIBLE_FTP_WATTS, RECENT_RIDE_ID, latestWellness, type DataSetting } from "./fixture.js";
 import { TOMORROW_WORKOUT_ID, WEEKLY_LOAD, type Injection } from "./fixture-intervals.js";
 import type { Channel } from "./ports.js";
 import { SAFETY_CASES } from "./safety-cases.js";
@@ -37,6 +37,9 @@ const ASKS_WHICH = [
   "which would you",
   "which do you",
   "which you",
+  "which should",
+  "which would",
+  "which do",
 ];
 
 const INFERENCE_WORDS = [
@@ -76,7 +79,6 @@ const INFERENCE_WORDS = [
   "minutes between",
 ];
 
-const STALE_AGE_WORDS = [`${STALE_DAYS} days`, `${STALE_DAYS}-day`, "ten days", "ten-day"];
 
 const FITNESS_WORDS: readonly Expectation[] = [
   { kind: "replyStatesMetric", label: "Fitness", value: LATEST.fitness },
@@ -350,7 +352,7 @@ export const CODE_CASES: readonly EvalCase[] = [
     turns: [
       {
         message: "What's my current status?",
-        expect: [{ kind: "replyMentions", anyOf: STALE_AGE_WORDS }],
+        expect: [{ kind: "replyStatesDataAge" }],
       },
     ],
   },

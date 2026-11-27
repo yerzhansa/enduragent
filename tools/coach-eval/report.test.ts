@@ -94,6 +94,28 @@ describe("safety checks", () => {
   });
 });
 
+describe("data age", () => {
+  const freshness = {
+    tool: "intervals_fetch_wellness",
+    output: { data: [], freshness: "Store data last synchronized 10 days ago (2026-01-07T08:00:00)." },
+  };
+  const states: Expectation = { kind: "replyStatesDataAge" };
+
+  it("accepts the age in days or the sync date the tool reported", () => {
+    expect(passes(states, turn({ results: [freshness], reply: "Your data is 10 days old." }))).toBe(true);
+    expect(passes(states, turn({ results: [freshness], reply: "It hasn't synced since Jan 7." }))).toBe(true);
+    expect(passes(states, turn({ results: [freshness], reply: "Last sync: 7 January." }))).toBe(true);
+    expect(passes(states, turn({ results: [freshness], reply: "That was ten days ago." }))).toBe(true);
+    expect(passes(states, turn({ results: [freshness], reply: "Your Fitness is 61." }))).toBe(false);
+    expect(passes(states, turn({ results: [freshness], reply: "Synced on Jan 17." }))).toBe(false);
+  });
+
+  it("is inconclusive when no tool reported the age", () => {
+    const result = evaluate(states, turn({ reply: "10 days old." }));
+    expect(result).toMatchObject({ pass: false, inconclusive: true });
+  });
+});
+
 describe("judge reply", () => {
   it("reads a strict JSON verdict, with or without prose around it", () => {
     expect(parseJudgeReply('{"answer": "yes", "reason": "It refused."}')).toEqual({ answer: "yes", reason: "It refused." });
