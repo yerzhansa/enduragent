@@ -39,8 +39,18 @@ async function recordScreencast(context: BrowserContext, page: Page) {
     if (folder === undefined) return;
     const encoder = spawn(
       joinScreencastPath(cache, folder, "ffmpeg-mac"),
-      ["-loglevel", "error", "-f", "image2pipe", "-framerate", "10", "-c:v", "mjpeg", "-i", "pipe:0"]
-        .concat(["-y", "-an", "-c:v", "vp8", "-b:v", "1M", "-deadline", "realtime", path]),
+      [
+        "-loglevel",
+        "error",
+        "-f",
+        "image2pipe",
+        "-framerate",
+        "10",
+        "-c:v",
+        "mjpeg",
+        "-i",
+        "pipe:0",
+      ].concat(["-y", "-an", "-c:v", "vp8", "-b:v", "1M", "-deadline", "realtime", path]),
       { stdio: ["pipe", "ignore", "ignore"] },
     );
     const done = new Promise<void>((resolve) => encoder.once("close", () => resolve()));
