@@ -73,7 +73,7 @@ function operationRuntime(
   },
 ): Pick<
   LocalStoreRuntime,
-  "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "runActivityWrite"
+  "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "abortActiveWindow" | "runActivityWrite"
 > {
   let tail = Promise.resolve();
   const runExclusive: LocalStoreRuntime["runExclusive"] = (work) => {
@@ -88,6 +88,7 @@ function operationRuntime(
   return {
     runExclusive,
     runOutsideWindow: runExclusive,
+    abortActiveWindow: () => () => {},
     runActivityWrite: async (work) => ({
       value: await runExclusive(work),
       activityReadAvailable: true,
