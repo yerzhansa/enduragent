@@ -18,6 +18,7 @@ import {
 import { type CreationDraftInput } from "@enduragent/sport-cycling";
 import {
   goalEventDate,
+  startsAfterEvent,
   startTimingDetail,
   startTimingQuestion,
   validStartTiming,
@@ -325,9 +326,9 @@ export function resolvePlanCreationAnswerFlow(
     if (
       key === "plan-length" &&
       (goalRun?.family !== "fitness" || stored.record.sequence <= goalRun.sequence)
-    ) {
+    )
       continue;
-    }
+    if (key === "start-timing" && startsAfterEvent(stored.answer, valid, snapshot.seed)) continue;
     if (key === "availability") {
       if (
         stored.answer.kind !== "availability" ||
@@ -426,11 +427,12 @@ export const commitmentsDetail = (
 
 function answerSummary(
   snapshot: PlanCreationSnapshot,
+  flow: PlanCreationAnswerFlow,
+  context: PlanCreationProjectionContext,
   stored: StoredPlanCreationAnswer,
-  question: PlanCreationOpenQuestion,
-  today: string,
 ): PlanCreationAnswerSummary {
   const answer = stored.answer;
+  const question = questionForKey(snapshot, flow, context, answer.kind);
   const shared = { answerKey: answer.kind, question, answer, source: stored.source };
   switch (answer.kind) {
     case "goal":
@@ -443,7 +445,12 @@ function answerSummary(
       return {
         ...shared,
         title: "Start timing",
-        detail: startTimingDetail(answer.timing, today, resolvePlanCreationDraftAnswers(snapshot)),
+        detail: startTimingDetail(
+          answer.timing,
+          context.today,
+          resolvePlanCreationDraftAnswers(snapshot),
+          eventDateOf(snapshot, flow),
+        ),
       };
     case "schedule-mode":
       return {
@@ -717,16 +724,7 @@ export function projectPlanCreationAnswerSummaries(
 ): PlanCreationAnswerSummary[] {
   return flow.order.flatMap((key) => {
     const stored = flow.valid.get(key);
-    return stored === undefined
-      ? []
-      : [
-          answerSummary(
-            snapshot,
-            stored,
-            questionForKey(snapshot, flow, context, key),
-            context.today,
-          ),
-        ];
+    return stored === undefined ? [] : [answerSummary(snapshot, flow, context, stored)];
   });
 }
 

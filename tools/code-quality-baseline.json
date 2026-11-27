@@ -457,7 +457,7 @@
     "packages/coach/src/desktop-telegram-controller.ts": 1060,
     "packages/coach/src/enduragent.ts": 2574,
     "packages/coach/src/plan-change-operations.ts": 1027,
-    "packages/coach/src/plan-creation-answers.ts": 863,
+    "packages/coach/src/plan-creation-answers.ts": 861,
     "packages/coach/src/plan-creation-operations.ts": 886,
     "packages/coach/src/planning-operations.ts": 5310,
     "packages/core/src/agent/chat-store.ts": 1516,

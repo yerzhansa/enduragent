@@ -65,11 +65,24 @@ export function startTimingDetail(
   timing: StartTiming,
   today: string,
   answers: CreationDraftInput["answers"] | null,
+  eventDate: string | null,
 ): string {
   if (timing.kind === "as-soon-as-possible") return "As soon as possible";
   const start =
     answers === null
-      ? pickedStart(timing.date, today)
+      ? pickedStart(timing.date, today, eventDate)
       : (creationStart({ answers, today, ftp: null }) ?? timing.date);
   return `Starts ${formatCivilDate(start)}`;
+}
+
+export function startsAfterEvent(
+  answer: PlanCreationAnswer,
+  valid: ReadonlyMap<string, { readonly answer: PlanCreationAnswer }>,
+  seed: { readonly eventCandidates: readonly GoalEventCandidate[] } | null | undefined,
+): boolean {
+  if (answer.kind !== "start-timing" || answer.timing.kind !== "earliest") return false;
+  const goal = valid.get("goal")?.answer;
+  const eventDate =
+    goal?.kind === "goal" ? goalEventDate(goal.goal, seed?.eventCandidates ?? []) : null;
+  return eventDate !== null && answer.timing.date > eventDate;
 }

@@ -255,9 +255,22 @@ describe("creation draft builder", () => {
       "1998-10-05",
     ]);
     expect(creationStart(value)).toBe("1998-09-14");
-    expect(pickedStart("1998-09-07", "1998-09-07")).toBe("1998-09-07");
-    expect(pickedStart("1998-09-07", "1998-09-14")).toBe("1998-09-14");
-    expect(pickedStart("1998-09-07", "1998-09-15")).toBe("1998-09-21");
+    expect(pickedStart("1998-09-07", "1998-09-07", null)).toBe("1998-09-07");
+    expect(pickedStart("1998-09-07", "1998-09-14", null)).toBe("1998-09-14");
+    expect(pickedStart("1998-09-07", "1998-09-15", null)).toBe("1998-09-21");
+    expect(pickedStart("1998-09-07", "1998-09-08", "1998-09-20")).toBe("1998-09-14");
+  });
+
+  it("starts today when a passed pick moved by whole weeks would land after the event", () => {
+    const value = input();
+    value.today = "1998-09-08";
+    value.answers.goal = { kind: "event", name: "Synthetic Gran Fondo", date: "1998-09-10" };
+    value.answers.startTiming = { kind: "earliest", date: "1998-09-07" };
+    expect(pickedStart("1998-09-07", "1998-09-08", "1998-09-10")).toBe("1998-09-08");
+    expect(creationStart(value)).toBe("1998-09-08");
+    const draft = build(value);
+    expect(draft.start).toBe("1998-09-08");
+    expect(draft.weeks[0]?.workouts.some((workout) => workout.date === "1998-09-10")).toBe(true);
   });
 
   it.each([

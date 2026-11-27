@@ -669,6 +669,49 @@ describe("Plan Creation operations", () => {
     );
   });
 
+  it("states today when a passed pick moved by whole weeks would land after the event", () => {
+    const nearEvent: PlanCreationAnswerInput = {
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date: "1998-09-04" },
+    };
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, nearEvent),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-08-31" } }),
+      ]),
+      { today },
+    );
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 2 Sept 1998" }),
+    );
+  });
+
+  it("asks for the start again when the event moves before it", () => {
+    const event = (date: string): PlanCreationAnswerInput => ({
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date },
+    });
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, event("1998-09-20")),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-09-14" } }),
+        stored(5, event("1998-09-10")),
+      ]),
+      { today },
+    );
+    expect(card.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      latestAllowed: "1998-09-10",
+    });
+    expect(card.answeredSummaries.map((summary) => summary.answerKey)).not.toContain(
+      "start-timing",
+    );
+  });
+
   it("states the start the Draft will use when the first picked week has no day to train", () => {
     const card = projectPlanCreationCard(
       snapshot(

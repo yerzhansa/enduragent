@@ -152,13 +152,14 @@ export function digest(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-export function pickedStart(picked: string, today: string): string {
+export function pickedStart(picked: string, today: string, eventDate: string | null): string {
   const pickedKey = dateKeyFromText(picked);
   const todayKey = dateKeyFromText(today);
   if (pickedKey >= todayKey) return picked;
-  return civilText(
+  const moved = civilText(
     addCivilDays(pickedKey, Math.ceil((inclusiveCivilDays(pickedKey, todayKey) - 1) / 7) * 7),
   );
+  return eventDate !== null && moved > eventDate ? today : moved;
 }
 
 export function creationStart(input: CreationDraftInput): string | null {
@@ -166,7 +167,11 @@ export function creationStart(input: CreationDraftInput): string | null {
   const { availability } = answers;
   const earliestKey = dateKeyFromText(
     answers.startTiming.kind === "earliest"
-      ? pickedStart(answers.startTiming.date, input.today)
+      ? pickedStart(
+          answers.startTiming.date,
+          input.today,
+          answers.goal.kind === "event" ? answers.goal.date : null,
+        )
       : input.today,
   );
   for (let offset = 0; offset < 370; offset++) {
