@@ -2721,8 +2721,8 @@
         "activatingCoach": "Activating coach…",
         "completingSignIn": "Completing sign-in…",
         "ready": "Ready",
-        "signInExpired": "Your {{chatgpt}} sign-in expired. Sign in again to keep coaching.",
         "signedIn": "Signed in",
+        "signInExpired": "Your {{chatgpt}} sign-in expired. Sign in again to keep coaching.",
         "waitingForBrowser": "Waiting for browser…"
       },
       "refusal": {

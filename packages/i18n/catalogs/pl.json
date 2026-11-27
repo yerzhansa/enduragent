@@ -908,8 +908,8 @@
         "activatingCoach": "Aktywowanie trenera…",
         "completingSignIn": "Kończenie logowania…",
         "ready": "Gotowe",
-        "signInExpired": "Twoja sesja {{chatgpt}} wygasła. Zaloguj się ponownie, aby dalej korzystać z trenera.",
         "signedIn": "Zalogowano",
+        "signInExpired": "Twoja sesja {{chatgpt}} wygasła. Zaloguj się ponownie, aby dalej korzystać z trenera.",
         "waitingForBrowser": "Oczekiwanie na przeglądarkę…"
       },
       "refusal": {

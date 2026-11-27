@@ -898,8 +898,8 @@
         "activatingCoach": "Otetaan valmentajaa käyttöön…",
         "completingSignIn": "Viimeistellään kirjautumista…",
         "ready": "Valmis",
-        "signInExpired": "{{chatgpt}}-kirjautumisesi on vanhentunut. Kirjaudu uudelleen, jotta voit jatkaa valmentajasi kanssa.",
         "signedIn": "Kirjautunut",
+        "signInExpired": "{{chatgpt}}-kirjautumisesi on vanhentunut. Kirjaudu uudelleen, jotta voit jatkaa valmentajasi kanssa.",
         "waitingForBrowser": "Odotetaan selainta…"
       },
       "refusal": {

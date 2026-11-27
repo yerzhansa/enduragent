@@ -893,8 +893,8 @@
         "activatingCoach": "コーチを有効化中…",
         "completingSignIn": "サインインを完了中…",
         "ready": "準備完了",
-        "signInExpired": "{{chatgpt}}のサインインの有効期限が切れました。コーチを引き続き使うには、もう一度サインインしてください。",
         "signedIn": "サインイン済み",
+        "signInExpired": "{{chatgpt}}のサインインの有効期限が切れました。コーチを引き続き使うには、もう一度サインインしてください。",
         "waitingForBrowser": "ブラウザの操作を待機中…"
       },
       "refusal": {

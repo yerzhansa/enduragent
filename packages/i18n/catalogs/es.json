@@ -898,8 +898,8 @@
         "activatingCoach": "Activando entrenador…",
         "completingSignIn": "Completando inicio de sesión…",
         "ready": "Listo",
-        "signInExpired": "Tu sesión de {{chatgpt}} ha caducado. Vuelve a iniciar sesión para seguir con tu entrenador.",
         "signedIn": "Sesión iniciada",
+        "signInExpired": "Tu sesión de {{chatgpt}} ha caducado. Vuelve a iniciar sesión para seguir con tu entrenador.",
         "waitingForBrowser": "Esperando al navegador…"
       },
       "refusal": {

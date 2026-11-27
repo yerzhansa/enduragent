@@ -893,8 +893,8 @@
         "activatingCoach": "코치 활성화 중…",
         "completingSignIn": "로그인 마무리 중…",
         "ready": "준비됨",
-        "signInExpired": "{{chatgpt}} 로그인이 만료되었습니다. 코치를 계속 사용하려면 다시 로그인하세요.",
         "signedIn": "로그인됨",
+        "signInExpired": "{{chatgpt}} 로그인이 만료되었습니다. 코치를 계속 사용하려면 다시 로그인하세요.",
         "waitingForBrowser": "브라우저 대기 중…"
       },
       "refusal": {

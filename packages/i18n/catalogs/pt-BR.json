@@ -899,8 +899,8 @@
         "activatingCoach": "Ativando treinador…",
         "completingSignIn": "Concluindo entrada…",
         "ready": "Pronto",
-        "signInExpired": "Sua sessão em {{chatgpt}} expirou. Entre novamente para continuar com seu treinador.",
         "signedIn": "Sessão iniciada",
+        "signInExpired": "Sua sessão em {{chatgpt}} expirou. Entre novamente para continuar com seu treinador.",
         "waitingForBrowser": "Aguardando navegador…"
       },
       "refusal": {

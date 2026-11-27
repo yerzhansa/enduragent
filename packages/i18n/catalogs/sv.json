@@ -898,8 +898,8 @@
         "activatingCoach": "Aktiverar tränaren…",
         "completingSignIn": "Slutför inloggning…",
         "ready": "Klart",
-        "signInExpired": "Din {{chatgpt}}-inloggning har gått ut. Logga in igen för att fortsätta med din tränare.",
         "signedIn": "Inloggad",
+        "signInExpired": "Din {{chatgpt}}-inloggning har gått ut. Logga in igen för att fortsätta med din tränare.",
         "waitingForBrowser": "Väntar på webbläsaren…"
       },
       "refusal": {

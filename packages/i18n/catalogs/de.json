@@ -898,8 +898,8 @@
         "activatingCoach": "Coach wird aktiviert…",
         "completingSignIn": "Anmeldung wird abgeschlossen…",
         "ready": "Bereit",
-        "signInExpired": "Deine {{chatgpt}}-Anmeldung ist abgelaufen. Melde dich erneut an, um mit deinem Coach weiterzumachen.",
         "signedIn": "Angemeldet",
+        "signInExpired": "Deine {{chatgpt}}-Anmeldung ist abgelaufen. Melde dich erneut an, um mit deinem Coach weiterzumachen.",
         "waitingForBrowser": "Warten auf den Browser…"
       },
       "refusal": {

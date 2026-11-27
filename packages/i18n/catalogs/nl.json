@@ -898,8 +898,8 @@
         "activatingCoach": "Coach activeren…",
         "completingSignIn": "Aanmelden afronden…",
         "ready": "Klaar",
-        "signInExpired": "Je aanmelding bij {{chatgpt}} is verlopen. Meld je opnieuw aan om verder te gaan met je coach.",
         "signedIn": "Aangemeld",
+        "signInExpired": "Je aanmelding bij {{chatgpt}} is verlopen. Meld je opnieuw aan om verder te gaan met je coach.",
         "waitingForBrowser": "Wachten op browser…"
       },
       "refusal": {

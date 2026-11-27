@@ -893,8 +893,8 @@
         "activatingCoach": "正在启用教练…",
         "completingSignIn": "正在完成登录…",
         "ready": "已就绪",
-        "signInExpired": "{{chatgpt}} 登录已过期。请重新登录以继续使用教练。",
         "signedIn": "已登录",
+        "signInExpired": "{{chatgpt}} 登录已过期。请重新登录以继续使用教练。",
         "waitingForBrowser": "正在等待浏览器…"
       },
       "refusal": {

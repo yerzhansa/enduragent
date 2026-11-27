@@ -898,8 +898,8 @@
         "activatingCoach": "Attivazione del coach…",
         "completingSignIn": "Completamento dell’accesso…",
         "ready": "Pronto",
-        "signInExpired": "Il tuo accesso a {{chatgpt}} è scaduto. Accedi di nuovo per continuare con il tuo coach.",
         "signedIn": "Accesso effettuato",
+        "signInExpired": "Il tuo accesso a {{chatgpt}} è scaduto. Accedi di nuovo per continuare con il tuo coach.",
         "waitingForBrowser": "In attesa del browser…"
       },
       "refusal": {

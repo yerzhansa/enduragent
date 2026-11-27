@@ -898,8 +898,8 @@
         "activatingCoach": "Activation du coach…",
         "completingSignIn": "Finalisation de la connexion…",
         "ready": "Prêt",
-        "signInExpired": "Ta connexion à {{chatgpt}} a expiré. Reconnecte-toi pour continuer avec ton coach.",
         "signedIn": "Connecté",
+        "signInExpired": "Ta connexion à {{chatgpt}} a expiré. Reconnecte-toi pour continuer avec ton coach.",
         "waitingForBrowser": "En attente du navigateur…"
       },
       "refusal": {

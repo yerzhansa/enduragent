@@ -898,8 +898,8 @@
         "activatingCoach": "Aktiverer trener…",
         "completingSignIn": "Fullfører pålogging…",
         "ready": "Klar",
-        "signInExpired": "{{chatgpt}}-påloggingen din er utløpt. Logg på igjen for å fortsette med treneren din.",
         "signedIn": "Pålogget",
+        "signInExpired": "{{chatgpt}}-påloggingen din er utløpt. Logg på igjen for å fortsette med treneren din.",
         "waitingForBrowser": "Venter på nettleseren…"
       },
       "refusal": {
