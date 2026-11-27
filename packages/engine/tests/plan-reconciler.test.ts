@@ -190,6 +190,25 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
     return Object.freeze([...latest.values()]);
   }
 
+  async readCleanupBarrier(): Promise<PlanReconciliationJobRecord | undefined> {
+    return [...this.jobs.values()]
+      .filter((job) => job.kind === "cleanup")
+      .sort(
+        (left, right) =>
+          Number(right.status === "failed") - Number(left.status === "failed") ||
+          Number(right.status !== "verified") - Number(left.status !== "verified") ||
+          right.createdAtMs - left.createdAtMs ||
+          right.id.localeCompare(left.id),
+      )[0];
+  }
+
+  async reopenFailedCleanups(updatedAtMs: number): Promise<void> {
+    for (const job of this.jobs.values()) {
+      if (job.kind === "cleanup" && job.status === "failed")
+        await this.reopenJob(job.id, updatedAtMs);
+    }
+  }
+
   async readLatestJobByWindow(
     planId: string,
     kind: PlanReconciliationKind,

@@ -158,14 +158,9 @@ export function createPlanCalendarDrain(deps: {
       "SELECT plan_id, version FROM planning_plan WHERE status='active'",
     );
     if (typeof activePlan?.plan_id !== "string") return;
-    const barrier = await store.get(
-      `SELECT status, window_start_date_key FROM plan_reconciliation_job
-WHERE kind='cleanup' AND plan_id<>? ORDER BY created_at_ms DESC, id DESC LIMIT 1`,
-      [activePlan.plan_id],
-    );
+    const barrier = await repository.readCleanupBarrier();
     if (barrier !== undefined && barrier.status !== "verified") return;
-    const barrierStart =
-      typeof barrier?.window_start_date_key === "number" ? barrier.window_start_date_key : today;
+    const barrierStart = barrier?.windowStartDateKey ?? today;
     const plan = await plans.read(activePlan.plan_id);
     if (plan === undefined || plan.status !== "active") return;
     const input = {
