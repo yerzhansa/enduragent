@@ -26,7 +26,7 @@ import { SlashPopup } from "./SlashPopup";
 export interface ComposerHandle {
   focus(): void;
   reset(): void;
-  sending(): boolean;
+  sending(): string | null;
 }
 
 export function Composer(props: {
@@ -53,7 +53,7 @@ export function Composer(props: {
   const [selected, setSelected] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const sending = useRef(false);
+  const inFlight = useRef<string | null>(null);
   const restoredRevision = useRef<string | null>(null);
   const [saveTimer] = useState(createDraftSaveTimer);
   const listboxId = useId();
@@ -140,7 +140,7 @@ export function Composer(props: {
         setSelected(0);
         setDismissed(false);
       },
-      sending: () => sending.current,
+      sending: () => inFlight.current,
     }),
     [],
   );
@@ -163,13 +163,18 @@ export function Composer(props: {
     saveTimer.cancel();
     if (surface === undefined) actions?.saveAttachmentDraftText(value);
     setSubmitting(true);
-    sending.current = true;
+    inFlight.current = value;
     try {
       const acknowledged = await send(value);
       if (!acknowledged) return;
       if (input.value === value) {
         input.value = "";
-        if (props.draftMemory?.current === value) props.draftMemory.current = "";
+        if (
+          props.draftMemory !== undefined &&
+          (input === textarea.current || props.draftMemory.current === value)
+        ) {
+          props.draftMemory.current = "";
+        }
         setDraft("");
         setSelected(0);
         setDismissed(false);
@@ -177,7 +182,7 @@ export function Composer(props: {
     } catch {
       input.focus();
     } finally {
-      sending.current = false;
+      inFlight.current = null;
       setSubmitting(false);
     }
   };
@@ -188,6 +193,7 @@ export function Composer(props: {
     if (match === undefined || input === null) return;
     const inserted = `${match.command} `;
     input.value = inserted;
+    if (props.draftMemory !== undefined) props.draftMemory.current = inserted;
     setDraft(inserted);
     setSelected(0);
     setDismissed(false);

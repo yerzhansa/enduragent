@@ -128,7 +128,8 @@ export function ChatView(): ReactElement {
   useEffect(() => {
     if (prefill === null) return;
     clearPrefill(prefill.revision);
-    const current = composer.current?.sending() === true ? "" : composerDraft.current;
+    const inFlight = composer.current?.sending() ?? null;
+    const current = composerDraft.current === inFlight ? "" : composerDraft.current;
     if (current.trimEnd().endsWith(prefill.text)) return;
     const next = current.trim().length === 0 ? prefill.text : `${current}\n\n${prefill.text}`;
     composerDraft.current = next;

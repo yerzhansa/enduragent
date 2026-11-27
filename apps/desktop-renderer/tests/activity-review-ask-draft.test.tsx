@@ -219,3 +219,55 @@ describe("Ask the coach with Chat already mounted, as Shell keeps it", () => {
     test.dispose();
   });
 });
+
+describe("Ask the coach around a message the athlete sent", () => {
+  it("does not bring back a Tab-completed slash command once it was sent", async () => {
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "/stat");
+    await user.keyboard("{Enter}");
+    expect(composer()).toHaveValue("/status ");
+    await user.keyboard("{Enter}");
+    await vi.waitFor(
+      () => expect(store.getState().chatActions?.submit).toHaveBeenCalled(),
+      SETTLED,
+    );
+    await vi.waitFor(() => expect(composer()).toHaveValue(""), SETTLED);
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride?"));
+    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(composer()).toHaveValue("About my ride?");
+    test.dispose();
+  });
+
+  it("keeps what the athlete typed after pressing send when Ask comes before the acknowledgement", async () => {
+    let acknowledge: (acknowledged: boolean) => void = () => undefined;
+    const submit = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    store.setState({
+      chatActions: { ...(store.getState().chatActions as ChatActions), submit } as never,
+    });
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "First message{Enter}");
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledOnce(), SETTLED);
+    await user.clear(composer());
+    await user.type(composer(), "Typed while it sends");
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride?"));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await act(async () => acknowledge(true));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(composer()).toHaveValue("Typed while it sends\n\nAbout my ride?");
+    test.dispose();
+  });
+});
