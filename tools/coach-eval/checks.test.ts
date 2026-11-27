@@ -333,6 +333,16 @@ describe("spend meter", () => {
     expect(() => meter.assertCanCall()).toThrow(RunStoppedError);
   });
 
+  it("adds a failed call's known usage without also counting it as unpriced", () => {
+    const meter = new SpendMeter(10);
+    meter.record({ outcome: "error", providerReportedCostUsd: 0.002 });
+    meter.record({ outcome: "error" });
+    meter.recordFailedCall();
+    meter.recordFailedCall();
+    expect(meter.snapshot()).toMatchObject({ spentUsd: 0.002, unpricedCalls: 0, failedCalls: 2 });
+    expect(meter.stopReason()).toMatch(/failed, so its cost is unknown/);
+  });
+
   it("keeps the first halt reason", () => {
     const meter = new SpendMeter(10);
     meter.halt("the model provider refused the key");

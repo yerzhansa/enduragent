@@ -67,6 +67,7 @@ export function parseRunArgs(argv: readonly string[]): ParsedRunOptions {
 export interface UsageCostFigures {
   readonly providerReportedCostUsd?: number;
   readonly cost?: { readonly total: number };
+  readonly outcome?: string;
 }
 
 export type CostSource = "provider" | "catalog";
@@ -122,7 +123,7 @@ export class SpendMeter {
   record(line: UsageCostFigures): void {
     const cost = lineCost(line);
     if (cost === undefined) {
-      this.unpriced++;
+      if (line.outcome !== "error") this.unpriced++;
       return;
     }
     this.pricedBy[cost.source]++;

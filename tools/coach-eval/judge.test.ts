@@ -93,7 +93,8 @@ describe("judge metering", () => {
     const judge = withJudge(meter, failing);
     try {
       await expect(judge.ask("q", turns)).rejects.toThrow("upstream timeout");
-      expect(meter.snapshot().failedCalls).toBe(1);
+      expect(meter.snapshot()).toMatchObject({ failedCalls: 1, unpricedCalls: 0 });
+      expect(judge.usage).toEqual([expect.objectContaining({ outcome: "error" })]);
       expect(meter.stopReason()).toMatch(/cost is unknown/);
     } finally {
       judge.dispose();
