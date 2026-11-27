@@ -5,6 +5,7 @@ import {
   type DesktopFixtureScript,
   type RunningDesktopFixture,
 } from "../../helpers/desktop-fixture.js";
+import { desktopFixtureWindowHidden } from "../../helpers/desktop-fixture-launch-args.js";
 
 const token = "p".repeat(43);
 const turnId = "turn-playwright-chat";
@@ -356,7 +357,7 @@ export const test = base.extend<ChatDesktopFixtures>({
         height: 820,
         colorScheme: "light",
         reducedMotion: true,
-        hidden: false,
+        hidden: desktopFixtureWindowHidden(process.env.PWDEBUG),
         routeChatAttachmentComposer: true,
       });
       browser = await playwright.chromium.connectOverCDP(fixture.remoteDebuggingUrl);

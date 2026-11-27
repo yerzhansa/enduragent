@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test as base, type ElectronApplication, type Page } from "@playwright/test";
-import { desktopFixtureLaunchArgs } from "../../helpers/desktop-fixture-launch-args.js";
+import {
+  desktopFixtureLaunchArgs,
+  desktopFixtureWindowHidden,
+} from "../../helpers/desktop-fixture-launch-args.js";
 
 const require = createRequire(import.meta.url);
 const desktopRoot = resolve(import.meta.dirname, "../../..");
@@ -43,7 +46,7 @@ function isolatedEnvironment(paths: DesktopPaths): Record<string, string> {
     ENDURAGENT_DEVELOPMENT_USER_DATA: paths.userData,
     ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
     ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT: "1",
-    ENDURAGENT_ACCEPTANCE_HIDDEN: "0",
+    ENDURAGENT_ACCEPTANCE_HIDDEN: desktopFixtureWindowHidden(process.env.PWDEBUG) ? "1" : "0",
     ENDURAGENT_STARTUP_TRACE: "1",
     LANG: "en_US.UTF-8",
     TZ: "UTC",
