@@ -4,6 +4,7 @@ import {
   canRenderWorkoutChartText,
   renderWorkoutChart,
   renderWorkoutChartSvg,
+  resolveWorkoutChartFontPath,
   UnsupportedWorkoutChartTextError,
 } from "../src/channels/workout-chart.js";
 import type { WorkoutChartModel } from "../src/workout-change-sets/presentation.js";
@@ -102,5 +103,40 @@ describe("workout chart rasterization", () => {
         segments: [{ kind: "range", durationSeconds: 900, low: 80, high: 70 }],
       }),
     ).toThrow("Range chart targets must be ordered.");
+  });
+
+  it("resolves unpacked app.asar font paths on macOS and Windows", () => {
+    const macPacked =
+      "/Applications/Enduragent.app/Contents/Resources/app.asar/node_modules/@enduragent/core/dist/workout-chart-font.otf";
+    const macUnpacked =
+      "/Applications/Enduragent.app/Contents/Resources/app.asar.unpacked/node_modules/@enduragent/core/dist/workout-chart-font.otf";
+    expect(resolveWorkoutChartFontPath(macPacked, (candidate) => candidate === macUnpacked)).toBe(
+      macUnpacked,
+    );
+
+    const winPacked =
+      "C:\\Users\\athlete\\AppData\\Local\\Programs\\Enduragent\\resources\\app.asar\\node_modules\\@enduragent\\core\\dist\\workout-chart-font.otf";
+    const winUnpacked =
+      "C:\\Users\\athlete\\AppData\\Local\\Programs\\Enduragent\\resources\\app.asar.unpacked\\node_modules\\@enduragent\\core\\dist\\workout-chart-font.otf";
+    expect(resolveWorkoutChartFontPath(winPacked, (candidate) => candidate === winUnpacked)).toBe(
+      winUnpacked,
+    );
+
+    const nestedPacked =
+      "/Users/app.asar/builds/Enduragent.app/Contents/Resources/app.asar/node_modules/@enduragent/core/dist/workout-chart-font.otf";
+    const nestedUnpacked =
+      "/Users/app.asar/builds/Enduragent.app/Contents/Resources/app.asar.unpacked/node_modules/@enduragent/core/dist/workout-chart-font.otf";
+    expect(
+      resolveWorkoutChartFontPath(nestedPacked, (candidate) => candidate === nestedUnpacked),
+    ).toBe(nestedUnpacked);
+
+    const npmPath = "/tmp/cycling-coach/dist/workout-chart-font.otf";
+    expect(resolveWorkoutChartFontPath(npmPath, (candidate) => candidate === npmPath)).toBe(
+      npmPath,
+    );
+
+    expect(resolveWorkoutChartFontPath(npmPath, () => false)).toMatch(
+      /NotoSansCJKsc-Regular\.otf$/u,
+    );
   });
 });

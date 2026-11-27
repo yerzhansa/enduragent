@@ -11,6 +11,9 @@ import {
   KEYCHAIN_BINDING_ASAR_PATH,
   KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN,
   KEYCHAIN_BINDING_FUSE_CONFIGURATION,
+  PDFIUM_WASM_ASAR_PATH,
+  REQUIRED_ASAR_UNPACK_PATTERNS,
+  WORKOUT_CHART_FONT_ASAR_PATH,
 } from "../scripts/package-inventory.mjs";
 import { readBuilderAuthority, verifyPackageLayout } from "../scripts/verify-package-layout.mjs";
 import { MACOS_LOCALE_LPROJ_NAMES } from "../scripts/package-locales.mjs";
@@ -35,6 +38,13 @@ const exclusions = [
   "!**/node_modules/@vitest/**",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+  "!**/*.d.{ts,mts,cts}",
+  "!**/node_modules/**/*.{ts,tsx,mts,cts}",
+  "!**/node_modules/@enduragent/*/src/**",
+  "!**/node_modules/@enduragent/i18n/catalogs/**",
+  "!**/node_modules/@enduragent/i18n/glossaries/**",
+  "!**/node_modules/mammoth/mammoth.browser*.js",
+  "!**/node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js",
 ];
 const telegramRuntimePackages = [
   {
@@ -183,7 +193,7 @@ function builderYaml(
     "productName: Enduragent",
     "asar: true",
     "asarUnpack:",
-    `  - ${KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN}`,
+    ...REQUIRED_ASAR_UNPACK_PATTERNS.map((pattern) => `  - ${pattern}`),
     "electronFuses:",
     ...Object.entries(KEYCHAIN_BINDING_FUSE_CONFIGURATION).map(
       ([name, value]) => `  ${name}: ${String(value)}`,
@@ -262,7 +272,9 @@ async function syntheticPackage(): Promise<SyntheticPackage> {
 
   await Promise.all([
     mkdir(resources, { recursive: true }),
-    ...MACOS_LOCALE_LPROJ_NAMES.map((locale) => mkdir(join(resources, locale), { recursive: true })),
+    ...MACOS_LOCALE_LPROJ_NAMES.map((locale) =>
+      mkdir(join(resources, locale), { recursive: true }),
+    ),
     mkdir(archiveSource, { recursive: true }),
     mkdir(join(asarSource, "resources/self-test"), { recursive: true }),
     mkdir(join(externalSource, "self-test"), { recursive: true }),
@@ -675,6 +687,44 @@ describe("desktop package layout", () => {
     ).rejects.toThrow("invalid builder packaging authority");
   });
 
+  it.each(REQUIRED_ASAR_UNPACK_PATTERNS)(
+    "requires the builder asarUnpack entry %s",
+    async (pattern) => {
+      const fixture = await syntheticPackage();
+      const yaml = builderYaml().replace(`  - ${pattern}\n`, "");
+      await writeFile(join(fixture.desktop, "electron-builder.yml"), yaml);
+      await expect(
+        verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),
+      ).rejects.toThrow("invalid builder packaging authority");
+    },
+  );
+
+  it.each([PDFIUM_WASM_ASAR_PATH, WORKOUT_CHART_FONT_ASAR_PATH])(
+    "requires the large binary asset %s to remain unpacked when present",
+    async (assetPath) => {
+      const packed = await syntheticPackage();
+      await packed.writeArchive(assetPath, Buffer.from("synthetic binary asset"));
+      await packed.rebuild();
+      await expect(
+        verifyPackageLayout(packed.app, { desktopRoot: packed.desktop }),
+      ).rejects.toThrow("declared unpacked binary asset is packed");
+
+      const unpacked = await syntheticPackage();
+      await unpacked.writeArchive(assetPath, Buffer.from("synthetic binary asset"));
+      await rm(join(unpacked.resources, "app.asar"), { force: true });
+      await rm(join(unpacked.resources, "app.asar.unpacked"), { force: true, recursive: true });
+      const archive = await createPackageWithOptions(
+        unpacked.archiveSource,
+        join(unpacked.resources, "app.asar"),
+        { unpack: "*.{node,wasm,otf}" },
+      );
+      await finished(archive);
+      await expect(
+        verifyPackageLayout(unpacked.app, { desktopRoot: unpacked.desktop }),
+      ).resolves.toBeUndefined();
+    },
+  );
+
   it("pins the audited Electron locales", async () => {
     const fixture = await syntheticPackage();
     const yaml = builderYaml().replace(/electronLanguages:\n(?: {2}- [\w-]+\n)+/u, "");
@@ -722,6 +772,16 @@ describe("desktop package layout", () => {
     "node_modules/@enduragent/sport-cycling/vitest.workspace.mts",
     "node_modules/vitest/index.js",
     "node_modules/@vitest/runner/index.js",
+    "node_modules/valibot/dist/index.d.mts",
+    "node_modules/valibot/dist/index.d.cts",
+    "out/main/spec.helpers.d.ts",
+    "node_modules/zod/src/index.ts",
+    "node_modules/@enduragent/core/src/index.ts",
+    "node_modules/@enduragent/i18n/catalogs/en.json",
+    "node_modules/@enduragent/i18n/glossaries/fr.json",
+    "node_modules/mammoth/mammoth.browser.js",
+    "node_modules/mammoth/mammoth.browser.min.js",
+    "node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js",
   ])("rejects forbidden ASAR path %s", async (path) => {
     const fixture = await syntheticPackage();
     await fixture.writeArchive(path);
@@ -758,7 +818,7 @@ describe("desktop package layout", () => {
     "node_modules/@modelcontextprotocol/sdk/dist/esm/spec.types.js",
     "out/main/test.types.js",
     "out/main/test.helpers.js",
-    "out/main/spec.helpers.d.ts",
+    "out/main/spec.helpers.js",
     "out/main/snapshot.js",
     "out/main/snapshots/index.js",
   ])("keeps the published module %s packageable", async (path) => {
