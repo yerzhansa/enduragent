@@ -7,7 +7,7 @@ import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createAlibaba } from "@ai-sdk/alibaba";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { LanguageModel, ModelMessage } from "ai";
+import type { LanguageModel, LanguageModelUsage, ModelMessage } from "ai";
 import { isKeylessProvider, type ResolvedModelProfile } from "@enduragent/coach-contract";
 import { dirname } from "node:path";
 
@@ -19,6 +19,9 @@ import type {
   EngineHostPorts,
   ModelTransport,
   ChatStreamTimeouts,
+  UsageCost,
+  UsageErrorClass,
+  UsageLedgerLine,
 } from "./host-ports.js";
 import { codexGenerateText } from "./agent/codex-bridge.js";
 import { claudeCliGenerateText } from "./agent/claude-cli/bridge.js";
@@ -29,9 +32,10 @@ import {
   type ClaudeCliSessionPool,
 } from "./agent/claude-cli/session-pool.js";
 import { ensureClaudeCliReady } from "./agent/claude-cli/probe.js";
-import type { GenerateOpts, GenerateResult } from "./llm-types.js";
+import type { GenerateOpts, GenerateResult, UsageFieldsSource } from "./llm-types.js";
 import { cacheTokenDetails, usageFieldsFromResult } from "./llm-types.js";
-import type { ModelStreamActivity } from "./sport.js";
+import type { FinishedStepUsage, ModelStreamActivity } from "./sport.js";
+import { createStepUsageTally, type StepUsageTally } from "./step-usage-tally.js";
 import {
   createClaudeWorkingArea,
   type ClaudeWorkingAreaPort,
@@ -66,24 +70,10 @@ type LLMHostPorts = Pick<
   | "claudeWorkingArea"
 >;
 
-// ============================================================================
-// LLM DISPATCH
-// ============================================================================
-
 export function usesKeylessTransport(provider: string): boolean {
   return isKeylessProvider(provider);
 }
 
-// Most providers cache the stable system prefix automatically server-side and
-// get the plain system string, so they are absent here: direct openai/google,
-// the OpenAI-compatible direct providers, and OpenRouter's OpenAI/DeepSeek/
-// Grok/Moonshot routes. Explicit breakpoints are needed by direct Anthropic and
-// — through OpenRouter — the Anthropic/Qwen/Gemini routes; of those we ship only
-// the Qwen route (`qwen/`-namespaced ids), so `anthropic/` and `google/` via
-// OpenRouter are intentionally out of scope and stay uncached. (Same breakpoint
-// shape as Anthropic; only the providerOptions key differs —
-// @openrouter/ai-sdk-provider reads it from message-level
-// providerOptions.openrouter.cacheControl.)
 export function cacheBreakpointKey(
   provider: string,
   model: string,
@@ -99,8 +89,6 @@ export class LLM {
   private ports: LLMHostPorts;
   private transport: ModelTransport;
   private aiSdkModel: LanguageModel | null;
-  // Instance-constant for the same reason: the cache-breakpoint decision depends
-  // only on provider + model, so resolve it once rather than per dispatch().
   private breakpointKey: "anthropic" | "openrouter" | undefined;
   private chatStreamTimeouts: ChatStreamTimeouts;
   private claudeCliPool: ClaudeCliSessionPool | null = null;
@@ -130,9 +118,6 @@ export class LLM {
 
   async generate(opts: GenerateOpts): Promise<GenerateResult> {
     const start = this.ports.now();
-    // The per-call deadline is the caller's class budget intersected with any
-    // turn-remaining bound the agent loop passes, so a retry after an early
-    // timeout inherits only the time the turn has left — never a fresh window.
     const deadlineMs = Math.min(
       deadlineMsForCaller(opts.caller),
       opts.deadlineMs ?? Number.POSITIVE_INFINITY,
@@ -144,17 +129,18 @@ export class LLM {
         : undefined;
     const signal =
       watchdog === undefined ? deadlineSignal : AbortSignal.any([deadlineSignal, watchdog.signal]);
+    const tally = createStepUsageTally();
     const handleTextDelta = (delta: string): void => {
       watchdog?.textDelta(delta);
-      try {
-        opts.onTextDelta?.(delta);
-      } catch {}
+      notifyTextDelta(opts.onTextDelta, delta);
     };
     const handleStreamActivity = (activity: ModelStreamActivity): void => {
       watchdog?.activity(activity);
-      try {
-        opts.onStreamActivity?.(activity);
-      } catch {}
+      notifyStreamActivity(opts.onStreamActivity, activity);
+    };
+    const handleStepUsage = (step: FinishedStepUsage): void => {
+      tally.record(step);
+      notifyStepUsage(opts.onStepUsage, step);
     };
     let result: GenerateResult;
     try {
@@ -166,19 +152,14 @@ export class LLM {
           signal,
           onTextDelta: handleTextDelta,
           onStreamActivity: handleStreamActivity,
+          onStepUsage: handleStepUsage,
         },
       });
       result = applyResolvedModelMetadata(generated, this.profile);
     } catch (err) {
-      if (watchdog?.error !== undefined && isAbortError(err, watchdog.signal)) {
-        throw watchdog.error;
-      }
-      // Relabel to TimeoutError only when OUR per-call timer fired AND the error
-      // is abort-shaped: a 5xx/429/network thrown while the timer happens to be
-      // aborted must keep its own class, and an outer caller cancellation that
-      // never tripped our timer is not our deadline.
-      if (deadline.aborted && isAbortError(err, deadline)) throw toTimeoutError(err);
-      throw err;
+      const failure = relabelCallFailure(err, { watchdog, deadline, callerSignal: opts.signal });
+      this.recordFailedGenerate(opts, tally, this.ports.now() - start, failure);
+      throw failure.error;
     } finally {
       watchdog?.clear();
     }
@@ -266,9 +247,6 @@ export class LLM {
       throw new Error("AI SDK model not initialized");
     }
 
-    // The provider renders tools before system, so breakpointing the FIRST
-    // system block caches tools + stable prefix together. Which providers need
-    // explicit breakpoints, and why the rest don't, lives on cacheBreakpointKey.
     const breakpointKey = this.breakpointKey;
     const ephemeral = (key: "anthropic" | "openrouter") => ({
       [key]: { cacheControl: { type: "ephemeral" as const } },
@@ -302,10 +280,6 @@ export class LLM {
           ];
     }
 
-    // Message-level breakpoint on the last message so a multi-step tool turn
-    // does not re-pay the whole history every step. Stamped onto a shallow
-    // copy: the caller's array is reused across the retry/compaction loop and
-    // enters the lineage-hash basis, so it must never be mutated here.
     let messages = opts.messages ?? [];
     if (breakpointKey !== undefined && messages.length > 0) {
       const last = messages[messages.length - 1];
@@ -331,6 +305,8 @@ export class LLM {
       maxRetries: 0,
       abortSignal: opts.signal,
       experimental_context: opts.context,
+      onStepFinish: (step: FinishedAiSdkStep) =>
+        notifyStepUsage(opts.onStepUsage, this.finishedStepUsage(step)),
     };
     if (opts.caller === "chat") {
       const result =
@@ -417,48 +393,159 @@ export class LLM {
     };
   }
 
+  private finishedStepUsage(step: FinishedAiSdkStep): FinishedStepUsage {
+    const providerReportedCostUsd =
+      this.profile.provider === "openrouter" ? providerReportedCostFromSteps([step]) : undefined;
+    return {
+      usage: step.usage,
+      ...(providerReportedCostUsd === undefined ? {} : { providerReportedCostUsd }),
+    };
+  }
+
   private recordGenerate(opts: GenerateOpts, result: GenerateResult, durationMs: number): void {
     this.ports.usage.append({
+      ...this.generateLineBase(opts, durationMs),
+      steps: result.steps,
+      ...usageFieldsFromResult(result),
+      stopReason: result.finishReason,
+      outcome: "ok",
+    });
+  }
+
+  private recordFailedGenerate(
+    opts: GenerateOpts,
+    tally: StepUsageTally,
+    durationMs: number,
+    failure: CallFailure,
+  ): void {
+    try {
+      this.ports.usage.append({
+        ...this.generateLineBase(opts, durationMs),
+        steps: tally.finishedSteps(),
+        ...usageFieldsFromResult(knownUsageOfFailedCall(tally, this.profile)),
+        outcome: "error",
+        errorClass: this.errorClassOf(failure),
+      });
+    } catch {
+      return;
+    }
+  }
+
+  private errorClassOf(failure: CallFailure): UsageErrorClass {
+    if (failure.knownClass !== undefined) return failure.knownClass;
+    try {
+      return this.ports.classifyFailure(failure.error);
+    } catch {
+      return "unknown";
+    }
+  }
+
+  private generateLineBase(
+    opts: GenerateOpts,
+    durationMs: number,
+  ): Pick<
+    UsageLedgerLine,
+    "ts" | "kind" | "caller" | "provider" | "model" | "durationMs" | "turnId"
+  > {
+    return {
       ts: this.ports.now(),
       kind: "generate",
       caller: opts.caller,
       provider: this.profile.provider,
       model: this.profile.model,
       durationMs,
-      steps: result.steps,
-      ...usageFieldsFromResult(result),
-      stopReason: result.finishReason,
-    });
+      ...(opts.turnId === undefined || opts.turnId === "" ? {} : { turnId: opts.turnId }),
+    };
   }
+}
+
+interface FinishedAiSdkStep {
+  readonly usage: LanguageModelUsage;
+  readonly providerMetadata?: unknown;
+}
+
+interface CallFailure {
+  readonly error: unknown;
+  readonly knownClass?: "timeout" | "aborted";
+}
+
+function relabelCallFailure(
+  err: unknown,
+  input: {
+    readonly watchdog: ChatStreamWatchdog | undefined;
+    readonly deadline: AbortSignal;
+    readonly callerSignal: AbortSignal | undefined;
+  },
+): CallFailure {
+  if (input.watchdog?.error !== undefined && isAbortError(err, input.watchdog.signal)) {
+    return { error: input.watchdog.error, knownClass: "timeout" };
+  }
+  if (input.deadline.aborted && isAbortError(err, input.deadline)) {
+    return { error: toTimeoutError(err), knownClass: "timeout" };
+  }
+  if (input.callerSignal?.aborted === true && isAbortError(err, input.callerSignal)) {
+    return { error: err, knownClass: "aborted" };
+  }
+  return { error: err };
+}
+
+function knownUsageOfFailedCall(
+  tally: StepUsageTally,
+  profile: ResolvedModelProfile,
+): UsageFieldsSource {
+  const totalUsage = tally.knownUsage();
+  const providerReportedCostUsd = tally.knownProviderReportedCostUsd();
+  return {
+    ...resolvedModelCostFields(totalUsage, profile),
+    totalUsage,
+    ...(providerReportedCostUsd === undefined ? {} : { providerReportedCostUsd }),
+  };
+}
+
+interface ResolvedModelCostFields {
+  readonly catalogRevision: number;
+  readonly cost?: UsageCost;
+  readonly cacheReadSavingsUsd?: number;
+}
+
+function resolvedModelCostFields(
+  totalUsage: GenerateResult["totalUsage"],
+  profile: ResolvedModelProfile,
+): ResolvedModelCostFields {
+  if (totalUsage === undefined) return { catalogRevision: profile.catalogRevision };
+  const details = cacheTokenDetails(totalUsage);
+  const usage = {
+    inputTokens: totalUsage.inputTokens ?? 0,
+    outputTokens: totalUsage.outputTokens ?? 0,
+    cacheReadTokens: details?.cacheReadTokens ?? 0,
+    cacheWriteTokens: details?.cacheWriteTokens ?? 0,
+  };
+  const cost = priceResolvedModelUsage(profile.pricing, usage);
+  const cacheReadSavingsUsd = resolvedModelCacheReadSavingsUsd(
+    profile.pricing,
+    usage.cacheReadTokens,
+  );
+  return {
+    catalogRevision: profile.catalogRevision,
+    ...(cost === undefined ? {} : { cost }),
+    ...(cacheReadSavingsUsd === undefined ? {} : { cacheReadSavingsUsd }),
+  };
 }
 
 function applyResolvedModelMetadata(
   result: GenerateResult,
   profile: ResolvedModelProfile,
 ): GenerateResult {
-  const details = cacheTokenDetails(result.totalUsage);
-  const usage =
-    result.totalUsage === undefined
-      ? undefined
-      : {
-          inputTokens: result.totalUsage.inputTokens ?? 0,
-          outputTokens: result.totalUsage.outputTokens ?? 0,
-          cacheReadTokens: details?.cacheReadTokens ?? 0,
-          cacheWriteTokens: details?.cacheWriteTokens ?? 0,
-        };
-  const catalogCost =
-    usage === undefined ? undefined : priceResolvedModelUsage(profile.pricing, usage);
-  const cacheReadSavingsUsd =
-    usage === undefined
-      ? undefined
-      : resolvedModelCacheReadSavingsUsd(profile.pricing, usage.cacheReadTokens);
-  const cost = result.costBasis === "actual" ? result.cost : catalogCost;
+  const catalog = resolvedModelCostFields(result.totalUsage, profile);
+  const cost = result.costBasis === "actual" ? result.cost : catalog.cost;
   const { cost: _discardedCost, cacheReadSavingsUsd: _discardedSavings, ...base } = result;
   return {
     ...base,
-    catalogRevision: profile.catalogRevision,
+    catalogRevision: catalog.catalogRevision,
     ...(cost === undefined ? {} : { cost }),
-    ...(cacheReadSavingsUsd === undefined ? {} : { cacheReadSavingsUsd }),
+    ...(catalog.cacheReadSavingsUsd === undefined
+      ? {}
+      : { cacheReadSavingsUsd: catalog.cacheReadSavingsUsd }),
   };
 }
 
@@ -546,7 +633,9 @@ function validateChatStreamTimeouts(timeouts: ChatStreamTimeouts): ChatStreamTim
 function notifyTextDelta(observer: GenerateOpts["onTextDelta"], delta: string): void {
   try {
     observer?.(delta);
-  } catch {}
+  } catch {
+    return;
+  }
 }
 
 function notifyStreamActivity(
@@ -555,7 +644,17 @@ function notifyStreamActivity(
 ): void {
   try {
     observer?.(activity);
-  } catch {}
+  } catch {
+    return;
+  }
+}
+
+function notifyStepUsage(observer: GenerateOpts["onStepUsage"], step: FinishedStepUsage): void {
+  try {
+    observer?.(step);
+  } catch {
+    return;
+  }
 }
 
 function providerReportedCostFromSteps(steps: readonly unknown[]): number | undefined {
@@ -589,9 +688,6 @@ function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {
   return caller === "chat" ? CHAT_LLM_CALL_DEADLINE_MS : LLM_CALL_DEADLINE_MS;
 }
 
-// Returns BOTH the per-call timer (so the catch can ask "did our timer fire?")
-// and the signal actually handed to the provider — the timer alone when there is
-// no outer signal, else the union of the two.
 function withLLMDeadline(
   signal: AbortSignal | undefined,
   deadlineMs: number,
@@ -603,12 +699,6 @@ function withLLMDeadline(
   };
 }
 
-// True when the caught error is the shape an aborted request produces -- the
-// timer's own reason, or an AbortError/TimeoutError anywhere in its cause chain
-// (some providers wrap the abort under a non-standard name). A 5xx/429/network
-// error carries no such cause and is NOT matched, so it keeps its own retry
-// class. Only consulted when OUR timer fired (deadline.aborted), so widening to
-// the cause chain cannot mislabel an unrelated failure.
 function isAbortError(err: unknown, deadline: AbortSignal): boolean {
   let current: unknown = err;
   for (let depth = 0; depth < 5 && current != null; depth++) {

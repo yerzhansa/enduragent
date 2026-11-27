@@ -67,6 +67,7 @@ export function parseRunArgs(argv: readonly string[]): ParsedRunOptions {
 export interface UsageCostFigures {
   readonly providerReportedCostUsd?: number;
   readonly cost?: { readonly total: number };
+  readonly outcome?: string;
 }
 
 export type CostSource = "provider" | "catalog";
@@ -115,6 +116,7 @@ export class SpendMeter {
   private unpriced = 0;
   private failed = 0;
   private refused = 0;
+  private refusalUnrecorded = false;
   private haltReason: string | undefined;
 
   constructor(readonly limitUsd: number) {}
@@ -122,7 +124,7 @@ export class SpendMeter {
   record(line: UsageCostFigures): void {
     const cost = lineCost(line);
     if (cost === undefined) {
-      this.unpriced++;
+      if (line.outcome !== "error") this.unpriced++;
       return;
     }
     this.pricedBy[cost.source]++;
@@ -153,10 +155,17 @@ export class SpendMeter {
     return undefined;
   }
 
+  takeRefusedCall(): boolean {
+    const refused = this.refusalUnrecorded;
+    this.refusalUnrecorded = false;
+    return refused;
+  }
+
   assertCanCall(): void {
     const reason = this.stopReason();
     if (reason === undefined) return;
     this.refused++;
+    this.refusalUnrecorded = true;
     throw new RunStoppedError(reason);
   }
 

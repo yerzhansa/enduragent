@@ -88,9 +88,7 @@ export type PreserveTokens = readonly string[] | DerivedPreserveTokens;
 export interface MemorySectionSpec {
   name: string;
   description: string;
-  /** Short routing discriminator for the chat memory_write catalog. Omitted = full description is used. */
   hint?: string;
-  /** Always inject into the system prompt's Athlete Context. Omitted = true. */
   inject?: boolean;
 }
 
@@ -106,16 +104,23 @@ export interface GenerateOptions {
   messages?: ModelMessage[];
   prompt?: string;
   tools?: ToolSet;
-  stopWhen?: StopCondition<any> | Array<StopCondition<any>>;
+  stopWhen?: StopCondition<ToolSet> | Array<StopCondition<ToolSet>>;
   maxSteps?: number;
   maxOutputTokens?: number;
   signal?: AbortSignal;
   deadlineMs?: number;
   cacheKey?: string;
   caller?: CallerRole;
+  turnId?: string;
   context?: unknown;
   onTextDelta?: (delta: string) => void;
   onStreamActivity?: (activity: ModelStreamActivity) => void;
+  onStepUsage?: (step: FinishedStepUsage) => void;
+}
+
+export interface FinishedStepUsage {
+  readonly usage: LanguageModelUsage;
+  readonly providerReportedCostUsd?: number;
 }
 
 export type ModelStreamActivity =
@@ -153,7 +158,6 @@ export interface SportRuntimePorts {
   calendarMutations?: PlatformCalendarMutationsPort;
   memory: MemoryStorePort;
   secrets: SecretsPort;
-  /** Enables host-private provenance binding on memory read results. */
   bindMemoryToolProvenance?: boolean;
   tz: string;
   resolvedCs?: (options: unknown) => ResolvedCs | null;

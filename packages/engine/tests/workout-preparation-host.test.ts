@@ -211,6 +211,39 @@ describe("workout preparation at the Engine host boundary", () => {
     expect(value.settleTurn).toHaveBeenCalledWith(expect.objectContaining({ outcome: "commit" }));
   });
 
+  it("passes the turn ID to the preparation check and the corrected workout reply", async () => {
+    const value = fixture({
+      responses: [
+        "Your workout review is prepared.",
+        "requires_preparation",
+        "Your corrected workout review is prepared.",
+      ],
+      run: async (options, callNumber) => {
+        if (callNumber === 3) await call(options);
+      },
+    });
+
+    await value.agent.chat(
+      "chat-1",
+      "Add an easy ride tomorrow",
+      undefined,
+      undefined,
+      undefined,
+      "turn-workout",
+    );
+
+    expect(
+      value.chatCalls.map((options) => ({
+        check: options.tools === undefined,
+        turnId: options.turnId,
+      })),
+    ).toEqual([
+      { check: false, turnId: "turn-workout" },
+      { check: true, turnId: "turn-workout" },
+      { check: false, turnId: "turn-workout" },
+    ]);
+  });
+
   it("returns and persists an honest failure when the corrective reply still submits nothing", async () => {
     const events: TurnEvent[] = [];
     const value = fixture({
@@ -276,27 +309,32 @@ describe("workout preparation at the Engine host boundary", () => {
         return "Your workout review is ready.";
       },
     },
-  ])("discloses a saved write when verification fails after $failure", async ({ responses, respond }) => {
-    const value = fixture({
-      responses,
-      respond,
-      run: async (options, callNumber) => {
-        if (callNumber === 1) await call(options, {}, "plan_save");
-      },
-    });
+  ])(
+    "discloses a saved write when verification fails after $failure",
+    async ({ responses, respond }) => {
+      const value = fixture({
+        responses,
+        respond,
+        run: async (options, callNumber) => {
+          if (callNumber === 1) await call(options, {}, "plan_save");
+        },
+      });
 
-    await expect(value.agent.chat("chat-1", "Save my plan and add an easy ride")).resolves.toBe(
-      "I saved your information, but couldn't verify my response. Please try again.",
-    );
-    expect(value.chatCalls).toHaveLength(2);
-    expect(value.mutate).toHaveBeenCalledTimes(1);
-    expect(value.prepare).not.toHaveBeenCalled();
-    expect(value.settleTurn).toHaveBeenCalledWith(expect.objectContaining({ outcome: "abandon" }));
-    const stored = JSON.stringify(value.chatStore.load("chat-1").messages);
-    expect(stored).toContain("I saved your information, but couldn't verify my response");
-    expect(stored).not.toContain("workout review is ready");
-    expect(stored).not.toContain("couldn't prepare the workout review");
-  });
+      await expect(value.agent.chat("chat-1", "Save my plan and add an easy ride")).resolves.toBe(
+        "I saved your information, but couldn't verify my response. Please try again.",
+      );
+      expect(value.chatCalls).toHaveLength(2);
+      expect(value.mutate).toHaveBeenCalledTimes(1);
+      expect(value.prepare).not.toHaveBeenCalled();
+      expect(value.settleTurn).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: "abandon" }),
+      );
+      const stored = JSON.stringify(value.chatStore.load("chat-1").messages);
+      expect(stored).toContain("I saved your information, but couldn't verify my response");
+      expect(stored).not.toContain("workout review is ready");
+      expect(stored).not.toContain("couldn't prepare the workout review");
+    },
+  );
 
   it.each(["length", "tool-calls"] satisfies GenerateResult["finishReason"][])(
     "uses tool-free summary recovery for empty %s advice",

@@ -55,10 +55,7 @@ export interface ResolvedTurnReply {
   readonly recovered: RecoveredText;
 }
 
-function correctionTools(
-  tools: ToolSet,
-  replayUnsafeToolNames: ReadonlySet<string>,
-): ToolSet {
+function correctionTools(tools: ToolSet, replayUnsafeToolNames: ReadonlySet<string>): ToolSet {
   return Object.fromEntries(
     Object.entries(tools).filter(
       ([name]) =>
@@ -157,6 +154,7 @@ async function verifyWorkoutReply(input: {
     budget: input.budget,
     signal: input.signal,
     cacheKey: input.cacheKey,
+    turnId: input.context.turnId,
   });
   input.budget.checkDeadline();
   input.signal.throwIfAborted();
@@ -185,6 +183,7 @@ async function verifyWorkoutReply(input: {
       stopWhen: stepCountIs(10),
       maxSteps: 10,
       caller: "chat",
+      turnId: input.context.turnId,
       context: input.context,
       cacheKey: input.cacheKey,
       deadlineMs: input.budget.remainingMs(),

@@ -37,6 +37,7 @@ export async function assessWorkoutPreparation(input: {
   readonly budget: Pick<TurnBudget, "chargeGenerateCall" | "remainingMs">;
   readonly signal: AbortSignal;
   readonly cacheKey: string;
+  readonly turnId: string;
 }): Promise<WorkoutPreparationAssessment> {
   input.budget.chargeGenerateCall();
   let result: GenerateResult;
@@ -50,6 +51,7 @@ export async function assessWorkoutPreparation(input: {
       ],
       maxOutputTokens: 256,
       caller: "chat",
+      turnId: input.turnId,
       cacheKey: input.cacheKey,
       deadlineMs: input.budget.remainingMs(),
       signal: input.signal,
