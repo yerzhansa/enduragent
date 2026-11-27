@@ -54,6 +54,15 @@ export function createCalendarController(deps: CalendarControllerDeps): Calendar
   const todayRange = (): CalendarRange =>
     defaultRange(deps.localTodayDateKey(), deps.firstDayOfWeek());
 
+  const failed = (range: CalendarRange): void => {
+    if (state.kind === "ready") {
+      target = state.range;
+      publish({ ...state, refresh: "failed" });
+      return;
+    }
+    publish({ kind: "unavailable", range });
+  };
+
   const load = async (range: CalendarRange): Promise<void> => {
     target = range;
     generation += 1;
@@ -65,17 +74,12 @@ export function createCalendarController(deps: CalendarControllerDeps): Calendar
     try {
       result = await deps.read(rangeDates(range));
     } catch {
-      if (mine !== generation) return;
-      publish(
-        state.kind === "ready" ? { ...state, refresh: "failed" } : { kind: "unavailable", range },
-      );
+      if (mine === generation) failed(range);
       return;
     }
     if (mine !== generation) return;
     if (result.status !== "calendar") {
-      publish(
-        state.kind === "ready" ? { ...state, refresh: "failed" } : { kind: "unavailable", range },
-      );
+      failed(range);
       return;
     }
     publish({ kind: "ready", read: result, range, refresh: "idle" });

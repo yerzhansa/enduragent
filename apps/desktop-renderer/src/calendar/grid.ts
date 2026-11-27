@@ -166,6 +166,7 @@ export interface SeasonBar {
   readonly workoutId: string;
   readonly plannedS: number;
   readonly doneS: number;
+  readonly done: boolean;
 }
 
 export interface SeasonWeek {
@@ -204,6 +205,10 @@ export function seasonWeeks(plan: PlanCalendarPlan): readonly SeasonWeek[] {
         workoutId: workout.id,
         plannedS: workout.durationS ?? 0,
         doneS: workout.doneS,
+        done:
+          workout.outcome.kind === "done-as-planned" ||
+          workout.outcome.kind === "done-differently" ||
+          workout.outcome.kind === "moved",
       })),
     sent: weekSent(plan, week),
     current: plan.currentWeek === week.index,

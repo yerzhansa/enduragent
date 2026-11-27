@@ -101,6 +101,8 @@ describe("the calendar controller", () => {
       range: { firstRowStart: 19980105 },
     });
     void test.controller.refresh();
+    expect(test.requests.at(-1)?.startDateKey).toBe(19980105);
+    void test.controller.next();
     expect(test.requests.at(-1)?.startDateKey).toBe(19980112);
     void test.controller.open();
     expect(test.requests.at(-1)?.startDateKey).toBe(19980105);

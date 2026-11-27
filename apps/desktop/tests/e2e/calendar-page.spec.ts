@@ -126,9 +126,11 @@ async function runningPlan(backend: PlanCreationBackend) {
   const seed = await backend.seedActiveTraining();
   if (seed.planId === null) throw new TypeError("Training Plan was not activated");
   await backend.calendarIdle();
-  const workouts = [...(await backend.physicalWorkouts(seed.planId))].sort(
-    (left, right) => left.dateKey - right.dateKey,
-  );
+  const workouts = (await backend.physicalWorkouts(seed.planId))
+    .flatMap((workout) =>
+      workout.dateKey === null ? [] : [{ ...workout, dateKey: workout.dateKey }],
+    )
+    .sort((left, right) => left.dateKey - right.dateKey);
   const first = workouts[0];
   if (first === undefined) throw new TypeError("Training Plan has no workouts");
   const today = addCivilDays(first.dateKey, 9);

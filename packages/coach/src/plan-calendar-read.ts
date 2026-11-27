@@ -113,7 +113,16 @@ function isoOf(dateKey: number): string {
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
 
+function validDateKey(dateKey: number): boolean {
+  const iso = isoOf(dateKey);
+  const time = Date.parse(`${iso}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === iso;
+}
+
 function boundedRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+  if (!validDateKey(range.startDateKey) || !validDateKey(range.endDateKey)) {
+    return { startDateKey: range.startDateKey, endDateKey: range.startDateKey - 1 };
+  }
   const limit = Number(
     new Date(
       Date.parse(`${isoOf(range.startDateKey)}T00:00:00Z`) + (RANGE_LIMIT_DAYS - 1) * 86_400_000,
@@ -146,7 +155,7 @@ async function readActivities(
       return {
         activityId: row.id,
         dateKey: Number(row.localDate.replaceAll("-", "")),
-        name: row.title,
+        name: row.title === null || row.title.trim().length === 0 ? null : row.title.trim(),
         sport: "cycling",
         durationS: seconds === null ? null : Math.max(0, Math.round(seconds)),
         distanceM: row.distanceMeters,

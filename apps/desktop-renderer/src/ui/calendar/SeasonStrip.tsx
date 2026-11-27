@@ -73,7 +73,7 @@ export function SeasonStrip(props: {
                 key={bar.workoutId}
                 className={cn(
                   "block w-1.75 rounded-chip",
-                  bar.doneS > 0 ? "bg-brand" : "border border-line-2",
+                  bar.done ? "bg-brand" : "border border-line-2",
                 )}
                 style={{
                   height: Math.max(

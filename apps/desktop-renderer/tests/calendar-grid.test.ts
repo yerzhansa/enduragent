@@ -152,8 +152,8 @@ describe("the season strip", () => {
         sent: "plan-only",
         current: false,
         bars: [
-          { workoutId: season.workouts[0]?.id, plannedS: 3_600, doneS: 2_400 },
-          { workoutId: season.workouts[2]?.id, plannedS: 3_600, doneS: 0 },
+          { workoutId: season.workouts[0]?.id, plannedS: 3_600, doneS: 2_400, done: true },
+          { workoutId: season.workouts[2]?.id, plannedS: 3_600, doneS: 0, done: false },
         ],
       },
     ]);

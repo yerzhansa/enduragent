@@ -113,6 +113,7 @@ describe("the calendar read", () => {
     await ride(opened, "a".repeat(64), TODAY - 2, { name: "Synthetic tempo", load: 55 });
     await ride(opened, "b".repeat(64), 19980301, { name: "Later ride", load: 40 });
     await ride(opened, "c".repeat(64), TODAY, null, "running");
+    await ride(opened, "d".repeat(64), TODAY - 1, { name: "   ", load: 20 });
     const read = PlanCalendarRpcResultSchema.parse(
       await readPlanCalendar(deps(opened), { startDateKey: 19980105, endDateKey: 19980201 }),
     );
@@ -133,8 +134,28 @@ describe("the calendar read", () => {
           load: 55,
           workoutId: null,
         },
+        {
+          activityId: "d".repeat(64),
+          dateKey: TODAY - 1,
+          name: null,
+          sport: "cycling",
+          durationS: 3900,
+          distanceM: 32000,
+          load: 20,
+          workoutId: null,
+        },
       ],
     });
+    await opened.close();
+  });
+
+  it("returns no rides for a range with an impossible date instead of failing", async () => {
+    const opened = await store();
+    const read = await readPlanCalendar(deps(opened), {
+      startDateKey: 19981399,
+      endDateKey: 19981420,
+    });
+    expect(read.activities).toEqual([]);
     await opened.close();
   });
 
