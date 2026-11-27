@@ -1637,13 +1637,7 @@ describe("Plan Creation activation", () => {
     all.mockClear();
     get.mockClear();
     const expanded = await test.host["plan.list"]({});
-    expect(expanded.active).toEqual({
-      ...initial.active,
-      calendar: {
-        ...initial.active?.calendar,
-        window: { start: "1998-09-02", end: "1998-09-29" },
-      },
-    });
+    expect(expanded.active).toEqual(initial.active);
     expect(expanded.closed).toHaveLength(3);
     expect(expanded.closed.map((plan) => plan.calendar.window)).toEqual([
       { start: "1998-09-02", end: "1998-09-29" },

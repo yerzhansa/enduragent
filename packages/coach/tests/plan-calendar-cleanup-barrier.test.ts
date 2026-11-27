@@ -11,6 +11,7 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createMemoryPlanCalendar } from "../../../apps/desktop/tests/helpers/plan-calendar-fake.js";
 import { createPlanCalendarDrain } from "../src/plan-calendar-drain.js";
+import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 
 const closedOn = 19980902;
@@ -45,11 +46,20 @@ async function harness() {
     today: () => String(today).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"),
   });
   const drain = createPlanCalendarDrain({ ...dependencies, calendar, logger: { warn: vi.fn() } });
+  const calendarOperations = createPlanCalendarOperations({
+    store,
+    todayDateKey: () => today,
+    now: () => nowMs,
+    calendarConnected: () => connected,
+    dateKeyOfMs: () => today,
+    changed: () => undefined,
+    settled: async () => undefined,
+  });
   onTestFinished(async () => {
     await drain.idle();
     await store.close();
   });
-  const activate = async () => {
+  const activate = async (approve = true) => {
     nowMs += 1_000;
     const start = await creation["plan_creation.start"]({ commandId: `start-${++sequence}` });
     if (start.status !== "started") throw new Error("Expected creation");
@@ -95,6 +105,13 @@ async function harness() {
       expectedVersion: preview.planCreation.version,
     });
     if (result.planId === null) throw new Error("Expected active Plan");
+    if (!approve) return result.planId;
+    const approved = await calendarOperations["plan.calendar"]({
+      action: "approve-weeks",
+      planId: result.planId,
+      scope: { kind: "first-weeks" },
+    });
+    if (approved.status !== "approved") throw new Error("Expected Approve");
     return result.planId;
   };
   const reconciliation = createPlanReconciliationRepository(store);
@@ -144,7 +161,7 @@ async function harness() {
   };
 }
 
-async function mirroredPlanReplacedWhileDeletesFail() {
+async function mirroredPlanReplacedWhileDeletesFail(approve = true) {
   const test = await harness();
   const oldPlan = await test.activate();
   await test.drain.kick();
@@ -152,7 +169,7 @@ async function mirroredPlanReplacedWhileDeletesFail() {
   expect(oldDates).toContain(closedOn);
   expect(Math.max(...oldDates)).toBeGreaterThan(closedOn);
   test.calendar.refuseDeletes = true;
-  const newPlan = await test.activate();
+  const newPlan = await test.activate(approve);
   return { test, oldPlan, oldDates, newPlan };
 }
 
@@ -280,6 +297,29 @@ describe("Plan calendar cleanup barrier", () => {
       window: { start: "1998-09-02" },
     });
     expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+  });
+
+  it("shows a failed cleanup ahead of Waiting for Approve, then Waiting for Approve once it is fixed", async () => {
+    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
+    expect(
+      (await test.creation["plan.list"]({})).active?.calendar,
+      "active Plan card before the old Plan's cleanup runs",
+    ).toMatchObject({ status: "waiting-for-approve" });
+
+    await test.drain.kick();
+
+    expect(
+      (await test.creation["plan.list"]({})).active?.calendar,
+      "active Plan card while the old Plan's cleanup fails and the new Plan waits for Approve",
+    ).toMatchObject({ status: "failed", error: retryableCleanup });
+
+    test.calendar.refuseDeletes = false;
+    await test.retry();
+
+    expect(test.writesOf(newPlan)).toEqual([]);
+    expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
+      status: "waiting-for-approve",
+    });
   });
 
   it("shows the waiting calendar as not connected once intervals.icu is not connected", async () => {
