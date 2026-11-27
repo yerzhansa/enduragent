@@ -203,5 +203,6 @@ Golden fixtures (sanitized real intervals.icu responses) live at
 
 - Distinguish **Sport** for coaching domain, **Binary** for deployment shell, and `@enduragent/coach` for the Node composition package.
 - The iPhone app's **Workout review** is the same concept as **Workout Change Set**. An **Activity review** is a different thing: it judges a finished Activity and changes no workout.
+- A "change card" in chat, where the coach's advice offers to change the calendar, is a **Workout Change Set**. Advice never changes a workout without one.
 - "Free mode" and "paid mode" were used for how a model is paid for. Resolved: say **Access method** and name it.
 - "Session" was used for a planned workout and for a finished one. Resolved: a planned one is a **Plan Workout**, a finished one is an **Activity**, and **Session** means only the persisted chat state.
