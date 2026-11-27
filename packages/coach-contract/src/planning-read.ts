@@ -109,6 +109,7 @@ const PlanCalendarBaseSchema = z
     window: PlanCalendarWindowSchema,
     currentThrough: z.iso.date().nullable(),
     error: z.string().nullable(),
+    waitingForApprove: z.literal(true).optional(),
   })
   .strict();
 

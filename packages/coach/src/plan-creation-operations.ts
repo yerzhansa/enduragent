@@ -376,7 +376,7 @@ export function createPlanCreationOperations(input: {
           calendar: summarizeCalendar(
             (plan.status === "active" ? holding : undefined) ??
               jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
-            plan.status === "active" && holding?.status !== "failed" && waiting.has(plan.planId),
+            plan.status === "active" && waiting.has(plan.planId),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;

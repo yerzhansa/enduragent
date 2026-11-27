@@ -124,6 +124,15 @@ async function harness() {
     creation,
     drain,
     activate,
+    calendarOperations,
+    approve: async (planId: string) => {
+      const approved = await calendarOperations["plan.calendar"]({
+        action: "approve-weeks",
+        planId,
+        scope: { kind: "first-weeks" },
+      });
+      if (approved.status !== "approved") throw new Error("Expected Approve");
+    },
     today: () => today,
     advanceDay: () => {
       today = addCivilDays(today, 1);
@@ -193,6 +202,7 @@ describe("Plan calendar cleanup barrier", () => {
 
     expect(await test.cleanup(oldPlan)).toMatchObject({ status: "verified" });
     expect(test.datesOf(oldPlan)).toEqual([closedOn]);
+    expect(test.datesOf(newPlan).length).toBeGreaterThan(0);
     expect(Math.min(...test.datesOf(newPlan))).toBeGreaterThanOrEqual(addCivilDays(closedOn, 1));
     expect(test.sharedDays()).toEqual([]);
   });
@@ -311,7 +321,7 @@ describe("Plan calendar cleanup barrier", () => {
     expect(
       (await test.creation["plan.list"]({})).active?.calendar,
       "active Plan card while the old Plan's cleanup fails and the new Plan waits for Approve",
-    ).toMatchObject({ status: "failed", error: retryableCleanup });
+    ).toMatchObject({ status: "failed", error: retryableCleanup, waitingForApprove: true });
 
     test.calendar.refuseDeletes = false;
     await test.retry();
@@ -320,6 +330,50 @@ describe("Plan calendar cleanup barrier", () => {
     expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
       status: "waiting-for-approve",
     });
+  });
+
+  it("never says Up to date after an Approve that sent nothing", async () => {
+    const test = await harness();
+    const planId = await test.activate(false);
+    await test.drain.kick();
+    test.disconnect();
+    await test.approve(planId);
+    expect(
+      (await test.creation["plan.list"]({})).active?.calendar,
+      "active Plan card after Approve while intervals.icu is not connected",
+    ).toMatchObject({ status: "not-connected" });
+    expect(test.writesOf(planId)).toEqual([]);
+  });
+
+  it("says the approved weeks are pending until the drain sends them", async () => {
+    const test = await harness();
+    const planId = await test.activate(false);
+    await test.drain.kick();
+    await test.approve(planId);
+    expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
+      status: "pending",
+    });
+    await test.drain.kick();
+    expect((await test.creation["plan.list"]({})).active?.calendar).toMatchObject({
+      status: "verified",
+    });
+    expect(test.writesOf(planId).length).toBeGreaterThan(0);
+  });
+
+  it("runs a cleanup that failed five times again when the Calendar's Retry sends again", async () => {
+    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
+    for (let run = 0; run < 6; run += 1) {
+      test.advanceMs(1_000);
+      await test.drain.kick();
+    }
+    await test.approve(newPlan);
+    test.calendar.refuseDeletes = false;
+    await test.drain.kick();
+    expect(test.writesOf(newPlan), "before Retry").toEqual([]);
+    await test.calendarOperations["plan.calendar"]({ action: "send-again" });
+    await test.drain.kick();
+    await test.drain.kick();
+    expect(test.writesOf(newPlan).length, "after Retry").toBeGreaterThan(0);
   });
 
   it("shows the waiting calendar as not connected once intervals.icu is not connected", async () => {

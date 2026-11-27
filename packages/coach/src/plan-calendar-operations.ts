@@ -4,7 +4,10 @@ import {
   type PlanCalendarRpcResult,
 } from "@enduragent/coach-contract";
 import { readWeekDelivery, saveWeekDelivery, weekDeliveryStep } from "@enduragent/engine/calendar";
-import { createPlanCalendarMirrorRepository } from "@enduragent/kernel/planning";
+import {
+  createPlanCalendarMirrorRepository,
+  createPlanReconciliationRepository,
+} from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import { todayInTZ } from "@enduragent/engine/sport";
@@ -57,6 +60,7 @@ export function createPlanCalendarOperations(deps: {
             request,
           );
         case "send-again":
+          await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
           deps.changed();
           await settledWithin(deps.settled, SEND_AGAIN_WAIT_MS);
           return { status: "sending" };

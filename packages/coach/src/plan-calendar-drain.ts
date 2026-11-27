@@ -137,6 +137,8 @@ export function createPlanCalendarDrain(deps: {
           continue;
         }
         if (chatPlan === undefined) continue;
+        const delivery = await mirrorDeps.mirror.readDelivery(job.planId);
+        if (delivery?.stateKind === "waiting-for-first-approve") continue;
         const ledger = await ledgerWindow(store, job.planId, today);
         if (
           ledger !== null &&

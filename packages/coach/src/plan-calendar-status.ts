@@ -16,19 +16,14 @@ export async function plansWaitingForApprove(
   return new Set(rows.flatMap((row) => (typeof row.plan_id === "string" ? [row.plan_id] : [])));
 }
 
-export function planCalendarStatus(input: {
-  readonly job: PlanReconciliationJobRecord | undefined;
-  readonly connected: boolean;
-  readonly waitingForApprove: boolean;
-}): PlanCalendarStatus {
-  const { job } = input;
+function jobStatus(
+  job: PlanReconciliationJobRecord | undefined,
+  connected: boolean,
+): PlanCalendarStatus {
   const window =
     job === undefined
       ? null
       : { start: dateText(job.windowStartDateKey), end: dateText(job.windowEndDateKey) };
-  if (input.waitingForApprove) {
-    return { status: "waiting-for-approve", window: null, currentThrough: null, error: null };
-  }
   if (job?.status === "verified") {
     return {
       status: "verified",
@@ -37,7 +32,7 @@ export function planCalendarStatus(input: {
       error: null,
     };
   }
-  if (!input.connected) {
+  if (!connected) {
     return { status: "not-connected", window, currentThrough: null, error: null };
   }
   if (job === undefined || job.status === "pending") {
@@ -49,4 +44,17 @@ export function planCalendarStatus(input: {
     return { status: "failed", window, currentThrough: null, error: `${error}${retry}` };
   }
   return { status: "running", window, currentThrough: null, error: null };
+}
+
+export function planCalendarStatus(input: {
+  readonly job: PlanReconciliationJobRecord | undefined;
+  readonly connected: boolean;
+  readonly waitingForApprove: boolean;
+}): PlanCalendarStatus {
+  const failedCleanup = input.job?.kind === "cleanup" && input.job.status === "failed";
+  if (input.waitingForApprove && !failedCleanup) {
+    return { status: "waiting-for-approve", window: null, currentThrough: null, error: null };
+  }
+  const status = jobStatus(input.job, input.connected);
+  return input.waitingForApprove ? { ...status, waitingForApprove: true } : status;
 }
