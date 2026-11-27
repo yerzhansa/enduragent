@@ -8,6 +8,7 @@ import type {
   ProviderModelFormState,
   ProviderModelSettingsState,
 } from "../../settings/provider-model-controller";
+import { onboardingCredentialMutationActive } from "../../onboarding/controller";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
@@ -80,8 +81,10 @@ export function CoachSection(): ReactElement {
   const state = useEnduragentStore((store) => store.settings.coach);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.coach ?? null);
-  const controlsDisabled = useEnduragentStore((store) =>
-    store.settings.savingOwners.some((owner) => owner !== "provider-model"),
+  const controlsDisabled = useEnduragentStore(
+    (store) =>
+      store.settings.savingOwners.some((owner) => owner !== "provider-model") ||
+      onboardingCredentialMutationActive(store.onboarding),
   );
   const customModel = useRef<HTMLInputElement>(null);
   const focusCustomModel = useRef(false);
