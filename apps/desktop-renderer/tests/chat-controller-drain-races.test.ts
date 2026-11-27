@@ -1353,7 +1353,9 @@ describe("BUG-17: orphan dropped attachment admission timeout and dismiss while 
     expect(composerCalls).toHaveBeenCalledTimes(1);
     controller.dispose();
   });
+});
 
+describe("Recovery and drain race guards", () => {
   it("does not drain queued messages during retryDecision before failed planningRequests recover", async () => {
     let decisionCalls = 0;
     let queueCalls = 0;
@@ -1453,7 +1455,7 @@ describe("BUG-17: orphan dropped attachment admission timeout and dismiss while 
 
     await controller.start();
     await controller.retryDecision();
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(resumeQueueCalls).toBe(0);
     controller.dispose();
@@ -1522,9 +1524,10 @@ describe("BUG-17: orphan dropped attachment admission timeout and dismiss while 
       }),
       close: vi.fn(async () => undefined),
     };
+    const states: ChatState[] = [];
     const controller = createChatController({
       clients: makeProvider(client),
-      view: { render: vi.fn() },
+      view: { render: (next) => states.push(structuredClone(next)) },
       refreshTrainingContext: async () => undefined,
       refreshSpend: async () => undefined,
     });
@@ -1532,8 +1535,11 @@ describe("BUG-17: orphan dropped attachment admission timeout and dismiss while 
     await controller.start();
     await vi.waitFor(() => expect(resumeCalls).toBe(1));
 
-    await controller.removeQueued("q-later-2");
-    await Promise.resolve();
+    controller.removeQueued("q-later-2");
+    await vi.waitFor(() =>
+      expect(states.at(-1)?.queued.map((item) => item.id)).toEqual(["q-stalled-1"]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(resumeCalls).toBe(1);
     controller.dispose();
