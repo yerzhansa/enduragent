@@ -11,11 +11,7 @@ import {
 import { resolveAthleteHome, type AthleteHome } from "@enduragent/kernel-node/home";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { migrateCyclingLegacySections } from "@enduragent/sport-cycling/migrate";
-import {
-  createStoreRuntime,
-  type StoreRuntime,
-  type StoreRuntimeDependencies,
-} from "./store-runtime.js";
+import { createStoreRuntime, type StoreRuntime, type StoreRuntimeDependencies } from "./store-runtime.js";
 
 const cyclingBinary: BinaryConfig = Object.freeze({
   binaryName: "cycling-coach",
@@ -48,8 +44,7 @@ export async function prepareStoreCoachComposition(
     sport: input.sport,
     startScheduler: false,
     attemptLedgerForRun: () => {
-      if (runtime === undefined)
-        throw new Error("Store runtime has not started its paired window.");
+      if (runtime === undefined) throw new Error("Store runtime has not started its paired window.");
       return runtime.attemptLedgerForRun();
     },
   });

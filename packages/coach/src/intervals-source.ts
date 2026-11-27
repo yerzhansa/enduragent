@@ -1,5 +1,7 @@
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
-import { makeIntervalsHttpFactory } from "@enduragent/core";
+import {
+  makeIntervalsHttpFactory,
+} from "@enduragent/core";
 import {
   assertNoTpKeysRemain,
   normalizeStreams,
@@ -17,10 +19,7 @@ import {
 export const DEFAULT_REQUEST_INTERVAL_MS = 250;
 export const DEFAULT_PER_REQUEST_TIMEOUT_MS = 30_000;
 
-export interface BackfillClock {
-  now(): number;
-  monotonicNow(): number;
-}
+export interface BackfillClock { now(): number; monotonicNow(): number; }
 
 export function createIntervalsBackfillSource(options: {
   readonly apiKey: string;

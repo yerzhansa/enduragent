@@ -61,11 +61,13 @@ function projectAnchorZones(
       stalenessBand: input.anchor.stalenessBand,
       stale: input.anchor.stale,
     },
-    zones: calculateCyclingZones(input.anchor.watts).map((zone): CyclingZoneRow => ({
-      name: zone.label,
-      range: zone.value,
-      overlaps: zone.overlaps ?? false,
-    })),
+    zones: calculateCyclingZones(input.anchor.watts).map(
+      (zone): CyclingZoneRow => ({
+        name: zone.label,
+        range: zone.value,
+        overlaps: zone.overlaps ?? false,
+      }),
+    ),
   };
 }
 

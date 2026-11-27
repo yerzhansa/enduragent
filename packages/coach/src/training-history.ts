@@ -83,7 +83,8 @@ function effectiveCommit(row: CoverageCommitRow): CoverageCommitRow | null {
     new Date(row.committedEpochSeconds * 1_000),
   );
   const elapsedThrough = addCivilDays(committedDate, -1);
-  const coveredNewest = row.coveredNewest < elapsedThrough ? row.coveredNewest : elapsedThrough;
+  const coveredNewest =
+    row.coveredNewest < elapsedThrough ? row.coveredNewest : elapsedThrough;
   return coveredNewest < row.coveredOldest ? null : { ...row, coveredNewest };
 }
 
@@ -161,7 +162,10 @@ function foldCoverage(
   const undatedWindows: CoverageSpan[] = [];
   for (let index = matching.length - 1; index >= 0; index -= 1) {
     const row = matching[index]!;
-    const pieces = subtractOwned({ start: row.coveredOldest, end: row.coveredNewest }, owned);
+    const pieces = subtractOwned(
+      { start: row.coveredOldest, end: row.coveredNewest },
+      owned,
+    );
     for (const date of row.gaps.datedLocalDates) {
       if (pieces.some((piece) => date >= piece.start && date <= piece.end)) {
         datedLocalDates.add(date);
@@ -254,7 +258,8 @@ function projectionCoverage(
       latestImportAt: null,
     };
   }
-  const hasGaps = coverage.datedLocalDates.size > 0 || coverage.undatedWindows.length > 0;
+  const hasGaps =
+    coverage.datedLocalDates.size > 0 || coverage.undatedWindows.length > 0;
   if (
     coverage.reason === null &&
     !hasGaps &&
@@ -277,7 +282,9 @@ function projectionCoverage(
     committedAt: coverage.committedAt,
     reason:
       coverage.reason ??
-      (coverage.undatedWindows.length > 0 ? "undated-dropped-rows" : "source-degraded"),
+      (coverage.undatedWindows.length > 0
+        ? "undated-dropped-rows"
+        : "source-degraded"),
   };
 }
 
@@ -436,7 +443,10 @@ function recordedThrough(coverage: TrainingHistoryCoverage): string | null {
   return coverage.latestKnownRideDate;
 }
 
-function coverageForWindow(coverage: FoldedCoverage, window: CoverageSpan): boolean {
+function coverageForWindow(
+  coverage: FoldedCoverage,
+  window: CoverageSpan,
+): boolean {
   if (
     coverage.kind === "none" ||
     coverage.reason !== null ||
@@ -469,14 +479,16 @@ function weekCoverage(input: {
     return { kind: "incomplete", recordedThrough: through, reason: "sparse-imports" };
   }
   const open = calendarState(input.window, input.today) === "open";
-  const requiredThrough = open && input.today < input.window.end ? input.today : input.window.end;
+  const requiredThrough =
+    open && input.today < input.window.end ? input.today : input.window.end;
   const covered = coverageForWindow(input.foldedCoverage, {
     start: input.window.start,
     end: requiredThrough,
   });
   if (covered) return { kind: "complete" };
   const reason =
-    input.coverage.kind === "incomplete" && input.coverage.reason === "coverage-timezone-changed"
+    input.coverage.kind === "incomplete" &&
+    input.coverage.reason === "coverage-timezone-changed"
       ? "coverage-timezone-changed"
       : input.coverage.kind === "incomplete" &&
           (input.coverage.reason === "source-degraded" ||

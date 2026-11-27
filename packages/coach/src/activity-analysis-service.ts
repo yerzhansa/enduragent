@@ -149,10 +149,7 @@ function summary(activity: CanonicalActivityDetail): CanonicalActivitySummary {
   };
 }
 
-function nowInstant(now: () => number): {
-  readonly epochSeconds: number;
-  readonly instant: string;
-} {
+function nowInstant(now: () => number): { readonly epochSeconds: number; readonly instant: string } {
   const epochMilliseconds = now();
   if (!Number.isSafeInteger(epochMilliseconds) || epochMilliseconds < 0) {
     throw new ActivityAnalysisServiceError("invalid-clock");
@@ -211,7 +208,10 @@ function assertComputedSource(
   if (source === "provider" && sourceStatusValue.kind !== "resolved") {
     throw new ActivityAnalysisComputationError("malformed-response");
   }
-  if (resultKey === "intervals" && (data as ActivityAnalysisData["intervals"]).source !== source) {
+  if (
+    resultKey === "intervals"
+    && (data as ActivityAnalysisData["intervals"]).source !== source
+  ) {
     throw new ActivityAnalysisComputationError("malformed-response");
   }
   if (resultKey === "powerHeartRate" && source !== "provider") {
@@ -329,8 +329,7 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
   constructor(private readonly options: ActivityAnalysisServiceOptions) {
     this.analyzers = options.analyzers ?? {};
     this.now = options.now ?? Date.now;
-    this.aggregateDeadlineMs =
-      options.aggregateDeadlineMs ?? ACTIVITY_ANALYSIS_AGGREGATE_DEADLINE_MS;
+    this.aggregateDeadlineMs = options.aggregateDeadlineMs ?? ACTIVITY_ANALYSIS_AGGREGATE_DEADLINE_MS;
     if (!Number.isSafeInteger(this.aggregateDeadlineMs) || this.aggregateDeadlineMs < 1) {
       throw new TypeError("activity analysis deadline is invalid");
     }
@@ -356,18 +355,16 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
       );
       const revision = resolution.kind === "resolved" ? resolution.sourceRevision : activity.id;
       const context = { activity, sourceRevision: revision, source: sourceStatus(resolution) };
-      const computed = await Promise.all(
-        parsed.sections.map(async (section) => {
-          const state = await this.section(
-            { canonicalActivityId: activity.id, sourceRevision: revision, section },
-            context,
-            parsed.refresh === true,
-            operationSignal,
-            deadline,
-          );
-          return [SECTION_RESULT_KEYS[section], state] as const;
-        }),
-      );
+      const computed = await Promise.all(parsed.sections.map(async (section) => {
+        const state = await this.section(
+          { canonicalActivityId: activity.id, sourceRevision: revision, section },
+          context,
+          parsed.refresh === true,
+          operationSignal,
+          deadline,
+        );
+        return [SECTION_RESULT_KEYS[section], state] as const;
+      }));
       const sectionStates: Record<string, AnalysisSection<unknown>> = {};
       const activitySummary = summary(activity);
       for (const [key, state] of computed) {
@@ -378,10 +375,9 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
           revision,
           sections: candidate,
         };
-        sectionStates[key] =
-          byteLength(envelope) <= MAX_ACTIVITY_ANALYSIS_RESPONSE_BYTES
-            ? state
-            : { kind: "unavailable", reason: "response-too-large" };
+        sectionStates[key] = byteLength(envelope) <= MAX_ACTIVITY_ANALYSIS_RESPONSE_BYTES
+          ? state
+          : { kind: "unavailable", reason: "response-too-large" };
       }
       return ActivityAnalysisResultSchema.parse({
         schemaVersion: ACTIVITY_ANALYSIS_SCHEMA_VERSION,
@@ -432,17 +428,14 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
         consumers: 0,
         settled: false,
         promise: this.sections.run(controller.signal, () =>
-          this.computeSection(identity, context, controller.signal),
-        ),
+          this.computeSection(identity, context, controller.signal)),
       };
       this.inFlight.set(key, shared);
       const selected = shared;
-      void shared.promise
-        .finally(() => {
-          selected.settled = true;
-          if (this.inFlight.get(key) === selected) this.inFlight.delete(key);
-        })
-        .catch(() => {});
+      void shared.promise.finally(() => {
+        selected.settled = true;
+        if (this.inFlight.get(key) === selected) this.inFlight.delete(key);
+      }).catch(() => {});
     }
     shared.consumers += 1;
     return new Promise((resolve, reject) => {
@@ -510,8 +503,7 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
       canonicalActivityId: identity.canonicalActivityId,
     });
     signal.throwIfAborted();
-    const currentRevision =
-      current.kind === "resolved" ? current.sourceRevision : identity.canonicalActivityId;
+    const currentRevision = current.kind === "resolved" ? current.sourceRevision : identity.canonicalActivityId;
     if (currentRevision !== identity.sourceRevision) {
       throw new ActivityAnalysisComputationError("source-changed");
     }
@@ -535,17 +527,12 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
     try {
       const accessed = nowInstant(this.now).epochSeconds;
       stored = await awaitWithSignal(
-        this.cacheAccess((cache) =>
-          cache.read(
-            {
-              canonicalActivityId: identity.canonicalActivityId,
-              sourceRevision: identity.sourceRevision,
-              contractVersion: ACTIVITY_ANALYSIS_PROJECTION_CONTRACT_VERSION,
-              section: identity.section,
-            },
-            accessed,
-          ),
-        ),
+        this.cacheAccess((cache) => cache.read({
+          canonicalActivityId: identity.canonicalActivityId,
+          sourceRevision: identity.sourceRevision,
+          contractVersion: ACTIVITY_ANALYSIS_PROJECTION_CONTRACT_VERSION,
+          section: identity.section,
+        }, accessed)),
         signal,
       );
     } catch {
@@ -578,20 +565,15 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
     signal: AbortSignal,
   ): Promise<void> {
     try {
-      await this.cacheAccess((cache) =>
-        cache.write(
-          {
-            canonicalActivityId: identity.canonicalActivityId,
-            sourceRevision: identity.sourceRevision,
-            contractVersion: ACTIVITY_ANALYSIS_PROJECTION_CONTRACT_VERSION,
-            section: identity.section,
-            source: computed.provenance.source,
-            observedAt: computed.provenance.observedAt,
-            dataJson: JSON.stringify(computed.data),
-          },
-          cachedEpochSeconds,
-        ),
-      );
+      await this.cacheAccess((cache) => cache.write({
+        canonicalActivityId: identity.canonicalActivityId,
+        sourceRevision: identity.sourceRevision,
+        contractVersion: ACTIVITY_ANALYSIS_PROJECTION_CONTRACT_VERSION,
+        section: identity.section,
+        source: computed.provenance.source,
+        observedAt: computed.provenance.observedAt,
+        dataJson: JSON.stringify(computed.data),
+      }, cachedEpochSeconds));
       signal.throwIfAborted();
       this.remember(cacheKey(identity), computed);
     } catch {
@@ -624,9 +606,10 @@ export function createActivityAnalysisService(
   return new ActivityAnalysisServiceImplementation(options);
 }
 
-export function createStoredActivityAnalysisService(
-  input: Omit<ActivityAnalysisServiceOptions, "cache"> & { readonly store: SqlStore },
-): ActivityAnalysisService {
+export function createStoredActivityAnalysisService(input: Omit<
+  ActivityAnalysisServiceOptions,
+  "cache"
+> & { readonly store: SqlStore }): ActivityAnalysisService {
   return createActivityAnalysisService({
     ...input,
     cache: createActivityAnalysisProjectionRepository(input.store),

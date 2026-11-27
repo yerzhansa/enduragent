@@ -31,21 +31,9 @@ import {
   type ReferenceCaptureReview,
 } from "@enduragent/kernel-node/capture-manifest";
 import { createNodeCrypto, createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
-import {
-  activityDropEvidence,
-  CAPTURE_LANES,
-  REQUEST_ATTEMPTS,
-  type CaptureReport,
-  type DroppedActivityRowEvidence,
-  type IntervalsIcuCaptureSource,
-  type ReferenceCaptureBatch,
-} from "@enduragent/sync-intervals-icu";
+import { activityDropEvidence, CAPTURE_LANES, REQUEST_ATTEMPTS, type CaptureReport, type DroppedActivityRowEvidence, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
 import { addCivilDays, todayInTZ } from "@enduragent/engine/sport";
-import {
-  createIntervalsBackfillSource,
-  DEFAULT_PER_REQUEST_TIMEOUT_MS,
-  DEFAULT_REQUEST_INTERVAL_MS,
-} from "./backfill.js";
+import { createIntervalsBackfillSource, DEFAULT_PER_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_INTERVAL_MS } from "./backfill.js";
 import { coverageGapsWithinWindow } from "./coverage-gaps.js";
 import {
   CoachStoreWriterError,
@@ -69,10 +57,7 @@ class ReferenceCaptureValidationError extends Error {}
 export class ReplacedCaptureNotReplayableError extends Error {
   readonly replacesCaptureId: string;
   constructor(replacesCaptureId: string, options?: ErrorOptions) {
-    super(
-      "The capture this run replaces could not be loaded and replayed. Nothing was written.",
-      options,
-    );
+    super("The capture this run replaces could not be loaded and replayed. Nothing was written.", options);
     this.name = "ReplacedCaptureNotReplayableError";
     this.replacesCaptureId = replacesCaptureId;
   }
@@ -115,14 +100,9 @@ export interface RunReferenceCaptureDependencies {
 function sourceArtifact(
   record: ReferenceCaptureBatch["records"][keyof ReferenceCaptureBatch["records"]][number],
 ): SourceArtifactDraft {
-  const lane: SourceArtifactDraft["lane"] =
-    record.landing.kind === "activity"
-      ? "activities"
-      : record.landing.kind === "settings"
-        ? "settings"
-        : record.landing.kind === "wellness"
-          ? "wellness"
-          : "streams";
+  const lane: SourceArtifactDraft["lane"] = record.landing.kind === "activity" ? "activities"
+    : record.landing.kind === "settings" ? "settings"
+    : record.landing.kind === "wellness" ? "wellness" : "streams";
   return {
     source: "intervals-icu" as const,
     lane,
@@ -134,9 +114,7 @@ function sourceArtifact(
   };
 }
 
-function snapshot(value: {
-  readonly archive: { readonly address: string; readonly relPath: string };
-}) {
+function snapshot(value: { readonly archive: { readonly address: string; readonly relPath: string } }) {
   return { address: value.archive.address, rel_path: value.archive.relPath };
 }
 
@@ -147,10 +125,8 @@ export async function runReferenceCapture(
   const now = (dependencies.wallClock ?? (() => new Date()))();
   const captureId = (dependencies.uuid ?? randomUUID)();
   const monotonicNow = dependencies.monotonicNow ?? (() => performance.now());
-  const sleep =
-    dependencies.sleep ??
-    ((ms: number, signal: AbortSignal) =>
-      setTimeoutPromise(ms, undefined, { signal }).then(() => undefined));
+  const sleep = dependencies.sleep ?? ((ms: number, signal: AbortSignal) =>
+    setTimeoutPromise(ms, undefined, { signal }).then(() => undefined));
   const controller = new AbortController();
   const budget: SyncBudget = options.budget ?? {
     signal: controller.signal,
@@ -167,21 +143,14 @@ export async function runReferenceCapture(
       now,
       calendarTimeZone: options.calendarTimeZone,
     });
-    review = validateReferenceCaptureReview({
-      schema_version: 1,
-      capture_id: captureId,
-      reviewed_on: options.reviewedOn,
-      replaces_capture_id: options.replacesCaptureId ?? null,
-      reason: options.reason,
-    });
+    review = validateReferenceCaptureReview({ schema_version: 1, capture_id: captureId,
+      reviewed_on: options.reviewedOn, replaces_capture_id: options.replacesCaptureId ?? null,
+      reason: options.reason });
   } catch (error) {
     throw new ReferenceCaptureRunError("validation", { cause: error });
   }
 
-  const capture = async ({
-    home,
-    store,
-  }: CoachStoreWriterContext): Promise<ReferenceCaptureRun> => {
+  const capture = async ({ home, store }: CoachStoreWriterContext): Promise<ReferenceCaptureRun> => {
     const crypto = createNodeCrypto();
     const node = createNodeImportRuntime({ archiveDir: home.archiveDir, store });
     const source = createIntervalsBackfillSource({
@@ -202,46 +171,26 @@ export async function runReferenceCapture(
     const assertReplayable: AssertReferenceCaptureReplayable = async (candidate) => {
       try {
         await assertReferenceCaptureReplayable(candidate, {
-          readVerifiedSnapshot: (reference) =>
-            readVerifiedReferenceSnapshot(reference, { archive: node.archive, crypto }),
-          derivePayloadMembers: (plan, endpointPayloads) =>
-            source.deriveReferenceCaptureMembers(plan, endpointPayloads),
-          assertStoreEvidence: (record, lane) =>
-            repository.assertPinnedCaptureEvidence({
-              lane,
-              externalId: record.external_id,
-              artifactKey: record.store_evidence.artifact_key,
-              archiveAddress: record.snapshot.address,
-              archiveRelPath: record.snapshot.rel_path,
-              currentRevision:
-                record.store_evidence.current_revision === null
-                  ? null
-                  : {
-                      sourceRecordId: record.store_evidence.current_revision.source_record_id,
-                      revisionId: record.store_evidence.current_revision.revision_id,
-                    },
-            }),
+          readVerifiedSnapshot: (reference) => readVerifiedReferenceSnapshot(reference, { archive: node.archive, crypto }),
+          derivePayloadMembers: (plan, endpointPayloads) => source.deriveReferenceCaptureMembers(plan, endpointPayloads),
+          assertStoreEvidence: (record, lane) => repository.assertPinnedCaptureEvidence({ lane,
+            externalId: record.external_id, artifactKey: record.store_evidence.artifact_key,
+            archiveAddress: record.snapshot.address, archiveRelPath: record.snapshot.rel_path,
+            currentRevision: record.store_evidence.current_revision === null ? null : {
+              sourceRecordId: record.store_evidence.current_revision.source_record_id,
+              revisionId: record.store_evidence.current_revision.revision_id,
+            } }),
         });
-      } catch (error) {
-        throw new ReferenceCaptureValidationError("capture replay validation failed", {
-          cause: error,
-        });
-      }
+      } catch (error) { throw new ReferenceCaptureValidationError("capture replay validation failed", { cause: error }); }
     };
 
     const platform = options.platform === undefined ? {} : { platform: options.platform };
     if (options.replacesCaptureId !== undefined) {
       try {
-        await loadReferenceCaptureSidecars({
-          root: home.root,
-          captureId: options.replacesCaptureId,
-          assertReplayable,
-          ...platform,
-        });
+        await loadReferenceCaptureSidecars({ root: home.root, captureId: options.replacesCaptureId, assertReplayable, ...platform });
       } catch (error) {
-        throw new ReferenceCaptureRunError("capture", {
-          cause: new ReplacedCaptureNotReplayableError(options.replacesCaptureId, { cause: error }),
-        });
+        throw new ReferenceCaptureRunError("capture",
+          { cause: new ReplacedCaptureNotReplayableError(options.replacesCaptureId, { cause: error }) });
       }
     }
 
@@ -253,9 +202,8 @@ export async function runReferenceCapture(
         throw new TypeError("reference capture plan changed");
       }
       droppedActivityRows = activityDropEvidence(batch.report.activities);
-    } catch (error) {
-      throw new ReferenceCaptureRunError("capture", { cause: error });
     }
+    catch (error) { throw new ReferenceCaptureRunError("capture", { cause: error }); }
 
     const coverage = createTrainingCoverageRepository();
     const elapsedThrough = addCivilDays(
@@ -300,13 +248,9 @@ export async function runReferenceCapture(
         }
         for (const record of batch.records.settings) {
           const evidence = await repository.recordArtifact(sourceArtifact(record));
-          await repository.recordGenericLanding({
-            externalId: record.landing.sourceRecordExternalId,
-            artifactKey: evidence.artifactKey,
-            archiveAddress: record.archive.address,
-            endpoint: "settings",
-            normalizedPayloadJson: record.landing.normalizedPayloadJson,
-          });
+          await repository.recordGenericLanding({ externalId: record.landing.sourceRecordExternalId,
+            artifactKey: evidence.artifactKey, archiveAddress: record.archive.address, endpoint: "settings",
+            normalizedPayloadJson: record.landing.normalizedPayloadJson });
           for (const anchor of record.landing.anchors) await repository.insertSyncedAnchor(anchor);
           for (const zone of record.landing.zones) await repository.insertSyncedZone(zone);
         }
@@ -317,25 +261,17 @@ export async function runReferenceCapture(
         }
         for (const record of batch.records.streams) {
           const evidence = await repository.recordArtifact(sourceArtifact(record));
-          await repository.recordGenericLanding({
-            externalId: record.landing.sourceRecordExternalId,
-            artifactKey: evidence.artifactKey,
-            archiveAddress: record.archive.address,
-            endpoint: "streams",
-            normalizedPayloadJson: record.landing.normalizedPayloadJson,
-          });
+          await repository.recordGenericLanding({ externalId: record.landing.sourceRecordExternalId,
+            artifactKey: evidence.artifactKey, archiveAddress: record.archive.address, endpoint: "streams",
+            normalizedPayloadJson: record.landing.normalizedPayloadJson });
         }
       });
     } catch (error) {
       throw new ReferenceCaptureRunError("persistence", { cause: error });
     }
 
-    const records = {
-      settings: [] as RecordRef[],
-      activities: [] as RecordRef[],
-      wellness: [] as RecordRef[],
-      streams: [] as RecordRef[],
-    };
+    const records = { settings: [] as RecordRef[], activities: [] as RecordRef[],
+      wellness: [] as RecordRef[], streams: [] as RecordRef[] };
     try {
       for (const lane of CAPTURE_LANES) {
         const sourceRecords = batch.records[lane];
@@ -344,36 +280,18 @@ export async function runReferenceCapture(
           if (lane === "wellness") {
             const artifactKey = wellnessArtifactKeys.get(record.externalId);
             if (artifactKey === undefined) throw new Error("wellness capture evidence is absent");
-            records[lane].push({
-              ordinal,
-              endpoint_ordinal: record.endpointOrdinal,
-              payload_index: record.payloadIndex,
-              external_id: record.externalId,
-              snapshot: snapshot(record),
-              store_evidence: { artifact_key: artifactKey, current_revision: null },
-            });
+            records[lane].push({ ordinal, endpoint_ordinal: record.endpointOrdinal,
+              payload_index: record.payloadIndex, external_id: record.externalId, snapshot: snapshot(record),
+              store_evidence: { artifact_key: artifactKey, current_revision: null } });
           } else {
             const evidence = await repository.readCurrentCaptureEvidence(lane, record.externalId);
-            if (
-              evidence.archiveAddress !== record.archive.address ||
-              evidence.archiveRelPath !== record.archive.relPath
-            ) {
+            if (evidence.archiveAddress !== record.archive.address || evidence.archiveRelPath !== record.archive.relPath) {
               throw new Error("current capture evidence disagrees with snapshot");
             }
-            records[lane].push({
-              ordinal,
-              endpoint_ordinal: record.endpointOrdinal,
-              payload_index: record.payloadIndex,
-              external_id: record.externalId,
-              snapshot: snapshot(record),
-              store_evidence: {
-                artifact_key: evidence.artifactKey,
-                current_revision: {
-                  source_record_id: evidence.sourceRecordId,
-                  revision_id: evidence.revisionId,
-                },
-              },
-            });
+            records[lane].push({ ordinal, endpoint_ordinal: record.endpointOrdinal,
+              payload_index: record.payloadIndex, external_id: record.externalId, snapshot: snapshot(record),
+              store_evidence: { artifact_key: evidence.artifactKey,
+                current_revision: { source_record_id: evidence.sourceRecordId, revision_id: evidence.revisionId } } });
           }
         }
       }
@@ -389,13 +307,8 @@ export async function runReferenceCapture(
         source: "external-oracle",
         plan: batch.plan,
         operation_ledger: { link_kind: "capture-id", capture_id: captureId },
-        endpoints: batch.endpoints.map((endpoint) => ({
-          ordinal: endpoint.ordinal,
-          lane: endpoint.lane,
-          endpoint: endpoint.endpoint,
-          request: endpoint.request,
-          snapshot: snapshot(endpoint),
-        })),
+        endpoints: batch.endpoints.map((endpoint) => ({ ordinal: endpoint.ordinal, lane: endpoint.lane,
+          endpoint: endpoint.endpoint, request: endpoint.request, snapshot: snapshot(endpoint) })),
         records,
         selected_stream_ids: [...batch.selected_stream_ids],
         captured_stream_ids: [...batch.captured_stream_ids],
@@ -413,27 +326,13 @@ export async function runReferenceCapture(
 
     try {
       const committed = await (dependencies.writeSidecars ?? writeReferenceCaptureSidecars)({
-        root: home.root,
-        manifest,
-        review,
-        assertReplayable,
-        ...platform,
+        root: home.root, manifest, review, assertReplayable, ...platform,
       });
-      const recorded =
-        dependencies.loadSidecars === undefined
-          ? committed
-          : await dependencies.loadSidecars({
-              root: home.root,
-              captureId,
-              assertReplayable,
-              ...platform,
-            });
+      const recorded = dependencies.loadSidecars === undefined ? committed
+        : await dependencies.loadSidecars({ root: home.root, captureId, assertReplayable, ...platform });
       return { manifest: recorded.manifest, report: batch.report };
     } catch (error) {
-      throw new ReferenceCaptureRunError(
-        error instanceof ReferenceCaptureValidationError ? "validation" : "persistence",
-        { cause: error },
-      );
+      throw new ReferenceCaptureRunError(error instanceof ReferenceCaptureValidationError ? "validation" : "persistence", { cause: error });
     }
   };
   return options.writerContext === undefined
@@ -441,8 +340,6 @@ export async function runReferenceCapture(
     : capture(options.writerContext);
 }
 
-export function referenceCaptureEvidenceSha256Input(
-  manifest: ReferenceCaptureManifest,
-): Uint8Array {
+export function referenceCaptureEvidenceSha256Input(manifest: ReferenceCaptureManifest): Uint8Array {
   return new TextEncoder().encode(serializeReferenceCaptureManifest(manifest));
 }

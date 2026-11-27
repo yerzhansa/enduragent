@@ -34,10 +34,9 @@ export class LocalBundleProducerError extends Error {
   readonly code = "LOCAL_BUNDLE_PRODUCER_FAILED";
   readonly stages: readonly ("projection" | "close")[];
   constructor(stages: readonly ("projection" | "close")[]) {
-    const message =
-      stages.length === 2
-        ? "local bundle projection failed; close also failed"
-        : `local bundle ${stages[0]} failed`;
+    const message = stages.length === 2
+      ? "local bundle projection failed; close also failed"
+      : `local bundle ${stages[0]} failed`;
     super(message);
     this.name = "LocalBundleProducerError";
     this.stages = Object.freeze([...stages]);
@@ -73,11 +72,9 @@ export interface LocalBundleProducerDependencies {
     readonly snapshots: VerifiedSnapshotReader;
     readonly crypto: CryptoPort;
     readonly frozenOn: string;
-  }) => Promise<
-    Partial<
-      Pick<ProducedLocalBundle["bundle"], "powerCurves" | "hrCurves" | "sustainabilityCurves">
-    >
-  >;
+  }) => Promise<Partial<
+    Pick<ProducedLocalBundle["bundle"], "powerCurves" | "hrCurves" | "sustainabilityCurves">
+  >>;
 }
 
 async function projectCurrentCurves(input: {
@@ -85,16 +82,13 @@ async function projectCurrentCurves(input: {
   readonly snapshots: VerifiedSnapshotReader;
   readonly crypto: CryptoPort;
   readonly frozenOn: string;
-}): Promise<
-  Partial<Pick<ProducedLocalBundle["bundle"], "powerCurves" | "hrCurves" | "sustainabilityCurves">>
-> {
-  const state = await createAnalyticsCurveStateReader(
-    input.store,
-    (fields: readonly (string | number)[]) => {
-      if (fields.length === 0) throw new TypeError("empty key tuple");
-      return H(input.crypto, ...(fields as [string | number, ...(string | number)[]]));
-    },
-  ).readState();
+}): Promise<Partial<
+  Pick<ProducedLocalBundle["bundle"], "powerCurves" | "hrCurves" | "sustainabilityCurves">
+>> {
+  const state = await createAnalyticsCurveStateReader(input.store, (fields: readonly (string | number)[]) => {
+    if (fields.length === 0) throw new TypeError("empty key tuple");
+    return H(input.crypto, ...(fields as [string | number, ...(string | number)[]]));
+  }).readState();
   if (state.current === null || state.current.generation.frozenOn !== input.frozenOn) return {};
   return projectAnalyticsCurveEvidence(state.current, input.snapshots);
 }
@@ -120,11 +114,7 @@ export function createLocalBundleProducer(
       try {
         store = openStore(options.storePath);
         const crypto = makeCrypto();
-        const snapshots = makeSnapshots({
-          archiveRoot: options.archiveRoot,
-          fs: makeFileSystem(),
-          crypto,
-        });
+        const snapshots = makeSnapshots({ archiveRoot: options.archiveRoot, fs: makeFileSystem(), crypto });
         const selected: LocalBundleSelectedEvidence = {
           activities: await readSelectedSourceRows(store, { source: SOURCE, lane: "activities" }),
           settings: await readSelectedGenericRows(store, { source: SOURCE, lane: "settings" }),
@@ -145,22 +135,15 @@ export function createLocalBundleProducer(
         } catch {
           curveProjection = {};
         }
-        produced = {
-          captureId: manifest.capture_id,
-          captureClock: referenceCaptureClock(manifest.plan),
-          bundle: bundleProjection({ ...bundle, ...curveProjection }),
-        };
+        produced = { captureId: manifest.capture_id, captureClock: referenceCaptureClock(manifest.plan),
+          bundle: bundleProjection({ ...bundle, ...curveProjection }) };
       } catch {
         projectionFailed = true;
       }
 
       let closeFailed = false;
       if (store !== undefined) {
-        try {
-          await store.close();
-        } catch {
-          closeFailed = true;
-        }
+        try { await store.close(); } catch { closeFailed = true; }
       }
       if (projectionFailed || closeFailed) {
         const stages: ("projection" | "close")[] = [];

@@ -899,11 +899,13 @@ function generateWeekWorkouts(
 ): readonly PlanWorkoutRecord[] {
   const range = planWeekRange(input.plan, input.week.weekIndex);
   const scheduled: readonly ScheduledWorkout[] = input.sample
-    .map((workout, sessionIndex): ScheduledWorkout => ({
-      workout,
-      sessionIndex,
-      dateKey: weekdayDate(range.startDateKey, sampleDay(workout)),
-    }))
+    .map(
+      (workout, sessionIndex): ScheduledWorkout => ({
+        workout,
+        sessionIndex,
+        dateKey: weekdayDate(range.startDateKey, sampleDay(workout)),
+      }),
+    )
     .filter(({ dateKey }) => dateKey <= input.targetDateKey && dateKey !== input.targetDateKey);
   const isRaceWeek = input.week.weekIndex === input.plan.totalWeeks;
   const selected = isRaceWeek
