@@ -45,6 +45,7 @@ const english = await createPhrasebook({ tag: "en", locale: "en-US" });
 const API_KEY_PANEL_HINT = english.say(API_KEY_PANEL_HINT_MESSAGE);
 const FOOTER_NOTE = english.say(FOOTER_NOTE_MESSAGE);
 const SETUP_MENU_LABEL = english.say(SETUP_MENU_LABEL_MESSAGE);
+const LOCAL_RIDES_SUBTITLE = "Rides saved on this Mac · connect to sync new ones";
 
 const CLAUDE_CONFIGURATION: OnboardingLlmConfiguration = {
   ...TEST_LLM_CONFIGURATION,
@@ -1183,7 +1184,7 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
-  it("keeps durable training ready while showing the exact first-time Intervals row", async () => {
+  it("shows saved rides as ready on the still-connectable Intervals row", async () => {
     const missingBridge = claudeReadyBridge();
     missingBridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
@@ -1191,13 +1192,17 @@ describe("setup card", () => {
     }));
     const missing = mountWizard({ bridge: missingBridge });
     await missing.open();
-    expect(rowSubtitle("training")).toBe("Connect or import ride files.");
-    expect(trigger("training").textContent).toBe("Connect");
-    expect(rowState("training")).toBe("pending");
-    expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     expect(document.querySelector("[data-setup-readiness]")).toHaveTextContent(
       "2 of 2 required ready",
     );
+    expect(rowState("training"), "training row should agree with the 2 of 2 badge").toBe(
+      "ready",
+    );
+    expect(setupRow("training").querySelector('[data-setup-disc="ready"]')).not.toBeNull();
+    expect(rowSubtitle("training")).toBe(LOCAL_RIDES_SUBTITLE);
+    expect(trigger("training").textContent).toBe("Connect");
+    expect(screen.getByRole("button", { name: "Connect Intervals.icu" })).toBeEnabled();
+    expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     missing.controller.dispose();
     missing.rendered.unmount();
     resetOnboardingStore();
@@ -1217,12 +1222,13 @@ describe("setup card", () => {
     connected.controller.dispose();
   });
 
-  it("keeps the first-time Intervals row after a ride import makes training ready", async () => {
+  it("marks the Intervals row ready after a ride import makes training ready", async () => {
     const bridge = coldBridge();
     bridge.importFiles.mockResolvedValue(importResult({ total: 1, imported: 1, quarantined: 0 }));
     const wizard = mountWizard({ bridge });
     await wizard.open();
     expect(rowState("training")).toBe("pending");
+    expect(rowSubtitle("training")).toBe("Connect or import ride files.");
 
     act(() => {
       wizard.controller.importDroppedFiles(["/synthetic/ride.fit"]);
@@ -1231,9 +1237,12 @@ describe("setup card", () => {
     await waitFor(() => {
       expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     });
-    expect(rowState("training")).toBe("pending");
-    expect(rowSubtitle("training")).toBe("Connect or import ride files.");
+    expect(rowState("training"), "training row should read ready after the import").toBe(
+      "ready",
+    );
+    expect(rowSubtitle("training")).toBe(LOCAL_RIDES_SUBTITLE);
     expect(trigger("training").textContent).toBe("Connect");
+    expect(screen.getByRole("button", { name: "Connect Intervals.icu" })).toBeEnabled();
     wizard.controller.dispose();
   });
 

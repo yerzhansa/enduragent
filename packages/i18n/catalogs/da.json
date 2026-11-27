@@ -817,7 +817,8 @@
         "connected": "Forbundet · hvor dine ture kommer fra",
         "connectedAs": "Forbundet som {{name}} · hvor dine ture kommer fra",
         "missing": "Opret forbindelse, eller importér turfiler.",
-        "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere."
+        "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere.",
+        "savedRides": "Ture gemt på {{computer}} · opret forbindelse for at synkronisere nye"
       },
       "tooltip": {
         "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter logge ind her.",

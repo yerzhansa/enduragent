@@ -2340,7 +2340,8 @@
         "connected": "Connected · where your rides come from",
         "connectedAs": "Connected as {{name}} · where your rides come from",
         "missing": "Connect or import ride files.",
-        "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing."
+        "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing.",
+        "savedRides": "Rides saved on {{computer}} · connect to sync new ones"
       },
       "tooltip": {
         "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then sign in here.",

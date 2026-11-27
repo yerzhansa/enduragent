@@ -10011,6 +10011,10 @@
     "sidebar.sync.headline.signInRejected": {
       "sourceHash": "ef5693b67a35f741962ffa928e516b04aaaef3d478356607f80dfb92db7d4627",
       "translatedBy": "model"
+    },
+    "setup.training.subtitle.savedRides": {
+      "sourceHash": "f2281e78a0163c0d69aa67753aa88a4f601f9e2cc1320306abfee82eeb88fd1a",
+      "translatedBy": "model"
     }
   }
 }

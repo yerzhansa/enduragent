@@ -817,7 +817,8 @@
         "connected": "Verbonden · de bron van je ritten",
         "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
         "missing": "Verbind of importeer ritbestanden.",
-        "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren."
+        "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren.",
+        "savedRides": "Ritten opgeslagen op {{computer}} · verbind om nieuwe te synchroniseren"
       },
       "tooltip": {
         "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Meld je daarna hier aan.",

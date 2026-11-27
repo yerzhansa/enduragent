@@ -817,7 +817,8 @@
         "connected": "Conectado · de donde vienen tus salidas",
         "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas.",
-        "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando."
+        "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando.",
+        "savedRides": "Salidas guardadas en {{computer}} · conecta para sincronizar las nuevas"
       },
       "tooltip": {
         "body": "Un sitio de entrenamiento gratuito que ya contiene tus salidas. {{product}} las lee desde allí en lugar de comunicarse directamente con el proveedor de tu reloj o ciclocomputador. Necesitas una cuenta gratuita con tu reloj o ciclocomputador conectado; después, inicia sesión aquí.",
