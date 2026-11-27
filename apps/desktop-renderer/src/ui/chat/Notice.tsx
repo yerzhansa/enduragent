@@ -68,8 +68,6 @@ export function CoachProgress(): ReactElement | null {
   );
 }
 
-// Opens OpenRouter's credits page through the main process; Chat never builds
-// the URL itself.
 export function AddOpenRouterCreditsButton(): ReactElement {
   const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);

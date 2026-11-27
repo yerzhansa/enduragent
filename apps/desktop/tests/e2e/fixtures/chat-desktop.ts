@@ -36,11 +36,6 @@ export interface ScriptedCoach {
   waitForPrompt(expected: string): Promise<void>;
   emitText(delta: string): void;
   finish(finalText: string): void;
-  /**
-   * Fails the turn the way the daemon does: the error frame, then a failed
-   * request. The queued message stays behind a retry-required claim, and the
-   * next run waits for a new prompt.
-   */
   fail(event: Omit<TurnErrorEvent, "type" | "turnId" | "chatId">): void;
 }
 
@@ -59,9 +54,7 @@ interface ScriptedTurn {
 interface ChatDesktop {
   readonly page: Page;
   readonly coach: ScriptedCoach;
-  /** Coach stream requests in arrival order, such as resumeChatQueue or retryQueuedTurn. */
   readonly streamRequests: readonly string[];
-  /** URLs the main process opened in the browser; acceptance runs log them instead. */
   openedExternalUrls(): Promise<readonly string[]>;
 }
 
@@ -425,7 +418,6 @@ export const test = base.extend<ChatDesktopFixtures>({
         reducedMotion: true,
         hidden: desktopFixtureWindowHidden(process.env.PWDEBUG),
         routeChatAttachmentComposer: true,
-        // A hidden window logs external URLs here instead of opening a browser.
         extraEnv: { ENDURAGENT_ACCEPTANCE_OPENROUTER_AUTHORIZE_LOG: externalUrlLog },
       });
       browser = await playwright.chromium.connectOverCDP(fixture.remoteDebuggingUrl);

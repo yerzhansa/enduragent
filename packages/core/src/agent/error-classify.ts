@@ -19,11 +19,6 @@ const INTERVALS_CREDENTIALS_MESSAGE = msg("coach.error.intervalsCredentials", {
   service: "intervals.icu",
 });
 
-// Routing for intervals' ApiError, whose `kind` is a type-only discriminated
-// union (no importable class) we mirror here. The `satisfies Record<ApiError
-// ["kind"], …>` tie makes `pnpm check` fail if the upstream union gains or
-// renames a kind, forcing a routing decision instead of silently degrading to
-// the generic apology.
 const INTERVALS_KIND_ROUTING = {
   Unauthorized: "intervals",
   Forbidden: "intervals",
@@ -36,9 +31,6 @@ const INTERVALS_KIND_ROUTING = {
   Network: "intervals",
 } satisfies Record<ApiError["kind"], AgentErrorKind>;
 
-// Narrow guard: match only objects whose string `kind` is one the upstream
-// union actually defines, so unrelated errors that happen to carry a `kind`
-// are not misclassified as intervals failures.
 function isIntervalsApiError(err: unknown): err is ApiError {
   return (
     typeof err === "object" &&
@@ -150,8 +142,6 @@ export function classifyAgentError(
         kind: "provider-down",
         athleteMessage: PROVIDER_DOWN_MESSAGE,
       };
-    // Only the desktop Coach names the provider's credits page; elsewhere a
-    // 402 keeps the generic reply.
     case "payment_required":
     case "overflow":
     case "invalid_request":

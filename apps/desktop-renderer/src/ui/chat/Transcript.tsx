@@ -82,7 +82,6 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
   return (
     <div className="flex min-w-0 items-center gap-inset">
       <CircleAlert className="size-3.5 shrink-0 text-danger" aria-hidden="true" />
-      {/* The credits callout under the message announces its own visible copy. */}
       {error == null || props.message.addCredits === true ? null : (
         <span className="sr-only" role="alert">
           {text}

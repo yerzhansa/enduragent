@@ -1,6 +1,7 @@
 ---
 "@enduragent/coach-contract": minor
 "@enduragent/core": minor
+"@enduragent/desktop": minor
 "@enduragent/engine": minor
 "@enduragent/desktop-renderer": minor
 "@enduragent/i18n": minor

@@ -347,7 +347,10 @@ export type AthleteReadResult<T> =
 
 export interface AthleteDataReaderPort {
   getAthlete(): Promise<AthleteReadResult<unknown>>;
-  listWellness(input: { start: string; end?: string }): Promise<AthleteReadResult<readonly WellnessDay[]>>;
+  listWellness(input: {
+    start: string;
+    end?: string;
+  }): Promise<AthleteReadResult<readonly WellnessDay[]>>;
   listActivities(input: { start: string; end?: string }): Promise<AthleteReadResult<unknown[]>>;
   getActivity(input: { id: string }): Promise<AthleteReadResult<unknown>>;
   getStreams(input: { id: string; keys: readonly string[] }): Promise<AthleteReadResult<unknown>>;

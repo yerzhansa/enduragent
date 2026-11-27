@@ -56,5 +56,7 @@ test("offers Add credits when OpenRouter has no credits and keeps the message to
   await expect(credits).toHaveCount(0);
   await expect(retry).toHaveCount(0);
   expect(chatDesktop.streamRequests).toEqual(["resumeChatQueue", "retryQueuedTurn"]);
-  expect(await chatDesktop.openedExternalUrls()).toEqual(["https://openrouter.ai/settings/credits"]);
+  expect(await chatDesktop.openedExternalUrls()).toEqual([
+    "https://openrouter.ai/settings/credits",
+  ]);
 });

@@ -647,13 +647,7 @@ describe("Plan library", () => {
       planLibrary: { status: "ready", value: library },
     });
 
-    render(
-      <PlanLibrary
-        readFinalDetails={vi.fn()}
-        library={library}
-        readDetails={vi.fn()}
-      />,
-    );
+    render(<PlanLibrary readFinalDetails={vi.fn()} library={library} readDetails={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
   });

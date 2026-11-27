@@ -9,7 +9,6 @@ export const MessageSchema = z
   })
   .strict();
 
-/** Engine-internal turn failure classification (frozen field vocabulary). */
 export const TurnErrorClassSchema = z.enum([
   "budget",
   "overflow",
@@ -19,7 +18,6 @@ export const TurnErrorClassSchema = z.enum([
 ]);
 export type TurnErrorClass = z.infer<typeof TurnErrorClassSchema>;
 
-/** Athlete-facing error classification, paired with displayable copy. */
 export const AgentErrorKindSchema = z.enum([
   "rate_limit",
   "provider-auth",
@@ -56,10 +54,6 @@ export const ToolEndEventSchema = z
   })
   .strict();
 
-/**
- * Producers may emit zero or more step-text events per turn; consumers must
- * not assume any particular count.
- */
 export const StepTextEventSchema = z
   .object({
     type: z.literal("step-text"),
@@ -103,10 +97,6 @@ export const ErrorEventSchema = z
   })
   .strict();
 
-/**
- * Reserved for a future streaming producer. Nothing emits this variant today;
- * consumers must tolerate never receiving it.
- */
 export const TextDeltaEventSchema = z
   .object({
     type: z.literal("text_delta"),
@@ -156,13 +146,6 @@ export const PlanHandoffRequestedEventSchema = z
   })
   .strict();
 
-/**
- * Terminal shapes: a successful turn ends with `final-text` as its last event.
- * A failed turn with no committed writes ends with `error` and delivers no
- * final text. A turn that fails AFTER a committed write emits `error` and THEN
- * `final-text` carrying the delivered fallback copy — the two co-occur, in
- * that order.
- */
 export const TurnEventSchema = z.discriminatedUnion("type", [
   TurnStartEventSchema,
   ToolStartEventSchema,
@@ -178,8 +161,4 @@ export const TurnEventSchema = z.discriminatedUnion("type", [
 ]);
 export type TurnEvent = z.infer<typeof TurnEventSchema>;
 
-/**
- * Events are advisory; a consumer callback throwing must never affect the
- * turn.
- */
 export type TurnEventHandler = (event: TurnEvent) => void;
