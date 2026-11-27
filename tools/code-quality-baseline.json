@@ -591,7 +591,6 @@
     "apps/desktop/src/main/credential-envelope-inspection.ts": 1,
     "apps/desktop/src/main/credential-envelope-inventory.ts": 1,
     "apps/desktop/src/main/credential-envelope-lock.ts": 2,
-    "apps/desktop/src/main/credential-runtime.ts": 1,
     "apps/desktop/src/main/daemon-lifecycle.ts": 7,
     "apps/desktop/src/main/desktop-usage-ping-state.ts": 1,
     "apps/desktop/src/main/desktop-usage-ping.ts": 1,

@@ -250,10 +250,7 @@ export function createCredentialRuntimeApplication(
 
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = pending.then(operation);
-    pending = result.then(
-      () => undefined,
-      () => undefined,
-    );
+    pending = Promise.allSettled([result]).then(() => undefined);
     return result;
   };
 
