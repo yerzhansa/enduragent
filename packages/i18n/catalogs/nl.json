@@ -206,6 +206,7 @@
         "confirmAria": "Verwijderen van de toegangsgegevens voor {{provider}} bevestigen",
         "credential": "Toegangsgegevens verwijderen",
         "detail": "Dit verwijdert ze alleen van {{computer}}. {{product}} stopt met het gebruik ervan als ze actief zijn. Je account bij de aanbieder blijft ongewijzigd.",
+        "openrouterDetail": "Dit verwijdert ze alleen van {{computer}}. {{product}} stopt met het gebruik ervan als ze actief zijn. De sleutel blijft werken bij {{openrouter}} totdat je hem daar verwijdert.",
         "title": "De toegangsgegevens voor {{provider}} verwijderen?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Geavanceerd",
       "announcement": {
         "apiKey": "De API-sleutelconfiguratie is onder deze rij geopend.",
-        "chatgpt": "Aanmelden bij {{chatgpt}} is onder deze rij geopend."
+        "chatgpt": "Aanmelden bij {{chatgpt}} is onder deze rij geopend.",
+        "openrouter": "Aanmelden bij {{openrouter}} is onder deze rij geopend."
       },
       "apiKeyHint": "Aangemaakt in de console van de aanbieder, afgerekend per gebruik. Meestal enkele centen per gesprek.",
       "cancelLabel": "API-sleutelconfiguratie annuleren",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} aanbieders · betalen per gebruik",
         "claudeCli": "Controleert je {{claude}}-abonnement bij selectie",
-        "openaiCodex": "Gebruik het abonnement waarvoor je al betaalt"
+        "openaiCodex": "Gebruik het abonnement waarvoor je al betaalt",
+        "openrouter": "Aanmelden · betalen per gebruik, veel modellen"
       },
       "menuLabel": "AI voor je coach",
       "model": "Model",
@@ -646,14 +649,15 @@
         "apiKey": "Stuurt je coach aan · voeg een sleutel toe om af te ronden",
         "chatgpt": "Stuurt je coach aan · meld je aan om af te ronden",
         "checkingClaude": "Stuurt je coach aan · aanmelding bij {{claudeCode}} controleren",
-        "claude": "Stuurt je coach aan · meld je aan via een terminal om af te ronden"
+        "claude": "Stuurt je coach aan · meld je aan via een terminal om af te ronden",
+        "openrouterCredits": "Aangemeld · voeg tegoed toe bij {{openrouter}} om antwoorden te krijgen"
       },
       "provider": "Aanbieder",
       "saveLabel": "API-sleutel opslaan",
       "subtitle": "Vereist. {{product}} levert er geen mee",
       "title": "AI voor je coach",
       "tooltip": {
-        "body": "Je coach werkt met een {{chatgpt}}-abonnement, een {{claudeCode}}-aanmelding of een API-sleutel die je zelf aanlevert. Wat je ook kiest, het blijft op {{computer}}.",
+        "body": "Je coach werkt met een {{chatgpt}}-abonnement, een {{claudeCode}}-aanmelding, een {{openrouter}}-aanmelding of een API-sleutel die je zelf aanlevert. Wat je ook kiest, het blijft op {{computer}}.",
         "label": "Over de AI voor je coach",
         "lead": "{{product}} heeft geen eigen AI"
       },
@@ -731,6 +735,41 @@
       "importing": "Ritbestanden importeren…",
       "unavailable": "Import in de lokale bibliotheek: {{imported}} geïmporteerd. {{quarantined}} in quarantaine geplaatst. De coach heeft tijdelijk geen toegang tot activiteiten en gegevensreeksen. Probeer de import opnieuw.",
       "unconfirmed": "Import in de lokale bibliotheek mislukt. Het resultaat kon niet worden bevestigd. Controleer de bibliotheek voordat je het opnieuw probeert."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Die code is verlopen of al gebruikt. Kies Nieuwe code ophalen en kopieer daarna de nieuwe.",
+        "heading": "Aanmelden met een code",
+        "hint": "Gebruik dit als de browser de aanmelding niet aan {{product}} kan teruggeven.",
+        "newCode": "Nieuwe code ophalen",
+        "noCode": "Je klembord bevat geen {{openrouter}}-code. Kopieer de code uit de browser en kies daarna opnieuw Gekopieerde code gebruiken. Deze aanmelding blijft open.",
+        "open": "Aanmeldpagina openen",
+        "status": "Een code werkt één keer en verloopt na 10 minuten.",
+        "step1": "Kies Aanmeldpagina openen en geef daarna toegang in je browser.",
+        "step2": "Kopieer de code die {{openrouter}} toont.",
+        "step3": "Kies Gekopieerde code gebruiken. {{product}} leest de code en maakt daarna je klembord leeg.",
+        "use": "Gekopieerde code gebruiken"
+      },
+      "completingHint": "Toegang gegeven. Sleutel wordt op {{computer}} opgeslagen…",
+      "enterCode": "In plaats daarvan een code invoeren",
+      "failed": {
+        "notFinished": "Het aanmelden is niet afgerond in de browser. Probeer het opnieuw wanneer je zover bent.",
+        "notSaved": "{{openrouter}} heeft een sleutel gemaakt, maar {{computer}} kon hem niet opslaan. Probeer het opnieuw. De ongebruikte sleutel blijft bij {{openrouter}} totdat je hem daar verwijdert.",
+        "openKeys": "Mijn sleutels bij {{openrouter}} openen",
+        "savedHint": "De sleutel is opgeslagen op {{computer}}.",
+        "savedNotActive": "Aangemeld, maar de coach kon niet starten. Probeer het opnieuw zonder je opnieuw aan te melden.",
+        "unreachable": "{{openrouter}} reageerde niet, dus er is niets opgeslagen. Probeer het over een minuut opnieuw."
+      },
+      "hint": "Opent {{openrouter}} in je browser. Geef daar toegang, en de sleutel die wordt gemaakt blijft op {{computer}}. Op de toegangspagina heet deze app localhost.",
+      "noCredits": {
+        "addCredits": "Tegoed toevoegen",
+        "hint": "Voor dit {{openrouter}}-account is nog nooit tegoed gekocht. De coach heeft tegoed nodig om te antwoorden, meestal enkele centen per gesprek.",
+        "status": "{{product}} controleert opnieuw wanneer je terugkomt naar dit venster."
+      },
+      "pasteInstead": "In plaats daarvan een sleutel plakken",
+      "signIn": "Aanmelden met {{openrouter}}",
+      "signInAgainHint": "Als je je opnieuw aanmeldt, wordt de sleutel op {{computer}} vervangen. De oude sleutel blijft werken bij {{openrouter}} totdat je hem daar verwijdert.",
+      "tryAgain": "Opnieuw proberen"
     },
     "requiredReady": "{{ready}} van {{total}} vereiste onderdelen klaar",
     "retrySavedKeys": "Opgeslagen sleutels opnieuw proberen",

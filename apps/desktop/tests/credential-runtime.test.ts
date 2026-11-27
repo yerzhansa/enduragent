@@ -207,6 +207,20 @@ async function pollCredentialStatuses(vault: CredentialVault): Promise<void> {
     revokeIntervalsAccess: async () => "failed",
     isTrusted: () => true,
     checkIntervalsCredentialOwner,
+    openRouter: {
+      ports: {
+        openExternal: async () => undefined,
+        signIn: async () => {
+          throw new Error("unexpected OpenRouter sign-in");
+        },
+        startCodeSignIn: () => {
+          throw new Error("unexpected OpenRouter code sign-in");
+        },
+        readCreditStatus: async () => "unknown",
+      },
+      clipboard: { readText: async () => "", clear: () => {} },
+      readStoredKey: async () => undefined,
+    },
   });
   try {
     await handlers.get(DESKTOP_CREDENTIAL_STATUS_CHANNEL)!({});

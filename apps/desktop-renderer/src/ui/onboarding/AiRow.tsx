@@ -25,6 +25,7 @@ import {
   type OnboardingSurfaceState,
 } from "../../onboarding/controller";
 import { chatGptReady, chatGptSignedIn, chatGptUiPhase } from "../../onboarding/machine";
+import { openRouterSignInBusy } from "../../onboarding/openrouter-sign-in";
 import {
   apiKeyProviders,
   errorSection,
@@ -61,12 +62,14 @@ import {
   CHATGPT_SIGN_IN_LABEL,
   CLAUDE_CLI_RECHECK_LABEL,
   ERROR_COPY,
+  SETUP_LANE_LABELS,
   SETUP_LANE_MENU_HINTS,
   SETUP_MENU_LABEL,
   SETUP_ROW_CHECKING_SUBTITLE,
 } from "./copy";
 import { CredentialField } from "./CredentialField";
 import { InfoTip } from "./InfoTip";
+import { OpenRouterPanel, openRouterPanelState } from "./OpenRouterPanel";
 import {
   CredentialDeleteButton,
   CredentialDeleteConfirmation,
@@ -156,6 +159,16 @@ export function AiRow(props: {
   const chatGptLoginPending =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in";
   const chatGptActivating = chatGptPhase === "activating-coach";
+  const openRouter = surface.openRouter;
+  const openRouterBusy = openRouterSignInBusy(openRouter);
+  const openRouterStored = wizard.credentialStatus.openrouter === "configured";
+  const previousOpenRouterPhase = useRef(openRouter.signIn.phase);
+  const closePanel = (): void => {
+    actions?.openRouter.dismiss();
+    setPanelLane(null);
+    setPicked(null);
+    setRestoreDraft(null);
+  };
 
   useEffect(() => {
     if (operation === "provider-requested") {
@@ -169,21 +182,21 @@ export function AiRow(props: {
     }
     if (operation !== null && !busy) {
       const succeeded = wizard.fixedError === null && operation === "provider-running" && ready;
-      if (succeeded) {
-        setPanelLane(null);
-        setPicked(null);
-        setRestoreDraft(null);
-      }
+      if (succeeded) closePanel();
       setOperation(null);
     }
   }, [busy, operation, ready, surface.lastCommit, wizard.fixedError]);
 
   useEffect(() => {
-    if (chatGptPhase !== "ready" || panelLane !== "openai-codex") return;
-    setPanelLane(null);
-    setPicked(null);
-    setRestoreDraft(null);
+    if (chatGptPhase === "ready" && panelLane === "openai-codex") closePanel();
   }, [chatGptPhase, panelLane]);
+
+  useEffect(() => {
+    const previous = previousOpenRouterPhase.current;
+    previousOpenRouterPhase.current = openRouter.signIn.phase;
+    const settled = previous === "completing-sign-in" || previous === "failed";
+    if (openRouter.signIn.phase === "idle" && settled && ready) closePanel();
+  }, [openRouter.signIn.phase, ready]);
 
   useEffect(() => {
     const trigger = triggerRef.current;
@@ -230,13 +243,21 @@ export function AiRow(props: {
   );
   const autoChatGptPanel =
     panelLane === null && provider === "openai-codex" && chatGptStored && !chatGptIsReady;
+  const openRouterConnected = ready && lane === "openrouter";
+  const autoOpenRouterPanel =
+    panelLane === null &&
+    lane === "openrouter" &&
+    (openRouter.signIn.phase !== "idle" ||
+      (openRouterConnected && openRouter.credit === "never-paid"));
   const panel = repairRequired
     ? null
     : (panelLane === "openai-codex" && chatGptPhase !== "ready") || autoChatGptPanel
       ? "chatgpt"
-      : panelLane === "api-key"
-        ? "api-key"
-        : null;
+      : panelLane === "openrouter" || autoOpenRouterPanel
+        ? "openrouter"
+        : panelLane === "api-key"
+          ? "api-key"
+          : null;
   const lanes = offeredLanes(configuration, wizard, lane);
   const note = claudeCliNoteMessage(configuration, wizard, lane);
   const statusKnown = setupStatusKnown(surface);
@@ -254,11 +275,12 @@ export function AiRow(props: {
     const message = modelHintMessage(value);
     return message === null ? value : say(message);
   };
+  const outsideCatalogue = showsActiveProviderOutsideCatalogue ? configuration.active : null;
   const copy = !statusKnown
     ? { title: msg("setup.ai.title"), subtitle: SETUP_ROW_CHECKING_SUBTITLE }
-    : showsActiveProviderOutsideCatalogue
+    : outsideCatalogue !== null
       ? {
-          title: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[configuration.active!.provider]),
+          title: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[outsideCatalogue.provider]),
           subtitle: msg("setup.ai.connected"),
         }
       : aiRowMessageCopy(
@@ -266,6 +288,7 @@ export function AiRow(props: {
           wizard,
           ready,
           identityMessage === null ? wizard.claudeCliIdentity : say(identityMessage),
+          openRouter,
         );
   const hasDisplayedProvider = lane !== null || showsActiveProviderOutsideCatalogue;
   const keyProviders = apiKeyProviders(configuration);
@@ -275,12 +298,18 @@ export function AiRow(props: {
 
   const providerForLane = (next: SetupLane): string | null => {
     if (next !== "api-key") return next;
+    if (keyProviders.some((entry) => entry.provider === provider)) return provider;
     const anthropic = keyProviders.find((entry) => entry.provider === "anthropic");
     return (anthropic ?? keyProviders[0])?.provider ?? null;
   };
 
   const choose = (next: SetupLane): void => {
-    const opensPanel = next === "api-key" || (next === "openai-codex" && !chatGptIsReady);
+    if (next !== "openrouter") actions?.openRouter.dismiss();
+    const reactivatesOpenRouter = next === "openrouter" && lane !== next && openRouterStored;
+    const opensPanel =
+      next === "api-key" ||
+      (next === "openai-codex" && !chatGptIsReady) ||
+      (next === "openrouter" && !reactivatesOpenRouter);
     if (opensPanel && panelLane === null) {
       setRestoreDraft(draft === null ? null : { ...draft });
     } else if (!opensPanel) {
@@ -304,9 +333,16 @@ export function AiRow(props: {
       actions.selectProvider(target);
     }
     setPanelLane(opensPanel ? next : null);
+    if (reactivatesOpenRouter) save();
   };
 
-  const revert = (restoreFocus = true): void => {
+  const pasteKeyInstead = (): void => {
+    actions?.selectProvider("openrouter");
+    setPicked("api-key");
+    setPanelLane("api-key");
+  };
+
+  const restoreAndClose = (): void => {
     if (restoreDraft !== null) {
       actions?.selectProvider(restoreDraft.provider.provider);
       actions?.selectModel(restoreDraft.modelChoice);
@@ -314,24 +350,16 @@ export function AiRow(props: {
       actions?.setEndpointMode(restoreDraft.endpointMode);
       actions?.setCustomEndpoint(restoreDraft.customEndpoint);
     }
-    setPicked(null);
-    setRestoreDraft(null);
-    setPanelLane(null);
+    closePanel();
+  };
+
+  const revert = (restoreFocus = true): void => {
+    restoreAndClose();
     if (restoreFocus) triggerRef.current?.focus();
   };
 
   useEffect(() => {
-    if (!repairRequired) return;
-    if (restoreDraft !== null) {
-      actions?.selectProvider(restoreDraft.provider.provider);
-      actions?.selectModel(restoreDraft.modelChoice);
-      actions?.setCustomModel(restoreDraft.customModel);
-      actions?.setEndpointMode(restoreDraft.endpointMode);
-      actions?.setCustomEndpoint(restoreDraft.customEndpoint);
-    }
-    setPicked(null);
-    setRestoreDraft(null);
-    setPanelLane(null);
+    if (repairRequired) restoreAndClose();
   }, [actions, repairRequired, restoreDraft]);
 
   const save = (): void => {
@@ -369,7 +397,15 @@ export function AiRow(props: {
     <>
       <SetupRow
         id="ai"
-        status={!statusKnown ? "none" : ready ? "ready" : "pending"}
+        status={
+          !statusKnown
+            ? "none"
+            : !ready
+              ? "pending"
+              : lane === "openrouter" && openRouter.credit === "never-paid"
+                ? "attention"
+                : "ready"
+        }
         title={typeof copy.title === "string" ? copy.title : say(copy.title)}
         subtitle={say(copy.subtitle)}
         announce={panel === null ? "" : say(AI_PANEL_ANNOUNCEMENTS[panel])}
@@ -387,7 +423,7 @@ export function AiRow(props: {
                 <Menu.Trigger
                   ref={triggerRef}
                   data-setup-trigger="ai"
-                  disabled={controlsDisabled || chatGptActivating}
+                  disabled={controlsDisabled || chatGptActivating || openRouterBusy}
                   aria-label={
                     hasDisplayedProvider ? say(AI_TRIGGER_LABELS.set) : say(AI_TRIGGER_LABELS.unset)
                   }
@@ -425,8 +461,8 @@ export function AiRow(props: {
                           >
                             <span className="min-w-0 flex-1">
                               <b className="block text-sm font-medium">
-                                {entry === "claude-cli"
-                                  ? "Claude Code"
+                                {entry === "claude-cli" || entry === "openrouter"
+                                  ? SETUP_LANE_LABELS[entry]
                                   : say(
                                       entry === "openai-codex"
                                         ? "setup.ai.lane.chatgpt"
@@ -539,6 +575,19 @@ export function AiRow(props: {
           ) : null}
           <SetupError surface={surface} section="provider" />
         </SetupSubPanel>
+      ) : null}
+      {panel === "openrouter" ? (
+        <OpenRouterPanel
+          surface={surface}
+          actions={actions}
+          state={openRouterPanelState(openRouter, {
+            connected: openRouterConnected,
+            picked: panelLane === "openrouter",
+          })}
+          controlsDisabled={controlsDisabled}
+          onRevert={() => revert()}
+          onPasteKey={pasteKeyInstead}
+        />
       ) : null}
       {panel === "api-key" ? (
         <SetupSubPanel name="api-key">

@@ -4,7 +4,6 @@ import {
   type RideImportState,
 } from "../ride-import";
 import type {
-  CredentialWriteResult,
   IntervalsCredentialMutationResult,
   OnboardingBridge,
   OnboardingCredentialWriteInput,
@@ -12,9 +11,20 @@ import type {
   OnboardingLlmEndpointSelection,
   OnboardingLlmSelection,
 } from "./bridge";
-import { CUSTOM_MODEL_SELECTION, DESKTOP_CREDENTIAL_SLOTS } from "./constants";
-import { handoffCredential, type CredentialDraftPort } from "./credentials";
+import { CUSTOM_MODEL_SELECTION } from "./constants";
+import {
+  credentialSlotFor,
+  credentialWriteRefusalError,
+  handoffCredential,
+  type CredentialDraftPort,
+} from "./credentials";
 import { intervalsMutationError, type IntervalsSignInSurface } from "./intervals-sign-in";
+import {
+  createOpenRouterSignIn,
+  openRouterSignInBusy,
+  type OpenRouterSignInActions,
+  type OpenRouterSignInView,
+} from "./openrouter-sign-in";
 import type { SetupCommit } from "./lanes";
 import {
   chatGptSignedIn,
@@ -46,6 +56,7 @@ import {
   llmSelectionFromDraft,
   type LlmSelectionDraft,
 } from "./selection";
+import { afterNextPaint, settleWithin } from "./timing";
 
 export interface OnboardingReadiness {
   readonly provider: boolean;
@@ -69,6 +80,7 @@ export interface OnboardingSurfaceState {
   readonly lastCommit: SetupCommit;
   readonly actionStatus: OnboardingActionStatus;
   readonly intervalsSignIn: IntervalsSignInSurface;
+  readonly openRouter: OpenRouterSignInView;
 }
 
 export function onboardingCredentialMutationActive(surface: OnboardingSurfaceState): boolean {
@@ -78,6 +90,7 @@ export function onboardingCredentialMutationActive(surface: OnboardingSurfaceSta
     surface.wizard.busy ||
     surface.wizard.chatGptLoginPhase !== "idle" ||
     surface.wizard.chatGptRuntimeState === "activating" ||
+    openRouterSignInBusy(surface.openRouter) ||
     surface.rideImport.status === "running"
   );
 }
@@ -99,6 +112,7 @@ export interface OnboardingActions {
   connectTrainingData(): void;
   cancelIntervalsSignIn(): void;
   reopenIntervalsSignIn(): void;
+  readonly openRouter: OpenRouterSignInActions;
   finish(): void;
   dismiss(): void;
   retrySavedKeys(): void;
@@ -125,13 +139,6 @@ export interface OnboardingController extends OnboardingActions {
   importDroppedFiles(paths: readonly string[]): void;
 }
 
-function credentialSlotFor(
-  provider: string | undefined,
-): OnboardingCredentialWriteInput["slot"] | undefined {
-  const slot = DESKTOP_CREDENTIAL_SLOTS.find((candidate) => candidate === provider);
-  return slot === "intervals-icu" ? undefined : slot;
-}
-
 export interface OnboardingControllerOptions {
   readonly bridge: OnboardingBridge;
   readonly credentials: CredentialDraftPort;
@@ -141,6 +148,7 @@ export interface OnboardingControllerOptions {
   readonly focusOpener?: () => void;
   readonly onComplete: (completion: OnboardingCompletion) => void;
   readonly onReady?: () => void;
+  readonly onActiveSelectionChanged?: () => void;
   readonly ownsDroppedImportFiles?: () => boolean;
   readonly credentialMutationsBlocked?: () => boolean;
   readonly createOperationId?: () => string;
@@ -168,75 +176,11 @@ export function setupStatusKnown(
   return surface.initialized && !surface.loadUnavailable;
 }
 
-type BoundedResult<T> =
-  | { readonly status: "fulfilled"; readonly value: T }
-  | { readonly status: "rejected" };
-
-async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<BoundedResult<T>> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise.then<BoundedResult<T>, BoundedResult<T>>(
-        (value) => ({ status: "fulfilled", value }),
-        () => ({ status: "rejected" }),
-      ),
-      new Promise<BoundedResult<T>>((resolve) => {
-        timer = setTimeout(() => resolve({ status: "rejected" }), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-function afterNextPaint(callback: () => void): () => void {
-  if (typeof requestAnimationFrame !== "function") {
-    const timer = setTimeout(callback, 0);
-    return () => clearTimeout(timer);
-  }
-  let secondFrame: number | undefined;
-  let cancelled = false;
-  const firstFrame = requestAnimationFrame(() => {
-    if (cancelled) return;
-    secondFrame = requestAnimationFrame(() => {
-      if (!cancelled) callback();
-    });
-  });
-  return () => {
-    cancelled = true;
-    cancelAnimationFrame(firstFrame);
-    if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
-  };
-}
-
-type CredentialWriteFailureReason = Extract<
-  CredentialWriteResult,
-  { readonly status: "stale-draft" | "refused" | "uncertain" }
->["reason"];
-
-const CREDENTIAL_WRITE_REFUSAL_ERRORS = {
-  "invalid-input": "invalid-input",
-  "encryption-unavailable": "encryption-unavailable",
-  "unsafe-backend": "unsafe-backend",
-  "storage-failed": "storage-failed",
-  "runtime-unavailable": "runtime-unavailable",
-  "catalog-unavailable": "configuration-unavailable",
-  "training-account-mismatch": "training-account-mismatch",
-  "storage-uncertain": "storage-uncertain",
-} as const satisfies Readonly<Record<CredentialWriteFailureReason, OnboardingErrorCode>>;
-
 const ENDPOINT_MODES: readonly OnboardingLlmEndpointSelection["mode"][] = [
   "automatic",
   "default",
   "custom",
 ];
-
-function credentialWriteRefusalError(reason: unknown): OnboardingErrorCode {
-  if (typeof reason === "string" && Object.hasOwn(CREDENTIAL_WRITE_REFUSAL_ERRORS, reason)) {
-    return CREDENTIAL_WRITE_REFUSAL_ERRORS[reason as CredentialWriteFailureReason];
-  }
-  return "credential-save-failed";
-}
 
 export function createOnboardingController(
   options: OnboardingControllerOptions,
@@ -313,6 +257,7 @@ export function createOnboardingController(
       lastCommit,
       actionStatus,
       intervalsSignIn,
+      openRouter: openRouter.view(),
     });
   };
 
@@ -363,7 +308,30 @@ export function createOnboardingController(
       ...llmConfiguration,
       active: { provider: selection.provider, model: selection.model },
     };
+    options.onActiveSelectionChanged?.();
   };
+
+  const openRouter = createOpenRouterSignIn({
+    bridge: options.bridge,
+    createOperationId,
+    publish,
+    configuration: () => llmConfiguration,
+    draft: () => llmDraft,
+    canMutate: () =>
+      presenting && !setupStatusBlocksMutations() && !state.busy && !credentialMutationsBlocked(),
+    active: () =>
+      llmConfiguration?.active?.provider === "openrouter" &&
+      state.credentialStatus.openrouter === "configured",
+    sync: async (selection) => {
+      const syncVisit = visit;
+      const refreshed = await refreshStatuses(syncVisit);
+      if (selection !== null) recordActiveSelection(selection);
+      if (refreshed || selection === null || visit !== syncVisit || !presenting) return;
+      lastCommit = "provider";
+      state = { ...state, fixedError: "credential-status-unavailable" };
+    },
+    fail: setFixedError,
+  });
 
   const cancelActiveIntervalsSignIn = (): void => {
     if (intervalsSignIn.phase !== "waiting-for-browser") return;
@@ -373,6 +341,7 @@ export function createOnboardingController(
   const close = (): void => {
     cancelActiveChatGptLogin();
     cancelActiveIntervalsSignIn();
+    openRouter.reset();
     clearProgressDetailTimer();
     clearScheduledActivation();
     authGeneration += 1;
@@ -524,7 +493,7 @@ export function createOnboardingController(
     if (saved === null) return;
     let saveError = saved.error;
     if (saveError === "runtime-unavailable") saveError = "model-runtime-unavailable";
-    if (saveError === null && saved.selectedApplied) {
+    if (saved.selectedApplied) {
       recordActiveSelection(parsedSelection.selection);
     } else if (saveError === null) {
       try {
@@ -540,11 +509,8 @@ export function createOnboardingController(
                 ? "model-runtime-unavailable"
                 : "invalid-input";
         } else {
-          if (!(await refreshStatuses(submitVisit))) {
-            saveError = "credential-status-unavailable";
-          } else {
-            recordActiveSelection(parsedSelection.selection);
-          }
+          if (!(await refreshStatuses(submitVisit))) saveError = "credential-status-unavailable";
+          recordActiveSelection(parsedSelection.selection);
         }
       } catch {
         if (visit !== submitVisit || !presenting) return;
@@ -554,6 +520,7 @@ export function createOnboardingController(
     state = withBusy(state, false);
     if (saveError !== null) state = withError(state, saveError);
     else if (!selectedProviderIsReady()) state = withError(state, "model-runtime-unavailable");
+    else if (parsedSelection.selection.provider === "openrouter") openRouter.connectedByKey();
     focusTitle();
     publish();
   };
@@ -874,6 +841,7 @@ export function createOnboardingController(
     setRideImportPresentation(true);
     focusTitle();
     publish();
+    openRouter.refreshCredit();
     opening = false;
   };
 
@@ -895,6 +863,7 @@ export function createOnboardingController(
     dispose(): void {
       cancelActiveChatGptLogin();
       cancelActiveIntervalsSignIn();
+      openRouter.dispose();
       clearProgressDetailTimer();
       clearScheduledActivation();
       disposed = true;
@@ -942,6 +911,7 @@ export function createOnboardingController(
       if (disposed || intervalsSignIn.phase !== "waiting-for-browser") return;
       void options.bridge.reopenIntervalsSignIn().catch(() => false);
     },
+    openRouter: openRouter.actions,
     finish(): void {
       void finishSetup();
     },

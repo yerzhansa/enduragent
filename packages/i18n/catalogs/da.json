@@ -206,6 +206,7 @@
         "confirmAria": "Bekræft sletning af adgangsoplysningerne til {{provider}}",
         "credential": "Slet adgangsoplysninger",
         "detail": "Dette fjerner dem kun fra {{computer}}. {{product}} holder op med at bruge dem, hvis de er aktive. Din konto hos udbyderen er uændret.",
+        "openrouterDetail": "Dette fjerner dem kun fra {{computer}}. {{product}} holder op med at bruge dem, hvis de er aktive. Nøglen virker fortsat hos {{openrouter}}, indtil du sletter den dér.",
         "title": "Slet adgangsoplysningerne til {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avanceret",
       "announcement": {
         "apiKey": "Opsætning af API-nøgle er åbnet under denne række.",
-        "chatgpt": "Login til {{chatgpt}} er åbnet under denne række."
+        "chatgpt": "Login til {{chatgpt}} er åbnet under denne række.",
+        "openrouter": "Login til {{openrouter}} er åbnet under denne række."
       },
       "apiKeyHint": "Oprettes i udbyderens konsol og afregnes efter forbrug. Normalt få cent pr. samtale.",
       "cancelLabel": "Annuller opsætning af API-nøgle",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} udbydere · betal efter forbrug",
         "claudeCli": "Kontrollerer dit {{claude}}-abonnement, når du vælger det",
-        "openaiCodex": "Brug det abonnement, du allerede betaler for"
+        "openaiCodex": "Brug det abonnement, du allerede betaler for",
+        "openrouter": "Log ind · betal efter forbrug, mange modeller"
       },
       "menuLabel": "AI, der driver din træner",
       "model": "Model",
@@ -646,14 +649,15 @@
         "apiKey": "Driver din træner · tilføj en nøgle for at afslutte",
         "chatgpt": "Driver din træner · log ind for at afslutte",
         "checkingClaude": "Driver din træner · kontrollerer login til {{claudeCode}}",
-        "claude": "Driver din træner · log ind fra en terminal for at afslutte"
+        "claude": "Driver din træner · log ind fra en terminal for at afslutte",
+        "openrouterCredits": "Logget ind · tilføj kreditter hos {{openrouter}} for at få svar"
       },
       "provider": "Udbyder",
       "saveLabel": "Gem API-nøgle",
       "subtitle": "Påkrævet. {{product}} inkluderer ikke en",
       "title": "AI, der driver din træner",
       "tooltip": {
-        "body": "Den bruger et {{chatgpt}}-abonnement, et {{claudeCode}}-login eller en API-nøgle, du selv angiver. Uanset hvad du vælger, bliver det på {{computer}}.",
+        "body": "Den bruger et {{chatgpt}}-abonnement, et {{claudeCode}}-login, et {{openrouter}}-login eller en API-nøgle, du selv angiver. Uanset hvad du vælger, bliver det på {{computer}}.",
         "label": "Om den AI, der driver din træner",
         "lead": "{{product}} har ikke sin egen AI"
       },
@@ -731,6 +735,41 @@
       "importing": "Importerer turfiler…",
       "unavailable": "Import til lokalt bibliotek: {{imported}} importeret. {{quarantined}} sat i karantæne. Trænerens adgang til aktiviteter og dataserier er midlertidigt utilgængelig. Prøv importen igen.",
       "unconfirmed": "Import til lokalt bibliotek mislykkedes. Resultatet kunne ikke bekræftes. Kontrollér biblioteket, før du prøver igen."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Koden er udløbet eller allerede brugt. Vælg Hent en ny kode, og kopiér derefter den nye.",
+        "heading": "Log ind med en kode",
+        "hint": "Brug dette, når browseren ikke kan sende login tilbage til {{product}}.",
+        "newCode": "Hent en ny kode",
+        "noCode": "Din udklipsholder indeholder ikke en {{openrouter}}-kode. Kopiér koden fra browseren, og vælg derefter Brug kopieret kode igen. Dette login forbliver åbent.",
+        "open": "Åbn loginsiden",
+        "status": "En kode virker én gang og udløber efter 10 minutter.",
+        "step1": "Vælg Åbn loginsiden, og giv derefter adgang i din browser.",
+        "step2": "Kopiér den kode, {{openrouter}} viser.",
+        "step3": "Vælg Brug kopieret kode. {{product}} læser koden og rydder derefter din udklipsholder.",
+        "use": "Brug kopieret kode"
+      },
+      "completingHint": "Adgang givet. Gemmer nøglen på {{computer}}…",
+      "enterCode": "Indtast en kode i stedet",
+      "failed": {
+        "notFinished": "Login blev ikke gennemført i browseren. Prøv igen, når du er klar.",
+        "notSaved": "{{openrouter}} oprettede en nøgle, men {{computer}} kunne ikke gemme den. Prøv igen. Den ubrugte nøgle bliver hos {{openrouter}}, indtil du sletter den dér.",
+        "openKeys": "Åbn mine nøgler hos {{openrouter}}",
+        "savedHint": "Nøglen er gemt på {{computer}}.",
+        "savedNotActive": "Logget ind, men træneren kunne ikke starte. Prøv igen uden at logge ind igen.",
+        "unreachable": "{{openrouter}} svarede ikke, så intet blev gemt. Prøv igen om et minut."
+      },
+      "hint": "Åbner {{openrouter}} i din browser. Giv adgang dér, så bliver nøglen, der oprettes, på {{computer}}. Godkendelsessiden viser denne app som localhost.",
+      "noCredits": {
+        "addCredits": "Tilføj kreditter",
+        "hint": "Der er aldrig købt kreditter på denne {{openrouter}}-konto. Træneren skal bruge kreditter for at svare, normalt få cent pr. samtale.",
+        "status": "{{product}} tjekker igen, når du vender tilbage til dette vindue."
+      },
+      "pasteInstead": "Indsæt en nøgle i stedet",
+      "signIn": "Log ind med {{openrouter}}",
+      "signInAgainHint": "Hvis du logger ind igen, erstattes nøglen på {{computer}}. Den gamle nøgle virker fortsat hos {{openrouter}}, indtil du sletter den dér.",
+      "tryAgain": "Prøv igen"
     },
     "requiredReady": "{{ready}} af {{total}} påkrævede dele klar",
     "retrySavedKeys": "Prøv gemte nøgler igen",

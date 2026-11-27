@@ -94,7 +94,7 @@ function fakeView() {
 function createSubject(input: {
   readonly load?: () => Promise<OnboardingLlmConfiguration>;
   readonly apply?: (selection: OnboardingLlmSelection) => Promise<OnboardingLlmSelectionResult>;
-  readonly onSaved?: () => Promise<void> | void;
+  readonly onSaved?: () => void;
   readonly openSetup?: () => void;
   readonly codexAgentSupported?: boolean;
 }) {
@@ -128,6 +128,134 @@ function formState(controller: ProviderModelSettingsController) {
   }
   return state;
 }
+
+describe("provider and model settings refresh", () => {
+  const OPENAI_ACTIVE = { provider: "openai", model: "gpt-standard" } as const;
+
+  it("keeps the current route on screen until the refreshed route arrives", async () => {
+    const gate = deferred<OnboardingLlmConfiguration>();
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load });
+    await controller.activate();
+    load.mockReturnValueOnce(gate.promise);
+    const renders = vi.mocked(subject.view.render).mock.calls.length;
+
+    const pending = controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: { model: "claude-sonnet" },
+    });
+    expect(subject.view.render).toHaveBeenCalledTimes(renders);
+    gate.resolve(configuration(OPENAI_ACTIVE));
+    await pending;
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: OPENAI_ACTIVE,
+      draft: { provider: { provider: "openai" }, modelChoice: "gpt-standard" },
+      dirty: false,
+    });
+  });
+
+  it("keeps an unsaved draft when the refresh fails and shows the load error otherwise", async () => {
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load });
+    await controller.activate();
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.customModel("private-model-in-progress");
+    load.mockRejectedValueOnce(new Error("unavailable"));
+
+    await controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      draft: { customModel: "private-model-in-progress" },
+      dirty: true,
+    });
+
+    subject.model("claude-sonnet");
+    load.mockRejectedValueOnce(new Error("unavailable"));
+    await controller.refresh();
+
+    expect(controller.state()).toEqual({
+      status: "error",
+      kind: "load",
+      reason: "configuration-unavailable",
+    });
+  });
+
+  it("clears credential required once Setup activates another model of the draft's provider", async () => {
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({
+      load,
+      apply: vi.fn(async (): Promise<OnboardingLlmSelectionResult> => ({
+        status: "refused",
+        reason: "credential-required",
+      })),
+    });
+    await controller.activate();
+    subject.provider("openai");
+    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+
+    await controller.refresh();
+
+    expect(formState(controller)).toMatchObject({
+      status: "error",
+      reason: "credential-required",
+    });
+
+    const setupRoute = { provider: "openai", model: "gpt-reasoning" } as const;
+    load.mockResolvedValueOnce(configuration(setupRoute));
+    await controller.refresh();
+
+    expect(controller.state()).not.toHaveProperty("reason");
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      active: setupRoute,
+      draft: { provider: { provider: "openai" }, modelChoice: "gpt-standard" },
+      dirty: true,
+    });
+  });
+
+  it("reruns a refresh that Setup requested while a save was in flight", async () => {
+    const save = deferred<OnboardingLlmSelectionResult>();
+    const load = vi.fn(async () => configuration());
+    const { controller, subject } = createSubject({ load, apply: vi.fn(() => save.promise) });
+    await controller.activate();
+    subject.model("claude-opus");
+    expect(controller.state().status).toBe("saving");
+    load.mockResolvedValue(configuration(OPENAI_ACTIVE));
+
+    await controller.refresh();
+    save.resolve({ status: "configured", runtimeReady: true });
+
+    await vi.waitFor(() =>
+      expect(formState(controller)).toMatchObject({
+        status: "ready",
+        active: OPENAI_ACTIVE,
+        dirty: false,
+      }),
+    );
+  });
+
+  it("finishes the save when the dependent refresh throws", async () => {
+    const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { controller, subject } = createSubject({
+      onSaved: () => {
+        throw new Error("dependent refresh failed");
+      },
+    });
+    await controller.activate();
+    subject.model("claude-opus");
+
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(formState(controller)).toMatchObject({
+      active: { model: "claude-opus" },
+      dirty: false,
+    });
+    expect(report).toHaveBeenCalledExactlyOnceWith("desktop-coach-on-saved-failed");
+    report.mockRestore();
+  });
+});
 
 describe("provider and model settings controller", () => {
   it("opens with visible loading state before resolving a known active model", async () => {
@@ -670,11 +798,9 @@ describe("provider and model settings controller", () => {
     });
   });
 
-  it("keeps successful persistence visible when dependent refresh rejects", async () => {
+  it("shows the saved route without waiting for the dependent refresh", async () => {
     const { controller, subject, apply } = createSubject({
-      onSaved: async () => {
-        throw new Error("refresh unavailable");
-      },
+      onSaved: () => new Promise<void>(() => undefined),
     });
     await controller.activate();
     subject.model("claude-opus");

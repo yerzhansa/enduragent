@@ -205,6 +205,7 @@
         "confirmAria": "确认删除 {{provider}} 凭据",
         "credential": "删除凭据",
         "detail": "仅从 {{computer}} 删除此凭据。如果正在使用，{{product}} 将停止使用。服务商账号保持不变。",
+        "openrouterDetail": "仅从 {{computer}} 删除此凭据。如果正在使用，{{product}} 将停止使用。在 {{openrouter}} 上删除该密钥之前，它仍可继续使用。",
         "title": "删除 {{provider}} 凭据？"
       },
       "feedback": {
@@ -564,7 +565,8 @@
       "advanced": "高级",
       "announcement": {
         "apiKey": "已在此行下方打开 API 密钥设置。",
-        "chatgpt": "已在此行下方打开 {{chatgpt}} 登录。"
+        "chatgpt": "已在此行下方打开 {{chatgpt}} 登录。",
+        "openrouter": "已在此行下方打开 {{openrouter}} 登录。"
       },
       "apiKeyHint": "在服务商控制台创建，按用量计费，通常每次对话花费几美分。",
       "cancelLabel": "取消 API 密钥设置",
@@ -619,7 +621,8 @@
       "laneHint": {
         "apiKey": "{{providers}} 服务商 · 按用量付费",
         "claudeCli": "选中后检查 {{claude}} 订阅",
-        "openaiCodex": "使用已有的付费方案"
+        "openaiCodex": "使用已有的付费方案",
+        "openrouter": "登录 · 按用量付费，多个模型"
       },
       "menuLabel": "教练使用的 AI",
       "model": "模型",
@@ -644,14 +647,15 @@
         "apiKey": "为教练提供 AI · 添加密钥即可完成",
         "chatgpt": "为教练提供 AI · 登录即可完成",
         "checkingClaude": "为教练提供 AI · 正在检查 {{claudeCode}} 登录状态",
-        "claude": "为教练提供 AI · 请在终端登录以完成"
+        "claude": "为教练提供 AI · 请在终端登录以完成",
+        "openrouterCredits": "已登录 · 在 {{openrouter}} 添加额度后即可收到回复"
       },
       "provider": "服务商",
       "saveLabel": "保存 API 密钥",
       "subtitle": "必需 · {{product}} 不包含 AI",
       "title": "教练使用的 AI",
       "tooltip": {
-        "body": "可使用 {{chatgpt}} 订阅、{{claudeCode}} 登录或自行提供的 API 密钥。无论选择哪种，其凭据都会保留在 {{computer}} 上。",
+        "body": "可使用 {{chatgpt}} 订阅、{{claudeCode}} 登录、{{openrouter}} 登录或自行提供的 API 密钥。无论选择哪种，其凭据都会保留在 {{computer}} 上。",
         "label": "关于教练使用的 AI",
         "lead": "{{product}} 没有自带的 AI"
       },
@@ -728,6 +732,41 @@
       "importing": "正在导入骑行文件…",
       "unavailable": "本地资料库导入：已导入 {{imported}} 项，已隔离 {{quarantined}} 项。教练暂时无法访问活动及其数据流，请重试导入。",
       "unconfirmed": "本地资料库导入失败。无法确认结果，请检查资料库后重试。"
+    },
+    "openrouter": {
+      "code": {
+        "expired": "该授权码已过期或已被使用。请选择“获取新授权码”，然后复制新的授权码。",
+        "heading": "使用授权码登录",
+        "hint": "当浏览器无法将登录结果交回 {{product}} 时，请使用此方式。",
+        "newCode": "获取新授权码",
+        "noCode": "剪贴板中没有 {{openrouter}} 授权码。请从浏览器复制授权码，然后再次选择“使用已复制的授权码”。此登录流程会保持打开。",
+        "open": "打开登录页面",
+        "status": "授权码只能使用一次，10 分钟后过期。",
+        "step1": "选择“打开登录页面”，然后在浏览器中授权。",
+        "step2": "复制 {{openrouter}} 显示的授权码。",
+        "step3": "选择“使用已复制的授权码”。{{product}} 会读取授权码，然后清空剪贴板。",
+        "use": "使用已复制的授权码"
+      },
+      "completingHint": "已授权。正在将密钥保存到 {{computer}}…",
+      "enterCode": "改为输入授权码",
+      "failed": {
+        "notFinished": "未在浏览器中完成登录。准备好后请重试。",
+        "notSaved": "{{openrouter}} 已创建密钥，但 {{computer}} 无法保存该密钥。请重试。在 {{openrouter}} 上删除之前，未使用的密钥会一直保留在那里。",
+        "openKeys": "在 {{openrouter}} 上打开我的密钥",
+        "savedHint": "密钥已保存在 {{computer}} 上。",
+        "savedNotActive": "已登录，但无法启动教练。可直接重试，无需重新登录。",
+        "unreachable": "{{openrouter}} 没有响应，因此未保存任何内容。请一分钟后重试。"
+      },
+      "hint": "将在浏览器中打开 {{openrouter}}。在该页面授权后，生成的密钥会保留在 {{computer}} 上。授权页面会将此应用显示为 localhost。",
+      "noCredits": {
+        "addCredits": "添加额度",
+        "hint": "此 {{openrouter}} 账号从未购买过额度。教练需要额度才能回复，通常每次对话花费几美分。",
+        "status": "回到此窗口时，{{product}} 会再次检查。"
+      },
+      "pasteInstead": "改为粘贴密钥",
+      "signIn": "使用 {{openrouter}} 登录",
+      "signInAgainHint": "重新登录会替换 {{computer}} 上的密钥。在 {{openrouter}} 上删除旧密钥之前，它仍可继续使用。",
+      "tryAgain": "重试"
     },
     "requiredReady": "{{total}} 项必需设置中，{{ready}} 项已就绪",
     "retrySavedKeys": "重试已保存的密钥",

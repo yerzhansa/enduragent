@@ -206,6 +206,7 @@
         "confirmAria": "Löschen der Zugangsdaten für {{provider}} bestätigen",
         "credential": "Zugangsdaten löschen",
         "detail": "Dadurch werden sie nur von {{computer}} entfernt. {{product}} verwendet sie nicht mehr, falls sie aktiv sind. Dein Konto beim Anbieter bleibt unverändert.",
+        "openrouterDetail": "Dadurch werden sie nur von {{computer}} entfernt. {{product}} verwendet sie nicht mehr, falls sie aktiv sind. Der Schlüssel funktioniert bei {{openrouter}} weiter, bis du ihn dort löschst.",
         "title": "Zugangsdaten für {{provider}} löschen?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Erweitert",
       "announcement": {
         "apiKey": "Die Einrichtung des API-Schlüssels wurde unter dieser Zeile geöffnet.",
-        "chatgpt": "Die {{chatgpt}}-Anmeldung wurde unter dieser Zeile geöffnet."
+        "chatgpt": "Die {{chatgpt}}-Anmeldung wurde unter dieser Zeile geöffnet.",
+        "openrouter": "Die {{openrouter}}-Anmeldung wurde unter dieser Zeile geöffnet."
       },
       "apiKeyHint": "Wird in der Konsole des Anbieters erstellt und nach Nutzung abgerechnet — meist Centbeträge pro Gespräch.",
       "cancelLabel": "Einrichtung des API-Schlüssels abbrechen",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} Anbieter · Nach Nutzung bezahlen",
         "claudeCli": "Prüft bei Auswahl dein {{claude}}-Abo",
-        "openaiCodex": "Nutze das Abo, für das du bereits bezahlst"
+        "openaiCodex": "Nutze das Abo, für das du bereits bezahlst",
+        "openrouter": "Anmelden · Nach Nutzung bezahlen, viele Modelle"
       },
       "menuLabel": "KI für deinen Coach",
       "model": "Modell",
@@ -646,14 +649,15 @@
         "apiKey": "Betreibt deinen Coach · Zum Abschließen Schlüssel hinzufügen",
         "chatgpt": "Betreibt deinen Coach · Zum Abschließen anmelden",
         "checkingClaude": "Betreibt deinen Coach · {{claudeCode}}-Anmeldung wird geprüft",
-        "claude": "Betreibt deinen Coach · Zum Abschließen im Terminal anmelden"
+        "claude": "Betreibt deinen Coach · Zum Abschließen im Terminal anmelden",
+        "openrouterCredits": "Angemeldet · Guthaben bei {{openrouter}} aufladen, um Antworten zu erhalten"
       },
       "provider": "Anbieter",
       "saveLabel": "API-Schlüssel speichern",
       "subtitle": "Erforderlich — {{product}} enthält keine eigene KI",
       "title": "KI für deinen Coach",
       "tooltip": {
-        "body": "Er nutzt ein {{chatgpt}}-Abo, eine {{claudeCode}}-Anmeldung oder einen API-Schlüssel, den du bereitstellst. Deine gewählten Zugangsdaten bleiben auf {{computer}}.",
+        "body": "Er nutzt ein {{chatgpt}}-Abo, eine {{claudeCode}}-Anmeldung, eine {{openrouter}}-Anmeldung oder einen API-Schlüssel, den du bereitstellst. Deine gewählten Zugangsdaten bleiben auf {{computer}}.",
         "label": "Über die KI für deinen Coach",
         "lead": "{{product}} hat keine eigene KI"
       },
@@ -731,6 +735,41 @@
       "importing": "Fahrtdateien werden importiert…",
       "unavailable": "Import in die lokale Bibliothek: {{imported}} importiert. {{quarantined}} in Quarantäne. Der Coach kann vorübergehend nicht auf Aktivitäten und Messreihen zugreifen; versuche den Import erneut.",
       "unconfirmed": "Import in die lokale Bibliothek fehlgeschlagen. Das Ergebnis konnte nicht bestätigt werden; prüfe die Bibliothek, bevor du es noch einmal versuchst."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Dieser Code ist abgelaufen oder wurde bereits verwendet. Wähle „Neuen Code anfordern“ und kopiere dann den neuen Code.",
+        "heading": "Mit einem Code anmelden",
+        "hint": "Nutze diese Option, wenn der Browser die Anmeldung nicht an {{product}} zurückgeben kann.",
+        "newCode": "Neuen Code anfordern",
+        "noCode": "Deine Zwischenablage enthält keinen {{openrouter}}-Code. Kopiere den Code aus dem Browser und wähle dann erneut „Kopierten Code verwenden“. Diese Anmeldung bleibt geöffnet.",
+        "open": "Anmeldeseite öffnen",
+        "status": "Ein Code funktioniert nur einmal und läuft nach 10 Minuten ab.",
+        "step1": "Wähle „Anmeldeseite öffnen“ und gib die Anmeldung dann in deinem Browser frei.",
+        "step2": "Kopiere den Code, den {{openrouter}} anzeigt.",
+        "step3": "Wähle „Kopierten Code verwenden“. {{product}} liest den Code und leert dann deine Zwischenablage.",
+        "use": "Kopierten Code verwenden"
+      },
+      "completingHint": "Freigegeben. Der Schlüssel wird auf {{computer}} gespeichert…",
+      "enterCode": "Stattdessen einen Code eingeben",
+      "failed": {
+        "notFinished": "Die Anmeldung wurde im Browser nicht abgeschlossen. Versuche es erneut, wenn du bereit bist.",
+        "notSaved": "{{openrouter}} hat einen Schlüssel erstellt, aber {{computer}} konnte ihn nicht speichern. Versuche es erneut. Der ungenutzte Schlüssel bleibt bei {{openrouter}}, bis du ihn dort löschst.",
+        "openKeys": "Meine Schlüssel bei {{openrouter}} öffnen",
+        "savedHint": "Der Schlüssel ist auf {{computer}} gespeichert.",
+        "savedNotActive": "Angemeldet, aber der Coach konnte nicht starten. Versuche es erneut, ohne dich nochmals anzumelden.",
+        "unreachable": "{{openrouter}} hat nicht geantwortet, daher wurde nichts gespeichert. Versuche es in einer Minute erneut."
+      },
+      "hint": "Öffnet {{openrouter}} in deinem Browser. Gib dort die Freigabe, und der dabei erstellte Schlüssel bleibt auf {{computer}}. Auf der Freigabeseite heißt diese App localhost.",
+      "noCredits": {
+        "addCredits": "Guthaben aufladen",
+        "hint": "Für dieses {{openrouter}}-Konto wurde noch nie Guthaben gekauft. Der Coach braucht Guthaben, um zu antworten, meist nur Centbeträge pro Gespräch.",
+        "status": "{{product}} prüft erneut, wenn du zu diesem Fenster zurückkehrst."
+      },
+      "pasteInstead": "Stattdessen einen Schlüssel einfügen",
+      "signIn": "Mit {{openrouter}} anmelden",
+      "signInAgainHint": "Eine erneute Anmeldung ersetzt den Schlüssel auf {{computer}}. Der alte Schlüssel funktioniert bei {{openrouter}} weiter, bis du ihn dort löschst.",
+      "tryAgain": "Erneut versuchen"
     },
     "requiredReady": "{{ready}} von {{total}} erforderlichen Schritten bereit",
     "retrySavedKeys": "Gespeicherte Schlüssel erneut versuchen",

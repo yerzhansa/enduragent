@@ -205,6 +205,7 @@
         "confirmAria": "{{provider}} 인증 정보 삭제 확인",
         "credential": "인증 정보 삭제",
         "detail": "{{computer}}에서만 삭제합니다. 사용 중인 경우 {{product}}에서 사용을 중단합니다. 제공업체 계정은 변경되지 않습니다.",
+        "openrouterDetail": "{{computer}}에서만 삭제합니다. 사용 중인 경우 {{product}}에서 사용을 중단합니다. 키는 {{openrouter}}에서 삭제할 때까지 계속 작동합니다.",
         "title": "{{provider}} 인증 정보를 삭제할까요?"
       },
       "feedback": {
@@ -564,7 +565,8 @@
       "advanced": "고급",
       "announcement": {
         "apiKey": "이 행 아래에 API 키 설정이 열렸습니다.",
-        "chatgpt": "이 행 아래에 {{chatgpt}} 로그인이 열렸습니다."
+        "chatgpt": "이 행 아래에 {{chatgpt}} 로그인이 열렸습니다.",
+        "openrouter": "이 행 아래에 {{openrouter}} 로그인이 열렸습니다."
       },
       "apiKeyHint": "제공업체 콘솔에서 생성하며 사용량에 따라 청구됩니다. 보통 대화당 몇 센트입니다.",
       "cancelLabel": "API 키 설정 취소",
@@ -619,7 +621,8 @@
       "laneHint": {
         "apiKey": "{{providers}} 제공업체 · 사용량에 따라 과금",
         "claudeCli": "선택하면 {{claude}} 구독을 확인합니다",
-        "openaiCodex": "이미 결제 중인 요금제 사용"
+        "openaiCodex": "이미 결제 중인 요금제 사용",
+        "openrouter": "로그인 · 사용량에 따라 과금, 다양한 모델"
       },
       "menuLabel": "코치에 사용할 AI",
       "model": "모델",
@@ -644,14 +647,15 @@
         "apiKey": "코치에 사용 · 키를 추가하면 완료됩니다",
         "chatgpt": "코치에 사용 · 로그인하면 완료됩니다",
         "checkingClaude": "코치에 사용 · {{claudeCode}} 로그인 확인 중",
-        "claude": "코치에 사용 · 터미널에서 로그인하면 완료됩니다"
+        "claude": "코치에 사용 · 터미널에서 로그인하면 완료됩니다",
+        "openrouterCredits": "로그인됨 · 답변을 받으려면 {{openrouter}}에서 크레딧을 추가하세요"
       },
       "provider": "제공업체",
       "saveLabel": "API 키 저장",
       "subtitle": "필수 · {{product}}에 AI는 포함되어 있지 않습니다",
       "title": "코치에 사용할 AI",
       "tooltip": {
-        "body": "{{chatgpt}} 구독, {{claudeCode}} 로그인 또는 직접 제공한 API 키로 작동합니다. 어떤 것을 선택해도 {{computer}}에 보관됩니다.",
+        "body": "{{chatgpt}} 구독, {{claudeCode}} 로그인, {{openrouter}} 로그인 또는 직접 제공한 API 키로 작동합니다. 어떤 것을 선택해도 {{computer}}에 보관됩니다.",
         "label": "코치에 사용할 AI 정보",
         "lead": "{{product}}에는 자체 AI가 없습니다"
       },
@@ -728,6 +732,41 @@
       "importing": "라이딩 파일 가져오는 중…",
       "unavailable": "로컬 라이브러리 가져오기: {{imported}}개 가져옴. {{quarantined}}개 격리됨. 코칭에서 활동과 시계열 데이터에 일시적으로 접근할 수 없습니다. 가져오기를 다시 시도하세요.",
       "unconfirmed": "로컬 라이브러리 가져오기에 실패했습니다. 결과를 확인하지 못했습니다. 라이브러리를 확인한 후 다시 시도하세요."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "코드가 만료되었거나 이미 사용되었습니다. 새 코드 받기를 선택한 후 새 코드를 복사하세요.",
+        "heading": "코드로 로그인",
+        "hint": "브라우저가 로그인 결과를 {{product}}에 전달하지 못할 때 이 방법을 사용하세요.",
+        "newCode": "새 코드 받기",
+        "noCode": "클립보드에 {{openrouter}} 코드가 없습니다. 브라우저에서 코드를 복사한 후 복사한 코드 사용을 다시 선택하세요. 이 로그인은 열린 상태로 유지됩니다.",
+        "open": "로그인 페이지 열기",
+        "status": "코드는 한 번만 사용할 수 있으며 10분 후에 만료됩니다.",
+        "step1": "로그인 페이지 열기를 선택한 후 브라우저에서 승인하세요.",
+        "step2": "{{openrouter}}에 표시된 코드를 복사하세요.",
+        "step3": "복사한 코드 사용을 선택하세요. {{product}}에서 코드를 읽은 후 클립보드를 지웁니다.",
+        "use": "복사한 코드 사용"
+      },
+      "completingHint": "승인되었습니다. {{computer}}에 키를 저장하는 중…",
+      "enterCode": "대신 코드 입력",
+      "failed": {
+        "notFinished": "브라우저에서 로그인이 완료되지 않았습니다. 준비되면 다시 시도하세요.",
+        "notSaved": "{{openrouter}}에서 키를 만들었지만 {{computer}}에 저장하지 못했습니다. 다시 시도하세요. 사용하지 않은 키는 {{openrouter}}에서 삭제할 때까지 그곳에 남아 있습니다.",
+        "openKeys": "{{openrouter}}에서 내 키 열기",
+        "savedHint": "키가 {{computer}}에 저장되어 있습니다.",
+        "savedNotActive": "로그인되었지만 코치를 시작하지 못했습니다. 다시 로그인하지 않고 재시도하세요.",
+        "unreachable": "{{openrouter}}에서 응답하지 않아 아무것도 저장되지 않았습니다. 1분 후 다시 시도하세요."
+      },
+      "hint": "브라우저에서 {{openrouter}}이(가) 열립니다. 해당 페이지에서 승인하면 생성된 키가 {{computer}}에 보관됩니다. 승인 페이지에는 이 앱이 localhost로 표시됩니다.",
+      "noCredits": {
+        "addCredits": "크레딧 추가",
+        "hint": "이 {{openrouter}} 계정은 크레딧을 구매한 적이 없습니다. 코치가 답변하려면 크레딧이 필요하며, 보통 대화당 몇 센트입니다.",
+        "status": "이 창으로 돌아오면 {{product}}에서 다시 확인합니다."
+      },
+      "pasteInstead": "대신 키 붙여넣기",
+      "signIn": "{{openrouter}}(으)로 로그인",
+      "signInAgainHint": "다시 로그인하면 {{computer}}의 키가 교체됩니다. 이전 키는 {{openrouter}}에서 삭제할 때까지 계속 작동합니다.",
+      "tryAgain": "다시 시도"
     },
     "requiredReady": "필수 항목 {{total}}개 중 {{ready}}개 준비됨",
     "retrySavedKeys": "저장된 키 다시 시도",
