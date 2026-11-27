@@ -919,11 +919,6 @@ describe("legacy writer fence", () => {
     ).resolves.toMatchObject({ status: "rejected", error: { code: "unavailable" } });
     expect(
       (await matches.readForWorkout(workout.id)).map((row) => [row.activityId, row.decision]),
-    ).toEqual(
-      expect.arrayContaining([
-        ["a".repeat(64), "confirmed"],
-        ["b".repeat(64), "rejected"],
-      ]),
-    );
+    ).toEqual([["a".repeat(64), "confirmed"]]);
   });
 });

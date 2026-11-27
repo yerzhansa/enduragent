@@ -280,6 +280,37 @@ async function harness(
       lastWrite: { kind: "none" },
       updatedAtMs: 1,
     });
+  let revisions = 0;
+  const setPaired = async (key: string, pairedEventId: number | null) => {
+    const row = await store.get("SELECT id, payload_json FROM source_record WHERE session_key=?", [
+      key,
+    ]);
+    if (typeof row?.id !== "string" || typeof row.payload_json !== "string") {
+      throw new Error("Expected an intervals.icu record");
+    }
+    const payload: { activity: Record<string, unknown> } = JSON.parse(row.payload_json);
+    const { paired_event_id: _dropped, ...activity } = payload.activity;
+    const revision = `synthetic-revision-${++revisions}`;
+    await store.run(
+      "INSERT INTO source_record_revision(revision_id,source_record_id,artifact_key,raw_sha256,quality_rank,payload_json) VALUES(?,?,?,?,?,?)",
+      [
+        revision,
+        row.id,
+        `${key.slice(0, 63)}f`,
+        "c".repeat(64),
+        1,
+        canonicalJson({
+          ...payload,
+          activity:
+            pairedEventId === null ? activity : { ...activity, paired_event_id: pairedEventId },
+        }),
+      ],
+    );
+    await store.run(
+      "INSERT INTO source_record_current(source_record_id,revision_id) VALUES(?,?) ON CONFLICT(source_record_id) DO UPDATE SET revision_id=excluded.revision_id",
+      [row.id, revision],
+    );
+  };
   const interleave = (hook: () => Promise<void>) => {
     beforeSessionRead = hook;
   };
@@ -297,6 +328,7 @@ async function harness(
     interleave,
     onIntervals,
     removed,
+    setPaired,
   };
 }
 
@@ -786,7 +818,7 @@ describe("deciding a ride", () => {
     ]);
   });
 
-  it("turns down a ride's suggestion when intervals.icu pairs another ride with that workout", async () => {
+  it("drops a ride's suggestion when intervals.icu pairs another ride with that workout", async () => {
     const test = await harness();
     await test.onIntervals(4, MONDAY + 7, 777);
     await test.ride(E, MONDAY + 7, 3_400, { name: "Same-day spin", load: 30 });
@@ -804,12 +836,7 @@ describe("deciding a ride", () => {
         row.activityId,
         row.decision,
       ]),
-    ).toEqual(
-      expect.arrayContaining([
-        [E, "rejected"],
-        [B, "confirmed"],
-      ]),
-    );
+    ).toEqual([[B, "confirmed"]]);
     expect(await test.calendarOutcome(4)).toBe("moved");
   });
 
@@ -830,10 +857,7 @@ describe("deciding a ride", () => {
       (await test.matches.readForWorkout(workoutId(1)))
         .map((row) => [row.activityId, row.source, row.decision])
         .sort(),
-    ).toEqual([
-      [A, "platform", "confirmed"],
-      [B, "platform", "unpaired"],
-    ]);
+    ).toEqual([[A, "platform", "confirmed"]]);
   });
 
   it("keeps a No on a hand-made match when intervals.icu pairs the ride elsewhere", async () => {
@@ -868,5 +892,67 @@ describe("deciding a ride", () => {
       await test.decide(A, suggested(1), { kind: "confirm", planWorkoutId: workoutId(1) }),
     ).toEqual({ status: "refused", reason: "match-changed" });
     expect(await test.calendarOutcome(1)).toBe("removed-by-you");
+  });
+  it("brings an intervals.icu pairing back when a later revision carries it again", async () => {
+    const test = await harness();
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(A, MONDAY, 3_600, { name: "Paired ride", load: 50, pairedEventId: 777 });
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      by: "intervals",
+    });
+    await test.setPaired(A, null);
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "suggested",
+      planWorkoutId: workoutId(1),
+    });
+    expect(await test.calendarOutcome(1)).toBe("is-this-it");
+    await test.setPaired(A, 777);
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      planWorkoutId: workoutId(1),
+      by: "intervals",
+    });
+    expect(
+      (await test.matches.readForWorkout(workoutId(1))).map((row) => [row.source, row.decision]),
+    ).toEqual([["platform", "confirmed"]]);
+    expect(await test.calendarOutcome(1)).toBe("done-as-planned");
+  });
+
+  it("asks about a ride again once the intervals.icu pairing that took its workout is gone", async () => {
+    const test = await harness();
+    await test.onIntervals(4, MONDAY + 7, 777);
+    await test.ride(E, MONDAY + 7, 3_400, { name: "Same-day spin", load: 30 });
+    await test.ride(B, MONDAY + 6, 3_600, { name: "Day-early ride", load: 50, pairedEventId: 777 });
+    await test.match(4, E, MONDAY + 7, 3_400, "suggested");
+    expect((await test.rides()).rides.find((ride) => ride.activityId === E)?.match).toEqual({
+      kind: "none",
+    });
+    await test.setPaired(B, null);
+    const read = await test.rides();
+    expect(read.rides.find((ride) => ride.activityId === E)?.match).toMatchObject({
+      kind: "suggested",
+      planWorkoutId: workoutId(4),
+    });
+    expect(read.rides.find((ride) => ride.activityId === B)?.match).toEqual({ kind: "none" });
+    expect(await test.calendarOutcome(4)).toBe("is-this-it");
+  });
+
+  it("keeps the athlete's No on an intervals.icu pairing across reads", async () => {
+    const test = await harness();
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(A, MONDAY, 3_600, { name: "Paired ride", load: 50, pairedEventId: 777 });
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      by: "intervals",
+    });
+    await test.decide(A, confirmed(1), { kind: "extra" });
+    expect((await test.rides()).rides[0]?.match).toEqual({ kind: "none" });
+    await test.setPaired(A, 777);
+    expect((await test.rides()).rides[0]?.match).toEqual({ kind: "none" });
+    expect(
+      (await test.matches.readForWorkout(workoutId(1))).map((row) => [row.source, row.decision]),
+    ).toEqual([["platform", "unpaired"]]);
+    expect(await test.calendarOutcome(1)).toBe("missed");
   });
 });
