@@ -41,6 +41,7 @@ const ChangeRowSchema = z.object({
 
 const NAME_LIMIT = 512;
 const HISTORY_LIMIT = 499;
+const TITLE_LIMIT = 20_000;
 
 const EnvelopeSchema = z.object({
   title: z.string(),
@@ -112,7 +113,8 @@ function historyEntries(
       },
     ];
   }
-  return [{ kind: "change", atMs, title: envelope.data.title }];
+  const title = envelope.data.title.slice(0, TITLE_LIMIT);
+  return title.length === 0 ? [] : [{ kind: "change", atMs, title }];
 }
 
 function endingWorkout(
