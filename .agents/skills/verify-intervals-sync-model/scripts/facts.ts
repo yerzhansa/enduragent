@@ -79,8 +79,8 @@ export const FLAGS: readonly FlagFact[] = [
     name: "TransientRetry",
     says: "main retries a stored intervals.icu sign-in that was refused for a network reason",
     read: (s) =>
-      /SignInRetry\.observe\(/.test(
-        s.code(s.block(MAIN, "reapplyCredential(slot, value, storedCredentialSlots) {")),
+      /\bsignInRetry\.observe\(/i.test(
+        s.code(s.block(MAIN, "reapplyCredential(slot, value, ")),
       ),
   },
   {
@@ -267,5 +267,5 @@ export const COVERED: readonly Covered[] = [
   { file: VAULT, needle: "if (shouldClearRuntime) {", kind: "block", models: "MainClientTimesOut; MainFinishesDisconnect" },
   { file: VAULT, needle: "if (beforeRemove !== undefined) {", kind: "block", models: "MainFinishesDisconnect (revoke before removal, removed-unrevoked offline)" },
   { file: MAIN, needle: "await vault.reapplyConfigured();", kind: "statement", models: "LaunchReappliesSignIn" },
-  { file: MAIN, needle: "reapplyCredential(slot, value, storedCredentialSlots) {", kind: "block", models: "ApplyStoredSignIn; TransientRetry" },
+  { file: MAIN, needle: "reapplyCredential(slot, value, ", kind: "block", models: "ApplyStoredSignIn; TransientRetry" },
 ];

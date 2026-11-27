@@ -39,6 +39,6 @@
     "apps/desktop/src/main/credential-vault.ts :: if (shouldClearRuntime) {": "54a20674c22e",
     "apps/desktop/src/main/credential-vault.ts :: if (beforeRemove !== undefined) {": "92648d274e2c",
     "apps/desktop/src/main/index.ts :: await vault.reapplyConfigured();": "272aa6176faf",
-    "apps/desktop/src/main/index.ts :: reapplyCredential(slot, value, storedCredentialSlots) {": "ce0e04564169"
+    "apps/desktop/src/main/index.ts :: reapplyCredential(slot, value, ": "ce0e04564169"
   }
 }
