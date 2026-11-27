@@ -26,7 +26,7 @@ To read a TLA+ result, run the pstack `/statechart` skill on `model/CoachChange.
 |---|---|---|
 | `StopNeverGivesUpDuringAReply` | A Stop pressed during a reply reaches it before Stop's 10 s client timeout. | Stop does nothing and the paid reply runs to the end. |
 | `StopReachesReplyBeforeItEnds` | A Stop pressed during a reply reaches it before the reply ends on its own. | Same, for a reply that ends while Stop waits. |
-| `ReadsNotBlockedPastDeadline` | Once a change is past its 25 s deadline, no runtime-config or transcript read waits on it. | Settings shows "Not configured", Chat cannot page its history. |
+| `ReadsNotBlockedPastDeadline` | Once a change is past its 25 s deadline, no runtime-config read, transcript read or chat-queue call (`getChatQueue`, `enqueueChatMessage`) waits on it. | Settings shows "Not configured", Chat cannot page its history or queue a message. |
 | `FailedChangeLeavesCoachUnchanged` | A change that failed or was refused left the bundle, model list pin, attachment limits, `selected-model-profiles.json` and `config.yaml` as they were. | The new model leaks into attachment checks and the profiles file. |
 | `FailedChangeLeavesWindowUnchanged` | After a failed or refused change, the key is still stored and usable and the window is not on the Setup screen. | A false Setup screen while the coach keeps answering with the key. |
 | `NoSwapUnderARunningReply` | The coach never swaps bundles under a reply that still runs on the old one. Holds today; pinned on purpose by `packages/coach/tests/composition.test.ts` ("drains active runtime work"). | A reply's later tool calls hit a half-built coach. |
@@ -54,12 +54,13 @@ Coverage. Each row was confirmed against the code at the sync commit.
 | Code | In the model |
 |---|---|
 | `runtime-bundle.ts` `run` (admission captured at call start, `activeCalls`) | `Capture`, `Open`, `ActiveCalls`, `ReplyArrives`, `ReplyAdmitted`, `PageReadArrives` |
-| `runtime-bundle.ts` `stopChat`, `getTranscriptPage` | `StopArrives`, `StopAdmitted`, `PageReadAdmitted`; constants `StopBypassesAdmission`, `ReadsBypassAdmission` |
-| `runtime-bundle.ts` `replace` (barrier, drain wait, `finally` release) | `ChangeStarts`, `BuildIoDone`, `ChangeFinishes`; constant `ReplaceHonoursDeadline` |
+| `runtime-bundle.ts` `stopChat`, `getTranscriptPage`, `getChatQueue`, `enqueueChatMessage` | `StopArrives`, `StopAdmitted`, `PageReadAdmitted`, `QueueCallArrives`, `QueueCallAdmitted`; constants `StopBypassesAdmission`, `ReadsBypassAdmission`, `QueueCallsBypassAdmission` |
+| `runtime-bundle.ts` `replace` (barrier, drain wait, `finally` release) | `ChangeStarts`, `BuildIoDone`, `ChangeFinishes`; constants `ReplaceHonoursDeadline`, `DeadlineRefusesBusy`, `RefuseWhileReplying` |
+| `apps/desktop-renderer/src/chat/controller.ts` `requestStop` (Stop is sent once the turn is bound) | `StopArrives` requires a streaming reply |
 | `operations.ts` `createSerializedLane`, `configureRuntime`, `getRuntimeConfig`, `RUNTIME_CONFIGURATION_DEADLINE_MS` | `LaneHeldByChange`, `ChangeArrives`, `DeadlineFires`, `CfgReadArrives`, `CfgReadRuns`; constant `RuntimeConfigReadOffLane` |
-| `composition.ts` `applyRuntimeConfig` (catalog pin, `replace`, commit's `throwIfAborted`, `persistConfig`) | `ChangeStarts`, `ChangeFinishes`; constant `RefuseWhileReplying` |
-| `composition.ts` `buildBundle` (`catalogSession`, `persistResolvedModelProfiles`, `currentEngineConfig`) | `ChangeStarts`, `BuildIoDone`; constant `PrepareIsPure` |
-| `credential-vault.ts` delete (`clearCredential` catch, `setRuntimeState`, `removeStoredCredential`) and `credential-runtime.ts` `clearCredential` | `DesktopSeesError`, `DesktopSeesRefusal`, `DesktopSeesSuccess`; constant `ClearMapsBusyRefusal` |
+| `composition.ts` `applyRuntimeConfig` (catalog pin before `replace`, `replace`, commit's `throwIfAborted`, `persistConfig`) | `PinnedBeforeReplace`, `ChangeStarts`, `ChangeFinishes`; constant `PinMovedIntoPrepare` |
+| `composition.ts` `buildBundle` (`catalogSession`, `persistResolvedModelProfiles`, `currentEngineConfig` for every kind) | `ChangeStarts`, `BuildIoDone`; constant `PrepareIsPure` |
+| `credential-vault.ts` delete (`clearCredential` catch, `setRuntimeState`, `removeStoredCredential`) and `credential-runtime.ts` `clearCredential` | `DesktopSeesError`, `DesktopSeesRefusal`, `DesktopSeesSuccess`; constant `ClearBusyRefusal` (`"throws"`, `"refusal"`, or the wrong `"not-active"`) |
 | `packages/coach-client/src/call-timeouts.ts` (`stopChat`, `configureRuntime`, `getRuntimeConfig`, `getTranscriptPage`), `chatgpt-auth.ts` `CHATGPT_ACTIVATION_TIMEOUT_MS` | `StopTimesOut`, `ClientGivesUp`, `CfgReadTimesOut`, `PageReadTimesOut` and their order |
 | `runtime-config.ts` `resolveRuntimeConfig` | Run directly by `summary-model-check.ts` |
 | `composition.ts` `runtimePatch`, `persistConfig` summary fields; `config.ts` `loadConfig` llm patch | Mirrored in `summary-model-check.ts` `runtimePatch` and the restart step |
@@ -77,7 +78,9 @@ If a covered function changed:
 2. Run `check.sh`. Update `expected-results.txt` only for a result the change meant to move, such as a fix turning a rule from `breaks` to `holds`.
 3. Move the sync commit forward only after you confirmed that every row above still describes the code at the new commit.
 
-A fix for a finding flips its design constant in `model/CoachChange.cfg`, turns the rule's line in `expected-results.txt` to `holds`, and updates the findings list, all in the fix's pull request.
+A fix for a finding flips its design constants in `model/CoachChange.cfg`, turns the rule's line in `expected-results.txt` to `holds`, and updates the findings list, all in the fix's pull request.
+
+To compare fix designs before writing one, copy the model and the config to a scratch folder, set the constants each design would set, and run TLC on each rule. At the sync commit, refusing a change while a reply runs (`RefuseWhileReplying`, `ClearBusyRefusal = "refusal"`, `PinMovedIntoPrepare`) makes every rule hold. Issue 403's own suggestion needs every other constant to get there. Leaving out any one of the three refusal pieces breaks a rule.
 
 ## A real bug or a modelling error
 
@@ -85,9 +88,12 @@ A new `breaks` is a real bug until shown otherwise. Before you report it, replay
 
 The summary-model check runs the real function, so its `breaks` is a real result for the code. If the expectation looks wrong, say so to the operator: the rule is the product decision of #404, so do not edit it to make the check pass.
 
+One known edge: the rule keeps "the model used before Astra" across a restart. A fix that saves only explicit choices, as #404's state shape suggests, would put an Astra athlete's background work on Sol after a restart and break the rule. The fix must keep the before-Astra model, or the operator decides the rule changes.
+
 ## Bounds and what is left out
 
-- One reply, one Stop, one coach change, one runtime-config read and one transcript read on one coach process. Two queued changes, Telegram replies, scheduled turns and a second window are not modelled. `activeCalls` counts only the reply.
+- One reply, one Stop, one coach change, one runtime-config read, one transcript read and one chat-queue call on one coach process. Two queued changes, Telegram replies, scheduled turns and a second window are not modelled. `activeCalls` counts only the reply.
+- Other calls that wait on admission are not actors: archive reads, `withChatStore` (archive delete), `confirmations.confirm`. The ChatGPT activation's own 10 s `getRuntimeConfig` read (`onboarding-ipc.ts`) is not modelled.
 - Time is an order, not a clock. A 10 s or longer timer fires only while its owner is in the drain wait. File I/O inside `buildBundle` is shorter than any timer. Stop and the reads are one step each. A desktop timeout and the coach's detach are one step: the close frame's network delay is not modelled.
 - Not modelled: the intervals.icu parts of `applyRuntimeConfig` (owner claims, `runOutsideWindow`), the Setup and Settings controllers in the window, and what the window shows after a successful change.
 - The summary-model check covers OpenAI, OpenRouter and Anthropic with every model the shipped list has for them, plus each provider's summary default. Every reachable config from a fresh install is visited. `openai-codex`, `codex-agent`, `claude-cli` and the key providers without a summary default are not in the alphabet.

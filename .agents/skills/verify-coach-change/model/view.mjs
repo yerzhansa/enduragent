@@ -40,8 +40,10 @@ const changeLabel = (v) => {
 };
 
 const readsLabel = (v) => {
-  if (v.cfgRead === "timed-out" || v.pageRead === "timed-out") return "A read gave up";
-  if (v.cfgRead === "queued" || v.pageRead === "admitting") return "A read is waiting";
+  const reads = [v.cfgRead, v.pageRead, v.queueCall];
+  if (reads.includes("timed-out")) return "A read gave up";
+  if (v.cfgRead === "queued" || v.pageRead === "admitting" || v.queueCall === "admitting")
+    return "A read is waiting";
   return "Reads answered";
 };
 
@@ -112,6 +114,12 @@ export const step = (action, from, to) => {
       return "the transcript read answers";
     case "PageReadTimesOut":
       return "the transcript read times out";
+    case "QueueCallArrives":
+      return "Chat reads its message queue";
+    case "QueueCallAdmitted":
+      return "the queue read answers";
+    case "QueueCallTimesOut":
+      return "the queue read times out";
     case "Done":
       return null;
     default:

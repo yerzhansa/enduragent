@@ -34,9 +34,13 @@ CONSTANTS
     StopBypassesAdmission,     \* stopChat runs on the active bundle without awaiting admission
     ReadsBypassAdmission,      \* transcript reads run on the active bundle without awaiting admission
     RuntimeConfigReadOffLane,  \* getRuntimeConfig does not wait on the serialized lane
+    QueueCallsBypassAdmission, \* getChatQueue and enqueueChatMessage run without awaiting admission
     ReplaceHonoursDeadline,    \* replace() stops waiting for the drain when the change's signal aborts
+    DeadlineRefusesBusy,       \* a change dropped at its deadline answers busy-replying, not an error
     RefuseWhileReplying,       \* a change that finds a reply running is refused (busy-replying)
-    ClearMapsBusyRefusal,      \* the desktop's clearCredential maps that refusal instead of throwing
+    ClearBusyRefusal,          \* what the desktop's clearCredential does with busy-replying:
+                               \*   "throws" (today), "refusal" (passes it on), "not-active" (wrong)
+    PinMovedIntoPrepare,       \* composition.ts:1491's catalog pin runs inside replace()'s prepare
     PrepareIsPure              \* prepare writes nothing shared; the writes happen in commit
 
 VARIABLES
@@ -56,6 +60,8 @@ VARIABLES
     cfgRead,        \* getRuntimeConfig: "absent", "queued", "answered", "timed-out"
     pageRead,       \* getTranscriptPage: "absent", "admitting", "answered", "timed-out"
     pageCapture,
+    queueCall,      \* getChatQueue or enqueueChatMessage: "absent", "admitting", "answered", "timed-out"
+    queueCapture,
     active,         \* the bundle run() selects: "old" or "new"
     catalogSession, \* composition.ts catalogSession (model list pin): "old" or "new"
     engineConfig,   \* composition.ts currentEngineConfig (attachment limits): "old" or "new"
@@ -68,12 +74,12 @@ VARIABLES
 
 vars == <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change, kind,
           aborted, deadlineFired, clientGaveUp, barrier, cfgRead, pageRead, pageCapture,
-          active, catalogSession, engineConfig, profilesFile, configFile,
+          queueCall, queueCapture, active, catalogSession, engineConfig, profilesFile, configFile,
           desktop, slot, storedKey, screen>>
 
 coachParts == <<active, catalogSession, engineConfig, profilesFile, configFile>>
 windowParts == <<screen, slot, storedKey>>
-readParts == <<cfgRead, pageRead, pageCapture>>
+readParts == <<cfgRead, pageRead, pageCapture, queueCall, queueCapture>>
 
 -----------------------------------------------------------------------------
 (* Derived state *)
@@ -100,11 +106,12 @@ ChangesModel == kind \in {"model-change", "chatgpt-activation"}
 ReplyReady  == reply = "admitting" /\ Open(replyCapture)
 StopReady   == stop = "admitting" /\ Open(stopCapture) /\ ~ReplyReady \* the chat call captured first, so it resumes first
 PageReady   == pageRead = "admitting" /\ Open(pageCapture)
+QueueReady  == queueCall = "admitting" /\ Open(queueCapture)
 CfgReady    == cfgRead = "queued" /\ ~LaneHeldByChange
 ChangeReady == \/ change \in {"queued", "committing"}
                \/ change = "draining" /\ (ActiveCalls = 0 \/ (ReplaceHonoursDeadline /\ aborted))
 
-MicrotaskReady == ReplyReady \/ StopReady \/ PageReady \/ CfgReady \/ ChangeReady
+MicrotaskReady == ReplyReady \/ StopReady \/ PageReady \/ QueueReady \/ CfgReady \/ ChangeReady
 Settled == ~MicrotaskReady
 
 -----------------------------------------------------------------------------
@@ -124,12 +131,23 @@ DesktopSeesError ==
          ELSE UNCHANGED <<slot, screen>>
     /\ UNCHANGED storedKey
 
+\* For a key delete the refusal reaches credential-vault.ts through
+\* credential-runtime.ts clearCredential. "throws" is today's TypeError, so the
+\* vault records a divergence. "not-active" (the mapping credential-required
+\* gets) makes the vault delete the key file and report it deleted while the
+\* coach keeps the key.
 DesktopSeesRefusal ==
-    /\ desktop' = "refused"
-    /\ IF kind = "key-delete" /\ ~ClearMapsBusyRefusal
-         THEN slot' = "failed" /\ screen' = "setup-gate"
-         ELSE UNCHANGED <<slot, screen>>
-    /\ UNCHANGED storedKey
+    \/ /\ kind # "key-delete" \/ ClearBusyRefusal = "refusal"
+       /\ desktop' = "refused"
+       /\ UNCHANGED <<slot, screen, storedKey>>
+    \/ /\ kind = "key-delete" /\ ClearBusyRefusal = "throws"
+       /\ desktop' = "refused"
+       /\ slot' = "failed" /\ screen' = "setup-gate"
+       /\ UNCHANGED storedKey
+    \/ /\ kind = "key-delete" /\ ClearBusyRefusal = "not-active"
+       /\ desktop' = "applied"
+       /\ slot' = "deleted" /\ storedKey' = "removed"
+       /\ UNCHANGED screen
 
 \* credential-vault.ts:994-1009: the runtime cleared, then the key file goes.
 DesktopSeesSuccess ==
@@ -164,8 +182,10 @@ ReplyStops ==     \* the aborted turn unwinds (coach-agent.ts stopChat aborted i
                    aborted, deadlineFired, clientGaveUp, barrier, readParts, coachParts,
                    desktop, windowParts>>
 
-StopArrives ==    \* the athlete presses Stop while the window shows the reply in progress
-    /\ Settled /\ stop = "absent" /\ reply \in {"admitting", "streaming"}
+\* chat/controller.ts requestStop sends stopChat only once the turn is bound
+\* (its first turn event); a Stop pressed earlier is held until then.
+StopArrives ==
+    /\ Settled /\ stop = "absent" /\ reply = "streaming"
     /\ stop' = "admitting"
     /\ stopCapture' = IF StopBypassesAdmission THEN "open" ELSE Capture
     /\ UNCHANGED <<reply, replyCapture, replyBundle, stopGaveUp, replyOutranStop, change, kind, aborted,
@@ -191,10 +211,11 @@ ChangeArrives(k) == \* configureRuntime reaches operations.ts:343 and joins the 
 
 BuildIoDone ==    \* buildBundle's awaited I/O returns (composition.ts:1247), the rest of prepare runs
     /\ Settled /\ change = "building"
-    /\ IF ChangesModel /\ ~PrepareIsPure
-         THEN /\ profilesFile' = "new"   \* composition.ts:1259-1262
-              /\ engineConfig' = "new"   \* composition.ts:1263
-         ELSE UNCHANGED <<profilesFile, engineConfig>>
+    \* composition.ts:1259-1262 writes the profiles file (new content only when
+    \* the model changes); composition.ts:1263 sets currentEngineConfig for every
+    \* kind, and for a key delete its llm.apiKey is "" (attachment checks read it).
+    /\ profilesFile' = IF ChangesModel /\ ~PrepareIsPure THEN "new" ELSE profilesFile
+    /\ engineConfig' = IF ~PrepareIsPure THEN "new" ELSE engineConfig
     \* runtime-bundle.ts:137-139: wait for running calls, with no signal
     /\ change' = IF ActiveCalls > 0 THEN "draining" ELSE "committing"
     /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, kind,
@@ -218,14 +239,14 @@ ClientGivesUp ==  \* the desktop's call times out, closes its connection, the co
 CfgReadArrives == \* getRuntimeConfig, operations.ts:405-416
     /\ Settled /\ cfgRead = "absent"
     /\ cfgRead' = IF RuntimeConfigReadOffLane THEN "answered" ELSE "queued"
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, pageRead,
                    pageCapture, coachParts, desktop, windowParts>>
 
 CfgReadTimesOut == \* onboarding-ipc.ts then reports active as null: Coach shows "Not configured"
     /\ Settled /\ cfgRead = "queued" /\ deadlineFired
     /\ cfgRead' = "timed-out"
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, pageRead,
                    pageCapture, coachParts, desktop, windowParts>>
 
@@ -233,16 +254,32 @@ PageReadArrives == \* getTranscriptPage, runtime-bundle.ts:117-118
     /\ Settled /\ pageRead = "absent"
     /\ pageRead' = "admitting"
     /\ pageCapture' = IF ReadsBypassAdmission THEN "open" ELSE Capture
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, cfgRead,
                    coachParts, desktop, windowParts>>
 
 PageReadTimesOut ==
     /\ Settled /\ pageRead = "admitting" /\ deadlineFired
     /\ pageRead' = "timed-out"
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, cfgRead,
                    pageCapture, coachParts, desktop, windowParts>>
+
+QueueCallArrives == \* the window's getChatQueue or enqueueChatMessage, runtime-bundle.ts:81-84
+    /\ Settled /\ queueCall = "absent"
+    /\ queueCall' = "admitting"
+    /\ queueCapture' = IF QueueCallsBypassAdmission THEN "open" ELSE Capture
+    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp,
+                   replyOutranStop, change, kind, aborted, deadlineFired, clientGaveUp,
+                   barrier, cfgRead, pageRead, pageCapture, coachParts, desktop, windowParts>>
+
+QueueCallTimesOut == \* 30 s client timeout (call-timeouts.ts), started after the change
+    /\ Settled /\ queueCall = "admitting" /\ deadlineFired
+    /\ queueCall' = "timed-out"
+    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp,
+                   replyOutranStop, change, kind, aborted, deadlineFired, clientGaveUp,
+                   barrier, cfgRead, pageRead, pageCapture, queueCapture, coachParts,
+                   desktop, windowParts>>
 
 -----------------------------------------------------------------------------
 (* Micro steps: promise continuations *)
@@ -266,31 +303,45 @@ StopAdmitted ==   \* runtime-bundle.ts:79-80 then coach-agent.ts stopChat on the
 PageReadAdmitted ==
     /\ PageReady
     /\ pageRead' = "answered"
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, cfgRead,
                    pageCapture, coachParts, desktop, windowParts>>
+
+QueueCallAdmitted ==
+    /\ QueueReady
+    /\ queueCall' = "answered"
+    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp,
+                   replyOutranStop, change, kind, aborted, deadlineFired, clientGaveUp,
+                   barrier, cfgRead, pageRead, pageCapture, queueCapture, coachParts,
+                   desktop, windowParts>>
 
 CfgReadRuns ==
     /\ CfgReady
     /\ cfgRead' = "answered"
-    /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
+    /\ UNCHANGED <<queueCall, queueCapture, reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, change,
                    kind, aborted, deadlineFired, clientGaveUp, barrier, pageRead,
                    pageCapture, coachParts, desktop, windowParts>>
 
 \* The lane task starts: operations.ts:353-363, composition.ts:1439-1596 run
 \* synchronously for an LLM-only request, then replace() installs the barrier
 \* (runtime-bundle.ts:127-133), and prepare runs up to its first I/O.
+\* composition.ts:1491 pins the request's model list snapshot before replace(),
+\* so today it lands even when the change is then refused or dropped. With
+\* PinMovedIntoPrepare it runs inside prepare, as composition.ts:1226 does.
+PinnedBeforeReplace == ChangesModel /\ ~PinMovedIntoPrepare
+
 ChangeStarts ==
     /\ change = "queued"
     /\ IF RefuseWhileReplying /\ ActiveCalls > 0
          THEN /\ change' = "refused"
               /\ DesktopSeesRefusal
-              /\ UNCHANGED <<barrier, catalogSession>>
+              /\ catalogSession' = IF PinnedBeforeReplace THEN "new" ELSE catalogSession
+              /\ UNCHANGED barrier
          ELSE /\ change' = "building"
               /\ barrier' = "held"
-              \* composition.ts:1491 pins the request's snapshot, and
-              \* composition.ts:1226 writes it again inside buildBundle.
-              /\ catalogSession' = IF ChangesModel /\ ~PrepareIsPure THEN "new" ELSE catalogSession
+              /\ catalogSession' =
+                   IF PinnedBeforeReplace \/ (ChangesModel /\ ~PrepareIsPure)
+                     THEN "new" ELSE catalogSession
               /\ UNCHANGED <<desktop, windowParts>>
     /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, kind,
                    aborted, deadlineFired, clientGaveUp, readParts,
@@ -303,14 +354,18 @@ ChangeFinishes ==
     /\ barrier' = "released"
     /\ IF aborted
          \* composition.ts:1624 throwIfAborted: the commit is dropped
-         THEN /\ change' = "failed"
-              /\ IF clientGaveUp THEN UNCHANGED <<desktop, windowParts>> ELSE DesktopSeesError
+         THEN /\ IF DeadlineRefusesBusy /\ deadlineFired /\ ~clientGaveUp
+                   THEN change' = "refused" /\ DesktopSeesRefusal
+                   ELSE /\ change' = "failed"
+                        /\ IF clientGaveUp THEN UNCHANGED <<desktop, windowParts>> ELSE DesktopSeesError
               /\ UNCHANGED coachParts
          \* composition.ts:1630-1657 persists, then the new bundle becomes active
          ELSE /\ change' = "applied"
               /\ active' = "new" /\ configFile' = "new"
-              /\ IF ChangesModel /\ PrepareIsPure
-                   THEN catalogSession' = "new" /\ engineConfig' = "new" /\ profilesFile' = "new"
+              /\ IF PrepareIsPure
+                   THEN /\ engineConfig' = "new"
+                        /\ catalogSession' = IF ChangesModel THEN "new" ELSE catalogSession
+                        /\ profilesFile' = IF ChangesModel THEN "new" ELSE profilesFile
                    ELSE UNCHANGED <<catalogSession, engineConfig, profilesFile>>
               /\ DesktopSeesSuccess
     /\ UNCHANGED <<reply, replyCapture, replyBundle, stop, stopCapture, stopGaveUp, replyOutranStop, kind,
@@ -326,6 +381,7 @@ Init ==
     /\ aborted = FALSE /\ deadlineFired = FALSE /\ clientGaveUp = FALSE
     /\ barrier = "none"
     /\ cfgRead = "absent" /\ pageRead = "absent" /\ pageCapture = "open"
+    /\ queueCall = "absent" /\ queueCapture = "open"
     /\ active = "old" /\ catalogSession = "old" /\ engineConfig = "old"
     /\ profilesFile = "old" /\ configFile = "old"
     /\ desktop = "none" /\ slot = "active" /\ storedKey = "present" /\ screen = "app"
@@ -336,11 +392,17 @@ Step ==
     \/ \E k \in ChangeKinds : ChangeArrives(k)
     \/ BuildIoDone \/ DeadlineFires \/ ClientGivesUp
     \/ CfgReadArrives \/ CfgReadTimesOut \/ PageReadArrives \/ PageReadTimesOut
-    \/ ReplyAdmitted \/ StopAdmitted \/ PageReadAdmitted \/ CfgReadRuns
+    \/ QueueCallArrives \/ QueueCallTimesOut
+    \/ ReplyAdmitted \/ StopAdmitted \/ PageReadAdmitted \/ QueueCallAdmitted \/ CfgReadRuns
     \/ ChangeStarts \/ ChangeFinishes
 
-\* Nothing left to happen: every actor has had its one turn.
-Done == ~ENABLED Step /\ UNCHANGED vars
+\* Nothing left to happen: every actor has had its one turn and none waits.
+AllFinished ==
+    /\ reply \in {"absent", "stopped", "finished"}
+    /\ stop # "admitting"
+    /\ change \in {"absent", "applied", "failed", "refused"}
+    /\ cfgRead # "queued" /\ pageRead # "admitting" /\ queueCall # "admitting"
+Done == AllFinished /\ ~ENABLED Step /\ UNCHANGED vars
 
 Next == Step \/ Done
 
@@ -361,6 +423,8 @@ TypeOK ==
     /\ barrier \in {"none", "held", "released"}
     /\ cfgRead \in {"absent", "queued", "answered", "timed-out"}
     /\ pageRead \in {"absent", "admitting", "answered", "timed-out"}
+    /\ queueCall \in {"absent", "admitting", "answered", "timed-out"}
+    /\ queueCapture \in {"open", "barrier"}
     /\ {active, catalogSession, engineConfig, profilesFile, configFile} \subseteq {"old", "new"}
     /\ desktop \in {"none", "waiting", "applied", "failed", "refused"}
     /\ slot \in {"active", "failed", "deleted"} /\ storedKey \in {"present", "removed"}
@@ -372,10 +436,12 @@ TypeOK ==
 StopNeverGivesUpDuringAReply == ~stopGaveUp
 StopReachesReplyBeforeItEnds == ~replyOutranStop
 
-\* 2. A coach change never blocks reads past its deadline.
+\* 2. A coach change never blocks reads past its deadline: the runtime-config
+\*    read, the transcript read and the window's chat-queue calls.
 ReadsNotBlockedPastDeadline ==
-    /\ cfgRead # "timed-out" /\ pageRead # "timed-out"
-    /\ (Settled /\ deadlineFired) => (cfgRead # "queued" /\ pageRead # "admitting")
+    /\ cfgRead # "timed-out" /\ pageRead # "timed-out" /\ queueCall # "timed-out"
+    /\ (Settled /\ deadlineFired) =>
+         (cfgRead # "queued" /\ pageRead # "admitting" /\ queueCall # "admitting")
 
 \* 3. A coach change that fails leaves no part of it applied, in the coach
 \*    (3a) and in the window (3b).
