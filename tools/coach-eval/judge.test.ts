@@ -83,6 +83,7 @@ describe("judge metering", () => {
       await expect(judge.ask("q", turns)).rejects.toBeInstanceOf(RunStoppedError);
       expect(script.calls()).toBe(1);
       expect(meter.snapshot().refusedCalls).toBe(1);
+      expect(judge.usage.filter((line) => line.kind === "generate")).toHaveLength(1);
     } finally {
       judge.dispose();
     }

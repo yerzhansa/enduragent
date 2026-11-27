@@ -70,6 +70,8 @@ async function subject(input: {
   readonly generateText?: (call: SdkCall) => Promise<unknown>;
   readonly streamText?: (call: SdkCall) => unknown;
   readonly append?: (line: UsageLedgerLine) => void;
+  readonly classifyFailure?: () => never;
+  readonly chatStreamTimeouts?: { readonly ttftMs: number; readonly interChunkMs: number };
 }) {
   vi.doMock("@ai-sdk/anthropic", () => ({
     createAnthropic: () => () => ({ provider: "anthropic-stub" }),
@@ -85,6 +87,10 @@ async function subject(input: {
     ...llmTestPorts(),
     usage: { append: input.append ?? ((line: UsageLedgerLine) => lines.push(line)) },
     now: () => 1_000,
+    ...(input.classifyFailure === undefined ? {} : { classifyFailure: input.classifyFailure }),
+    ...(input.chatStreamTimeouts === undefined
+      ? {}
+      : { chatStreamTimeouts: input.chatStreamTimeouts }),
   });
   const generate = (opts: GenerateOpts) => llm.generate(opts);
   return { generate, lines };
@@ -198,6 +204,49 @@ describe("a failed model call still leaves a ledger row", () => {
       turnId: "turn-late",
       outcome: "error",
       errorClass: "timeout",
+    });
+  });
+
+  it("records a chat stream that went silent as a timeout error row and rethrows the stall", async () => {
+    const { generate, lines } = await subject({
+      chatStreamTimeouts: { ttftMs: 5, interChunkMs: 5 },
+      streamText: (call) => ({
+        fullStream: (async function* () {
+          yield* [];
+          await abortedBy(call.abortSignal);
+        })(),
+      }),
+    });
+
+    await expect(
+      generate({ prompt: "hello", caller: "chat", turnId: "turn-stalled" }),
+    ).rejects.toMatchObject({ name: "TimeoutError", code: "CHAT_TTFT_TIMEOUT" });
+
+    expect(lines[0]).toMatchObject({
+      turnId: "turn-stalled",
+      outcome: "error",
+      errorClass: "timeout",
+    });
+  });
+
+  it("rethrows the provider error and records it as unknown when the failure classifier throws", async () => {
+    const { generate, lines } = await subject({
+      generateText: async () => {
+        throw serverError();
+      },
+      classifyFailure: () => {
+        throw new Error("classifier unavailable");
+      },
+    });
+
+    await expect(
+      generate({ prompt: "hello", caller: "flush", turnId: "turn-unclassified" }),
+    ).rejects.toThrow("Service unavailable");
+
+    expect(lines[0]).toMatchObject({
+      turnId: "turn-unclassified",
+      outcome: "error",
+      errorClass: "unknown",
     });
   });
 

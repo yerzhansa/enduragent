@@ -157,13 +157,8 @@ export class LLM {
       });
       result = applyResolvedModelMetadata(generated, this.profile);
     } catch (err) {
-      const failure = classifyCallFailure(err, {
-        watchdog,
-        deadline,
-        callerSignal: opts.signal,
-        classifyFailure: this.ports.classifyFailure,
-      });
-      this.recordFailedGenerate(opts, tally, this.ports.now() - start, failure.errorClass);
+      const failure = relabelCallFailure(err, { watchdog, deadline, callerSignal: opts.signal });
+      this.recordFailedGenerate(opts, tally, this.ports.now() - start, failure);
       throw failure.error;
     } finally {
       watchdog?.clear();
@@ -421,7 +416,7 @@ export class LLM {
     opts: GenerateOpts,
     tally: StepUsageTally,
     durationMs: number,
-    errorClass: UsageErrorClass,
+    failure: CallFailure,
   ): void {
     try {
       this.ports.usage.append({
@@ -429,10 +424,19 @@ export class LLM {
         steps: tally.finishedSteps(),
         ...usageFieldsFromResult(knownUsageOfFailedCall(tally, this.profile)),
         outcome: "error",
-        errorClass,
+        errorClass: this.errorClassOf(failure),
       });
     } catch {
       return;
+    }
+  }
+
+  private errorClassOf(failure: CallFailure): UsageErrorClass {
+    if (failure.knownClass !== undefined) return failure.knownClass;
+    try {
+      return this.ports.classifyFailure(failure.error);
+    } catch {
+      return "unknown";
     }
   }
 
@@ -462,28 +466,27 @@ interface FinishedAiSdkStep {
 
 interface CallFailure {
   readonly error: unknown;
-  readonly errorClass: UsageErrorClass;
+  readonly knownClass?: "timeout" | "aborted";
 }
 
-function classifyCallFailure(
+function relabelCallFailure(
   err: unknown,
   input: {
     readonly watchdog: ChatStreamWatchdog | undefined;
     readonly deadline: AbortSignal;
     readonly callerSignal: AbortSignal | undefined;
-    readonly classifyFailure: LLMHostPorts["classifyFailure"];
   },
 ): CallFailure {
   if (input.watchdog?.error !== undefined && isAbortError(err, input.watchdog.signal)) {
-    return { error: input.watchdog.error, errorClass: "timeout" };
+    return { error: input.watchdog.error, knownClass: "timeout" };
   }
   if (input.deadline.aborted && isAbortError(err, input.deadline)) {
-    return { error: toTimeoutError(err), errorClass: "timeout" };
+    return { error: toTimeoutError(err), knownClass: "timeout" };
   }
   if (input.callerSignal?.aborted === true && isAbortError(err, input.callerSignal)) {
-    return { error: err, errorClass: "aborted" };
+    return { error: err, knownClass: "aborted" };
   }
-  return { error: err, errorClass: input.classifyFailure(err) };
+  return { error: err };
 }
 
 function knownUsageOfFailedCall(

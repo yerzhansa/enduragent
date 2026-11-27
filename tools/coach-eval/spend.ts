@@ -116,6 +116,7 @@ export class SpendMeter {
   private unpriced = 0;
   private failed = 0;
   private refused = 0;
+  private refusalUnrecorded = false;
   private haltReason: string | undefined;
 
   constructor(readonly limitUsd: number) {}
@@ -154,10 +155,17 @@ export class SpendMeter {
     return undefined;
   }
 
+  takeRefusedCall(): boolean {
+    const refused = this.refusalUnrecorded;
+    this.refusalUnrecorded = false;
+    return refused;
+  }
+
   assertCanCall(): void {
     const reason = this.stopReason();
     if (reason === undefined) return;
     this.refused++;
+    this.refusalUnrecorded = true;
     throw new RunStoppedError(reason);
   }
 
