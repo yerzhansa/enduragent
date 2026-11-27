@@ -59,8 +59,9 @@ import {
   DESKTOP_UPDATE_STATE_CHANNEL,
 } from "../main/constants.js";
 import { createIntervalsSignInBridge } from "./intervals-bridge.js";
-import { parseDeleteResult } from "./credential-delete-result.js";
-import { CREDENTIALS, exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
+import { createOpenRouterSignInBridge } from "./openrouter-bridge.js";
+import { parseCredentialDeleteInput, parseDeleteResult } from "./credential-delete-result.js";
+import { exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
 
 const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status";
 const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry";
@@ -586,18 +587,6 @@ function parseCredentialWriteInput(value: unknown): {
   const selection = parseLlmSelection(value.selection);
   if (selection.provider !== value.slot) throw new TypeError();
   return { slot: value.slot as string, value: value.value, selection };
-}
-
-function parseCredentialDeleteInput(value: unknown): { readonly credential: string } {
-  if (
-    !record(value) ||
-    !exactKeys(value, ["credential"]) ||
-    typeof value.credential !== "string" ||
-    !CREDENTIALS.has(value.credential)
-  ) {
-    throw new TypeError();
-  }
-  return { credential: value.credential };
 }
 
 type PreloadUpdateState =
@@ -1558,6 +1547,7 @@ contextBridge.exposeInMainWorld(
       return invokeTelegramStatus();
     },
     ...createIntervalsSignInBridge(ipcRenderer),
+    ...createOpenRouterSignInBridge(ipcRenderer, parseLlmSelection),
     pasteTelegramTokenFromClipboard: async (...args: unknown[]) => {
       requireZeroArguments(args);
       return invokeTelegramMutation(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL);

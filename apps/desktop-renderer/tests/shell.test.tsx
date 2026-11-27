@@ -677,7 +677,10 @@ describe("shell", () => {
           open: true,
           completionRequired: true,
         },
-        onboardingActions: { finish } as unknown as OnboardingController,
+        onboardingActions: {
+          finish,
+          openRouter: { checkCredits: () => undefined, dismiss: () => undefined },
+        } as unknown as OnboardingController,
       });
       await renderWithLanguage(<Shell onReady={() => {}} />);
       const gate = document.querySelector('[data-setup-host="gate"]');
@@ -777,6 +780,7 @@ describe("shell", () => {
     });
     useEnduragentStore.getState().bindOnboardingActions({
       requireCompletion,
+      openRouter: { dismiss: () => undefined },
     } as unknown as OnboardingController);
     await renderWithLanguage(<Shell onReady={() => {}} />);
 

@@ -206,6 +206,7 @@
         "confirmAria": "Bekräfta borttagning av inloggningsuppgifterna för {{provider}}",
         "credential": "Ta bort inloggningsuppgifter",
         "detail": "Det här tar bara bort dem från {{computer}}. {{product}} slutar använda dem om de är aktiva. Ditt konto hos leverantören ändras inte.",
+        "openrouterDetail": "Det här tar bara bort dem från {{computer}}. {{product}} slutar använda dem om de är aktiva. Nyckeln fortsätter att fungera hos {{openrouter}} tills du tar bort den där.",
         "title": "Ta bort inloggningsuppgifterna för {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avancerat",
       "announcement": {
         "apiKey": "Konfigurationen av API-nyckel öppnades under den här raden.",
-        "chatgpt": "Inloggning med {{chatgpt}} öppnades under den här raden."
+        "chatgpt": "Inloggning med {{chatgpt}} öppnades under den här raden.",
+        "openrouter": "Inloggning med {{openrouter}} öppnades under den här raden."
       },
       "apiKeyHint": "Skapas i leverantörens konsol och debiteras efter användning, vanligtvis några cent per samtal.",
       "cancelLabel": "Avbryt konfigurationen av API-nyckel",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "Leverantörer: {{providers}} · betala efter användning",
         "claudeCli": "Kontrollerar ditt {{claude}}-abonnemang när du väljer det",
-        "openaiCodex": "Använd abonnemanget du redan betalar för"
+        "openaiCodex": "Använd abonnemanget du redan betalar för",
+        "openrouter": "Logga in · betala efter användning, många modeller"
       },
       "menuLabel": "AI som driver din tränare",
       "model": "Modell",
@@ -646,14 +649,15 @@
         "apiKey": "Driver din tränare · lägg till en nyckel för att slutföra",
         "chatgpt": "Driver din tränare · logga in för att slutföra",
         "checkingClaude": "Driver din tränare · kontrollerar inloggning i {{claudeCode}}",
-        "claude": "Driver din tränare · logga in från en terminal för att slutföra"
+        "claude": "Driver din tränare · logga in från en terminal för att slutföra",
+        "openrouterCredits": "Inloggad · lägg till krediter hos {{openrouter}} för att få svar"
       },
       "provider": "Leverantör",
       "saveLabel": "Spara API-nyckel",
       "subtitle": "Krävs. Ingen AI ingår i {{product}}.",
       "title": "AI som driver din tränare",
       "tooltip": {
-        "body": "Den använder ett {{chatgpt}}-abonnemang, en {{claudeCode}}-inloggning eller en API-nyckel som du anger. Det du väljer stannar på {{computer}}.",
+        "body": "Den använder ett {{chatgpt}}-abonnemang, en {{claudeCode}}-inloggning, en {{openrouter}}-inloggning eller en API-nyckel som du anger. Det du väljer stannar på {{computer}}.",
         "label": "Om AI:n som driver din tränare",
         "lead": "{{product}} har ingen egen AI"
       },
@@ -731,6 +735,41 @@
       "importing": "Importerar filer från cykelturer…",
       "unavailable": "Import till lokalt bibliotek: {{imported}} importerade. {{quarantined}} i karantän. Tränarens åtkomst till aktiviteter och dataserier är tillfälligt otillgänglig. Försök importera igen.",
       "unconfirmed": "Importen till det lokala biblioteket misslyckades. Resultatet kunde inte bekräftas. Kontrollera biblioteket innan du försöker igen."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Koden har gått ut eller har redan använts. Välj Hämta en ny kod och kopiera sedan den nya.",
+        "heading": "Logga in med en kod",
+        "hint": "Använd det här när webbläsaren inte kan lämna tillbaka inloggningen till {{product}}.",
+        "newCode": "Hämta en ny kod",
+        "noCode": "Urklipp innehåller ingen {{openrouter}}-kod. Kopiera koden från webbläsaren och välj sedan Använd kopierad kod igen. Inloggningen förblir öppen.",
+        "open": "Öppna inloggningssidan",
+        "status": "En kod fungerar en gång och går ut efter 10 minuter.",
+        "step1": "Välj Öppna inloggningssidan och godkänn sedan i din webbläsare.",
+        "step2": "Kopiera koden som {{openrouter}} visar.",
+        "step3": "Välj Använd kopierad kod. {{product}} läser koden och tömmer sedan urklipp.",
+        "use": "Använd kopierad kod"
+      },
+      "completingHint": "Godkänt. Sparar nyckeln på {{computer}}…",
+      "enterCode": "Ange en kod i stället",
+      "failed": {
+        "notFinished": "Inloggningen slutfördes inte i webbläsaren. Försök igen när du är redo.",
+        "notSaved": "{{openrouter}} skapade en nyckel, men {{computer}} kunde inte spara den. Försök igen. Den oanvända nyckeln finns kvar hos {{openrouter}} tills du tar bort den där.",
+        "openKeys": "Öppna mina nycklar hos {{openrouter}}",
+        "savedHint": "Nyckeln är sparad på {{computer}}.",
+        "savedNotActive": "Du är inloggad, men tränaren kunde inte starta. Försök igen utan att logga in på nytt.",
+        "unreachable": "{{openrouter}} svarade inte, så inget sparades. Försök igen om en minut."
+      },
+      "hint": "Öppnar {{openrouter}} i din webbläsare. Godkänn där, så stannar nyckeln som skapas på {{computer}}. Godkännandesidan visar den här appen som localhost.",
+      "noCredits": {
+        "addCredits": "Lägg till krediter",
+        "hint": "Det här {{openrouter}}-kontot har aldrig köpt krediter. Tränaren behöver krediter för att svara, vanligtvis några cent per samtal.",
+        "status": "{{product}} kontrollerar igen när du kommer tillbaka till det här fönstret."
+      },
+      "pasteInstead": "Klistra in en nyckel i stället",
+      "signIn": "Logga in med {{openrouter}}",
+      "signInAgainHint": "Om du loggar in igen ersätts nyckeln på {{computer}}. Den gamla nyckeln fortsätter att fungera hos {{openrouter}} tills du tar bort den där.",
+      "tryAgain": "Försök igen"
     },
     "requiredReady": "{{ready}} av {{total}} obligatoriska delar klara",
     "retrySavedKeys": "Försök med sparade nycklar igen",

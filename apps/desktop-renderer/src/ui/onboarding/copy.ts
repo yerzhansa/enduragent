@@ -6,6 +6,10 @@ import type { ChatGptLoginRefusalReason } from "../../onboarding/constants";
 import type { SetupLane } from "../../onboarding/lanes";
 import type { ChatGptUiPhase, OnboardingErrorCode } from "../../onboarding/machine";
 import { PLATFORM_COPY, platformCredentialEncryptionUnavailable } from "../../platform-copy";
+import {
+  IDLE_OPENROUTER_SIGN_IN,
+  type OpenRouterSignInView,
+} from "../../onboarding/openrouter-sign-in";
 
 export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "credential-required": msg("setup.error.credentialRequired", { chatgpt: "ChatGPT" }),
@@ -103,12 +107,14 @@ export const SETUP_MENU_LABEL = msg("setup.ai.menuLabel");
 export const SETUP_LANE_LABELS = {
   "claude-cli": "Claude Code",
   "openai-codex": "ChatGPT subscription",
+  openrouter: "OpenRouter",
   "api-key": "API key",
 } as const satisfies Readonly<Record<SetupLane, string>>;
 
 export const SETUP_LANE_MENU_HINTS = {
   "claude-cli": msg("setup.ai.laneHint.claudeCli", { claude: "Claude" }),
   "openai-codex": msg("setup.ai.laneHint.openaiCodex"),
+  openrouter: msg("setup.ai.laneHint.openrouter"),
   "api-key": msg("setup.ai.laneHint.apiKey", { providers: 9 }),
 } as const satisfies Readonly<Record<SetupLane, Message>>;
 
@@ -122,6 +128,7 @@ export const AI_ROW_PREFIX = "Powers your coach";
 export const AI_ROW_PENDING = {
   "claude-cli": "sign in from a terminal to finish",
   "openai-codex": "sign in to finish",
+  openrouter: "sign in to finish",
   "api-key": "add a key to finish",
 } as const satisfies Readonly<Record<SetupLane, string>>;
 
@@ -139,6 +146,7 @@ export const CHATGPT_CANCEL_LABEL = msg("setup.chatgpt.cancelLabel", { chatgpt: 
 export const AI_PANEL_ANNOUNCEMENTS = {
   chatgpt: msg("setup.ai.announcement.chatgpt", { chatgpt: "ChatGPT" }),
   "api-key": msg("setup.ai.announcement.apiKey"),
+  openrouter: msg("setup.ai.announcement.openrouter", { openrouter: "OpenRouter" }),
 } as const;
 
 export const AI_ROW_TOOLTIP = {
@@ -148,6 +156,7 @@ export const AI_ROW_TOOLTIP = {
     computer: PLATFORM_COPY.computer,
     chatgpt: "ChatGPT",
     claudeCode: "Claude Code",
+    openrouter: "OpenRouter",
   }),
 } as const;
 
@@ -172,6 +181,55 @@ export const CHATGPT_PHASE_COPY: Readonly<
 export const CHATGPT_PANEL_HINT = msg("setup.chatgpt.hint", { openai: "OpenAI" });
 
 export const API_KEY_PANEL_HINT = msg("setup.ai.apiKeyHint");
+
+const OPENROUTER = { openrouter: "OpenRouter" } as const;
+
+export const OPENROUTER_COPY = {
+  hint: msg("setup.openrouter.hint", { ...OPENROUTER, computer: PLATFORM_COPY.computer }),
+  signIn: msg("setup.openrouter.signIn", OPENROUTER),
+  signInAgain: msg("setup.training.signInAgain"),
+  signInAgainHint: msg("setup.openrouter.signInAgainHint", {
+    ...OPENROUTER,
+    computer: PLATFORM_COPY.computer,
+  }),
+  pasteInstead: msg("setup.openrouter.pasteInstead"),
+  enterCode: msg("setup.openrouter.enterCode"),
+  cancelSignIn: msg("setup.training.cancelSignIn"),
+  waiting: msg("setup.training.waiting"),
+  waitingHint: msg("setup.training.waitingHint", { product: "Enduragent" }),
+  reopen: msg("setup.training.reopen"),
+  completing: msg("setup.training.completing"),
+  completingHint: msg("setup.openrouter.completingHint", { computer: PLATFORM_COPY.computer }),
+  noCreditsHint: msg("setup.openrouter.noCredits.hint", OPENROUTER),
+  checkAgain: msg("setup.ai.claude.recheck"),
+  addCredits: msg("setup.openrouter.noCredits.addCredits"),
+  noCreditsStatus: msg("setup.openrouter.noCredits.status", { product: "Enduragent" }),
+  tryAgain: msg("setup.openrouter.tryAgain"),
+  notFinished: msg("setup.openrouter.failed.notFinished"),
+  unreachable: msg("setup.openrouter.failed.unreachable", OPENROUTER),
+  savedHint: msg("setup.openrouter.failed.savedHint", { computer: PLATFORM_COPY.computer }),
+  savedNotActive: msg("setup.openrouter.failed.savedNotActive"),
+  retryActivation: msg("setup.chatgpt.retryActivation"),
+  activating: msg("setup.chatgpt.phase.activatingCoach"),
+  notSaved: msg("setup.openrouter.failed.notSaved", {
+    ...OPENROUTER,
+    computer: PLATFORM_COPY.computer,
+  }),
+  openKeys: msg("setup.openrouter.failed.openKeys", OPENROUTER),
+  codeHeading: msg("setup.openrouter.code.heading"),
+  codeHint: msg("setup.openrouter.code.hint", { product: "Enduragent" }),
+  codeSteps: [
+    msg("setup.openrouter.code.step1"),
+    msg("setup.openrouter.code.step2", OPENROUTER),
+    msg("setup.openrouter.code.step3", { product: "Enduragent" }),
+  ],
+  codeOpen: msg("setup.openrouter.code.open"),
+  codeUse: msg("setup.openrouter.code.use"),
+  codeStatus: msg("setup.openrouter.code.status"),
+  codeNoCode: msg("setup.openrouter.code.noCode", OPENROUTER),
+  codeExpired: msg("setup.openrouter.code.expired"),
+  codeNew: msg("setup.openrouter.code.newCode"),
+} as const;
 
 export const TRAINING_ROW_TITLE = "Intervals.icu";
 
@@ -265,10 +323,12 @@ export const FOOTER_NOTE = msg("setup.footerNote", { computer: PLATFORM_COPY.com
 
 export const PRIMARY_LABEL = msg("setup.startCoaching");
 
-export function setupLaneMessage(lane: SetupLane): Message | "Claude Code" {
+export function setupLaneMessage(lane: SetupLane): Message | "Claude Code" | "OpenRouter" {
   switch (lane) {
     case "claude-cli":
       return "Claude Code";
+    case "openrouter":
+      return "OpenRouter";
     case "openai-codex":
       return msg("setup.ai.lane.chatgpt", { chatgpt: "ChatGPT" });
     case "api-key":
@@ -281,7 +341,8 @@ export function aiRowMessageCopy(
   wizard: OnboardingState,
   ready: boolean,
   identity = wizard.claudeCliIdentity,
-): { readonly title: Message | "Claude Code"; readonly subtitle: Message } {
+  openRouter: OpenRouterSignInView = IDLE_OPENROUTER_SIGN_IN,
+): { readonly title: Message | "Claude Code" | "OpenRouter"; readonly subtitle: Message } {
   if (lane === null)
     return {
       title: msg("setup.ai.title"),
@@ -296,10 +357,13 @@ export function aiRowMessageCopy(
       };
     if (lane === "openai-codex" && chatGptSignedIn(wizard))
       return { title, subtitle: msg("setup.ai.pending.activation") };
+    if (lane === "openrouter" && openRouterKeySaved(wizard, openRouter))
+      return { title, subtitle: msg("setup.ai.pending.activation") };
     switch (lane) {
       case "claude-cli":
         return { title, subtitle: msg("setup.ai.pending.claude") };
       case "openai-codex":
+      case "openrouter":
         return { title, subtitle: msg("setup.ai.pending.chatgpt") };
       case "api-key":
         return { title, subtitle: msg("setup.ai.pending.apiKey") };
@@ -310,7 +374,16 @@ export function aiRowMessageCopy(
       title,
       subtitle: msg("setup.ai.identity", { identity: identity ?? wizard.claudeCliIdentity }),
     };
+  if (lane === "openrouter" && openRouter.credit === "never-paid")
+    return { title, subtitle: msg("setup.ai.pending.openrouterCredits", OPENROUTER) };
   return { title, subtitle: msg("setup.ai.connected") };
+}
+
+function openRouterKeySaved(wizard: OnboardingState, openRouter: OpenRouterSignInView): boolean {
+  return (
+    wizard.credentialStatus.openrouter === "configured" ||
+    (openRouter.signIn.phase === "failed" && openRouter.signIn.reason === "saved-not-active")
+  );
 }
 
 export function claudeCliBadgeMessage(state: ClaudeCliState | null): Message {

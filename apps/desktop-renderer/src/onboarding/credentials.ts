@@ -1,4 +1,10 @@
-import type { OnboardingCredentialWriteInput, OnboardingLlmSelection } from "./bridge";
+import type {
+  CredentialWriteResult,
+  OnboardingCredentialWriteInput,
+  OnboardingLlmSelection,
+} from "./bridge";
+import { DESKTOP_CREDENTIAL_SLOTS } from "./constants";
+import type { OnboardingErrorCode } from "./machine";
 
 export interface TransientPasswordInput {
   value: string;
@@ -30,4 +36,34 @@ export async function handoffCredential(
     input.value = "";
     secret = undefined;
   }
+}
+
+export function credentialSlotFor(
+  provider: string | undefined,
+): OnboardingCredentialWriteInput["slot"] | undefined {
+  const slot = DESKTOP_CREDENTIAL_SLOTS.find((candidate) => candidate === provider);
+  return slot === "intervals-icu" ? undefined : slot;
+}
+
+type CredentialWriteFailureReason = Extract<
+  CredentialWriteResult,
+  { readonly status: "stale-draft" | "refused" | "uncertain" }
+>["reason"];
+
+const CREDENTIAL_WRITE_REFUSAL_ERRORS = {
+  "invalid-input": "invalid-input",
+  "encryption-unavailable": "encryption-unavailable",
+  "unsafe-backend": "unsafe-backend",
+  "storage-failed": "storage-failed",
+  "runtime-unavailable": "runtime-unavailable",
+  "catalog-unavailable": "configuration-unavailable",
+  "training-account-mismatch": "training-account-mismatch",
+  "storage-uncertain": "storage-uncertain",
+} as const satisfies Readonly<Record<CredentialWriteFailureReason, OnboardingErrorCode>>;
+
+export function credentialWriteRefusalError(reason: unknown): OnboardingErrorCode {
+  if (typeof reason === "string" && Object.hasOwn(CREDENTIAL_WRITE_REFUSAL_ERRORS, reason)) {
+    return CREDENTIAL_WRITE_REFUSAL_ERRORS[reason as CredentialWriteFailureReason];
+  }
+  return "credential-save-failed";
 }

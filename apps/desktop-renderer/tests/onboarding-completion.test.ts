@@ -17,6 +17,7 @@ import {
 } from "../src/onboarding/controller";
 import type { CredentialDraftPort } from "../src/onboarding/credentials";
 import type { OnboardingCompletion } from "../src/onboarding/machine";
+import { openRouterTestBridge } from "./openrouter-test-bridge";
 
 const COLD_START_WINDOW_MS =
   ONBOARDING_STATUS_COLD_START_TIMEOUT_MS * ONBOARDING_STATUS_LOAD_ATTEMPTS +
@@ -94,6 +95,7 @@ function activationBridge(
     { slot: "intervals-icu", state: "configured", runtimeState: "active" },
   ] as const;
   return {
+    ...openRouterTestBridge(),
     credentialStatuses: vi.fn<OnboardingBridge["credentialStatuses"]>(async () => statuses),
     retryFailedCredentials: vi.fn<OnboardingBridge["retryFailedCredentials"]>(async () => statuses),
     writeCredential: vi.fn<OnboardingBridge["writeCredential"]>(async ({ slot }) => ({

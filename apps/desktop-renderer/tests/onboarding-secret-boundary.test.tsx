@@ -6,9 +6,13 @@ import type {
   IntervalsCredentialMutationRefusalReason,
   IntervalsCredentialMutationResult,
   OnboardingCredentialWriteInput,
+  OpenRouterCreditStatus,
+  OpenRouterSignInResult,
 } from "../src/onboarding/bridge";
+import { useEnduragentStore } from "../src/state/store";
 import { handoffCredential } from "../src/onboarding/credentials";
 import {
+  chooseLane,
   mountWizard,
   openApiKeyPanel,
   openTrainingPanel,
@@ -57,6 +61,29 @@ type ExpectedIntervalsCredentialMutationResult =
       readonly outcome: "uncertain";
       readonly reason: "storage-uncertain" | "runtime-uncertain";
       readonly current: ExpectedIntervalsCredentialStatus;
+    };
+
+type ExpectedOpenRouterSignInResult =
+  | {
+      readonly status: "connected";
+      readonly operationId: string;
+      readonly credit: OpenRouterCreditStatus;
+    }
+  | { readonly status: "awaiting-code"; readonly operationId: string }
+  | {
+      readonly status: "refused";
+      readonly operationId: string;
+      readonly reason:
+        | "already-in-progress"
+        | "cancelled"
+        | "not-finished"
+        | "unreachable"
+        | "not-saved"
+        | "saved-not-active"
+        | "clipboard-no-code"
+        | "clipboard-unavailable"
+        | "code-expired"
+        | "invalid-input";
     };
 
 function domSurfaces(extra: Record<string, unknown>): Record<string, unknown> {
@@ -235,6 +262,41 @@ describe("mounted onboarding secret boundary", () => {
     await waitFor(() => {
       expect(rowState("training")).toBe("ready");
     });
+    wizard.controller.dispose();
+  });
+
+  it("signs in to OpenRouter with only an operation id and a selection crossing the bridge", async () => {
+    const user = userEvent.setup();
+    const rpc: unknown[] = [];
+    expectTypeOf<OpenRouterSignInResult>().toEqualTypeOf<ExpectedOpenRouterSignInResult>();
+    const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
+    bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
+    bridge.openRouterSignIn.mockImplementation(async (input) => {
+      rpc.push(input);
+      bridge.credentialStatuses.mockResolvedValue([
+        { slot: "openrouter", state: "configured", runtimeState: "active" },
+      ]);
+      return { status: "connected", operationId: input.operationId, credit: "paid" };
+    });
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+
+    await chooseLane(user, "openrouter");
+    expect(document.querySelector('input[data-slot="openrouter"]')).toBeNull();
+    await user.click(panelButton("openrouter", "Sign in with OpenRouter"));
+    await waitFor(() => {
+      expect(rowState("ai")).toBe("ready");
+    });
+
+    expect(rpc).toHaveLength(1);
+    expect(Object.keys(rpc[0] as object).sort()).toEqual(["operationId", "selection"]);
+    expect(bridge.writeCredential).not.toHaveBeenCalled();
+    expect(document.querySelector('input[data-slot="openrouter"]')).toBeNull();
+    const surfaces = JSON.stringify(
+      domSurfaces({ console: consoleCalls, rpc, store: useEnduragentStore.getState().onboarding }),
+    );
+    expect(surfaces).not.toMatch(/sk-or-/u);
+    expect(surfaces).not.toMatch(/code_verifier|callback_url/u);
     wizard.controller.dispose();
   });
 

@@ -66,6 +66,7 @@ export interface ProviderModelSettingsView {
 
 export interface ProviderModelSettingsController {
   activate(): Promise<void>;
+  refresh(): Promise<void>;
   close(): void;
   state(): ProviderModelSettingsState;
   dispose(): void;
@@ -148,7 +149,7 @@ function editableState(state: ProviderModelSettingsState): EditableState | null 
 export function createProviderModelSettingsController(input: {
   readonly load: () => Promise<OnboardingLlmConfiguration>;
   readonly apply: (selection: OnboardingLlmSelection) => Promise<OnboardingLlmSelectionResult>;
-  readonly onSaved?: (selection: OnboardingLlmSelection) => Promise<void> | void;
+  readonly onSaved?: (selection: OnboardingLlmSelection) => void;
   readonly openSetup: () => void;
   readonly view: ProviderModelSettingsView;
   readonly beginMutation?: () => (() => void) | null;
@@ -161,12 +162,54 @@ export function createProviderModelSettingsController(input: {
   let queuedSelection: OnboardingLlmSelection | undefined;
   let loadOperation: Promise<void> | undefined;
   let saveOperation: Promise<void> | undefined;
+  let refreshAfterSave = false;
   let providerDrafts = new Map<string, ProviderModelDraft>();
   const committedCustomModels = new Map<string, string>();
 
   const render = (state: Exclude<ProviderModelSettingsState, { status: "closed" }>): void => {
     currentState = state;
     if (visible && !disposed) input.view.render(state);
+  };
+
+  const showLoaded = (configuration: OnboardingLlmConfiguration): void => {
+    const activeProvider =
+      configuration.active === null
+        ? undefined
+        : configuration.providers.find(
+            (provider) => provider.provider === configuration.active?.provider,
+          );
+    if (configuration.providers.length === 0) {
+      render({
+        status: "error",
+        kind: "load",
+        reason: "configuration-unavailable",
+      });
+      return;
+    }
+    providerDrafts = new Map();
+    committedCustomModels.clear();
+    const draft =
+      configuration.active === null || activeProvider === undefined
+        ? null
+        : draftFor(activeProvider, configuration.active.model);
+    if (draft !== null) {
+      providerDrafts.set(draft.provider.provider, draft);
+      if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
+        committedCustomModels.set(draft.provider.provider, selectedModel(draft));
+      }
+    }
+    render({
+      status: "ready",
+      ...formState(
+        {
+          catalogRevision: configuration.catalogRevision,
+          providers: configuration.providers,
+          active: configuration.active,
+          draft,
+        },
+        input.codexAgentSupported ?? true,
+      ),
+    });
   };
 
   const startLoad = (): Promise<void> => {
@@ -179,45 +222,7 @@ export function createProviderModelSettingsController(input: {
       .then(() => input.load())
       .then(
         (configuration) => {
-          if (disposed || generation !== operationGeneration) return;
-          const activeProvider =
-            configuration.active === null
-              ? undefined
-              : configuration.providers.find(
-                  (provider) => provider.provider === configuration.active?.provider,
-                );
-          if (configuration.providers.length === 0) {
-            render({
-              status: "error",
-              kind: "load",
-              reason: "configuration-unavailable",
-            });
-            return;
-          }
-          providerDrafts = new Map();
-          committedCustomModels.clear();
-          const draft =
-            configuration.active === null || activeProvider === undefined
-              ? null
-              : draftFor(activeProvider, configuration.active.model);
-          if (draft !== null) {
-            providerDrafts.set(draft.provider.provider, draft);
-            if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
-              committedCustomModels.set(draft.provider.provider, selectedModel(draft));
-            }
-          }
-          render({
-            status: "ready",
-            ...formState(
-              {
-                catalogRevision: configuration.catalogRevision,
-                providers: configuration.providers,
-                active: configuration.active,
-                draft,
-              },
-              input.codexAgentSupported ?? true,
-            ),
-          });
+          if (!disposed && generation === operationGeneration) showLoaded(configuration);
         },
         () => {
           if (!disposed && generation === operationGeneration) {
@@ -340,9 +345,11 @@ export function createProviderModelSettingsController(input: {
           input.codexAgentSupported ?? true,
         ),
       });
-      await Promise.resolve()
-        .then(() => input.onSaved?.(selection))
-        .catch(() => undefined);
+      try {
+        input.onSaved?.(selection);
+      } catch {
+        console.error("desktop-coach-on-saved-failed");
+      }
     }
     if (disposed) return;
     const latest = editableState(currentState);
@@ -374,7 +381,7 @@ export function createProviderModelSettingsController(input: {
       endpoint: { mode: "automatic" },
     };
     if (saveOperation !== undefined) return;
-    const releaseMutation = input.beginMutation === undefined ? () => {} : input.beginMutation();
+    const releaseMutation = input.beginMutation?.();
     if (releaseMutation === null) {
       queuedSelection = undefined;
       return;
@@ -388,7 +395,10 @@ export function createProviderModelSettingsController(input: {
       } finally {
         saveOperation = undefined;
         if (!visible) currentState = { status: "closed" };
-        releaseMutation();
+        releaseMutation?.();
+        const rerunRefresh = refreshAfterSave && visible;
+        refreshAfterSave = false;
+        if (rerunRefresh) void refresh();
       }
     });
     saveOperation = pending;
@@ -441,8 +451,63 @@ export function createProviderModelSettingsController(input: {
     return startLoad();
   };
 
+  const refreshIsCurrent = (operationGeneration: number): boolean =>
+    !disposed && generation === operationGeneration && saveOperation === undefined;
+
+  const showRefreshed = (
+    operationGeneration: number,
+    configuration: OnboardingLlmConfiguration,
+  ): void => {
+    const latest = editableState(currentState);
+    if (!refreshIsCurrent(operationGeneration) || latest === null) return;
+    const unsaved = isDirty(latest.active, latest.draft);
+    if (unsaved && configuration.providers.length === 0) return;
+    if (!unsaved || !isDirty(configuration.active, latest.draft)) {
+      showLoaded(configuration);
+      return;
+    }
+    const form = formState(
+      { ...latest, active: configuration.active },
+      input.codexAgentSupported ?? true,
+    );
+    const credentialConnected =
+      currentState.status === "error" &&
+      currentState.kind === "save" &&
+      currentState.reason === "credential-required" &&
+      configuration.active?.provider === latest.draft?.provider.provider;
+    render(
+      currentState.status === "error" && currentState.kind === "save" && !credentialConnected
+        ? { ...currentState, ...form }
+        : { status: "ready", ...form },
+    );
+  };
+
+  const showRefreshFailure = (operationGeneration: number): void => {
+    const latest = editableState(currentState);
+    if (!refreshIsCurrent(operationGeneration) || latest === null) return;
+    if (isDirty(latest.active, latest.draft)) return;
+    render({ status: "error", kind: "load", reason: "configuration-unavailable" });
+  };
+
+  const refresh = (): Promise<void> => {
+    if (disposed) return Promise.resolve();
+    if (saveOperation !== undefined) {
+      refreshAfterSave = true;
+      return Promise.resolve();
+    }
+    if (!visible || editableState(currentState) === null) return startLoad();
+    const operationGeneration = ++generation;
+    return Promise.resolve()
+      .then(() => input.load())
+      .then(
+        (configuration) => showRefreshed(operationGeneration, configuration),
+        () => showRefreshFailure(operationGeneration),
+      );
+  };
+
   return {
     activate,
+    refresh,
     close,
     state: () => (visible ? currentState : { status: "closed" }),
     dispose() {

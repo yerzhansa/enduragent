@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { OnboardingController, OnboardingSurfaceState } from "../onboarding/controller";
 import { createOnboardingState } from "../onboarding/machine";
+import { IDLE_OPENROUTER_SIGN_IN } from "../onboarding/openrouter-sign-in";
 import { repairRequiredCredential } from "../settings/credential-controller";
 import { IDLE_RIDE_IMPORT } from "./ride-import-slice";
 import type { EnduragentState } from "./store";
@@ -22,6 +23,7 @@ export const CLOSED_ONBOARDING: OnboardingSurfaceState = Object.freeze({
   lastCommit: null,
   actionStatus: null,
   intervalsSignIn: Object.freeze({ phase: "idle", athleteName: null }),
+  openRouter: IDLE_OPENROUTER_SIGN_IN,
 });
 
 export const READY_ONBOARDING: OnboardingSurfaceState = Object.freeze({

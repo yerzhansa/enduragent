@@ -331,7 +331,10 @@ describe("desktop credential encryption startup", () => {
     const createTransport = vi.fn(() => transportOf());
 
     const prepared = await prepareDesktopCredentialEncryption(
-      options({ safeStorage, createTransport: () => transportOf({ ok: false, code: "not-team-signed" }) }),
+      options({
+        safeStorage,
+        createTransport: () => transportOf({ ok: false, code: "not-team-signed" }),
+      }),
     );
 
     expect(prepared.encryption).not.toBe(safeStorage);
@@ -437,11 +440,7 @@ describe("desktop credential encryption startup", () => {
       reason: "encryption-unavailable",
       code: "unknown",
     });
-    expect(transport.requests.map((request) => request.op)).toEqual([
-      "probe",
-      "read-key",
-      "probe",
-    ]);
+    expect(transport.requests.map((request) => request.op)).toEqual(["probe", "read-key", "probe"]);
   });
 
   it("leaves the custom key absent after reset and recreates it only before a later write", async () => {
@@ -994,12 +993,11 @@ describe("desktop credential encryption startup", () => {
   });
 
   it("recovers a surviving credential after a retirement inventory failure", async () => {
-    const transport = transportOf(
-      PROBE_OK,
-      { ok: true, op: "read-key", key: KEY },
-      PROBE_OK,
-      { ok: true, op: "read-key", key: KEY },
-    );
+    const transport = transportOf(PROBE_OK, { ok: true, op: "read-key", key: KEY }, PROBE_OK, {
+      ok: true,
+      op: "read-key",
+      key: KEY,
+    });
     let inventoryAvailable = true;
     const serializeEnvelopeMutation = createCredentialEnvelopeMutationLock();
     const prepared = await prepareDesktopCredentialEncryption(
@@ -1078,7 +1076,7 @@ describe("desktop startup wiring", () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
 
     expect(source).not.toMatch(/encryption: safeStorage/u);
-    expect(source.split("encryption: credentialEncryption.encryption")).toHaveLength(4);
+    expect(source.split("encryption: credentialEncryption.encryption")).toHaveLength(5);
     expect(source).toMatch(/safeStorage,\n/u);
   });
 

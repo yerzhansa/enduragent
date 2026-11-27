@@ -206,6 +206,7 @@
         "confirmAria": "Conferma l’eliminazione della credenziale di {{provider}}",
         "credential": "Elimina credenziale",
         "detail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. Il tuo account del fornitore rimane invariato.",
+        "openrouterDetail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. La chiave continua a funzionare su {{openrouter}} finché non la elimini lì.",
         "title": "Eliminare la credenziale di {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avanzate",
       "announcement": {
         "apiKey": "Configurazione della chiave API aperta sotto questa riga.",
-        "chatgpt": "Accesso a {{chatgpt}} aperto sotto questa riga."
+        "chatgpt": "Accesso a {{chatgpt}} aperto sotto questa riga.",
+        "openrouter": "Accesso a {{openrouter}} aperto sotto questa riga."
       },
       "apiKeyHint": "Creata nella console del fornitore, con addebito in base all’uso, di solito pochi centesimi per conversazione.",
       "cancelLabel": "Annulla configurazione della chiave API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} fornitori · pagamento in base all’uso",
         "claudeCli": "Verifica il tuo abbonamento {{claude}} quando selezionato",
-        "openaiCodex": "Usa il piano che paghi già"
+        "openaiCodex": "Usa il piano che paghi già",
+        "openrouter": "Accedi · pagamento in base all’uso, molti modelli"
       },
       "menuLabel": "IA che fa funzionare il tuo coach",
       "model": "Modello",
@@ -646,14 +649,15 @@
         "apiKey": "Fa funzionare il tuo coach · aggiungi una chiave per completare",
         "chatgpt": "Fa funzionare il tuo coach · accedi per completare",
         "checkingClaude": "Fa funzionare il tuo coach · verifica dell’accesso a {{claudeCode}}",
-        "claude": "Fa funzionare il tuo coach · accedi da un terminale per completare"
+        "claude": "Fa funzionare il tuo coach · accedi da un terminale per completare",
+        "openrouterCredits": "Accesso effettuato · aggiungi crediti su {{openrouter}} per ricevere risposte"
       },
       "provider": "Fornitore",
       "saveLabel": "Salva chiave API",
       "subtitle": "Obbligatoria. {{product}} non ne include una",
       "title": "IA che fa funzionare il tuo coach",
       "tooltip": {
-        "body": "Funziona con un abbonamento {{chatgpt}}, un accesso a {{claudeCode}} o una chiave API fornita da te. Qualunque opzione scegli rimane su {{computer}}.",
+        "body": "Funziona con un abbonamento {{chatgpt}}, un accesso a {{claudeCode}}, un accesso a {{openrouter}} o una chiave API fornita da te. Qualunque opzione scegli rimane su {{computer}}.",
         "label": "Informazioni sull’IA che fa funzionare il tuo coach",
         "lead": "{{product}} non ha un’IA propria"
       },
@@ -731,6 +735,41 @@
       "importing": "Importazione dei file delle uscite…",
       "unavailable": "Importazione nella raccolta locale: {{imported}} importati. {{quarantined}} in quarantena. L’accesso del coach alle attività e alle serie di dati è temporaneamente non disponibile; riprova l’importazione.",
       "unconfirmed": "Importazione nella raccolta locale non riuscita. Impossibile confermare il risultato; controlla la raccolta prima di riprovare."
+    },
+    "openrouter": {
+      "code": {
+        "expired": "Questo codice è scaduto o è già stato usato. Scegli Ottieni un nuovo codice, poi copia quello nuovo.",
+        "heading": "Accedi con un codice",
+        "hint": "Usa questa opzione quando il browser non riesce a restituire l’accesso a {{product}}.",
+        "newCode": "Ottieni un nuovo codice",
+        "noCode": "Gli appunti non contengono un codice {{openrouter}}. Copia il codice dal browser, poi scegli di nuovo Usa codice copiato. Questo accesso resta aperto.",
+        "open": "Apri pagina di accesso",
+        "status": "Un codice funziona una sola volta e scade dopo 10 minuti.",
+        "step1": "Scegli Apri pagina di accesso, poi autorizza l’accesso nel browser.",
+        "step2": "Copia il codice mostrato da {{openrouter}}.",
+        "step3": "Scegli Usa codice copiato. {{product}} legge il codice, poi svuota gli appunti.",
+        "use": "Usa codice copiato"
+      },
+      "completingHint": "Autorizzato. Salvataggio della chiave su {{computer}}…",
+      "enterCode": "Inserisci invece un codice",
+      "failed": {
+        "notFinished": "L’accesso non è stato completato nel browser. Riprova quando vuoi.",
+        "notSaved": "{{openrouter}} ha creato una chiave, ma non è stato possibile salvarla su {{computer}}. Riprova. La chiave inutilizzata resta su {{openrouter}} finché non la elimini lì.",
+        "openKeys": "Apri le mie chiavi su {{openrouter}}",
+        "savedHint": "La chiave è salvata su {{computer}}.",
+        "savedNotActive": "Accesso effettuato, ma impossibile avviare il coach. Riprova senza effettuare di nuovo l’accesso.",
+        "unreachable": "{{openrouter}} non ha risposto, quindi non è stato salvato nulla. Riprova tra un minuto."
+      },
+      "hint": "Apre {{openrouter}} nel browser. Autorizza lì l’accesso e la chiave creata resta su {{computer}}. La pagina di autorizzazione chiama questa app localhost.",
+      "noCredits": {
+        "addCredits": "Aggiungi crediti",
+        "hint": "Questo account {{openrouter}} non ha mai acquistato crediti. Il coach ha bisogno di crediti per rispondere, di solito pochi centesimi per conversazione.",
+        "status": "{{product}} controlla di nuovo quando torni su questa finestra."
+      },
+      "pasteInstead": "Incolla invece una chiave",
+      "signIn": "Accedi con {{openrouter}}",
+      "signInAgainHint": "Accedere di nuovo sostituisce la chiave su {{computer}}. La vecchia chiave continua a funzionare su {{openrouter}} finché non la elimini lì.",
+      "tryAgain": "Riprova"
     },
     "requiredReady": "{{ready}} requisiti pronti su {{total}}",
     "retrySavedKeys": "Riprova chiavi salvate",

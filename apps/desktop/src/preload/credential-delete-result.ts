@@ -67,3 +67,15 @@ export function parseDeleteResult(value: unknown): unknown {
   }
   throw new TypeError();
 }
+
+export function parseCredentialDeleteInput(value: unknown): { readonly credential: string } {
+  if (
+    !record(value) ||
+    !exactKeys(value, ["credential"]) ||
+    typeof value.credential !== "string" ||
+    !CREDENTIALS.has(value.credential)
+  ) {
+    throw new TypeError();
+  }
+  return { credential: value.credential };
+}

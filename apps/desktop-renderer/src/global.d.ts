@@ -35,6 +35,14 @@ interface EnduragentAuth {
   onIntervalsSignInProgress(
     listener: (phase: "waiting-for-browser" | "completing-sign-in") => void,
   ): () => void;
+  openRouterSignIn(input: OpenRouterSignInInput): Promise<OpenRouterSignInResult>;
+  startOpenRouterCodeSignIn(input: OpenRouterSignInInput): Promise<OpenRouterSignInResult>;
+  useCopiedOpenRouterCode(operationId: string): Promise<OpenRouterSignInResult>;
+  cancelOpenRouterSignIn(operationId: string): Promise<boolean>;
+  reopenOpenRouterSignIn(operationId: string): Promise<boolean>;
+  openRouterCreditStatus(): Promise<OpenRouterCreditStatus>;
+  openOpenRouterPage(page: "credits" | "keys"): Promise<boolean>;
+  onOpenRouterSignInProgress(listener: (progress: OpenRouterSignInProgress) => void): () => void;
   deleteCredential(input: {
     readonly credential: DesktopCredentialId;
   }): Promise<CredentialDeleteResult>;
@@ -106,6 +114,10 @@ type DesktopPlanTransitionResult =
   import("@enduragent/coach-contract").ExecutePlanTransitionRpcResult;
 type DesktopPlanProgressEvent = import("@enduragent/coach-contract").PlanProgressEvent;
 type CredentialRecoveryStatus = import("./onboarding/bridge").CredentialRecoveryStatus;
+type OpenRouterSignInInput = import("./onboarding/bridge").OpenRouterSignInInput;
+type OpenRouterSignInResult = import("./onboarding/bridge").OpenRouterSignInResult;
+type OpenRouterCreditStatus = import("./onboarding/bridge").OpenRouterCreditStatus;
+type OpenRouterSignInProgress = import("./onboarding/bridge").OpenRouterSignInProgress;
 type CredentialResetResult = import("./onboarding/bridge").CredentialResetResult;
 
 type DesktopTrainingExportRequest =
