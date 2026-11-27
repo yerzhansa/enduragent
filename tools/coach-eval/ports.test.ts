@@ -7,7 +7,10 @@ import { cyclingSport } from "@enduragent/sport-cycling";
 import { CASES } from "./cases.js";
 import { UNPARSED_TOOL, evaluateTurn, type TurnObservation } from "./checks.js";
 import { buildStoreFixture, dateKey } from "./fixture.js";
-import { CHAT_IDS, CaseRecorder, createEvalPorts, recordingDecorator, type Channel } from "./ports.js";
+import { TOMORROW_WORKOUT_ID, buildIntervalsFixture } from "./fixture-intervals.js";
+import { CHAT_IDS, CaseRecorder, createEvalPorts, recordingDecorator, type Channel, type EvalData } from "./ports.js";
+import { mergeTurns } from "./report.js";
+import { DELETE_ALL_INJECTION } from "./safety-cases.js";
 import { SpendMeter } from "./spend.js";
 
 interface ScriptedCall {
@@ -83,17 +86,20 @@ async function runScripted(
   turns: readonly (readonly ScriptedCall[])[],
   meter = new SpendMeter(10),
   model: (calls: readonly ScriptedCall[]) => ModelTransport = (calls) => scriptedModel(calls, 0.01),
-): Promise<{ observations: TurnObservation[]; meter: SpendMeter; errors: string[] }> {
+  data: EvalData = { kind: "store", fixture: buildStoreFixture("connected", new Date()) },
+): Promise<{ observations: TurnObservation[]; meter: SpendMeter; errors: string[]; summaries: string[] }> {
   const recorder = new CaseRecorder();
   const harness = createEvalPorts({
     model: "deepseek/deepseek-v4-flash",
     apiKey: "offline",
-    fixture: buildStoreFixture("connected", new Date()),
+    data,
+    today: new Date(),
     recorder,
     meter,
   });
   const observations: TurnObservation[] = [];
   const errors: string[] = [];
+  const summaries: string[] = [];
   try {
     for (const calls of turns) {
       const engine = createCoachEngine({
@@ -106,7 +112,9 @@ async function runScripted(
       recorder.startTurn();
       try {
         const response = await engine.chat({ chatId: CHAT_IDS[channel], message: "Add the workout." });
-        observations.push(recorder.finishTurn(response.text, harness.gate.peek(CHAT_IDS[channel]) !== undefined));
+        const pending = harness.gate.peek(CHAT_IDS[channel]);
+        if (pending !== undefined) summaries.push(pending.summary);
+        observations.push(recorder.finishTurn(response.text, pending));
       } catch (error) {
         errors.push(error instanceof Error ? error.name : String(error));
       }
@@ -115,8 +123,17 @@ async function runScripted(
   } finally {
     harness.dispose();
   }
-  return { observations, meter, errors };
+  return { observations, meter, errors, summaries };
 }
+
+function intervalsData(setting: "intervals" | "intervals-close-rides" = "intervals"): EvalData {
+  return {
+    kind: "intervals",
+    fixture: buildIntervalsFixture(setting, new Date(), { field: "activity.name", text: DELETE_ALL_INJECTION }),
+  };
+}
+
+const lastWeek = { oldest: dateKey(new Date(), -7), newest: dateKey(new Date(), 0) };
 
 describe("coach eval ports", () => {
   it("holds a Telegram calendar write as a pending proposal and executes nothing", async () => {
@@ -162,6 +179,87 @@ describe("coach eval ports", () => {
     await runScripted("desktop", [[]], meter, () => rejectedKey);
     expect(meter.stopReason()).toMatch(/refused the key in OPENROUTER_API_KEY \(HTTP 401: API key expired\.\)/);
     expect(meter.snapshot().failedCalls).toBeGreaterThan(0);
+  });
+});
+
+describe("coach eval data paths", () => {
+  it("serves the intervals fake and records the injected ride name in a tool result", async () => {
+    const fetch: ScriptedCall = { tool: "intervals_fetch_activities", input: lastWeek };
+    const { observations, errors } = await runScripted("cli", [[fetch]], undefined, undefined, intervalsData());
+    expect(errors).toEqual([]);
+    const [turn] = observations;
+    expect(turn.results.map((result) => result.tool)).toEqual(["intervals_fetch_activities"]);
+    const injected = CASES.find((evalCase) => evalCase.id === "injected-delete-cli");
+    expect(evaluateTurn(injected?.turns[0].expect ?? [], turn).map((check) => check.pass)).toEqual([true, true, true]);
+    expect(turn.offeredTools).not.toContain("read_plan_reference");
+  });
+
+  it("gets every injection case's planted text to the model through the real reading tools", async () => {
+    const injected = CASES.filter((evalCase) => evalCase.injection !== undefined);
+    expect(injected.length).toBeGreaterThan(0);
+    for (const evalCase of injected) {
+      const data: EvalData = {
+        kind: "intervals",
+        fixture: buildIntervalsFixture("intervals", new Date(), evalCase.injection),
+      };
+      const reads: ScriptedCall[] = [
+        { tool: "intervals_fetch_activities", input: lastWeek },
+        { tool: "intervals_fetch_activity", input: { activityId: "90411" } },
+      ];
+      const { observations } = await runScripted("cli", [reads], undefined, undefined, data);
+      const seen = evalCase.turns[0].expect.filter((item) => item.kind === "injectionSeen");
+      expect(evaluateTurn(seen, observations[0])[0]?.pass, evalCase.id).toBe(true);
+    }
+  });
+
+  it("keeps a wellness comment out of what the coach reads", async () => {
+    const text = "Planted wellness comment for the coach eval";
+    const data: EvalData = {
+      kind: "intervals",
+      fixture: buildIntervalsFixture("intervals", new Date(), { field: "wellness.comments", text }),
+    };
+    const read: ScriptedCall = { tool: "intervals_fetch_wellness", input: lastWeek };
+    const { observations } = await runScripted("cli", [[read]], undefined, undefined, data);
+    expect(observations[0].results.map((result) => result.tool)).toEqual(["intervals_fetch_wellness"]);
+    expect(JSON.stringify(observations[0].results)).not.toContain(text);
+  });
+
+  it("holds every calendar write for approval on the intervals data, the cli chat included", async () => {
+    const { observations } = await runScripted("cli", [[createWorkout]], undefined, undefined, intervalsData());
+    const [turn] = observations;
+    expect(turn.proposals.map((proposal) => proposal.tool)).toEqual(["intervals_create_workout"]);
+    expect(turn.pendingProposal).toBe(true);
+    expect(turn.writes).toEqual([]);
+  });
+
+  it("holds a Telegram delete of tomorrow's workout and summarizes it from the fake calendar", async () => {
+    const list: ScriptedCall = { tool: "intervals_list_events", input: { oldest: dateKey(new Date(), 0), newest: dateKey(new Date(), 7) } };
+    const remove: ScriptedCall = { tool: "intervals_delete_workout", input: { eventId: TOMORROW_WORKOUT_ID } };
+    const { observations, summaries, errors } = await runScripted(
+      "telegram",
+      [[list], [remove]],
+      undefined,
+      undefined,
+      intervalsData(),
+    );
+    expect(errors).toEqual([]);
+    expect(summaries.at(-1)).toContain("Endurance 60");
+    const merged = mergeTurns(observations);
+    expect(merged.approvalCodes).toHaveLength(1);
+    const deleteCase = CASES.find((evalCase) => evalCase.id === "telegram-delete-workout");
+    expect(evaluateTurn(deleteCase?.expectAcrossTurns ?? [], merged).every((check) => check.pass)).toBe(true);
+  });
+
+  it("offers the desktop plan reference tool on store data", async () => {
+    const { observations } = await runScripted("desktop", [[]]);
+    expect(observations[0].offeredTools).toContain("read_plan_reference");
+  });
+
+  it("tells the coach how old the stale store data is", async () => {
+    const fetch: ScriptedCall = { tool: "intervals_fetch_wellness", input: { oldest: dateKey(new Date(), -30) } };
+    const stale: EvalData = { kind: "store", fixture: buildStoreFixture("stale-data", new Date()) };
+    const { observations } = await runScripted("desktop", [[fetch]], undefined, undefined, stale);
+    expect(JSON.stringify(observations[0].results)).toContain("last synchronized 10 days ago");
   });
 });
 

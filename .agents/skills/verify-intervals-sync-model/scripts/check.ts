@@ -38,6 +38,10 @@ const TLC_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e05
 const args = process.argv.slice(2);
 const traceRule = args.includes("--trace") ? args[args.indexOf("--trace") + 1] : undefined;
 const confirm = args.includes("--confirm");
+if (confirm && traceRule !== undefined) {
+  console.error("--confirm checks every rule; run it without --trace.");
+  process.exit(1);
+}
 if (traceRule !== undefined && !RULES.some((rule) => rule.name === traceRule)) {
   console.error(`No rule named ${traceRule}. Rules: ${RULES.map((rule) => rule.name).join(", ")}`);
   process.exit(1);
@@ -374,7 +378,7 @@ if (together.violated !== undefined) {
   console.log("");
 }
 for (const rule of holding.filter((entry) => entry.name !== together.violated)) {
-  console.log(`${rule.name}: holds`);
+  console.log(`${rule.name}: ${together.violated === undefined ? "holds" : "not checked (the run stopped at the break above)"}`);
   console.log(`  ${rule.says}`);
   console.log("");
 }
@@ -432,8 +436,17 @@ for (const rule of rules) {
   }
 }
 
+const printStale = (): void => {
+  console.error(`STALE: covered code changed since sync commit ${coverage.syncCommit}:`);
+  for (const entry of changed) console.error(`  ${entry.file}: ${entry.needle.split("\n")[0]}  (models ${entry.models})`);
+  console.error("Re-read each one against the model. Then run with --confirm and put the new commit in SKILL.md.");
+};
+
 for (const problem of problems) console.error(`PROBLEM: ${problem}`);
-if (problems.length > 0) process.exit(1);
+if (problems.length > 0) {
+  if (changed.length > 0 && !confirm) printStale();
+  process.exit(1);
+}
 
 if (confirm) {
   const dirty = git("status", "--porcelain", "--", ...new Set(COVERED.map((entry) => entry.file)));
@@ -455,9 +468,7 @@ if (confirm) {
 }
 
 if (changed.length > 0) {
-  console.error(`STALE: covered code changed since sync commit ${coverage.syncCommit}:`);
-  for (const entry of changed) console.error(`  ${entry.file}: ${entry.needle.split("\n")[0]}  (models ${entry.models})`);
-  console.error("Re-read each one against the model. Then run with --confirm and put the new commit in SKILL.md.");
+  printStale();
   process.exit(3);
 }
 console.log(`OK. Model and code agree as of sync commit ${coverage.syncCommit}.`);

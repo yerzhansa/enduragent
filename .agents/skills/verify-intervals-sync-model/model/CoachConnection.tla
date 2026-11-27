@@ -201,10 +201,13 @@ LaunchReappliesSignIn ==
 \* retry that fires offline is rescheduled into the same state, so the model
 \* leaves it out; a fix must keep retrying, which the rule's second half
 \* checks. The re-apply waits for the window lane like any intervals.icu
-\* change, so the model runs it only when the lane is free.
+\* change and for a Disconnect in progress (the vault serializes them), so
+\* the model runs it only when the lane is free and no Disconnect is open.
+DisconnectSettled == disc \in {"idle", "revoked", "removed-unrevoked", "diverged"}
+
 RetryFires ==
     /\ retry = "scheduled" /\ slot = "failed-network" /\ network = "up"
-    /\ lane = "free" /\ disc = "idle"
+    /\ lane = "free" /\ DisconnectSettled
     /\ ApplyStoredSignIn
     /\ UNCHANGED <<connVars, syncVars, lane, laneQueue, windowFor, windowKey, served,
                    orphanServed, contextStale, scheduled, callVars, network, flips, discVars>>
@@ -212,7 +215,7 @@ RetryFires ==
 \* Settings / Setup "Retry saved keys": onboarding-ipc.ts -> vault.retryFailed().
 AthleteRetriesSavedKeys ==
     /\ slot \in {"failed-network", "failed"}
-    /\ lane = "free" /\ disc \in {"idle", "revoked", "removed-unrevoked", "diverged"}
+    /\ lane = "free" /\ DisconnectSettled
     /\ ApplyStoredSignIn
     /\ UNCHANGED <<connVars, syncVars, lane, laneQueue, windowFor, windowKey, served,
                    orphanServed, contextStale, scheduled, callVars, network, flips, discVars>>
@@ -472,7 +475,7 @@ MainFinishesDisconnect ==
 (* Other calls on the shared connection *)
 
 \* RideReview.tsx opens the analysis section -> controller start() / load()
-\* -> call("getActivityAnalysis", ..., { signal }).
+\* -> call("getActivityAnalysis", ...), with a signal when AnalysisPassesSignal.
 AthleteOpensAnalysis ==
     /\ Launched /\ loads > 0 /\ analysis = "none" /\ conn = "open"
     /\ loads' = loads - 1

@@ -11,6 +11,22 @@ const FIRST = "a".repeat(64);
 const SECOND = "b".repeat(64);
 const REVISION = "c".repeat(64);
 
+interface Deferred {
+  readonly promise: Promise<ActivityAnalysisResult>;
+  resolve(value: ActivityAnalysisResult): void;
+  reject(error: Error): void;
+}
+
+function deferred(): Deferred {
+  let resolve!: (value: ActivityAnalysisResult) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<ActivityAnalysisResult>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
 function result(id = FIRST): ActivityAnalysisResult {
   return {
     schemaVersion: 1,
@@ -98,21 +114,18 @@ describe("ride analysis controller", () => {
 
     await controller.start();
 
-    expect(call).toHaveBeenCalledWith(
-      "getActivityAnalysis",
-      {
-        canonicalActivityId: FIRST,
-        sections: [
-          "aerobic-drift",
-          "intervals",
-          "best-efforts",
-          "power-distribution",
-          "heart-rate-distribution",
-          "power-heart-rate",
-        ],
-      },
-      { signal: expect.any(AbortSignal) },
-    );
+    expect(call).toHaveBeenCalledWith("getActivityAnalysis", {
+      canonicalActivityId: FIRST,
+      sections: [
+        "aerobic-drift",
+        "intervals",
+        "best-efforts",
+        "power-distribution",
+        "heart-rate-distribution",
+        "power-heart-rate",
+      ],
+    });
+    expect(vi.mocked(call).mock.calls[0]).toHaveLength(2);
     expect(states.at(-1)).toMatchObject({
       activityId: FIRST,
       status: "ready",
@@ -122,37 +135,30 @@ describe("ride analysis controller", () => {
     expect(JSON.stringify(states.at(-1))).not.toContain("provider-");
   });
 
-  it("aborts obsolete work and ignores its late failure when the selection changes", async () => {
-    const calls: string[] = [];
-    const call = vi.fn(
-      (
-        _method: string,
-        request: { canonicalActivityId: string },
-        options?: { signal?: AbortSignal },
-      ) => {
-        calls.push(request.canonicalActivityId);
-        if (request.canonicalActivityId === SECOND) return Promise.resolve(result(SECOND));
-        return new Promise((_, reject) => {
-          options?.signal?.addEventListener("abort", () => reject(new Error("private abort")), {
-            once: true,
-          });
-        });
-      },
-    ) as unknown as CoachClient["call"];
-    const { controller, states } = setup(call);
+  it.each([
+    ["answer", (settle: Deferred) => settle.resolve(result(FIRST))],
+    ["failure", (settle: Deferred) => settle.reject(new Error("private late failure"))],
+  ])(
+    "leaves obsolete work running and ignores its late %s when the selection changes",
+    async (_kind, settleLate) => {
+      const first = deferred();
+      const call = vi.fn((_method: string, request: { canonicalActivityId: string }) =>
+        request.canonicalActivityId === SECOND ? Promise.resolve(result(SECOND)) : first.promise,
+      ) as unknown as CoachClient["call"];
+      const { controller, states } = setup(call);
 
-    await controller.select(FIRST);
-    const first = controller.start();
-    await vi.waitFor(() => expect(calls).toEqual([FIRST]));
-    await controller.select(SECOND);
-    await controller.start();
-    await first;
+      await controller.select(FIRST);
+      const pending = controller.start();
+      await vi.waitFor(() => expect(call).toHaveBeenCalledTimes(1));
+      await controller.select(SECOND);
+      await controller.start();
+      settleLate(first);
+      await pending;
 
-    expect(states.at(-1)).toMatchObject({
-      activityId: SECOND,
-      status: "ready",
-    });
-  });
+      expect(states.at(-1)).toMatchObject({ activityId: SECOND, status: "ready" });
+      expect(JSON.stringify(states)).not.toContain("private late failure");
+    },
+  );
 
   it("preserves completed evidence when a refresh transport fails", async () => {
     let fail = false;
