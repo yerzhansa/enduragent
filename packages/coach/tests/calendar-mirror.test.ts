@@ -421,6 +421,40 @@ describe("what the mirror counts and sends", () => {
   });
 });
 
+describe("a fingerprint saved in an older format", () => {
+  it("takes intervals.icu's copy as the new baseline instead of opening a card", async () => {
+    const { store, mirror, intervals, deps } = await setup();
+    const first = workout(1, MONDAY + 1);
+    const input = {
+      plan: plan(),
+      workouts: [first],
+      todayDateKey: MONDAY,
+      firstEligibleDateKey: MONDAY,
+    };
+    await approveFirstWeeks(mirror);
+    await mirrorPlanCalendar(input, deps);
+    const record = (await readIcuCopies(mirror, PLAN_ID)).get(first.id);
+    if (record === undefined) throw new Error("Expected a copy");
+    const copy = JSON.parse(record.stateJson);
+    copy.baseline.readBack.fingerprint = JSON.stringify([MONDAY + 1, first.name, null, 3_600]);
+    await store.run("UPDATE plan_icu_copy SET state_json=? WHERE plan_workout_id=?", [
+      JSON.stringify(copy),
+      first.id,
+    ]);
+    expect(await mirrorPlanCalendar(input, deps)).toMatchObject({
+      kind: "ran",
+      written: 0,
+      changedInIcu: 0,
+    });
+    const after = storedIcuCopy((await readIcuCopies(mirror, PLAN_ID)).get(first.id));
+    expect(after.kind).toBe("on-icu");
+    expect(after.kind === "on-icu" && after.baseline.readBack.fingerprint).toBe(
+      icuEventFingerprint(intervals.events[0] ?? { id: 0, dateKey: 0, externalId: null }),
+    );
+    expect(intervals.writes).toEqual([`create ${MONDAY + 1}`]);
+  });
+});
+
 describe("pairing rides with mirrored workouts", () => {
   it("reads each mirrored workout's intervals.icu event id for the matcher", async () => {
     const { store, mirror, intervals, deps } = await setup();
@@ -473,7 +507,9 @@ describe("the End and Replace cleanup", () => {
       windowEndDateKey: MONDAY + 27,
       createdAtMs: NOW,
     });
-    expect(await cleanupPlanCalendar(job, { ...deps, reconciliation })).toEqual({
+    expect(
+      await cleanupPlanCalendar(job, { ...deps, reconciliation, workouts: async () => workouts }),
+    ).toEqual({
       kind: "verified",
       removed: 1,
       kept: 1,
@@ -489,6 +525,7 @@ describe("the End and Replace cleanup", () => {
     const { store, mirror, intervals, deps } = await setup();
     await approveFirstWeeks(mirror);
     const timedOut = workout(1, MONDAY + 1);
+    const legacy = workout(2, MONDAY + 2);
     await mirrorPlanCalendar(
       { plan: plan(), workouts: [timedOut], todayDateKey: MONDAY, firstEligibleDateKey: MONDAY },
       {
@@ -508,9 +545,12 @@ describe("the End and Replace cleanup", () => {
     });
     intervals.events.push({
       id: 900,
-      dateKey: MONDAY + 2,
-      externalId: planMirrorExternalId(PLAN_ID, workoutId(2)),
-      name: "Endurance 2",
+      dateKey: legacy.dateKey,
+      externalId: planMirrorExternalId(PLAN_ID, legacy.id),
+      name: legacy.name,
+      type: "Ride",
+      description: "- 60m 56-75%",
+      durationS: 3_601,
       updated: "1998-01-01T00:00:00.900+00:00",
     });
     const reconciliation = createPlanReconciliationRepository(store);
@@ -528,16 +568,59 @@ describe("the End and Replace cleanup", () => {
       planWorkoutId: null,
       operation: "delete",
       dateKey: MONDAY + 2,
-      externalId: planMirrorExternalId(PLAN_ID, workoutId(2)),
+      externalId: planMirrorExternalId(PLAN_ID, legacy.id),
       expectedJson: "{}",
       createdAtMs: NOW,
     });
-    expect(await cleanupPlanCalendar(job, { ...deps, reconciliation })).toEqual({
-      kind: "verified",
-      removed: 2,
-      kept: 0,
-    });
+    expect(
+      await cleanupPlanCalendar(job, {
+        ...deps,
+        reconciliation,
+        workouts: async () => [timedOut, legacy],
+      }),
+    ).toEqual({ kind: "verified", removed: 2, kept: 0 });
     expect(intervals.events).toEqual([]);
     expect(await reconciliation.readJob(job.id)).toMatchObject({ status: "verified" });
+  });
+
+  it("keeps a copy of a Plan workout that does not hold what the app sent", async () => {
+    const { store, mirror, intervals, deps } = await setup();
+    await approveFirstWeeks(mirror);
+    const first = workout(1, MONDAY + 1);
+    const second = workout(2, MONDAY + 2);
+    await mirrorPlanCalendar(
+      { plan: plan(), workouts: [first], todayDateKey: MONDAY, firstEligibleDateKey: MONDAY },
+      deps,
+    );
+    const sent = intervals.events[0];
+    if (sent === undefined) throw new Error("Expected an event");
+    intervals.events.push(
+      { ...sent, id: 901, dateKey: MONDAY + 3, name: "Endurance 1, my copy" },
+      {
+        id: 902,
+        dateKey: second.dateKey,
+        externalId: planMirrorExternalId(PLAN_ID, second.id),
+        name: "Endurance 2, my version",
+        type: "Ride",
+        updated: "1998-01-01T00:00:00.902+00:00",
+      },
+    );
+    const reconciliation = createPlanReconciliationRepository(store);
+    const job = await reconciliation.createOrGetJob({
+      id: "1".repeat(26),
+      planId: PLAN_ID,
+      kind: "cleanup",
+      windowStartDateKey: MONDAY + 1,
+      windowEndDateKey: MONDAY + 27,
+      createdAtMs: NOW,
+    });
+    expect(
+      await cleanupPlanCalendar(job, {
+        ...deps,
+        reconciliation,
+        workouts: async () => [first, second],
+      }),
+    ).toEqual({ kind: "verified", removed: 1, kept: 0 });
+    expect(intervals.events.map((event) => event.id).sort()).toEqual([901, 902]);
   });
 });

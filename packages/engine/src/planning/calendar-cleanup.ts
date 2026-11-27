@@ -2,11 +2,13 @@ import {
   addCivilDays,
   type PlanCalendarMirrorRepository,
   type PlanIcuCopyRecord,
+  type PlanWorkoutRecord,
   type PlanReconciliationJobRecord,
   type PlanReconciliationRepository,
 } from "@enduragent/kernel/planning";
 import { decodeCloseChoice } from "./calendar-codec.js";
 import {
+  expectedIcuFingerprint,
   groupedByWorkout,
   icuEventFingerprint,
   readIcuCopies,
@@ -22,6 +24,7 @@ import type { PlanMirrorEvent } from "./reconciler.js";
 
 export interface CalendarCleanupDeps {
   readonly calendar: CalendarMirrorPort;
+  readonly workouts: (planId: string) => Promise<readonly PlanWorkoutRecord[]>;
   readonly mirror: PlanCalendarMirrorRepository;
   readonly reconciliation: PlanReconciliationRepository;
   now(): number;
@@ -120,6 +123,12 @@ export async function cleanupPlanCalendar(
       lastWrite: { kind: "ok" },
     });
   }
+  const expected = new Map(
+    (await deps.workouts(running.planId)).map((workout) => [
+      workout.id,
+      expectedIcuFingerprint(workout),
+    ]),
+  );
   const releases: [string, readonly PlanMirrorEvent[]][] = [];
   for (const [planWorkoutId, events] of listed) {
     const stored = records.get(planWorkoutId);
@@ -128,13 +137,21 @@ export async function cleanupPlanCalendar(
       releases.push([planWorkoutId, events]);
       continue;
     }
+    const unproven: PlanMirrorEvent[] = [];
     for (const event of events) {
       if (event.id === deletedEventId) continue;
-      const result = await deleteIfUnchanged(deps.calendar, event.id, {
-        fingerprint: icuEventFingerprint(event),
-      });
+      const fingerprint = icuEventFingerprint(event);
+      if (fingerprint !== expected.get(planWorkoutId)) {
+        unproven.push(event);
+        continue;
+      }
+      const result = await deleteIfUnchanged(deps.calendar, event.id, { fingerprint });
       if (result === "failed") failures += 1;
       if (result === "deleted") removed += 1;
+      if (result === "changed") unproven.push(event);
+    }
+    if (deletedEventId === undefined && unproven.length > 0) {
+      releases.push([planWorkoutId, unproven]);
     }
   }
   if (failures > 0) {

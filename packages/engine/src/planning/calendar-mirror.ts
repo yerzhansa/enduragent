@@ -116,9 +116,16 @@ function describesSteps(description: string | null): boolean {
   return description !== null && /^\s*-\s/m.test(description);
 }
 
+const FINGERPRINT_FORMAT = "icu-2";
+
+function currentFingerprintFormat(fingerprint: string): boolean {
+  return fingerprint.startsWith(JSON.stringify([FINGERPRINT_FORMAT]).slice(0, -1));
+}
+
 export function icuEventFingerprint(event: PlanMirrorEvent): string {
   const description = shownText(event.description);
   return JSON.stringify([
+    FINGERPRINT_FORMAT,
     event.dateKey,
     event.name ?? null,
     event.type ?? null,
@@ -140,6 +147,7 @@ export function planWorkoutFingerprint(workout: PlanWorkoutRecord): string {
 export function expectedIcuFingerprint(workout: PlanWorkoutRecord): string {
   const description = shownText(descriptionOf(workout.structureJson));
   return JSON.stringify([
+    FINGERPRINT_FORMAT,
     workout.dateKey,
     workout.name,
     icuEventType(workout.sport),
@@ -199,6 +207,13 @@ export async function readIcuCopies(
 
 export function storedIcuCopy(record: PlanIcuCopyRecord | undefined): IcuCopy {
   return record === undefined ? ICU_COPY_NOT_SENT : decodeIcuCopy(record.stateJson);
+}
+
+function rebaselined(copy: IcuCopy, sighting: IcuSighting): IcuCopy {
+  if (copy.kind !== "on-icu" && copy.kind !== "moving-by-you") return copy;
+  if (sighting.kind !== "present" || sighting.eventId !== copy.baseline.eventId) return copy;
+  if (currentFingerprintFormat(copy.baseline.readBack.fingerprint)) return copy;
+  return { ...copy, baseline: { ...copy.baseline, readBack: sighting.version } };
 }
 
 function tracked(copy: IcuCopy): boolean {
@@ -541,7 +556,7 @@ export async function mirrorPlanCalendar(
     if (sighting === "read-failed") {
       applied = failed(target.copy, "calendar-read-failed");
     } else {
-      const decided = icuCopyOnRun(target.copy, target.plan, sighting);
+      const decided = icuCopyOnRun(rebaselined(target.copy, sighting), target.plan, sighting);
       applied = await applyIcuCopyEffect(deps, input.plan.id, target, decided.copy, decided.effect);
     }
     if (applied.wrote === "wrote") written += 1;

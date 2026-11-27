@@ -110,6 +110,7 @@ export function createPlanCalendarDrain(deps: {
     });
     const mirrorDeps = {
       calendar: deps.calendar.mirror,
+      workouts: (planId: string) => plans.readWorkouts(planId),
       mirror: createPlanCalendarMirrorRepository(store),
       reconciliation: repository,
       now: deps.now,
