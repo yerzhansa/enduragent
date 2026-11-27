@@ -30,15 +30,10 @@ function eventType(sport: string): NonNullable<EventInput["type"]> {
   return "Workout";
 }
 
-function eventContent(structureJson: string): Pick<EventInput, "description" | "workoutDoc"> {
+function eventContent(structureJson: string): Pick<EventInput, "description"> {
   try {
     const value = JSON.parse(structureJson) as Record<string, unknown>;
-    return {
-      ...(typeof value.description === "string" ? { description: value.description } : {}),
-      ...(typeof value.workoutDoc === "object" && value.workoutDoc !== null
-        ? { workoutDoc: value.workoutDoc as NonNullable<EventInput["workoutDoc"]> }
-        : {}),
-    };
+    return typeof value.description === "string" ? { description: value.description } : {};
   } catch {
     return {};
   }
@@ -47,7 +42,6 @@ function eventContent(structureJson: string): Pick<EventInput, "description" | "
 function mappedEvent(event: {
   readonly id: number;
   readonly startDateLocal: string;
-  readonly uid?: string | null;
   readonly category?: string | null;
   readonly name?: string | null;
   readonly movingTime?: number | null;
@@ -58,7 +52,7 @@ function mappedEvent(event: {
   return {
     id: event.id,
     dateKey: dateKey(event.startDateLocal),
-    externalId: event.uid ?? null,
+    externalId: typeof event.externalId === "string" ? event.externalId : null,
     ...(event.category === undefined ? {} : { category: event.category }),
     ...(event.name === undefined ? {} : { name: event.name }),
     ...(event.movingTime === undefined ? {} : { durationS: event.movingTime }),
@@ -108,18 +102,15 @@ export function createPlanMirrorCalendarAdapter(
     },
     async createEvent(input) {
       return clientValue(
-        await requiredClient().events.create(
-          {
-            startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
-            category: "WORKOUT",
-            name: input.name,
-            type: eventType(input.sport),
-            uid: input.externalId,
-            ...(input.durationS === null ? {} : { movingTime: input.durationS }),
-            ...eventContent(input.structureJson),
-          },
-          { upsertOnUid: true },
-        ),
+        await requiredClient().events.create({
+          startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
+          category: "WORKOUT",
+          name: input.name,
+          type: eventType(input.sport),
+          externalId: input.externalId,
+          ...(input.durationS === null ? {} : { movingTime: input.durationS }),
+          ...eventContent(input.structureJson),
+        }),
       );
     },
     async deleteEvent(input) {

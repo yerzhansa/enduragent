@@ -748,7 +748,6 @@
     "packages/engine/src/agent/claude-cli/session.ts": 2,
     "packages/engine/src/planning/history.ts": 2,
     "packages/engine/src/planning/proposal.ts": 1,
-    "packages/engine/src/planning/reconciler.ts": 11,
     "packages/engine/src/planning/season.ts": 2,
     "packages/engine/src/planning/workout-match.ts": 1,
     "packages/engine/src/sport/memory-tools.ts": 1,
