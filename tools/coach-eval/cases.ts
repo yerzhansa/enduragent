@@ -37,8 +37,7 @@ const ASKS_WHICH = [
   "which would you",
   "which do you",
   "which you",
-  "which should",
-  "which would",
+  "which should i",
   "which do",
 ];
 

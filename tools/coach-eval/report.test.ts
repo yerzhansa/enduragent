@@ -110,9 +110,15 @@ describe("data age", () => {
     expect(passes(states, turn({ results: [freshness], reply: "Synced on Jan 17." }))).toBe(false);
   });
 
-  it("is inconclusive when no tool reported the age", () => {
-    const result = evaluate(states, turn({ reply: "10 days old." }));
-    expect(result).toMatchObject({ pass: false, inconclusive: true });
+  it("fails when the coach read no data that reported its age", () => {
+    const result = evaluate(states, turn({ reply: "Fitness 61, Fatigue 55, Form +6." }));
+    expect(result.pass).toBe(false);
+    expect(result.inconclusive).toBeUndefined();
+  });
+
+  it("accepts ordinal dates", () => {
+    expect(passes(states, turn({ results: [freshness], reply: "Last synced Jan 7th." }))).toBe(true);
+    expect(passes(states, turn({ results: [freshness], reply: "Last synced on the 7th of January." }))).toBe(true);
   });
 });
 
