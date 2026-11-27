@@ -275,24 +275,43 @@ describe("intervals.icu sign-in health", () => {
     }
   });
 
-  it("does not poll for other sync failures and stops polling on dispose", async () => {
+  it("re-reads every minute outside not-in-use, never during a sync, and stops on dispose", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     try {
       const test = subject(snapshot({ credential_configured: true }));
       const dispose = test.health.follow(test.coordinator, test.focusTarget);
-      test.emit({ status: "failed", operation: 1, kind: "operation", retryable: true });
+      await settle();
+      expect(runtimeReads(test.call)).toBe(1);
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(runtimeReads(test.call)).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
       await settle();
       expect(runtimeReads(test.call)).toBe(2);
+      expect(test.published.at(-1)).toBe(false);
+      test.setRuntime(snapshot({ credential_rejected: true }));
+      await vi.advanceTimersByTimeAsync(60_000);
+      await settle();
+      expect(runtimeReads(test.call)).toBe(3);
+      expect(test.published.at(-1)).toBe(true);
+
+      test.emit({ status: "queued", operation: 1 });
+      test.emit({ status: "running", operation: 1 });
       await vi.advanceTimersByTimeAsync(5 * 60_000);
-      expect(runtimeReads(test.call)).toBe(2);
+      expect(runtimeReads(test.call)).toBe(3);
+
+      test.emit({ status: "failed", operation: 1, kind: "operation", retryable: true });
+      await settle();
+      expect(runtimeReads(test.call)).toBe(4);
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(runtimeReads(test.call)).toBe(9);
 
       test.setRuntime(snapshot({ credential_configured: false }));
       test.emit({ ...NOT_IN_USE, operation: 2 });
       await settle();
-      expect(runtimeReads(test.call)).toBe(3);
+      expect(runtimeReads(test.call)).toBe(10);
       dispose();
       await vi.advanceTimersByTimeAsync(5 * 60_000);
-      expect(runtimeReads(test.call)).toBe(3);
+      expect(runtimeReads(test.call)).toBe(10);
       expect(vi.getTimerCount()).toBe(0);
       expect(test.coordinator.request).not.toHaveBeenCalled();
     } finally {
