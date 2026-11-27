@@ -70,7 +70,7 @@ async function harness() {
   });
   const reconciliation = createPlanReconciliationRepository(store);
   const plans = createPlanRepository(store);
-  const changed = vi.fn();
+  const changed = vi.fn(async (): Promise<void> => undefined);
   const calendarOperations = createPlanCalendarOperations({
     store,
     calendar,
@@ -81,7 +81,6 @@ async function harness() {
     calendarConnected: () => connected,
     dateKeyOfMs: (ms) => Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
     changed,
-    settled: () => drain.idle(),
   });
   const approve = (planId: string, week?: number) =>
     calendarOperations["plan.calendar"]({
@@ -418,7 +417,7 @@ describe("Plan calendar drain", () => {
       await test.store.get("SELECT count(*) AS n FROM plan_icu_copy WHERE last_write='failed'"),
     ).toEqual({ n: 1 });
     test.changed.mockReset();
-    test.changed.mockImplementation(() => void test.drain.kick());
+    test.changed.mockImplementation(() => test.drain.kick().then(() => test.drain.idle()));
     await expect(
       test.calendarOperations["plan.calendar"]({ action: "send-again" }),
     ).resolves.toEqual({ status: "sending" });

@@ -351,8 +351,7 @@ describe("Plan Intervals calendar adapter", () => {
       now,
       calendarConnected: () => true,
       dateKeyOfMs: () => today,
-      changed: () => undefined,
-      settled: async () => undefined,
+      changed: async () => undefined,
       calendar: { mirror: createCalendarMirrorAdapter(() => null) },
       identity: {
         deviceId: async () => "calendar-test-device",

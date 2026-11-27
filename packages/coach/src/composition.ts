@@ -2003,8 +2003,7 @@ export async function createLocalCoachComposition(
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
-      changed: () => closing || void drain.kick(),
-      settled: () => drain.idle(),
+      changed: () => (closing ? Promise.resolve() : drain.kick().then(() => drain.idle())),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
     const kickAfter =

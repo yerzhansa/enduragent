@@ -26,7 +26,7 @@ export interface PlanCalendarChangeDeps extends PlanCalendarEditDeps {
   readonly store: SqlStore & Pick<MigratorStore, "transaction">;
   readonly mirror: CalendarMirrorPort;
   readonly now: () => number;
-  readonly changed: () => void;
+  readonly changed: () => Promise<void>;
 }
 
 type ChangeRequest = { readonly planId: string; readonly planWorkoutId: string };
@@ -178,7 +178,7 @@ export async function putBackChange(
   );
   await save(deps, request.planId, found, applied.copy, applied.lastWrite);
   if (applied.lastWrite.kind === "failed") return UNAVAILABLE;
-  deps.changed();
+  void deps.changed();
   return { status: "change-resolved", outcome: "put-back" };
 }
 
@@ -198,7 +198,7 @@ export async function keepChange(
   }
   if (probe.effect.kind !== "adopt-into-plan" || current.event === null) {
     await save(deps, request.planId, found, probe.copy);
-    deps.changed();
+    void deps.changed();
     return { status: "change-resolved", outcome: "kept" };
   }
   const version = intervalsVersion(current.event, found.workout);
@@ -227,6 +227,6 @@ export async function keepChange(
     planWorkoutFingerprint(updated),
   );
   await save(deps, request.planId, found, kept.copy);
-  deps.changed();
+  void deps.changed();
   return { status: "change-resolved", outcome: "kept" };
 }

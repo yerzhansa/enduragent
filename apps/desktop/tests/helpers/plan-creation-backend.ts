@@ -538,8 +538,8 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       dateKeyOfMs: (ms: number) =>
         Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
       now: () => this.instant,
-      changed: () => void this.calendarDrain?.kick(),
-      settled: async () => {
+      changed: async () => {
+        await this.calendarDrain?.kick();
         await this.calendarDrain?.idle();
       },
       calendar: { mirror: this.options.calendar?.mirror ?? NO_CALENDAR },

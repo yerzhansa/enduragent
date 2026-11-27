@@ -49,8 +49,7 @@ export function createPlanCalendarOperations(
     readonly now: () => number;
     readonly calendarConnected: () => boolean;
     readonly dateKeyOfMs: (ms: number) => number;
-    readonly changed: () => void;
-    readonly settled: () => Promise<void>;
+    readonly changed: () => Promise<void>;
   },
 ): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
@@ -71,8 +70,7 @@ export function createPlanCalendarOperations(
           );
         case "send-again":
           await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
-          deps.changed();
-          await settledWithin(deps.settled, SEND_AGAIN_WAIT_MS);
+          await settledWithin(deps.changed, SEND_AGAIN_WAIT_MS);
           return { status: "sending" };
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
@@ -86,7 +84,7 @@ export function createPlanCalendarOperations(
         }
         case "save-settings":
           await mirror.writeWeekDeliverySetting(request.weekDelivery, deps.now());
-          deps.changed();
+          void deps.changed();
           return { status: "settings", weekDelivery: request.weekDelivery };
         case "approve-weeks": {
           const approved = await deps.store.transaction(async () => {
@@ -122,7 +120,7 @@ export function createPlanCalendarOperations(
                   : [request.scope.week],
             } as const;
           });
-          if (approved.status === "approved") deps.changed();
+          if (approved.status === "approved") void deps.changed();
           return approved;
         }
       }
