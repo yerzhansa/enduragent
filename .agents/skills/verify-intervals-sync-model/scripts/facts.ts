@@ -16,12 +16,15 @@ export type Flags = Record<FlagName, boolean>;
 
 export interface Source {
   read(file: string): string;
-  // The `{ ... }` body that follows the first match of `needle`.
-  block(file: string, needle: string): string;
+  // The `{ ... }` body that follows the nth match of `needle` (default the first),
+  // skipping any `( ... )` parameter list first.
+  block(file: string, needle: string, nth?: number): string;
   // The `( ... )` call that contains the first match of `needle`.
   call(file: string, needle: string): string;
   // From `needle` to the end of its statement.
   statement(file: string, needle: string): string;
+  // The text with comments removed, so a fact never reads a comment.
+  code(text: string): string;
 }
 
 export interface FlagFact {
@@ -42,6 +45,9 @@ const RPC_SERVER = "packages/coach/src/daemon/rpc-server.ts";
 const COMPOSITION = "packages/coach/src/composition.ts";
 const TIMEOUTS = "packages/coach-client/src/call-timeouts.ts";
 const MAIN = "apps/desktop/src/main/index.ts";
+const HEALTH = "apps/desktop-renderer/src/intervals-sign-in-health.ts";
+const MANUAL_SYNC = "apps/desktop-renderer/src/training-context/manual-sync.ts";
+const TRAINING = "apps/desktop-renderer/src/training-context/controller.ts";
 const RUNTIME = "apps/desktop/src/main/credential-runtime.ts";
 const VAULT = "apps/desktop/src/main/credential-vault.ts";
 
@@ -49,40 +55,46 @@ export const FLAGS: readonly FlagFact[] = [
   {
     name: "AnalysisPassesSignal",
     says: "the ride analysis passes its AbortController's signal to getActivityAnalysis",
-    read: (s) => /\bsignal\b/.test(s.call(ANALYSIS, '"getActivityAnalysis"')),
+    read: (s) => /\bsignal\b/.test(s.code(s.call(ANALYSIS, '"getActivityAnalysis"'))),
   },
   {
     name: "AbortLatches",
     says: "a caller's abort runs latchTerminal and closes the shared connection",
-    read: (s) => /latchTerminal/.test(s.statement(CLIENT, "const onAbort =")),
+    read: (s) => /latchTerminal/.test(s.code(s.statement(CLIENT, "const onAbort ="))),
   },
   {
     name: "TimeoutLatches",
     says: "a call's timeout closes the shared connection instead of failing only that call",
     read: (s) =>
-      /latchTerminal/.test(s.statement(CLIENT, "pending.timer = setTimeout(")) ||
-      /latchTerminal/.test(s.block(CLIENT, "private timeOut(")),
+      /latchTerminal/.test(s.code(s.statement(CLIENT, "pending.timer = setTimeout("))) ||
+      /latchTerminal/.test(s.code(s.block(CLIENT, "private timeOut("))),
   },
   {
     name: "RereadOnOpen",
     says: "the sync coordinator asks the coach again when the provider opens a new connection",
-    read: (s) => /onConnectionOpen/.test(s.block(SYNC, "export function createTrainingSyncCoordinator(")),
+    read: (s) =>
+      /onConnectionOpen/.test(s.code(s.block(SYNC, "export function createTrainingSyncCoordinator("))),
   },
   {
     name: "TransientRetry",
     says: "main retries a stored intervals.icu sign-in that was refused for a network reason",
-    read: (s) => /createIntervalsSignInRetry\(/.test(s.read(MAIN)),
+    read: (s) =>
+      /SignInRetry\.observe\(/.test(
+        s.code(s.block(MAIN, "reapplyCredential(slot, value, storedCredentialSlots) {")),
+      ),
   },
   {
     name: "SkippedIsFailure",
     says: "a keyless sync is a failure while an intervals.icu sign-in is saved",
     read: (s) =>
-      /"skipped-no-credential"/.test(s.block(SYNC, "export function createTrainingSyncCoordinator(")),
+      /"skipped-no-credential"/.test(
+        s.code(s.block(SYNC, "export function createTrainingSyncCoordinator(")),
+      ),
   },
   {
     name: "ClearCancelsWindow",
     says: "an intervals.icu credential clear cancels the sync window that holds the lane",
-    read: (s) => /abortActiveWindow/.test(s.read(STORE_RUNTIME)),
+    read: (s) => /abortActiveWindow/.test(s.code(s.read(STORE_RUNTIME))),
   },
 ];
 
@@ -90,6 +102,9 @@ export const FLAGS: readonly FlagFact[] = [
 // A cause with no issue is a regression: the check fails on it.
 export interface BreakCause {
   readonly when: (flags: Flags) => boolean;
+  // The flag values that remove this cause. With every cause of a rule removed,
+  // the rule must hold, whatever the code says today.
+  readonly fixedWith: Partial<Flags>;
   readonly issue?: string;
   readonly because: string;
 }
@@ -113,11 +128,13 @@ export const RULES: readonly RuleFact[] = [
     breaksWhen: [
       {
         when: (f) => f.AnalysisPassesSignal && f.AbortLatches,
+        fixedWith: { AnalysisPassesSignal: false },
         issue: "411",
         because: "the ride analysis cancel closes the shared connection",
       },
       {
         when: (f) => f.TimeoutLatches,
+        fixedWith: { TimeoutLatches: false },
         because: "a call's timeout closes the shared connection again (PR 1185 undone)",
       },
     ],
@@ -129,17 +146,17 @@ export const RULES: readonly RuleFact[] = [
     says: "Once the connection is open again and nothing runs by itself, the sidebar shows the coach's last sync result and the training context is not older than it.",
     harm: "After a dropped connection the sidebar keeps \"Connection interrupted\" and old Training and Plan data until the athlete presses Try again.",
     breaksWhen: [
-      { when: (f) => !f.RereadOnOpen, issue: "413", because: "nothing re-reads the sync after a reconnect" },
+      { when: (f) => !f.RereadOnOpen, fixedWith: { RereadOnOpen: true }, issue: "413", because: "nothing re-reads the sync after a reconnect" },
     ],
     breakWith: { RereadOnOpen: false },
-    witness: "WitnessQuiescentAfterReconnect",
+    witness: "WitnessQuiescentAfterOrphanedSync",
   },
   {
     name: "NetworkRefusalIsRetried",
-    says: "A stored sign-in refused for a network reason always has a retry scheduled.",
+    says: "A stored sign-in refused for a network reason has a retry scheduled, and once nothing runs by itself with the network up it is no longer refused.",
     harm: "After a launch with no network, intervals.icu stays off all session.",
     breaksWhen: [
-      { when: (f) => !f.TransientRetry, issue: "410", because: "only Retry saved keys re-applies the sign-in" },
+      { when: (f) => !f.TransientRetry, fixedWith: { TransientRetry: true }, issue: "410", because: "only Retry saved keys re-applies the sign-in" },
     ],
     breakWith: { TransientRetry: false },
     witness: "WitnessNetworkRefusal",
@@ -149,17 +166,17 @@ export const RULES: readonly RuleFact[] = [
     says: "While a sign-in is saved, a sync that fetched nothing from intervals.icu is never shown as a success.",
     harm: "Sync now turns green and the sidebar says synced while nothing was fetched.",
     breaksWhen: [
-      { when: (f) => !f.SkippedIsFailure, issue: "410", because: "skipped-no-credential maps to a no-change success" },
+      { when: (f) => !f.SkippedIsFailure, fixedWith: { SkippedIsFailure: true }, issue: "410", because: "skipped-no-credential maps to a no-change success" },
     ],
     breakWith: { SkippedIsFailure: false },
     witness: "WitnessEmptySyncWithSignIn",
   },
   {
     name: "DisconnectRevokesOrRefusesClearly",
-    says: "Disconnect ends with the sign-in revoked or a clear refusal inside its deadline, never \"could not be reconciled\" with the token kept.",
+    says: "Disconnect ends with the sign-in removed (revoked, or a plain message that it could not be revoked offline) or a clear refusal, inside its deadline; never \"could not be reconciled\" with the token kept.",
     harm: "Disconnect during a long sync fails after 30 seconds, locks Settings, and leaves the token on the computer and on intervals.icu.",
     breaksWhen: [
-      { when: (f) => !f.ClearCancelsWindow, issue: "412", because: "the clear waits behind the whole sync with no way out" },
+      { when: (f) => !f.ClearCancelsWindow, fixedWith: { ClearCancelsWindow: true }, issue: "412", because: "the clear waits behind the whole sync with no way out" },
     ],
     breakWith: { ClearCancelsWindow: false },
     witness: "WitnessDisconnectDuringSync",
@@ -174,10 +191,12 @@ export const STEPS: Record<string, string> = {
   AthleteRetriesSavedKeys: "the athlete presses Retry saved keys",
   NetworkChanges: "the network goes up or down",
   AthletePressesSync: "the athlete presses Sync now or Try again (training-sync.ts request)",
-  WindowRereadsSyncState: "the window asks the coach for the sync again by itself",
+  WindowRereadsSyncState: "the window asks the coach again, or refreshes Training, by itself",
   WindowSettlesRejectedSync: "the window publishes failed/indeterminate: \"Connection interrupted\"",
-  WindowFinishesSync: "the window refreshes Training and Plan and publishes the sync result",
-  ProviderReconnects: "a later window call opens a new connection (coach-client.ts getClient)",
+  WindowStartsRefresh: "after the coach answers, the window reloads the open analysis and refreshes Training and Plan (boot.ts refreshTrainingContext)",
+  TrainingRefreshLands: "the Training and Plan refresh answers",
+  WindowPublishesSyncResult: "the window publishes the sync result in the sidebar",
+  ProviderReconnects: "the window opens a new connection by itself (intervals-sign-in-health.ts follow -> getClient)",
   SchedulerStartsWindow: "the coach's scheduler starts a sync window",
   LaneGrants: "the next waiter takes the coach's window lane (store-runtime.ts admit)",
   CoachFinishesWindow: "the coach finishes the sync window and answers",
@@ -186,11 +205,11 @@ export const STEPS: Record<string, string> = {
   CoachAppliesClear: "the coach applies the clear, or throws if its deadline passed",
   CoachDeadlinePasses: "25 s pass: the coach's configureRuntime deadline expires while it waits",
   MainClientTimesOut: "30 s pass: main's client gives up; the vault marks the slot failed, runtime-state-diverged",
-  MainFinishesDisconnect: "main revokes and removes the token, or reports runtime-state-diverged",
+  MainFinishesDisconnect: "main revokes (or says it could not, offline) and removes the token, or reports runtime-state-diverged",
   AthleteOpensAnalysis: "the athlete opens a ride's analysis (getActivityAnalysis with signal)",
-  AthleteChangesRide: "the athlete clicks another ride, so the analysis is cancelled",
-  CoachAnswersAnalysis: "the coach answers the analysis",
-  CoachAnswersStaleAnalysis: "the coach answers a cancelled analysis; the window ignores it",
+  AthleteChangesRide: "the athlete clicks another ride, so the open or loading analysis goes away",
+  CoachAnswersAnalysis: "the coach answers the analysis and it shows",
+  CoachAnswersStaleAnalysis: "the coach answers a cancelled analysis (ignored, or an unknown id if the client rejected it)",
   AnalysisTimesOut: "120 s pass: the analysis call times out",
   AthleteSendsChat: "the athlete sends a chat message; the reply streams",
   ChatReplyEnds: "the coach reply finishes",
@@ -203,6 +222,7 @@ export interface Covered {
   readonly file: string;
   readonly needle: string;
   readonly kind: "block" | "statement" | "call";
+  readonly nth?: number;
   readonly models: string;
 }
 
@@ -217,10 +237,17 @@ export const COVERED: readonly Covered[] = [
   { file: TIMEOUTS, needle: "getActivityAnalysis:", kind: "statement", models: "AnalysisTimesOut (120 s)" },
   { file: TIMEOUTS, needle: "configureRuntime:", kind: "statement", models: "MainClientTimesOut (30 s)" },
   { file: PROVIDER, needle: "export function createDesktopCoachClientProvider(", kind: "block", models: "ProviderReconnects; LatchTo onTerminal" },
-  { file: SYNC, needle: "export function createTrainingSyncCoordinator(", kind: "block", models: "AthletePressesSync; WindowSettlesRejectedSync; WindowFinishesSync; Shown; RereadOnOpen; SkippedIsFailure" },
-  { file: BOOT, needle: "refreshTrainingContext: async () =>", kind: "block", models: "WindowFinishesSync (invalidate, refresh)" },
+  { file: SYNC, needle: "export function createTrainingSyncCoordinator(", kind: "block", models: "AthletePressesSync; WindowSettlesRejectedSync; WindowStartsRefresh; WindowPublishesSyncResult; WindowRereadsSyncState; Shown; RereadOnOpen; SkippedIsFailure" },
+  { file: BOOT, needle: "refreshTrainingContext: async () =>", kind: "block", models: "WindowStartsRefresh (invalidate and reload, then the Training and Plan refresh)" },
   { file: ANALYSIS, needle: "export function createRideAnalysisController(", kind: "block", models: "AthleteOpensAnalysis; AthleteChangesRide; CoachAnswersStaleAnalysis; AnalysisPassesSignal" },
-  { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", models: "ChatDetectsProtocolFault" },
+  { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", models: "ChatDetectsProtocolFault (chat turn)" },
+  { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", nth: 2, models: "ChatDetectsProtocolFault (decision turn)" },
+  { file: HEALTH, needle: "follow(coordinator, focusTarget) {", kind: "block", models: "ProviderReconnects (a refresh after every sync result and on focus)" },
+  { file: HEALTH, needle: "const refresh = async (): Promise<void> =>", kind: "block", models: "ProviderReconnects (getClient opens a fresh connection)" },
+  { file: MANUAL_SYNC, needle: "export function toManualSyncViewState(", kind: "block", models: "Shown (what the sidebar says for each result)" },
+  { file: TRAINING, needle: "const fetchState = (): Promise<void> =>", kind: "block", models: "TrainingRefreshLands; a failed refresh shows refresh-unavailable" },
+  { file: OPERATIONS, needle: "const CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS =", kind: "statement", models: "CoachDeadlinePasses before MainClientTimesOut" },
+  { file: OPERATIONS, needle: "const MARGIN_BEFORE_CALLER_DETACHES_MS =", kind: "statement", models: "CoachDeadlinePasses (25 s)" },
   { file: STORE_RUNTIME, needle: "runWindowAfter(", kind: "block", models: "LaneGrants (sync)" },
   { file: STORE_RUNTIME, needle: "runOutsideWindow<T>(", kind: "block", models: "LaneGrants (clear)" },
   { file: STORE_RUNTIME, needle: "private admit<T>(", kind: "block", models: "LaneGrants; CoachDeadlinePasses (no abort path)" },
@@ -237,4 +264,5 @@ export const COVERED: readonly Covered[] = [
   { file: VAULT, needle: "const retryFailed = async", kind: "block", models: "AthleteRetriesSavedKeys; RetryFires" },
   { file: VAULT, needle: "if (shouldClearRuntime) {", kind: "block", models: "MainClientTimesOut; MainFinishesDisconnect" },
   { file: MAIN, needle: "await vault.reapplyConfigured();", kind: "statement", models: "LaunchReappliesSignIn" },
+  { file: MAIN, needle: "reapplyCredential(slot, value, storedCredentialSlots) {", kind: "block", models: "ApplyStoredSignIn; TransientRetry" },
 ];
