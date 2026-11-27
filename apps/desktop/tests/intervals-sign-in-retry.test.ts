@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialRuntimeRefusal } from "../src/main/credential-vault.js";
 import { createIntervalsSignInRetry } from "../src/main/intervals-sign-in-retry.js";
 
-type Outcome = "active" | "ownership-unavailable" | "credential-required" | "vault-failed";
+type Outcome =
+  | "active"
+  | "ownership-unavailable"
+  | "credential-required"
+  | "coach-not-ready"
+  | "vault-failed";
 
 function subject(outcomes: Outcome[] = []) {
   let online = true;
@@ -13,6 +18,7 @@ function subject(outcomes: Outcome[] = []) {
   const startedAt = Date.now();
   const reapply = async (outcome: Outcome) => {
     if (outcome === "active") return "active" as const;
+    if (outcome === "coach-not-ready") throw new TypeError();
     throw outcome === "credential-required"
       ? new CredentialRuntimeRefusal("credential-required")
       : new CredentialRuntimeRefusal("ownership-unavailable");
@@ -88,6 +94,14 @@ describe("intervals.icu sign-in retry", () => {
 
     await vi.advanceTimersByTimeAsync(60 * MINUTE);
     expect(test.attempts).toEqual([15_000]);
+  });
+
+  it("keeps the schedule when an attempt finds the coach not ready", async () => {
+    const test = subject(["coach-not-ready", "active"]);
+    await test.launchRefused();
+
+    await vi.advanceTimersByTimeAsync(60 * MINUTE);
+    expect(test.attempts).toEqual([15_000, 15_000 + MINUTE]);
   });
 
   it("stops after a refusal that is not about the network", async () => {

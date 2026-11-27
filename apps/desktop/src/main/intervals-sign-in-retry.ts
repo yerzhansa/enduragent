@@ -103,10 +103,10 @@ export function createIntervalsSignInRetry(
         transition({ kind: "idle" });
         return result;
       } catch (error) {
-        if (error instanceof CredentialRuntimeRefusal && error.reason === "ownership-unavailable") {
-          scheduleAttempt(state.kind === "retrying" ? state.attempt + 1 : 0);
-        } else {
+        if (error instanceof CredentialRuntimeRefusal && error.reason !== "ownership-unavailable") {
           transition({ kind: "idle" });
+        } else {
+          scheduleAttempt(state.kind === "retrying" ? state.attempt + 1 : 0);
         }
         throw error;
       }
