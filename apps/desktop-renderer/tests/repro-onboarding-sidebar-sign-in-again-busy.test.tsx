@@ -57,11 +57,48 @@ describe("repro onboarding G13b: sidebar Sign in again while Setup is busy", () 
 
     const clickedThrough = useEnduragentStore.getState().activeView === "settings";
     const started = bridge.signInWithIntervals.mock.calls.length > 0;
-    console.info(`G13b: offered while blocked: ${String(!signInAgain.disabled)}`);
     expect({
       openedSettings: clickedThrough,
       signInStarted: started,
     }).toEqual({ openedSettings: clickedThrough, signInStarted: clickedThrough });
+    wizard.controller.dispose();
+  });
+  async function mountIdleSetup() {
+    const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
+    bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+    ]);
+    const wizard = mountWizard({ bridge, placement: "settings" });
+    await wizard.open();
+    useEnduragentStore.setState({
+      activeView: "chat",
+      sync: IDLE_MANUAL_SYNC,
+      intervalsSignInRejected: true,
+    });
+    await renderWithLanguage(<SyncChip />);
+    const signInAgain = document.querySelector<HTMLButtonElement>("[data-sync-sign-in-again]");
+    if (signInAgain === null) throw new Error("sidebar Sign in again is not shown");
+    return { bridge, wizard, signInAgain };
+  }
+
+  it("opens Settings and starts the sign-in when nothing blocks Setup", async () => {
+    const { bridge, wizard, signInAgain } = await mountIdleSetup();
+    expect(signInAgain.disabled).toBe(false);
+    await userEvent.setup().click(signInAgain);
+    expect({
+      openedSettings: useEnduragentStore.getState().activeView === "settings",
+      signInStarted: bridge.signInWithIntervals.mock.calls.length > 0,
+    }).toEqual({ openedSettings: true, signInStarted: true });
+    wizard.controller.dispose();
+  });
+
+  it("waits while a Settings change is saving", async () => {
+    const { wizard, signInAgain } = await mountIdleSetup();
+    act(() => {
+      useEnduragentStore.getState().beginSettingsMutation("provider-model");
+    });
+    expect(signInAgain.disabled).toBe(true);
     wizard.controller.dispose();
   });
 });

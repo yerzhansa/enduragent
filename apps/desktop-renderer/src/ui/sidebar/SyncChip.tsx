@@ -8,7 +8,7 @@ import {
   setManualSyncFocusFallback,
   setManualSyncFocusTarget,
 } from "../../state/manual-sync-focus";
-import { onboardingCredentialMutationActive } from "../../onboarding/controller";
+import { setupSignInBlocked } from "../../state/onboarding-slice";
 import { useEnduragentStore } from "../../state/store";
 import { intervalsSignInNeedsRenewal } from "../../state/sync-slice";
 import type { TrainingContextViewState } from "../../training-context/controller";
@@ -63,9 +63,7 @@ export function SyncChip(): ReactElement {
   const actions = useEnduragentStore((store) => store.syncActions);
   const setActiveView = useEnduragentStore((store) => store.setActiveView);
   const onboardingActions = useEnduragentStore((store) => store.onboardingActions);
-  const setupBusy = useEnduragentStore((store) =>
-    onboardingCredentialMutationActive(store.onboarding),
-  );
+  const setupBusy = useEnduragentStore(setupSignInBlocked);
   const signInRejected = useEnduragentStore(intervalsSignInNeedsRenewal) && !sync.busy;
   const chip = useRef<HTMLButtonElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
