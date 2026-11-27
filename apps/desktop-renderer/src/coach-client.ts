@@ -106,17 +106,14 @@ export function createDesktopCoachClientProvider(
           token: options.rendererCapability,
           signal: controller.signal,
           onTerminal,
-        });
+        }).then((connected) => ({ connected, generation: options.generation }));
       })
-      .then(async (connected) => {
+      .then(async ({ connected, generation }) => {
         owned.add(connected);
-        if (connectionGeneration === undefined) {
-          throw new TypeError("The coach connection has no generation");
-        }
         const owner: OwnedClient = {
           client: connected.client,
           connection: connected,
-          generation: connectionGeneration,
+          generation,
         };
         connectingOwner = owner;
         if (terminalDuringConnect?.client === owner.client) {
