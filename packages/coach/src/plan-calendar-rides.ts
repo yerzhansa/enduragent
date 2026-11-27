@@ -17,6 +17,7 @@ import {
   addCivilDays,
   createPlanCalendarMirrorRepository,
   createPlanWorkoutMatchRepository,
+  PlanWorkoutMatchValidationError,
   type PlanRecord,
   type PlanWorkoutMatchDecision,
   type PlanWorkoutMatchRecord,
@@ -382,91 +383,99 @@ export async function decideRide(
     readonly decision: PlanCalendarRideDecision;
   },
 ): Promise<PlanCalendarRpcResult> {
-  const refusal = await deps.store.transaction(async (): Promise<Refusal | null> => {
-    const context = await activePlan(deps.store);
-    if (context === null || context.plan.id !== request.planId) return refused("no-active-plan");
-    const session = await deps.store.get(
-      "SELECT local_date_key FROM session WHERE session_key=? AND sport='cycling'",
-      [request.activityId],
-    );
-    const dateKey = session?.local_date_key;
-    if (typeof dateKey !== "number") return refused("match-changed");
-    const matches = createPlanWorkoutMatchRepository(deps.store);
-    const observation = (await matches.listActivities(dateKey, dateKey)).find(
-      (activity) => activity.activityId === request.activityId,
-    );
-    if (observation === undefined) return refused("match-changed");
-    const targetId = targetOf(request.decision);
-    const target = targetId === null ? null : context.workouts.get(targetId);
-    if (target === undefined) return refused("match-changed");
-    const ride = { activityId: request.activityId, dateKey };
-    const shown = rideMatch(request.activityId, context, deps.todayDateKey());
-    if (
-      !sameMatch(request.expected, shown) ||
-      !decisionFits(request.decision, shown, target, ride, context)
-    ) {
-      return refused("match-changed");
-    }
-    const mine = context.records.filter((record) => record.activityId === request.activityId);
-    const current = target === null ? undefined : mine.find((r) => r.planWorkoutId === target.id);
-    const deviceId = await deps.identity.deviceId();
-    const decide = async (
-      record: PlanWorkoutMatchRecord,
-      decision: Exclude<PlanWorkoutMatchDecision, "suggested">,
-    ): Promise<void> => {
-      const stamp = deps.identity.hlcStamp();
-      await matches.decide({
-        id: record.id,
-        decision,
-        decidedAtMs: Math.max(stamp.physicalMs, record.observedAtMs),
-        deviceId,
-        hlcPhysicalMs: stamp.physicalMs,
-        hlcCounter: stamp.counter,
-      });
-    };
-    for (const record of mine) {
-      if (record.planWorkoutId === target?.id) continue;
-      const release = releaseDecision(record);
-      if (release !== null) await decide(record, release);
-    }
-    if (target === null) return null;
-    for (const record of context.records) {
+  const refusal = await deps.store
+    .transaction(async (): Promise<Refusal | null> => {
+      const context = await activePlan(deps.store);
+      if (context === null || context.plan.id !== request.planId) return refused("no-active-plan");
+      const session = await deps.store.get(
+        "SELECT local_date_key FROM session WHERE session_key=? AND sport='cycling'",
+        [request.activityId],
+      );
+      const dateKey = session?.local_date_key;
+      if (typeof dateKey !== "number") return refused("match-changed");
+      const matches = createPlanWorkoutMatchRepository(deps.store);
+      const observation = (await matches.listActivities(dateKey, dateKey)).find(
+        (activity) => activity.activityId === request.activityId,
+      );
+      if (observation === undefined) return refused("match-changed");
+      const targetId = targetOf(request.decision);
+      const target = targetId === null ? null : context.workouts.get(targetId);
+      if (target === undefined) return refused("match-changed");
+      const ride = { activityId: request.activityId, dateKey };
+      const shown = rideMatch(request.activityId, context, deps.todayDateKey());
       if (
-        record.planWorkoutId === target.id &&
-        record.activityId !== request.activityId &&
-        record.decision === "suggested"
+        !sameMatch(request.expected, shown) ||
+        !decisionFits(request.decision, shown, target, ride, context)
       ) {
-        await decide(record, "rejected");
+        return refused("match-changed");
       }
-    }
-    if (current === undefined) {
-      const stamp = deps.identity.hlcStamp();
-      await matches.observe({
-        id: deps.identity.newUlid(),
-        planId: context.plan.id,
-        planWorkoutId: target.id,
-        activityId: request.activityId,
-        providerActivityId: observation.providerActivityId,
-        providerEventId: null,
-        source: "heuristic",
-        decision: "confirmed",
-        activityDateKey: observation.dateKey,
-        activitySport: observation.sport,
-        activityDurationS:
-          observation.durationS !== null && observation.durationS > 0
-            ? observation.durationS
-            : null,
-        observedAtMs: stamp.physicalMs,
-        decidedAtMs: stamp.physicalMs,
-        deviceId,
-        hlcPhysicalMs: stamp.physicalMs,
-        hlcCounter: stamp.counter,
-      });
-    } else if (current.decision !== "confirmed") {
-      await decide(current, "confirmed");
-    }
-    return null;
-  });
+      const mine = context.records.filter((record) => record.activityId === request.activityId);
+      const current = target === null ? undefined : mine.find((r) => r.planWorkoutId === target.id);
+      const deviceId = await deps.identity.deviceId();
+      const decide = async (
+        record: PlanWorkoutMatchRecord,
+        decision: Exclude<PlanWorkoutMatchDecision, "suggested">,
+      ): Promise<void> => {
+        const stamp = deps.identity.hlcStamp();
+        await matches.decide({
+          id: record.id,
+          decision,
+          decidedAtMs: Math.max(stamp.physicalMs, record.observedAtMs),
+          deviceId,
+          hlcPhysicalMs: stamp.physicalMs,
+          hlcCounter: stamp.counter,
+        });
+      };
+      for (const record of mine) {
+        if (record.planWorkoutId === target?.id) continue;
+        const release = releaseDecision(record);
+        if (release !== null) await decide(record, release);
+      }
+      if (target === null) return null;
+      for (const record of context.records) {
+        if (
+          record.planWorkoutId === target.id &&
+          record.activityId !== request.activityId &&
+          record.decision === "suggested"
+        ) {
+          await decide(record, "rejected");
+        }
+      }
+      if (current === undefined) {
+        const stamp = deps.identity.hlcStamp();
+        const stored = await matches.observe({
+          id: deps.identity.newUlid(),
+          planId: context.plan.id,
+          planWorkoutId: target.id,
+          activityId: request.activityId,
+          providerActivityId: observation.providerActivityId,
+          providerEventId: null,
+          source: "heuristic",
+          decision: "confirmed",
+          activityDateKey: observation.dateKey,
+          activitySport: observation.sport,
+          activityDurationS:
+            observation.durationS !== null && observation.durationS > 0
+              ? observation.durationS
+              : null,
+          observedAtMs: stamp.physicalMs,
+          decidedAtMs: stamp.physicalMs,
+          deviceId,
+          hlcPhysicalMs: stamp.physicalMs,
+          hlcCounter: stamp.counter,
+        });
+        if (stored === null) throw new PlanWorkoutMatchValidationError("already-confirmed");
+      } else if (current.decision !== "confirmed") {
+        await decide(current, "confirmed");
+      }
+      return null;
+    })
+    .catch((error: unknown): Refusal => {
+      if (error instanceof PlanWorkoutMatchValidationError && error.code === "already-confirmed") {
+        return refused("match-changed");
+      }
+      throw error;
+    });
   if (refusal !== null) return refusal;
   void deps.changed();
   const ride = await deps.store.transaction(async () => {

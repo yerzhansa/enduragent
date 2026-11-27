@@ -69,13 +69,30 @@ async function harness(
   });
   let sequence = 500;
   const changed = vi.fn(async (): Promise<void> => undefined);
+  let beforeSessionRead: (() => Promise<void>) | null = null;
+  const watched = new Proxy(store, {
+    get(target, property) {
+      if (property === "get") {
+        return async (sql: string, params?: Parameters<typeof target.get>[1]) => {
+          const hook = beforeSessionRead;
+          if (hook !== null && sql.includes("FROM session WHERE session_key=? AND sport=")) {
+            beforeSessionRead = null;
+            await hook();
+          }
+          return target.get(sql, params);
+        };
+      }
+      const value: unknown = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
   const identity = {
     deviceId: async () => "rides-test-device",
     newUlid: () => String(++sequence).padStart(26, "0"),
     hlcStamp: () => ({ physicalMs: 904_694_400_000, counter: ++sequence }),
   };
   const operations = createPlanCalendarOperations({
-    store,
+    store: watched,
     calendar: createMemoryPlanCalendar(),
     identity,
     applyChange: async () => ({ status: "rejected", reason: "stale-version" }) as never,
@@ -232,7 +249,22 @@ async function harness(
   };
   const decide = (activityId: string, expected: Expected, decision: Decision) =>
     call({ action: "decide-ride", planId: PLAN_ID, activityId, expected, decision });
-  return { store, identity, changed, ride, match, matches, rides, calendarOutcome, decide, call };
+  const interleave = (hook: () => Promise<void>) => {
+    beforeSessionRead = hook;
+  };
+  return {
+    store,
+    identity,
+    changed,
+    ride,
+    match,
+    matches,
+    rides,
+    calendarOutcome,
+    decide,
+    call,
+    interleave,
+  };
 }
 
 type DecideParams = Extract<PlanCalendarRpcParams, { action: "decide-ride" }>;
@@ -665,5 +697,25 @@ describe("deciding a ride", () => {
     ).toEqual([[B, "confirmed"]]);
     const read = await test.rides();
     expect(read.rides.find((ride) => ride.activityId === F)?.match).toEqual({ kind: "none" });
+  });
+  it("rolls the whole answer back and refuses when the workout is taken while it is saved", async () => {
+    const test = await harness();
+    await test.ride(B, MONDAY + 2, 3_600, { name: "Threshold", load: 60 });
+    await test.ride(F, MONDAY + 4, 3_500, { name: "Other ride", load: 50 });
+    await test.match(2, B, MONDAY + 2, 3_600, "confirmed");
+    test.interleave(async () => {
+      await test.match(3, F, MONDAY + 4, 3_500, "confirmed");
+    });
+    expect(
+      await test.decide(B, confirmed(2), { kind: "rematch", planWorkoutId: workoutId(3) }),
+    ).toEqual({ status: "refused", reason: "match-changed" });
+    expect(
+      (await test.matches.readForPlan(PLAN_ID)).map((row) => [
+        row.planWorkoutId,
+        row.activityId,
+        row.decision,
+      ]),
+    ).toEqual([[workoutId(2), B, "confirmed"]]);
+    expect(test.changed).not.toHaveBeenCalled();
   });
 });
