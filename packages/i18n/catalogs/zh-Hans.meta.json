@@ -4253,7 +4253,7 @@
       "translatedBy": "model"
     },
     "chat.planCreation.syncTomorrow": {
-      "sourceHash": "13b89d2c97ff31e1c244c6efe68d495a45b7dc45d99de9702e5e552d82695463",
+      "sourceHash": "16c79553f3e7ef2e1a45baffd1c5db158867058ffb63ddc7a808322ce202b0a6",
       "translatedBy": "model"
     },
     "chat.planCreation.syncWait": {
@@ -10785,7 +10785,7 @@
       "translatedBy": "model"
     },
     "plan.calendar.details.replaceBody": {
-      "sourceHash": "f3fc1fd52e0f8ab1c64af0032e3a6b0a1492c0110473583ea0d667d5a8a836fa",
+      "sourceHash": "8b0ad988fd1108fab9b40c838083a0504742a08762f46f8840add66e9499c4d5",
       "translatedBy": "model"
     },
     "plan.calendar.details.replaceTitle": {
@@ -10810,6 +10810,74 @@
     },
     "plan.calendar.move.leaves": {
       "sourceHash": "d359cdab5f108d46d752a75430ebf10cb5e1e8d26a2219e6fe4bdf6e254c2259",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.approve": {
+      "sourceHash": "83d538d62862da90556d8157534157a27276b4ded0d0a8ee1f376814092a4d81",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bannerDetail_other": {
+      "sourceHash": "d1fc688cea7558698a3ccfb1819a85704a18a2d5173503ca28d25bbf69d538b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bannerLead": {
+      "sourceHash": "44691056cdbdb8e9b3a1e2110890daf1b211a667df675f930cb147bd9c71e6f3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOff_other": {
+      "sourceHash": "95af929e46b538b14294840ff63c91b6d1d808cc27bb10b5a19dea1033a128e9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOn_other": {
+      "sourceHash": "616f753743b910898c97a7f3e4e97d8b0de00a941a9ac2db0bdb0831b92eff26",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOnAfterOne_other": {
+      "sourceHash": "972c0afeb0d464c5994555b32e79906379f950a41dbee84ba67463253fc52f4b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.caption": {
+      "sourceHash": "01c9764d29f39e1f419a650054ace0f112c2c9faeb98bb764c179960ca088bb1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.checking_other": {
+      "sourceHash": "ad3d1ebc0846e6087b57537dc28e0313711cfb2afc7122e7502f10f3f9880157",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.offHeader_other": {
+      "sourceHash": "9eb93b3b93fbe094abd20282acf82d2de933018b3a122a1b5cd2c05db0151d7d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.onHeader": {
+      "sourceHash": "2f249064033a94fa50fda3d1af96d8d4ec75533feb95b0437af87255083595ad",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removeChanges_other": {
+      "sourceHash": "6c7f653331b88413cc4079f2aa5639718ec2327f37718616d9ee64c6423f525f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removeFailed": {
+      "sourceHash": "32e5c437c6637839ba16302508088eb004c22f303c14591b70d6cce510fe40a1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removing_other": {
+      "sourceHash": "1422ba27368da07135bc84ee7837f63370835b13ce366ffa00c8e2fd35f394e1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysChanged": {
+      "sourceHash": "eedfc34ed90664c789f60a926a5feef2f674122a2aa62ee29f3240692f9d64f3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysHeader": {
+      "sourceHash": "3c71ae64dae95d53b59d64eb04d52ce6ac11862463a8787276a8af356993b48a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysToday": {
+      "sourceHash": "29d0072aec6fc2a32c9ada59344b66303ddcdc1785be916fddb36ac13e6bd498",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.title": {
+      "sourceHash": "264392e17a06412c1c6aa99ff85ed9707cab35fc038e6d9df2725c2c75b780df",
       "translatedBy": "model"
     }
   }
