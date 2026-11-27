@@ -178,7 +178,8 @@ export function createTrainingContextController(input: {
   };
 
   const stopFollowingConnections = input.clients.onConnectionOpen(() => {
-    if (!disposed && state.status === "refresh-unavailable") void refreshState();
+    if (disposed || stateRequest !== undefined || queuedStateRequest !== undefined) return;
+    if (state.status === "refresh-unavailable") void fetchState();
   });
 
   render();
