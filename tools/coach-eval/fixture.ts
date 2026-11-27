@@ -6,11 +6,19 @@ import type {
   CanonicalActivitySummary,
 } from "@enduragent/kernel/store";
 
-export type DataSetting = "connected" | "not-connected" | "reads-failing" | "implausible-ftp";
+export type StoreSetting = "connected" | "implausible-ftp" | "same-day-rides" | "stale-data" | "deep-fatigue";
 
-const FTP_WATTS = 268;
+export type DataSetting =
+  | StoreSetting
+  | "not-connected"
+  | "reads-failing"
+  | "intervals"
+  | "intervals-close-rides";
+
+export const FTP_WATTS = 268;
 export const IMPLAUSIBLE_FTP_WATTS = 720;
 export const RECENT_RIDE_ID = "90401";
+export const STALE_DAYS = 10;
 const SYNC_AGE_MS = 12 * 60_000;
 
 interface ActivitySeed {
@@ -34,6 +42,18 @@ const ACTIVITY_SEEDS: readonly ActivitySeed[] = [
   { id: "90406", dayOffset: -13, startTime: "06:50:00", subSport: "indoor_cycling", movingSeconds: 4_500, pausedSeconds: 0, distanceMeters: 37_100, watts: 216, heartRate: 149 },
 ];
 
+const SECOND_RIDE_YESTERDAY: ActivitySeed = {
+  id: "90407", dayOffset: -1, startTime: "17:40:00", subSport: "indoor_cycling", movingSeconds: 3_300, pausedSeconds: 0, distanceMeters: 26_400, watts: 171, heartRate: 131,
+};
+
+function seedsFor(setting: StoreSetting): readonly ActivitySeed[] {
+  if (setting === "same-day-rides") return [...ACTIVITY_SEEDS, SECOND_RIDE_YESTERDAY];
+  if (setting === "stale-data") {
+    return ACTIVITY_SEEDS.map((seed) => ({ ...seed, dayOffset: seed.dayOffset - STALE_DAYS }));
+  }
+  return ACTIVITY_SEEDS;
+}
+
 export function dateKey(today: Date, dayOffset: number): string {
   const day = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
   day.setUTCDate(day.getUTCDate() + dayOffset);
@@ -43,12 +63,16 @@ export function dateKey(today: Date, dayOffset: number): string {
 const WELLNESS_DAYS = 14;
 const fitnessOn = (index: number): number => 52 + Math.round(index * 0.7);
 const fatigueOn = (index: number): number => 55 + ((index * 5) % 13);
+const deepFitnessOn = (index: number): number => 47 + Math.round(index * 0.2);
+const deepFatigueOn = (index: number): number => 58 + index * 2;
 
-function wellnessDay(today: Date, index: number): WellnessDay {
+function wellnessDay(today: Date, index: number, setting: StoreSetting): WellnessDay {
+  const deep = setting === "deep-fatigue";
+  const shift = setting === "stale-data" ? -STALE_DAYS : 0;
   return {
-    id: dateKey(today, index - (WELLNESS_DAYS - 1)),
-    fitness: fitnessOn(index),
-    fatigue: fatigueOn(index),
+    id: dateKey(today, index - (WELLNESS_DAYS - 1) + shift),
+    fitness: deep ? deepFitnessOn(index) : fitnessOn(index),
+    fatigue: deep ? deepFatigueOn(index) : fatigueOn(index),
     restingHR: 48 + (index % 3),
     hrv: 64 + ((index * 7) % 11),
     sleepSecs: 25_200 + ((index * 1_800) % 5_400),
@@ -63,9 +87,10 @@ export interface LatestWellness {
   readonly form: number;
 }
 
-export function latestWellness(): LatestWellness {
-  const fitness = fitnessOn(WELLNESS_DAYS - 1);
-  const fatigue = fatigueOn(WELLNESS_DAYS - 1);
+export function latestWellness(setting: StoreSetting = "connected"): LatestWellness {
+  const deep = setting === "deep-fatigue";
+  const fitness = deep ? deepFitnessOn(WELLNESS_DAYS - 1) : fitnessOn(WELLNESS_DAYS - 1);
+  const fatigue = deep ? deepFatigueOn(WELLNESS_DAYS - 1) : fatigueOn(WELLNESS_DAYS - 1);
   return { fitness, fatigue, form: fitness - fatigue };
 }
 
@@ -124,10 +149,12 @@ export interface StoreFixture {
   readonly activities: CanonicalActivityReader;
 }
 
-export function buildStoreFixture(setting: "connected" | "implausible-ftp", today: Date): StoreFixture {
+export function buildStoreFixture(setting: StoreSetting, today: Date): StoreFixture {
   const ftp = setting === "implausible-ftp" ? IMPLAUSIBLE_FTP_WATTS : FTP_WATTS;
-  const captureEpochMs = Math.max(today.getTime() - SYNC_AGE_MS, Date.parse(`${dateKey(today, 0)}T00:00:00Z`));
-  const find = (id: string) => ACTIVITY_SEEDS.find((seed) => seed.id === id);
+  const seeds = seedsFor(setting);
+  const freshEpochMs = Math.max(today.getTime() - SYNC_AGE_MS, Date.parse(`${dateKey(today, 0)}T00:00:00Z`));
+  const captureEpochMs = setting === "stale-data" ? freshEpochMs - STALE_DAYS * 86_400_000 : freshEpochMs;
+  const find = (id: string) => seeds.find((seed) => seed.id === id);
   return {
     snapshot: {
       captureId: "coach-eval",
@@ -138,7 +165,7 @@ export function buildStoreFixture(setting: "connected" | "implausible-ftp", toda
       },
       bundle: {
         activities: [],
-        wellness: Array.from({ length: WELLNESS_DAYS }, (_, index) => wellnessDay(today, index)),
+        wellness: Array.from({ length: WELLNESS_DAYS }, (_, index) => wellnessDay(today, index, setting)),
         ftpHistory: [],
         athlete: {
           icuFtp: ftp,
@@ -152,7 +179,7 @@ export function buildStoreFixture(setting: "connected" | "implausible-ftp", toda
     },
     activities: {
       listActivities: async ({ start, end }) => ({
-        activities: ACTIVITY_SEEDS.map((seed) => summary(seed, today))
+        activities: seeds.map((seed) => summary(seed, today))
           .filter((activity) => activity.localDate >= start && activity.localDate <= end)
           .sort((a, b) => b.startEpochSeconds - a.startEpochSeconds),
         nextCursor: null,
