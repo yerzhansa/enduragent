@@ -199,6 +199,53 @@ describe("Plan lifecycle repository", () => {
     );
   });
 
+  describe("the End choice for the athlete's intervals.icu changes", () => {
+    const removeThem = (commandId: string) =>
+      JSON.stringify({ kind: "remove-them", ticked: [{ eventId: 7 }], commandId });
+    const saveChoice = (closeChoiceJson: string) =>
+      store.run(
+        `INSERT INTO plan_week_delivery (plan_id,state_kind,state_json,close_choice_json,updated_at_ms)
+        VALUES (?,'approved','{}',?,?)
+        ON CONFLICT(plan_id) DO UPDATE SET close_choice_json=excluded.close_choice_json`,
+        [id("11"), closeChoiceJson, nowMs],
+      );
+    const choice = async () =>
+      (await store.get("SELECT close_choice_json FROM plan_week_delivery"))?.close_choice_json;
+
+    it("keeps the choice saved for the close that ends the Plan", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(lifecycle.close(closeInput())).resolves.toMatchObject({ status: "closed" });
+      expect(await choice()).toBe(removeThem("close-1"));
+    });
+
+    it("keeps the athlete's changes when another command closes the Plan", async () => {
+      await activate();
+      await saveChoice(removeThem("end-that-failed"));
+      await expect(lifecycle.close(closeInput())).resolves.toMatchObject({ status: "closed" });
+      expect(await choice()).toBe('{"kind":"keep-them"}');
+    });
+
+    it("keeps a saved choice while a close is rejected", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(lifecycle.close({ ...closeInput(), expectedVersion: 7 })).resolves.toEqual({
+        status: "rejected",
+        reason: "stale-version",
+      });
+      expect(await choice()).toBe(removeThem("close-1"));
+    });
+
+    it("keeps the athlete's changes when the Plan completes", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(
+        lifecycle.completeExpired({ todayDateKey: 19980115, nowMs: nowMs + 100 }),
+      ).resolves.toEqual({ completedPlanId: id("11") });
+      expect(await choice()).toBe('{"kind":"keep-them"}');
+    });
+  });
+
   it("replays an already-closed Plan byte-identically, including after another activation", async () => {
     await activate();
     const result = await lifecycle.close(closeInput());

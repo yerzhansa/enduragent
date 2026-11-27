@@ -1120,6 +1120,7 @@ describe("Plan calendar drain", () => {
       await test.calendarOperations["plan.calendar"]({
         action: "save-end-choice",
         planId,
+        commandId: "close",
         ticked: [tick.tick],
       }),
     ).toEqual({ status: "end-choice-saved" });
@@ -1154,6 +1155,7 @@ describe("Plan calendar drain", () => {
     await test.calendarOperations["plan.calendar"]({
       action: "save-end-choice",
       planId,
+      commandId: "end",
       ticked: ticks,
     });
     const replacement = await test.activate();
@@ -1163,6 +1165,103 @@ describe("Plan calendar drain", () => {
       test.calendar.events.find((event) => event.id === edited.id)?.name,
       "the athlete's own edit after Replace",
     ).toBe("My own ride");
+  });
+
+  it("keeps the athlete's changes when another command closes the Plan after a failed End", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const edited = test.calendar.events
+      .filter((event) => event.dateKey > test.today())
+      .sort((left, right) => left.dateKey - right.dateKey)[0];
+    if (edited === undefined) throw new Error("Expected a later event");
+    test.calendar.editByAthlete(edited.id, { name: "My own ride" });
+    await test.drain.kick();
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    if (details.status !== "plan-details") throw new Error("Expected Plan details");
+    const ticked = details.ending.athleteChanges.map((entry) => entry.tick);
+    await test.calendarOperations["plan.calendar"]({
+      action: "save-end-choice",
+      planId,
+      commandId: "end-from-calendar",
+      ticked,
+    });
+    expect(
+      await test.creation["plan.close"]({
+        commandId: "end-from-calendar",
+        planId,
+        expectedVersion: 7,
+      }),
+    ).toMatchObject({ status: "rejected", reason: "stale-version" });
+    expect(
+      await test.creation["plan.close"]({
+        commandId: "stop-from-library",
+        planId,
+        expectedVersion: 1,
+      }),
+    ).toMatchObject({ status: "closed" });
+    await test.drain.kick();
+    expect(
+      test.calendar.events.find((event) => event.id === edited.id)?.name,
+      "the athlete's own edit after a close that did not choose to remove it",
+    ).toBe("My own ride");
+  });
+
+  it("reads Plan details for an edit with a description as long as intervals.icu allows", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const edited = test.calendar.events
+      .filter((event) => event.dateKey > test.today())
+      .sort((left, right) => left.dateKey - right.dateKey)[0];
+    if (edited === undefined) throw new Error("Expected a later event");
+    test.calendar.editByAthlete(edited.id, { description: "\u0001".repeat(20_000) });
+    await test.drain.kick();
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    expect(PlanCalendarRpcResultSchema.parse(details)).toMatchObject({
+      status: "plan-details",
+      ending: { athleteChanges: [{ tick: { eventId: edited.id } }] },
+    });
+  });
+
+  it("lists each workout of a swap in the history, newest Plan Change first", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, second, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    expect(
+      await move(test, { planId, planWorkoutId: second.id, toDateKey: free, swap: true }),
+    ).toEqual({ status: "moved" });
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    if (details.status !== "plan-details") throw new Error("Expected Plan details");
+    expect(details.history.map((entry) => entry.kind)).toEqual([
+      "moved",
+      "moved",
+      "moved",
+      "saved",
+    ]);
+    expect(details.history.slice(0, 2)).toEqual([
+      expect.objectContaining({ name: second.name, fromDateKey: second.dateKey, toDateKey: free }),
+      expect.objectContaining({ name: first.name, fromDateKey: free, toDateKey: second.dateKey }),
+    ]);
+    expect(details.history[2]).toMatchObject({
+      name: first.name,
+      fromDateKey: first.dateKey,
+      toDateKey: free,
+    });
   });
 
   it("does nothing when the calendar is disconnected", async () => {

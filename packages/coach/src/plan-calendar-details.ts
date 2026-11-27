@@ -36,8 +36,11 @@ const DraftWorkoutSchema = z.object({
 
 const ChangeRowSchema = z.object({
   diff_json: z.string(),
-  updated_at_ms: z.number(),
+  applied_at_ms: z.number(),
 });
+
+const NAME_LIMIT = 512;
+const HISTORY_LIMIT = 499;
 
 const EnvelopeSchema = z.object({
   title: z.string(),
@@ -68,44 +71,48 @@ function dateKeyOf(date: string | null | undefined): number | null {
   return Number(date.replaceAll("-", ""));
 }
 
-function historyEntry(
+function shortName(name: string): string {
+  return name.slice(0, NAME_LIMIT);
+}
+
+function historyEntries(
   row: z.infer<typeof ChangeRowSchema>,
   workouts: ReadonlyMap<string, PlanWorkoutRecord>,
-): HistoryEntry | null {
+): HistoryEntry[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(row.diff_json);
   } catch {
-    return null;
+    return [];
   }
   const envelope = EnvelopeSchema.safeParse(parsed);
-  if (!envelope.success) return null;
-  const atMs = row.updated_at_ms;
+  if (!envelope.success) return [];
+  const atMs = row.applied_at_ms;
   const move = MoveIntentSchema.safeParse(envelope.data.intent);
   if (move.success) {
-    const first = move.data.moves[0];
-    if (first === undefined) return null;
-    return {
-      kind: "moved",
+    return move.data.moves.map((entry) => ({
+      kind: "moved" as const,
       atMs,
-      name: workouts.get(first.planWorkoutId)?.name ?? envelope.data.title,
-      fromDateKey: first.fromDateKey,
-      toDateKey: first.toDateKey,
-    };
+      name: shortName(workouts.get(entry.planWorkoutId)?.name ?? envelope.data.title),
+      fromDateKey: entry.fromDateKey,
+      toDateKey: entry.toDateKey,
+    }));
   }
   const keep = KeepIntentSchema.safeParse(envelope.data.intent);
   if (keep.success) {
     const after = DraftWorkoutSchema.safeParse(envelope.data.diff[0]?.after);
     const dateKey = after.success ? dateKeyOf(after.data.date) : null;
     const minutes = after.success ? after.data.minutes : undefined;
-    return {
-      kind: "kept",
-      atMs,
-      dateKey: dateKey ?? workouts.get(keep.data.planWorkoutId)?.dateKey ?? null,
-      durationS: minutes === undefined ? null : Math.round(minutes * 60),
-    };
+    return [
+      {
+        kind: "kept",
+        atMs,
+        dateKey: dateKey ?? workouts.get(keep.data.planWorkoutId)?.dateKey ?? null,
+        durationS: minutes === undefined ? null : Math.round(minutes * 60),
+      },
+    ];
   }
-  return { kind: "change", atMs, title: envelope.data.title };
+  return [{ kind: "change", atMs, title: envelope.data.title }];
 }
 
 function endingWorkout(
@@ -115,7 +122,7 @@ function endingWorkout(
   const workout = workouts.get(entry.planWorkoutId);
   return {
     planWorkoutId: entry.planWorkoutId,
-    name: workout?.name ?? "",
+    name: shortName(workout?.name ?? ""),
     dateKey: entry.dateKey,
     durationS: workout?.durationS ?? null,
   };
@@ -143,15 +150,16 @@ export async function planDetails(
       (await plans.readWorkouts(request.planId)).map((workout) => [workout.id, workout]),
     );
     const rows = await deps.store.all(
-      "SELECT diff_json, updated_at_ms FROM plan_change WHERE plan_id=? AND status='applied' ORDER BY updated_at_ms DESC, result_revision_number DESC",
-      [request.planId],
+      `SELECT diff_json, terminal_at_ms AS applied_at_ms FROM plan_change
+      WHERE plan_id=? AND status='applied' ORDER BY result_revision_number DESC LIMIT ?`,
+      [request.planId, HISTORY_LIMIT],
     );
     const history: HistoryEntry[] = [];
     for (const raw of rows) {
       const row = ChangeRowSchema.safeParse(raw);
-      const entry = row.success ? historyEntry(row.data, workouts) : null;
-      if (entry !== null) history.push(entry);
+      if (row.success) history.push(...historyEntries(row.data, workouts));
     }
+    history.splice(HISTORY_LIMIT);
     history.push({ kind: "saved", atMs: active.activated_at_ms });
     const copies = await readIcuCopies(createPlanCalendarMirrorRepository(deps.store), plan.id);
     const summary = planEndingSummary(
@@ -178,7 +186,7 @@ export async function planDetails(
           const planned = endingWorkout(entry, workouts);
           return {
             ...planned,
-            name: shown?.name ?? planned.name,
+            name: shortName(shown?.name ?? planned.name),
             durationS: shown?.durationS ?? planned.durationS,
             dateKey: entry.tick.dateKey,
             tick: entry.tick,
@@ -191,30 +199,45 @@ export async function planDetails(
 
 export async function saveEndChoice(
   deps: PlanCalendarDetailsDeps,
-  request: { readonly planId: string; readonly ticked: readonly TickedChange[] },
+  request: {
+    readonly planId: string;
+    readonly commandId: string;
+    readonly ticked: readonly TickedChange[];
+  },
 ): Promise<PlanCalendarRpcResult> {
-  const mirror = createPlanCalendarMirrorRepository(deps.store);
-  const plan = await createLegacyPlanRepository(deps.store).read(request.planId);
-  if (plan === undefined || plan.status !== "active") {
-    return { status: "refused", reason: "no-active-plan" };
-  }
-  const current = await mirror.readDelivery(plan.id);
-  const choice =
-    request.ticked.length === 0
-      ? { kind: "keep-them" as const }
-      : { kind: "remove-them" as const, ticked: [...request.ticked] };
-  if (current === undefined && choice.kind === "keep-them") return { status: "end-choice-saved" };
-  const delivery = {
-    kind: "approved" as const,
-    firstSetWeeks: firstChangeSetWeeks(plan, deps.todayDateKey()),
-    approvedWeeks: [],
-  };
-  await mirror.writeDelivery({
-    planId: plan.id,
-    stateKind: current?.stateKind ?? delivery.kind,
-    stateJson: current?.stateJson ?? encodeWeekDelivery(delivery),
-    closeChoiceJson: encodeCloseChoice(choice),
-    updatedAtMs: deps.now(),
+  return deps.store.transaction(async () => {
+    const mirror = createPlanCalendarMirrorRepository(deps.store);
+    const plan = await createLegacyPlanRepository(deps.store).read(request.planId);
+    const active = await deps.store.get(
+      "SELECT plan_id FROM planning_plan WHERE plan_id=? AND status='active'",
+      [request.planId],
+    );
+    if (plan === undefined || active === undefined) {
+      return { status: "refused", reason: "no-active-plan" } as const;
+    }
+    const current = await mirror.readDelivery(plan.id);
+    const choice =
+      request.ticked.length === 0
+        ? { kind: "keep-them" as const }
+        : { kind: "remove-them" as const, ticked: [...request.ticked] };
+    if (current === undefined && choice.kind === "keep-them") {
+      return { status: "end-choice-saved" } as const;
+    }
+    const delivery = {
+      kind: "approved" as const,
+      firstSetWeeks: firstChangeSetWeeks(plan, deps.todayDateKey()),
+      approvedWeeks: [],
+    };
+    await mirror.writeDelivery({
+      planId: plan.id,
+      stateKind: current?.stateKind ?? delivery.kind,
+      stateJson: current?.stateJson ?? encodeWeekDelivery(delivery),
+      closeChoiceJson:
+        choice.kind === "keep-them"
+          ? encodeCloseChoice(choice)
+          : JSON.stringify({ ...choice, commandId: request.commandId }),
+      updatedAtMs: deps.now(),
+    });
+    return { status: "end-choice-saved" } as const;
   });
-  return { status: "end-choice-saved" };
 }

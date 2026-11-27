@@ -3,6 +3,7 @@
 "@enduragent/coach-contract": minor
 "@enduragent/desktop": minor
 "@enduragent/i18n": minor
+"@enduragent/kernel": minor
 ---
 
 User-facing: The Calendar has a Plan details panel with your Plan's dates, progress and history, and with Replace Plan and End Plan. Ending a Plan keeps today's workout and any workout you changed in intervals.icu, unless you choose to remove those too.

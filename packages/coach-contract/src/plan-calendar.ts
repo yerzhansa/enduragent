@@ -18,7 +18,7 @@ export const PlanCalendarTickSchema = z
     planWorkoutId: UlidSchema,
     eventId: z.number().int().nonnegative(),
     dateKey: DateKeySchema,
-    fingerprint: z.string().min(1).max(4_096),
+    fingerprint: z.string().min(1).max(131_072),
   })
   .strict();
 export type PlanCalendarTick = z.infer<typeof PlanCalendarTickSchema>;
@@ -58,7 +58,8 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("save-end-choice"),
       planId: UlidSchema,
-      ticked: z.array(PlanCalendarTickSchema).max(64),
+      commandId: z.string().min(1).max(512),
+      ticked: z.array(PlanCalendarTickSchema).max(500),
     })
     .strict(),
   z
