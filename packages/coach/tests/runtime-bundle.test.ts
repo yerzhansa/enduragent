@@ -132,6 +132,33 @@ describe("reconfigurable runtime bundle", () => {
     ).resolves.toEqual({ text: "new" });
   });
 
+  it("refuses a change while a reply waits to start behind a waiting replacement", async () => {
+    const shortCall = gate();
+    const runtime = createReconfigurableRuntimeBundle(fakeBundle("old", shortCall.opened));
+    const pending = runtime.engine.hasSession({ chatId: "desktop" });
+    await Promise.resolve();
+    const unchanged = runtime.replace(
+      () => fakeBundle("old", Promise.resolve()),
+      (prepared) => prepared,
+      "wait",
+    );
+    const waitingReply = runtime.engine.chat({ chatId: "desktop", message: "Plan my week." });
+    await Promise.resolve();
+
+    await expect(
+      runtime.replace(
+        () => fakeBundle("new", Promise.resolve()),
+        (prepared) => prepared,
+        "refuse",
+      ),
+    ).resolves.toBe("busy-replying");
+
+    shortCall.open();
+    await pending;
+    await expect(unchanged).resolves.toBe("replaced");
+    await expect(waitingReply).resolves.toEqual({ text: "old" });
+  });
+
   it("waits for a short call to finish when it replaces with refuse", async () => {
     const call = gate();
     const runtime = createReconfigurableRuntimeBundle(fakeBundle("old", call.opened));

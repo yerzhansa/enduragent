@@ -78,15 +78,14 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       }
     }
   };
-  const runTurn = <T>(operation: (bundle: RuntimeBundle) => Promise<T>): Promise<T> =>
-    run(async (bundle) => {
-      runningTurns += 1;
-      try {
-        return await operation(bundle);
-      } finally {
-        runningTurns -= 1;
-      }
-    });
+  const runTurn = async <T>(operation: (bundle: RuntimeBundle) => Promise<T>): Promise<T> => {
+    runningTurns += 1;
+    try {
+      return await run(operation);
+    } finally {
+      runningTurns -= 1;
+    }
+  };
   const queueUnavailable = (): never => {
     throw new TypeError("Durable chat queue is unavailable.");
   };
