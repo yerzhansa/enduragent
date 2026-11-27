@@ -415,7 +415,7 @@ async function approveIntervalsSignIn(authorizeLog: string): Promise<void> {
     if (logged === "") await new Promise((resolve) => setTimeout(resolve, 20));
   }
   if (logged === "") throw new Error("The Intervals.icu sign-in page was never requested");
-  const authorize = new URL(logged.split("\n")[0] ?? "");
+  const authorize = new URL(logged.split("\n").at(-1) ?? "");
   const callback = new URL(authorize.searchParams.get("redirect_uri") ?? "");
   callback.searchParams.set("code", "acceptance-code");
   callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
