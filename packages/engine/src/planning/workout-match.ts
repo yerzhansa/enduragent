@@ -145,17 +145,7 @@ export async function refreshPlanWorkoutMatches(input: {
   const activityById = new Map(activities.map((activity) => [activity.activityId, activity]));
   const deviceId = await input.identity.deviceId();
   const stale = existing.filter((match) => stalePairing(match, activityById));
-  for (const match of stale) {
-    const stamp = input.identity.stamp();
-    await input.repository.decide({
-      id: match.id,
-      decision: "unpaired",
-      decidedAtMs: Math.max(stamp.physicalMs, match.observedAtMs),
-      deviceId,
-      hlcPhysicalMs: stamp.physicalMs,
-      hlcCounter: stamp.counter,
-    });
-  }
+  for (const match of stale) await input.repository.withdraw(match.id);
   const held = existing.filter((match) => match.decision === "confirmed" && !stale.includes(match));
   const usedWorkoutIds = new Set(held.map((match) => match.planWorkoutId));
   const usedActivityIds = new Set(held.map((match) => match.activityId));

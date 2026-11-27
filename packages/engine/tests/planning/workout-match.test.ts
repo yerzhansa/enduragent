@@ -59,6 +59,12 @@ function memoryRepository(input: {
     async decide() {
       throw new Error("unused");
     },
+    async withdraw(id) {
+      records.splice(
+        records.findIndex((record) => record.id === id),
+        1,
+      );
+    },
     async listActivities() {
       return input.activities;
     },
