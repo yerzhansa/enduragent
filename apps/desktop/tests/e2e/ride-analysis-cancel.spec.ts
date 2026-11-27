@@ -1,8 +1,3 @@
-// Issue 411, end to end in the built app with the window hidden. The athlete has a coach
-// reply streaming and a sync running, opens a ride's recorded analysis, and moves to another
-// ride before it loads. Leaving that analysis must not break the sync or the reply. The coach
-// is the fixture's scripted backend; intervals.icu and the model are never reached.
-// Synthetic data only (1998 dates).
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import {
   launchDesktopFixture,
@@ -91,7 +86,6 @@ const syncFrames = [
   }),
 ];
 
-/** Scripted coach: answers the ready-app reads, holds sync, analysis and the chat reply. */
 class HoldingCoach {
   readonly calls: ScriptRequest[] = [];
   readonly unexpected: string[] = [];
@@ -217,7 +211,6 @@ class HoldingCoach {
           throw new Error("unreachable");
         case "getPlanState":
         case "plan.list":
-          // Plan surfaces are not part of this bug; the app tolerates them being unavailable.
           throw new Error("Plan unavailable in this fixture");
         default:
           this.unexpected.push(request.method);
@@ -255,16 +248,12 @@ const test = base.extend<{ desktop: Desktop }>({
         throw new Error("Playwright did not find the Electron renderer");
       }
       await context.route(/^https?:\/\//u, (route) => route.abort("blockedbyclient"));
-      await context.tracing
-        .start({ screenshots: true, snapshots: true })
-        .catch(() => undefined);
+      await context.tracing.start({ screenshots: true, snapshots: true }).catch(() => undefined);
       await expect(page.locator("[data-shell]")).toHaveAttribute("data-onboarding", "settled", {
         timeout: 30_000,
       });
       await use({ page, fixture, coach });
-      await context.tracing
-        .stop({ path: testInfo.outputPath("trace.zip") })
-        .catch(() => undefined);
+      await context.tracing.stop({ path: testInfo.outputPath("trace.zip") }).catch(() => undefined);
     } finally {
       coach.release();
       if (fixture !== undefined) {
@@ -294,7 +283,6 @@ test("moving to another ride while its analysis loads keeps the sync and the coa
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   const chip = page.locator("[data-sync-chip]");
 
-  // A coach reply is streaming.
   const composer = page.locator("textarea#message");
   await expect(composer).toBeEnabled({ timeout: 15_000 });
   await composer.fill("How did my ride go?");
@@ -304,12 +292,10 @@ test("moving to another ride while its analysis loads keeps the sync and the coa
   coach.emitChat({ type: "text_delta", turnId: "turn-repro", delta: "Your ride looked " });
   await expect(page.locator("[data-chat-status]")).toHaveAttribute("data-chat-status", "streaming");
 
-  // The athlete presses Sync. The coach keeps working.
   await page.locator("button.sync-chip").click();
   await coach.syncRequested.promise;
   await expect(chip).toHaveAttribute("data-status", "syncing");
 
-  // In Training they open a ride's recorded analysis. It is still loading.
   await navigation.getByRole("button", { name: "Training", exact: true }).click();
   const rides = page.locator('[data-panel="recent-rides"] button');
   await rides.first().click();
@@ -318,7 +304,6 @@ test("moving to another ride while its analysis loads keeps the sync and the coa
   await review.locator("summary", { hasText: "Recorded analysis" }).click();
   await coach.analysisRequested.promise;
 
-  // Before it loads they go back and pick another ride.
   await page.getByRole("button", { name: "Back to training" }).click();
   await rides.nth(1).click();
   await expect(review).toBeVisible();
@@ -335,7 +320,6 @@ test("moving to another ride while its analysis loads keeps the sync and the coa
     )
     .not.toContainText("Connection interrupted");
 
-  // Back in Chat, the reply that was streaming should still be streaming.
   await navigation.getByRole("button", { name: "Chat", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("chat-after.png") });
   await expect
@@ -375,7 +359,6 @@ test("path B: a sync that finishes while a ride analysis loads does not cut off 
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   await streamingReplySyncAndLoadingAnalysis(desktop);
 
-  // The coach finishes the sync. The window refreshes training data (boot.ts:165-166).
   coach.syncRelease.resolve();
   await expect(page.locator("[data-sync-chip]")).toHaveAttribute("data-status", "synced");
   await page.waitForTimeout(1_000);
@@ -399,7 +382,6 @@ test("control: with the analysis left loading and nothing else happening, the sy
   await expect(chip).toHaveAttribute("data-status", "syncing");
   await navigation.getByRole("button", { name: "Chat", exact: true }).click();
   await expect(page.locator("[data-chat-status]")).toHaveAttribute("data-chat-status", "streaming");
-  // The coach finishes the reply, then the sync; the window shows both results.
   coach.emitChat({ type: "final-text", turnId: "turn-repro", text: "Your ride looked steady." });
   coach.chatFinish.resolve("Your ride looked steady.");
   await expect(page.locator(".conversation")).toContainText("Your ride looked steady.");

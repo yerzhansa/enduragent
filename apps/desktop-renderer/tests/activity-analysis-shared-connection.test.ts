@@ -1,8 +1,3 @@
-// Issue 411: leaving a ride analysis that is still loading must not close the window's shared
-// coach connection, which would break a running sync (path A) and any other call in flight
-// (path B). Real pieces: the coach client, the desktop client provider, the sign-in health
-// wrapper, the ride-analysis controller and the sync coordinator, wired as boot.ts wires them.
-// Only the coach's RPC socket is faked, by a loopback WebSocket server.
 import { WebSocketServer, type WebSocket as ServerWebSocket } from "ws";
 import {
   PROTOCOL_VERSION,
@@ -79,7 +74,6 @@ async function startCoach() {
           }),
         );
       }
-      // getActivityAnalysis, chat and getRuntimeConfig are held: the coach is "still working".
     });
   });
   const address = server.address();
@@ -135,7 +129,6 @@ function wireLikeBoot() {
   const sync = createTrainingSyncCoordinator({
     clients,
     refreshTrainingContext: async () => {
-      // boot.ts:165-166
       analysis.invalidate();
       await refreshed();
     },
@@ -153,24 +146,20 @@ describe("one ride-analysis cancel and the shared coach connection", () => {
     const app = wireLikeBoot();
     let probeRejection: unknown;
     try {
-      // 1. The athlete presses Sync. The coach reports "started" and keeps working.
       const syncTask = app.sync.request();
       const syncFrame = await coach.waitFor("sync");
       await vi.waitFor(() => expect(app.sync.getState().status).toBe("running"));
 
-      // 2. They open ride A's analysis. The request reaches the coach and is held.
       await app.analysis.select(RIDE_A);
       void app.analysis.start();
       await coach.waitFor("getActivityAnalysis");
 
-      // Observe the sync call's own outcome through the shared client.
       const client = await app.clients.getClient();
       const probe = client.call("hasSession", { chatId: "desktop" }).catch((error: unknown) => {
         probeRejection = error;
       });
       await coach.waitFor("hasSession");
 
-      // 3. Before it loads they click ride B. Only ride A's request should be cancelled.
       await app.analysis.select(RIDE_B);
       await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -178,7 +167,6 @@ describe("one ride-analysis cancel and the shared coach connection", () => {
       expect(syncFrame.socket.readyState, "shared coach socket state (1 = open)").toBe(1);
       expect(app.sync.getState()).toMatchObject({ status: "running" });
 
-      // 4. The coach finishes the sync. The window should show success.
       coach.finishSync(syncFrame);
       await syncTask;
       expect(app.sync.getState()).toMatchObject({ status: "succeeded", kind: "no-change" });
@@ -224,7 +212,6 @@ describe("one ride-analysis cancel and the shared coach connection", () => {
       const syncFrame = await coach.waitFor("sync");
       await vi.waitFor(() => expect(app.sync.getState().status).toBe("running"));
 
-      // A coach reply is streaming on the same connection.
       const client = await app.clients.getClient();
       const chat = client
         .call("chat", { chatId: "desktop", message: "How was my ride?" })
@@ -233,12 +220,10 @@ describe("one ride-analysis cancel and the shared coach connection", () => {
         });
       await coach.waitFor("chat");
 
-      // The athlete has a ride analysis open and loading.
       await app.analysis.select(RIDE_A);
       void app.analysis.start();
       await coach.waitFor("getActivityAnalysis");
 
-      // The sync finishes; refreshTrainingContext runs analysis.invalidate() (boot.ts:165-166).
       coach.finishSync(syncFrame);
       await syncTask;
       await new Promise((resolve) => setTimeout(resolve, 200));

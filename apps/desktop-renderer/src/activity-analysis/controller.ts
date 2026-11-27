@@ -97,8 +97,6 @@ export function createRideAnalysisController(input: {
     try {
       client = await clientAfterFailure();
       if (superseded()) return;
-      // No abort signal: a caller's abort closes the window's shared coach connection.
-      // A superseded load is dropped by its generation when its answer arrives.
       const result = ActivityAnalysisResultSchema.parse(
         await client.call("getActivityAnalysis", {
           canonicalActivityId: selectedActivityId,

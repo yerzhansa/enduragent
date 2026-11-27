@@ -114,20 +114,17 @@ describe("ride analysis controller", () => {
 
     await controller.start();
 
-    expect(call).toHaveBeenCalledWith(
-      "getActivityAnalysis",
-      {
-        canonicalActivityId: FIRST,
-        sections: [
-          "aerobic-drift",
-          "intervals",
-          "best-efforts",
-          "power-distribution",
-          "heart-rate-distribution",
-          "power-heart-rate",
-        ],
-      },
-    );
+    expect(call).toHaveBeenCalledWith("getActivityAnalysis", {
+      canonicalActivityId: FIRST,
+      sections: [
+        "aerobic-drift",
+        "intervals",
+        "best-efforts",
+        "power-distribution",
+        "heart-rate-distribution",
+        "power-heart-rate",
+      ],
+    });
     expect(vi.mocked(call).mock.calls[0]).toHaveLength(2);
     expect(states.at(-1)).toMatchObject({
       activityId: FIRST,
