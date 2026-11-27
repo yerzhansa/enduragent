@@ -190,7 +190,8 @@ async function openChanges(scenario: Scenario) {
 
 // Pick with the keyboard: when the select sits low in the window, its popup stops at the
 // window edge and the scroll-down arrow covers the last options, so a pointer click on
-// one of them retries until the test times out.
+// one of them retries until the test times out. The mouse is parked first because a
+// hovered option takes the highlight away from the keyboard.
 async function choose(scenario: Scenario, select: Locator, name: string) {
   await select.click();
   const listbox = scenario.page.getByRole("listbox");
@@ -208,7 +209,7 @@ async function choose(scenario: Scenario, select: Locator, name: string) {
     if (distance === 0) break;
     await scenario.page.keyboard.press(distance > 0 ? "ArrowDown" : "ArrowUp");
   }
-  await expect(option).toHaveAttribute("data-highlighted", "");
+  await expect(option).toBeFocused();
   await scenario.page.keyboard.press("Enter");
   await expect(listbox).toBeHidden();
   await expect(select).toContainText(name);
