@@ -823,7 +823,8 @@
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów.",
-        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować."
+        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować.",
+        "savedRides": "Przejazdy zapisane na {{computer}} · połącz, aby synchronizować nowe"
       },
       "tooltip": {
         "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie zaloguj się tutaj.",
@@ -1095,7 +1096,8 @@
       "feedbackFailed": "Nie udało się wysłać tej notatki. Zostaje w polu — spróbuj ponownie.",
       "feedbackSent": "Dzięki — otrzymaliśmy twoją notatkę.",
       "feedbackTooLong": "Zmniejsz notatkę do 4000 znaków lub mniej. Nic nie zostało wysłane.",
-      "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę."
+      "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę.",
+      "addCredits": "Dodaj środki"
     },
     "planChange": {
       "activePlan": "Aktywny plan",
@@ -2745,7 +2747,8 @@
       "rateLimitSeconds_other": "Osiągnięto limit żądań — spróbuj ponownie za ~{{seconds}} sekundy.",
       "reauth": "Twoje logowanie do {{provider}} nie jest już ważne. Zaloguj się ponownie, aby kontynuować.",
       "reauthSetup": "Twoje logowanie do {{provider}} nie jest już ważne. Otwórz Konfigurację i zaloguj się ponownie.",
-      "unknown": "Przepraszam, coś poszło nie tak. Spróbuj ponownie."
+      "unknown": "Przepraszam, coś poszło nie tak. Spróbuj ponownie.",
+      "openRouterCredits": "Na Twoim koncie {{openrouter}} jest za mało środków. Dodaj środki w {{openrouter}}, a potem wyślij wiadomość ponownie."
     },
     "fallback": {
       "stepLimit": "Podczas zbierania danych zabrakło mi kroków — poproś mnie o kontynuację, a wrócę do miejsca, w którym przerwałem.",

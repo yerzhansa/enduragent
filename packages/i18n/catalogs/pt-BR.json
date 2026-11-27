@@ -817,7 +817,8 @@
         "connected": "Conectado · de onde vêm suas pedaladas",
         "connectedAs": "Conectado como {{name}} · de onde vêm suas pedaladas",
         "missing": "Conecte ou importe arquivos de pedalada.",
-        "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando."
+        "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando.",
+        "savedRides": "Pedaladas salvas em {{computer}} · conecte para sincronizar as novas"
       },
       "tooltip": {
         "body": "Um site gratuito de treinamento que já armazena suas pedaladas. {{product}} lê as pedaladas de lá em vez de se comunicar diretamente com o fabricante do seu relógio ou ciclocomputador. Você precisa de uma conta gratuita com seu relógio ou ciclocomputador conectado e, depois, entrar aqui.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Não foi possível enviar essa nota. Ela continua na caixa — tente de novo.",
       "feedbackSent": "Obrigado — recebemos sua nota.",
       "feedbackTooLong": "Mantenha a nota em 4000 caracteres ou menos. Nada foi enviado.",
-      "feedbackUsage": "Envie /feedback seguido da sua nota."
+      "feedbackUsage": "Envie /feedback seguido da sua nota.",
+      "addCredits": "Adicionar créditos"
     },
     "planChange": {
       "activePlan": "Plano ativo",
@@ -2671,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejeitou a solicitação. Verifique sua conexão com {{service}} ou a chave de API.",
       "intervalsTransient": "Não consegui acessar {{service}} agora. Tente novamente daqui a pouco.",
+      "openRouterCredits": "Sua conta de {{openrouter}} não tem créditos suficientes. Adicione créditos em {{openrouter}} e envie sua mensagem de novo.",
       "providerCredentials": "O provedor do modelo rejeitou a chave de API. Verifique suas credenciais do provedor.",
       "providerDown": "O provedor do modelo está com dificuldades. Tente novamente daqui a alguns minutos.",
       "rateLimit": "Limite de solicitações atingido. Tente novamente daqui a pouco.",

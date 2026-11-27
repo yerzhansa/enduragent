@@ -817,7 +817,8 @@
         "connected": "Connecté · source de tes sorties",
         "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
         "missing": "Connecte un compte ou importe des fichiers de sortie.",
-        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation."
+        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation.",
+        "savedRides": "Sorties enregistrées sur {{computer}} · connecte-toi pour synchroniser les nouvelles"
       },
       "tooltip": {
         "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu te connectes ici.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Impossible d’envoyer cette note. Elle reste dans le champ — réessaie.",
       "feedbackSent": "Merci — nous avons bien reçu ta note.",
       "feedbackTooLong": "Garde ta note à 4000 caractères ou moins. Rien n’a été envoyé.",
-      "feedbackUsage": "Envoie /feedback suivi de ta note."
+      "feedbackUsage": "Envoie /feedback suivi de ta note.",
+      "addCredits": "Ajouter des crédits"
     },
     "planChange": {
       "activePlan": "Plan actif",
@@ -2828,6 +2830,7 @@
     "error": {
       "intervalsCredentials": "{{service}} a rejeté la demande — vérifie ta connexion à {{service}} ou ta clé API.",
       "intervalsTransient": "Je n’ai pas pu joindre {{service}} pour le moment — réessaie dans un instant.",
+      "openRouterCredits": "Ton compte {{openrouter}} n’a pas assez de crédits. Ajoute des crédits sur {{openrouter}}, puis renvoie ton message.",
       "providerCredentials": "Le fournisseur du modèle a rejeté la clé API — vérifie tes données d’authentification auprès de ce fournisseur.",
       "providerDown": "Le fournisseur du modèle rencontre un problème — réessaie dans quelques minutes.",
       "rateLimit": "Trop de demandes — réessaie dans un instant.",

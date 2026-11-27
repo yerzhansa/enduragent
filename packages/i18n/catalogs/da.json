@@ -817,7 +817,8 @@
         "connected": "Forbundet · hvor dine ture kommer fra",
         "connectedAs": "Forbundet som {{name}} · hvor dine ture kommer fra",
         "missing": "Opret forbindelse, eller importér turfiler.",
-        "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere."
+        "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere.",
+        "savedRides": "Ture gemt på {{computer}} · opret forbindelse for at synkronisere nye"
       },
       "tooltip": {
         "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter logge ind her.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Noten kunne ikke sendes. Den bliver i feltet — prøv igen.",
       "feedbackSent": "Tak — vi har modtaget din note.",
       "feedbackTooLong": "Hold din note på 4000 tegn eller færre. Der blev ikke sendt noget.",
-      "feedbackUsage": "Send /feedback efterfulgt af din note."
+      "feedbackUsage": "Send /feedback efterfulgt af din note.",
+      "addCredits": "Tilføj kreditter"
     },
     "planChange": {
       "activePlan": "Aktiv træningsplan",
@@ -2828,6 +2830,7 @@
     "error": {
       "intervalsCredentials": "{{service}} afviste anmodningen — tjek din forbindelse til {{service}} eller din API-nøgle.",
       "intervalsTransient": "Jeg kunne ikke kontakte {{service}} lige nu — prøv igen om lidt.",
+      "openRouterCredits": "Din {{openrouter}}-konto har ikke nok kreditter. Tilføj kreditter hos {{openrouter}}, og send derefter din besked igen.",
       "providerCredentials": "Modeludbyderen afviste API-nøglen — tjek dine adgangsoplysninger til udbyderen.",
       "providerDown": "Modeludbyderen har problemer — prøv igen om et par minutter.",
       "rateLimit": "Grænsen for forespørgsler er nået — prøv igen om lidt.",

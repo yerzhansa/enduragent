@@ -817,7 +817,8 @@
         "connected": "Ansluten · källan till dina cykelturer",
         "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
         "missing": "Anslut eller importera filer från cykelturer.",
-        "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera."
+        "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera.",
+        "savedRides": "Cykelturer sparade på {{computer}} · anslut för att synkronisera nya"
       },
       "tooltip": {
         "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Logga sedan in här.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Anteckningen kunde inte skickas. Den ligger kvar i fältet — försök igen.",
       "feedbackSent": "Tack — vi har tagit emot din anteckning.",
       "feedbackTooLong": "Håll anteckningen till 4000 tecken eller färre. Inget skickades.",
-      "feedbackUsage": "Skicka /feedback följt av din anteckning."
+      "feedbackUsage": "Skicka /feedback följt av din anteckning.",
+      "addCredits": "Lägg till krediter"
     },
     "planChange": {
       "activePlan": "Aktiv plan",
@@ -2671,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} avvisade begäran. Kontrollera din anslutning till {{service}} eller din API-nyckel.",
       "intervalsTransient": "Kunde inte nå {{service}} just nu. Försök igen om en liten stund.",
+      "openRouterCredits": "Ditt {{openrouter}}-konto har inte tillräckligt med krediter. Lägg till krediter hos {{openrouter}} och skicka sedan meddelandet igen.",
       "providerCredentials": "Modellleverantören avvisade API-nyckeln. Kontrollera dina inloggningsuppgifter hos leverantören.",
       "providerDown": "Modellleverantören har problem. Försök igen om några minuter.",
       "rateLimit": "Gränsen för antal förfrågningar är nådd. Försök igen om en liten stund.",

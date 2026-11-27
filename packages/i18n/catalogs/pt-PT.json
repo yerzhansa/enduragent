@@ -817,7 +817,8 @@
         "connected": "Ligado · de onde vêm as tuas voltas",
         "connectedAs": "Ligado como {{name}} · de onde vêm as tuas voltas",
         "missing": "Liga uma conta ou importa ficheiros de voltas.",
-        "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar."
+        "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar.",
+        "savedRides": "Voltas guardadas em {{computer}} · liga uma conta para sincronizar as novas"
       },
       "tooltip": {
         "body": "Um site de treino gratuito onde já estão as tuas voltas. {{product}} lê-as a partir daí em vez de comunicar diretamente com o fornecedor do teu relógio ou ciclocomputador. Precisas de uma conta gratuita com o teu relógio ou ciclocomputador ligado e, depois, de iniciar sessão aqui.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Não foi possível enviar essa nota. Continua na caixa — tenta novamente.",
       "feedbackSent": "Obrigado — recebemos a tua nota.",
       "feedbackTooLong": "Mantém a nota em 4000 caracteres ou menos. Nada foi enviado.",
-      "feedbackUsage": "Envia /feedback seguido da tua nota."
+      "feedbackUsage": "Envia /feedback seguido da tua nota.",
+      "addCredits": "Adicionar créditos"
     },
     "planChange": {
       "activePlan": "Plano ativo",
@@ -2671,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejeitou o pedido. Verifica a tua ligação a {{service}} ou a chave de API.",
       "intervalsTransient": "Não consegui contactar {{service}} agora. Tenta novamente daqui a pouco.",
+      "openRouterCredits": "A tua conta de {{openrouter}} não tem créditos suficientes. Adiciona créditos em {{openrouter}} e envia a tua mensagem novamente.",
       "providerCredentials": "O fornecedor do modelo rejeitou a chave de API. Verifica as tuas credenciais do fornecedor.",
       "providerDown": "O fornecedor do modelo está com dificuldades. Tenta novamente daqui a uns minutos.",
       "rateLimit": "Limite de pedidos atingido. Tenta novamente daqui a pouco.",

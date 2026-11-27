@@ -817,7 +817,8 @@
         "connected": "Verbonden · de bron van je ritten",
         "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
         "missing": "Verbind of importeer ritbestanden.",
-        "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren."
+        "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren.",
+        "savedRides": "Ritten opgeslagen op {{computer}} · verbind om nieuwe te synchroniseren"
       },
       "tooltip": {
         "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Meld je daarna hier aan.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "Dat bericht kon niet worden verzonden. Het blijft in het vak — probeer het opnieuw.",
       "feedbackSent": "Dank je — we hebben je bericht ontvangen.",
       "feedbackTooLong": "Houd je bericht op 4000 tekens of minder. Er is niets verzonden.",
-      "feedbackUsage": "Stuur /feedback gevolgd door je bericht."
+      "feedbackUsage": "Stuur /feedback gevolgd door je bericht.",
+      "addCredits": "Tegoed toevoegen"
     },
     "planChange": {
       "activePlan": "Actief trainingsschema",
@@ -2828,6 +2830,7 @@
     "error": {
       "intervalsCredentials": "{{service}} heeft het verzoek geweigerd. Controleer je verbinding met {{service}} of je API-sleutel.",
       "intervalsTransient": "Ik kon {{service}} nu niet bereiken. Probeer het zo opnieuw.",
+      "openRouterCredits": "Je {{openrouter}}-account heeft niet genoeg tegoed. Voeg tegoed toe bij {{openrouter}} en stuur je bericht daarna opnieuw.",
       "providerCredentials": "De modelaanbieder heeft de API-sleutel geweigerd. Controleer je toegangsgegevens voor de aanbieder.",
       "providerDown": "Er zijn problemen bij de modelaanbieder. Probeer het over een paar minuten opnieuw.",
       "rateLimit": "De aanvraaglimiet is bereikt. Probeer het zo opnieuw.",

@@ -817,7 +817,8 @@
         "connected": "Conectado · de donde vienen tus salidas",
         "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas.",
-        "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando."
+        "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando.",
+        "savedRides": "Salidas guardadas en {{computer}} · conecta para sincronizar las nuevas"
       },
       "tooltip": {
         "body": "Un sitio de entrenamiento gratuito que ya contiene tus salidas. {{product}} las lee desde allí en lugar de comunicarse directamente con el proveedor de tu reloj o ciclocomputador. Necesitas una cuenta gratuita con tu reloj o ciclocomputador conectado; después, inicia sesión aquí.",
@@ -1079,7 +1080,8 @@
       "feedbackFailed": "No se pudo enviar esa nota. Sigue en el recuadro; inténtalo de nuevo.",
       "feedbackSent": "Gracias: hemos recibido tu nota.",
       "feedbackTooLong": "Deja tu nota en 4000 caracteres o menos. No se ha enviado nada.",
-      "feedbackUsage": "Envía /feedback seguido de tu nota."
+      "feedbackUsage": "Envía /feedback seguido de tu nota.",
+      "addCredits": "Añadir créditos"
     },
     "planChange": {
       "activePlan": "Plan activo",
@@ -2671,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} ha rechazado la solicitud. Revisa tu conexión con {{service}} o tu clave de API.",
       "intervalsTransient": "No he podido conectar con {{service}} ahora. Inténtalo de nuevo en un momento.",
+      "openRouterCredits": "Tu cuenta de {{openrouter}} no tiene créditos suficientes. Añade créditos en {{openrouter}} y vuelve a enviar tu mensaje.",
       "providerCredentials": "El proveedor del modelo ha rechazado la clave de API. Revisa tus credenciales del proveedor.",
       "providerDown": "El proveedor del modelo está teniendo problemas. Inténtalo de nuevo en unos minutos.",
       "rateLimit": "Se ha alcanzado el límite de solicitudes. Inténtalo de nuevo en un momento.",

@@ -898,6 +898,40 @@ describe("chat controller", () => {
     expect(states.at(-1)?.activeTurn?.error?.athleteMessage).not.toContain("sign in again");
   });
 
+  it("keeps an OpenRouter credits failure on the athlete's message without retrying it", async () => {
+    const creditsCopy =
+      "Your OpenRouter account doesn't have enough credits. Add credits on OpenRouter, then send your message again.";
+    const fake = client(async (_request, options) => {
+      deliver(options, {
+        ...errorEvent(creditsCopy),
+        kind: "openrouter-credits",
+        message: { key: "coach.error.openRouterCredits", vars: { openrouter: "OpenRouter" } },
+      });
+      options?.onTerminalEnvelope?.({
+        jsonrpc: "2.0",
+        id: 1,
+        error: { code: -32603, message: "Internal error" },
+      });
+      throw new Error("remote detail");
+    });
+    const { controller, states } = subject(fake);
+
+    await controller.submit("Plan my week");
+    await controller.resume();
+
+    expect(states.at(-1)?.activeTurn).toMatchObject({
+      userMessage: "Plan my week",
+      error: {
+        kind: "openrouter-credits",
+        athleteMessage: creditsCopy,
+        message: { key: "coach.error.openRouterCredits" },
+      },
+    });
+    expect(states.at(-1)?.messages.some((message) => message.text === "Plan my week")).toBe(true);
+    expect(JSON.stringify(states.at(-1))).not.toContain("remote detail");
+    expect(chatMessages(fake)).toEqual(["Plan my week"]);
+  });
+
   it("does not wait for spend refresh before settling a completed chat", async () => {
     const gate = new Promise<void>(() => {});
     const fake = client(async (_request, options) => {

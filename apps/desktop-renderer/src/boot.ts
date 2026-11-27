@@ -503,6 +503,8 @@ export function bootRenderer(): Disposer {
     runQueuedCommand: (id) => void chatController.runQueuedCommand(id),
     retryQueuedTurn: (claimId) => void chatController.retryQueuedTurn(claimId),
     retry: () => void chatController.retry(),
+    openOpenRouterCredits: () =>
+      void window.enduragentAuth.openOpenRouterPage("credits").catch(() => false),
     loadEarlier: () => void chatController.loadEarlier(),
     retryHydration: () => void chatController.retryHydration(),
     retryDecision: () => void chatController.retryDecision(),

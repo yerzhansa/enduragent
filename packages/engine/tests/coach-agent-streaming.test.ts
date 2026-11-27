@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { APICallError } from "@ai-sdk/provider";
 import type { TurnEvent } from "@enduragent/coach-contract";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { createCoachEngine } from "../src/index.js";
@@ -59,11 +60,24 @@ function engineWithTransport(input: {
   generate: (request: ModelTransportRequest) => Promise<GenerateResult>;
   classifyFailure?: (error: unknown) => FailureReason;
   usage?: UsageLedgerLine[];
+  chatProvider?: EngineHostPorts["config"]["models"]["chat"]["provider"];
 }) {
   const dataDir = makeDir();
   const base = baseAgentConfig(dataDir);
+  const chatProvider = input.chatProvider;
   const ports: EngineHostPorts = {
     ...base,
+    ...(chatProvider === undefined
+      ? {}
+      : {
+          config: {
+            ...base.config,
+            models: {
+              ...base.config.models,
+              chat: { ...base.config.models.chat, provider: chatProvider },
+            },
+          },
+        }),
     randomId: () => "turn-stream-1",
     classifyFailure: input.classifyFailure ?? base.classifyFailure,
     usage: {
@@ -99,6 +113,60 @@ describe("coach agent streaming", () => {
       type: "error",
       kind: "provider-auth",
       athleteMessage: "Your ChatGPT sign-in is no longer valid. Open Setup and sign in again.",
+    });
+  });
+
+  function paymentRequired(): APICallError {
+    return new APICallError({
+      message: "Insufficient credits",
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      requestBodyValues: {},
+      statusCode: 402,
+      responseBody: '{"error":{"code":402,"message":"Insufficient credits"}}',
+    });
+  }
+
+  it("emits the OpenRouter credits error once for an OpenRouter 402 without retrying", async () => {
+    const failure = paymentRequired();
+    const generate = vi.fn(async (): Promise<GenerateResult> => {
+      throw failure;
+    });
+    const { engine } = engineWithTransport({ generate, chatProvider: "openrouter" });
+    const events: TurnEvent[] = [];
+
+    await expect(
+      engine.chat({ chatId: "credits", message: "hello" }, (event) => events.push(event)),
+    ).rejects.toBe(failure);
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    const errors = events.filter((event) => event.type === "error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({
+      kind: "openrouter-credits",
+      error_class: "unknown",
+      message: { key: "coach.error.openRouterCredits", vars: { openrouter: "OpenRouter" } },
+      athleteMessage:
+        "Your OpenRouter account doesn't have enough credits. Add credits on OpenRouter, then send your message again.",
+    });
+    expect(JSON.stringify(events)).not.toContain("Insufficient credits");
+  });
+
+  it("keeps a 402 from another provider on the generic error", async () => {
+    const { engine } = engineWithTransport({
+      generate: async () => {
+        throw paymentRequired();
+      },
+    });
+    const events: TurnEvent[] = [];
+
+    await expect(
+      engine.chat({ chatId: "other-402", message: "hello" }, (event) => events.push(event)),
+    ).rejects.toBeInstanceOf(APICallError);
+
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
+      kind: "unknown",
+      message: { key: "coach.error.unknown" },
     });
   });
 
