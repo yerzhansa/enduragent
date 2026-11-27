@@ -31,6 +31,7 @@ export const CLAUDE_CLI_STATUS_STATES = [
 ] as const;
 
 export const CLAUDE_CLI_STATUS_DEADLINE_MS = 72_000;
+export const CLAUDE_CLI_READY_REUSE_MS = 60_000;
 
 export type ClaudeCliStatusState = (typeof CLAUDE_CLI_STATUS_STATES)[number];
 
@@ -197,19 +198,19 @@ export function createClaudeCliStatus(
   let recheckGeneration = 0;
   let activeRead: ReadSlot | undefined;
   let queuedRecheck: ReadSlot | undefined;
-  let latestReadyStatus: ClaudeCliStatus | null = null;
+  let latestReady: { readonly status: ClaudeCliStatus; readonly at: number } | null = null;
 
   const read = async (forceRecheck: boolean): Promise<ClaudeCliStatus> => {
     let settings: ClaudeCliSettings;
     try {
       settings = await options.settings();
     } catch {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: "not-logged-in" };
     }
     const baseEnv = { ...environment() };
     if (!isClaudeCliLaneEligible({ environment: baseEnv, enabled: settings.enabled })) {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: "disabled" };
     }
     try {
@@ -227,10 +228,10 @@ export function createClaudeCliStatus(
           probeDependencies,
         ),
       );
-      latestReadyStatus = status;
+      latestReady = { status, at: Date.now() };
       return status;
     } catch (error) {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: stateForFailure(error) };
     }
   };
@@ -249,7 +250,7 @@ export function createClaudeCliStatus(
         try {
           invalidate();
         } catch {}
-        latestReadyStatus = null;
+        latestReady = null;
       };
       void rawTask
         .then(
@@ -297,7 +298,7 @@ export function createClaudeCliStatus(
           } catch {}
         }
         invalidate();
-        latestReadyStatus = null;
+        latestReady = null;
         return await startRead(true);
       })();
       queuedRecheck = { generation, task };
@@ -311,7 +312,7 @@ export function createClaudeCliStatus(
     },
     invalidateProbeCache: () => {
       invalidate();
-      latestReadyStatus = null;
+      latestReady = null;
     },
     async activate(input, catalogSnapshot) {
       let selection: ReturnType<typeof parseClaudeCliLlmSelection>;
@@ -320,7 +321,11 @@ export function createClaudeCliStatus(
       } catch {
         return { status: "refused", reason: "invalid-input" };
       }
-      const current = latestReadyStatus ?? (await status());
+      const reusable =
+        latestReady !== null && Date.now() - latestReady.at <= CLAUDE_CLI_READY_REUSE_MS
+          ? latestReady.status
+          : null;
+      const current = reusable ?? (await status());
       if (current.state === "disabled") {
         return { status: "refused", reason: "runtime-unavailable" };
       }
