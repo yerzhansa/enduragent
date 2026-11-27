@@ -38,13 +38,9 @@ To read a TLA+ result, run the pstack `/statechart` skill on `model/CoachChange.
 
 ## Findings at the sync commit
 
-All expected in `expected-results.txt`. Each has a failing repro test on the local branch `test/state-bug-repros`.
+All expected in `expected-results.txt`.
 
-- [#403](../../../docs/issues/403-coach-change-during-a-reply-blocks-stop.md), Stop: reply streaming; the athlete picks another model in Settings; the coach builds the new bundle and waits for the reply (`runtime-bundle.ts` `replace`, drain with no signal); Stop waits on the barrier (`run()` awaits `admission`); Stop times out after 10 s. Replay: `apps/desktop/tests/e2e/repro-llm-picker-stop-after-model-change.spec.ts`.
-- #403, key delete: reply streaming; the athlete deletes the AI key in use; the coach waits for the reply; its 25 s deadline passes and nothing happens; the desktop's 30 s call times out; `credential-vault.ts` marks the key `failed` and returns `runtime-state-diverged`; the window shows the Setup screen; the key is still stored and still used. Replay: `apps/desktop/tests/e2e/repro-llm-picker-delete-key-mid-reply.spec.ts`.
-- #403, reads: the change is past its deadline and still holds the lane, so `getRuntimeConfig` waits (`operations.ts` `enqueueRuntimeConfiguration`). Replay: `packages/coach/tests/repro-llm-picker-coach-runtime.test.ts`.
-- #403 "Not shown", P3: a ChatGPT activation during a reply gives up after 10 s, but `buildBundle` already pinned the catalog session and wrote `currentEngineConfig` and `selected-model-profiles.json`.
-- `StopReachesReplyBeforeItEnds` today breaks only in a corner: Stop waits a few milliseconds behind a change that is still building while the reply ends.
+- [#403](../../../docs/issues/403-coach-change-during-a-reply-blocks-stop.md) is fixed by yerzhansa/enduragent#1230: a coach change that arrives while a reply runs (counted from the call, before admission) is refused with `busy-replying`, the catalog pin moved into `replace()`'s prepare, and the desktop passes the refusal through (`credential-runtime.ts`, `credential-vault.ts`, `chatgpt-auth.ts`). The design constants `RefuseWhileReplying`, `ClearBusyRefusal = "refusal"` and `PinMovedIntoPrepare` say so, and every coach-change rule holds. A change that changes nothing (the desktop re-sending stored keys) still waits (`packages/coach/src/runtime-config-unchanged.ts`); the model has no actor for it.
 - [#404](../../../docs/issues/404-summary-model-sticks-to-a-costlier-model.md), OpenAI: GPT-6 Astra, then Luna from Settings → Coach; summaries and memory saves stay on Sol. OpenRouter: set up on the default, pick another model in Coach; summaries follow the chat model instead of the OpenRouter summary default. Anthropic: pick the Haiku id as the chat model, then another; summaries follow. Replay: `packages/coach/tests/repro-llm-picker-coach-runtime.test.ts`.
 
 ## When a change touches this code
@@ -66,7 +62,7 @@ Coverage. Each row was confirmed against the code at the sync commit.
 | `composition.ts` `runtimePatch`, `persistConfig` summary fields; `config.ts` `loadConfig` llm patch | Mirrored in `summary-model-check.ts` `runtimePatch` and the restart step |
 | `engine-host-adapter.ts` `compactModel ?? model`, `flushModel ?? model` | `usedCompact`, `usedFlush` in `summary-model-check.ts` |
 
-Sync commit: `78ecb9c4498682ef04ffa2f87eb5d7da8fb2d012` (2026-11-27). List what changed since then:
+Sync commit: `ff26de1a9e1ba352648e5be2dbc541b3fb72251c` (2026-11-27, the issue 403 fix). List what changed since then:
 
 ```sh
 git diff --stat 78ecb9c4 -- packages/coach/src/runtime-bundle.ts packages/coach/src/operations.ts packages/coach/src/composition.ts packages/core/src/runtime-config.ts packages/core/src/config.ts packages/core/src/agent/engine-host-adapter.ts packages/coach-client/src/call-timeouts.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/chatgpt-auth.ts
