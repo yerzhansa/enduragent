@@ -40,7 +40,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
 
-async function freshHome(): Promise<AthleteHome> {
+async function freshHome(plannedWorkouts: readonly unknown[]): Promise<AthleteHome> {
   const root = await mkdtemp(join(await realpath(tmpdir()), "plan-calendar-rejected-"));
   roots.push(root);
   const home = {
@@ -63,7 +63,7 @@ async function freshHome(): Promise<AthleteHome> {
       current_status: {},
       derived_metrics: {},
       recent_activities: [],
-      planned_workouts: [],
+      planned_workouts: plannedWorkouts,
       wellness_data: {},
     }),
   );
@@ -134,7 +134,10 @@ function backend(): CoachEngine {
   };
 }
 
-async function planCalendarFixture(credentials: { refused: string; accepted: string }) {
+async function planCalendarFixture(
+  credentials: { refused: string; accepted: string },
+  seed: { plannedWorkouts?: readonly unknown[]; lastSuccessfulSyncAtMs?: number } = {},
+) {
   const requests: { credential: string; method: string; path: string }[] = [];
   const events: Record<string, unknown>[] = [];
   const credentialOf = (authorization: string): string =>
@@ -171,11 +174,18 @@ async function planCalendarFixture(credentials: { refused: string; accepted: str
       }),
     );
   });
-  const home = await freshHome();
+  const home = await freshHome(seed.plannedWorkouts ?? []);
   await mkdir(home.storeDir, { recursive: true });
   const store = openSqliteStorage(join(home.storeDir, "store.db"));
   stores.push(store);
   await runMigrations(store, MIGRATIONS);
+  if (seed.lastSuccessfulSyncAtMs !== undefined) {
+    await store.run(
+      `INSERT INTO source_artifact (artifact_key,source,lane,external_id,artifact_kind,archive_address,archive_rel_path,archive_epoch_s)
+      VALUES ('sync-1', 'intervals-icu', 'activities', 'synthetic-sync', 'snapshot', ?, 'synthetic/sync.json', ?)`,
+      ["a".repeat(64), seed.lastSuccessfulSyncAtMs / 1000],
+    );
+  }
   const drains = vi.spyOn(calendarDrain, "createPlanCalendarDrain");
   const config: Config = {
     dataSource: "store",
@@ -264,6 +274,8 @@ async function planCalendarFixture(credentials: { refused: string; accepted: str
   });
   if (activated.planId === null) throw new Error("Expected active Plan");
   return {
+    planId: activated.planId,
+    operations: lifecycle.operations,
     requests,
     pushesWith: (credential: string) =>
       requests.filter((request) => request.credential === credential && request.method === "POST"),
@@ -320,5 +332,51 @@ describe("Plan calendar while the intervals.icu sign-in is rejected", () => {
     await fixture.listPlans();
 
     expect(fixture.pushesWith(accepted).length).toBeGreaterThan(0);
+  });
+
+  it("still pauses Plan Changes when the last sync is older than 24 hours", async () => {
+    const refused = "intervals-oauth:fixture-calendar-rejected-stale-sync";
+    const accepted = "intervals-oauth:fixture-calendar-new-sign-in-stale-sync";
+    recordIntervalsCredentialResponse(refused, 401);
+    const lastSuccessfulSyncAtMs = Date.UTC(1998, 7, 31, 7);
+    const fixture = await planCalendarFixture({ refused, accepted }, { lastSuccessfulSyncAtMs });
+    await expect(fixture.apply(refused)).resolves.toMatchObject({ status: "applied" });
+
+    const preview = await fixture.operations["plan_change.preview"]({
+      commandId: "stale-preview",
+      planId: fixture.planId,
+      expectedVersion: 1,
+      intent: { kind: "longest-workout", minutes: 20 },
+    });
+
+    expect(preview).toEqual({ status: "rejected", reason: "sync-stale" });
+    expect((await fixture.listPlans()).changesPaused).toEqual({
+      reason: "sync-stale",
+      lastSuccessfulSyncAtMs,
+    });
+  });
+
+  it("keeps race candidates from the last sync while the sign-in is rejected", async () => {
+    const refused = "intervals-oauth:fixture-calendar-rejected-race";
+    const accepted = "intervals-oauth:fixture-calendar-new-sign-in-race";
+    recordIntervalsCredentialResponse(refused, 401);
+    const race = {
+      id: 17,
+      name: "Autumn ride",
+      start_date_local: "1998-09-20T09:00:00",
+      category: "RACE_B",
+    };
+    const fixture = await planCalendarFixture({ refused, accepted }, { plannedWorkouts: [race] });
+    await expect(fixture.apply(refused)).resolves.toMatchObject({ status: "applied" });
+
+    expect((await fixture.listPlans()).active?.supportingEventCandidates).toEqual([
+      {
+        providerId: "17",
+        name: "Autumn ride",
+        date: "1998-09-20",
+        category: "RACE_B",
+        sourceLabel: "Intervals.icu event",
+      },
+    ]);
   });
 });

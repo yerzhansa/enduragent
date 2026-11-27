@@ -769,7 +769,12 @@ export async function createLocalCoachComposition(
   const planningTimezone = resolveUserTimezone(input.config.session.timezone);
   const planningDateKey = (): number =>
     Number(todayInTZ(planningTimezone, new Date(now())).replaceAll("-", ""));
+  const intervalsConfigured = () => approvedConfig().intervals.apiKey.length > 0;
   const calendarConnected = () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey);
+  const eventSources = createPlanChangeEventSourceReader({
+    calendarConnected: intervalsConfigured,
+    readLatest: () => readLatestReference(input.home.root),
+  });
   const planLifecycle = createPlanLifecycleRepository(input.context.store, {
     newId: () => planningIdentity.newUlid(),
   });
@@ -786,12 +791,10 @@ export async function createLocalCoachComposition(
     identity: planningIdentity,
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [] },
-    eventSources: createPlanChangeEventSourceReader({
-      calendarConnected,
-      readLatest: () => readLatestReference(input.home.root),
-    }),
+    eventSources,
     baselineEvidence: { read: async () => undefined },
     calendarConnected,
+    intervalsConfigured,
     legacyPlan: () =>
       readLegacyCurrentPlanSummary({
         home: input.home,
@@ -1982,10 +1985,7 @@ export async function createLocalCoachComposition(
       language: (text) => planningLanguage(text),
       translator: reconfigurable.intentTranslator,
       ftp,
-      eventSources: createPlanChangeEventSourceReader({
-        calendarConnected,
-        readLatest: () => readLatestReference(input.home.root),
-      }),
+      eventSources,
       logger,
       store: input.context.store,
       identity: planningIdentity,
@@ -1993,7 +1993,7 @@ export async function createLocalCoachComposition(
       todayDateKey: planningDateKey,
       timezone: () => planningTimezone,
       now,
-      calendarConnected: async () => calendarConnected(),
+      calendarConnected: async () => intervalsConfigured(),
     });
     await planCreationOperations.ready();
     await planChangeOperations.ready();
