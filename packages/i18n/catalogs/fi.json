@@ -817,7 +817,8 @@
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja.",
-        "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu."
+        "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu.",
+        "savedRides": "Lenkit tallennettu tietokoneelle {{computer}} · yhdistä, niin uudet synkronoidaan"
       },
       "tooltip": {
         "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kirjaudu sitten sisään täällä.",

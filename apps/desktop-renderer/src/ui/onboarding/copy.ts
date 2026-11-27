@@ -236,6 +236,7 @@ export const TRAINING_ROW_TITLE = "Intervals.icu";
 export const TRAINING_ROW_SUBTITLES = {
   connected: msg("setup.training.subtitle.connected"),
   missing: msg("setup.training.subtitle.missing"),
+  savedRides: msg("setup.training.subtitle.savedRides", { computer: PLATFORM_COPY.computer }),
   rejected: msg("setup.training.subtitle.rejected", { intervals: "Intervals.icu" }),
 } as const;
 

@@ -41,12 +41,12 @@
     {
       "id": "training.setup.readiness-sources",
       "surface": "training-setup",
-      "expected": "Training-data readiness is satisfied by an active Intervals.icu connection or durable locally imported rides, while the visible Intervals.icu row continues to report its own connected or connectable state.",
+      "expected": "Training-data readiness is satisfied by an active Intervals.icu connection or durable local rides, and the visible Intervals.icu row reads ready with saved rides while it still offers Connect.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/setup-readiness.test.tsx > accepts durable local rides without a training credential",
         "apps/desktop-renderer/tests/setup-readiness.test.tsx > re-evaluates retained training data after an Intervals deletion refresh when provider ready is $providerReady and durable data is $durableTrainingData",
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > keeps durable training ready while showing the exact first-time Intervals row"
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > shows saved rides as ready on the still-connectable Intervals row"
       ]
     },
     {
@@ -63,11 +63,11 @@
     {
       "id": "training.setup.file-import-fallback",
       "surface": "training-setup",
-      "expected": "Intervals.icu setup offers Import ride files instead, and a successful local ride import can satisfy training-data readiness without connecting or hiding the still-connectable Intervals.icu row.",
+      "expected": "Intervals.icu setup offers Import ride files instead, and a successful local ride import satisfies training-data readiness and marks the still-connectable Intervals.icu row ready without connecting.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu through browser sign-in without rendering a secret field",
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > keeps the first-time Intervals row after a ride import makes training ready"
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > marks the Intervals row ready after a ride import makes training ready"
       ]
     },
     {

@@ -817,7 +817,8 @@
         "connected": "Conectado · de onde vêm suas pedaladas",
         "connectedAs": "Conectado como {{name}} · de onde vêm suas pedaladas",
         "missing": "Conecte ou importe arquivos de pedalada.",
-        "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando."
+        "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando.",
+        "savedRides": "Pedaladas salvas em {{computer}} · conecte para sincronizar as novas"
       },
       "tooltip": {
         "body": "Um site gratuito de treinamento que já armazena suas pedaladas. {{product}} lê as pedaladas de lá em vez de se comunicar diretamente com o fabricante do seu relógio ou ciclocomputador. Você precisa de uma conta gratuita com seu relógio ou ciclocomputador conectado e, depois, entrar aqui.",
