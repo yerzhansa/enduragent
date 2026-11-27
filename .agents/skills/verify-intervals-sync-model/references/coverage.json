@@ -1,5 +1,5 @@
 {
-  "syncCommit": "6ebdd291",
+  "syncCommit": "b150bdd4",
   "fingerprints": {
     "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
     "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
@@ -9,7 +9,7 @@
     "packages/coach-client/src/call-timeouts.ts :: getActivityAnalysis:": "8d0063591c78",
     "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
     "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "4a7e06e4386d",
-    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "270450942ef0",
+    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "86bb9e060e32",
     "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "8ee69d264ee5",
     "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7397fbac5c44",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
@@ -28,7 +28,7 @@
     "packages/coach/src/store-runtime.ts :: private enter(": "4632647fcfa9",
     "packages/coach/src/store-runtime.ts :: private leave(": "a6b8ed7af4be",
     "packages/coach/src/store-runtime.ts :: private async runScheduledWindow()": "bd0021ebc2f3",
-    "packages/coach/src/operations.ts :: sync(request: SyncRpcParams, onEvent)": "4105b109942b",
+    "packages/coach/src/operations.ts :: sync(request: SyncRpcParams, onEvent)": "fd6fdc877e8c",
     "packages/coach/src/operations.ts :: configureRuntime(\n      request: ConfigureRuntimeRpcParams,": "60acec809993",
     "packages/coach/src/daemon/rpc-server.ts :: case \"sync\":": "2286ad38789b",
     "packages/coach/src/composition.ts :: pendingOwnerClaim = await assertIntervalsOwner(": "180b55112bf0",
