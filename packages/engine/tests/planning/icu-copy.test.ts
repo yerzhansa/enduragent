@@ -50,7 +50,7 @@ interface World {
     | { readonly kind: "none" }
     | { readonly kind: "open"; readonly change: Proposal; readonly view: ChangeSetTargetView };
   readonly agreed: Icu;
-  readonly kept: Icu | { readonly kind: "none" };
+  readonly kept: IcuContent | "none";
   readonly approvedOverEdit: "yes" | "no";
   readonly lost: boolean;
   readonly lostKept: boolean;
@@ -89,9 +89,19 @@ function planSide(world: World): IcuPlanSide {
   return { kind: "send", planFingerprint: planFingerprint(world.plan) };
 }
 
+function keptAfter(world: World, after: Icu): IcuContent | "none" {
+  if (world.kept === "none") return "none";
+  if (after.kind === "there" && after.content === world.kept) return world.kept;
+  if (world.dragOfKept === "pending" && after.kind === "gone") return world.kept;
+  const keptOnIcu = world.icu.kind === "there" && world.icu.content === world.kept;
+  return keptOnIcu || world.approvedOverEdit === "yes" ? "none" : world.kept;
+}
+
 function written(world: World, after: Icu, copy: IcuCopy, agreedTo: Icu): World {
-  const keptHere = world.kept.kind !== "none" && sameIcu(world.kept, world.icu);
-  const draggedKept = keptHere && world.dragOfKept === "pending";
+  const keptOnIcu =
+    world.kept !== "none" && world.icu.kind === "there" && world.icu.content === world.kept;
+  const keepsContent = after.kind === "there" && after.content === world.kept;
+  const replaced = keptOnIcu && !keepsContent && world.dragOfKept !== "pending";
   return {
     ...world,
     icu: after,
@@ -99,9 +109,9 @@ function written(world: World, after: Icu, copy: IcuCopy, agreedTo: Icu): World 
     agreed: after,
     copy,
     lost: world.lost || !sameIcu(agreedTo, world.icu),
-    lostKept: world.lostKept || (keptHere && !draggedKept && world.approvedOverEdit === "no"),
+    lostKept: world.lostKept || (replaced && world.approvedOverEdit === "no"),
     needless: world.needless || sameIcu(after, world.icu),
-    kept: draggedKept && after.kind === "there" ? after : { kind: "none" },
+    kept: keptAfter(world, after),
     approvedOverEdit: "no",
     dragOfKept: "none",
   };
@@ -133,7 +143,6 @@ function execute(
     return {
       ...world,
       agreed: after,
-      kept: { kind: "none" },
       approvedOverEdit: "no",
       copy: icuCopyWritten(copy, {
         eventId: EVENT_ID,
@@ -192,7 +201,13 @@ function keep(world: World): World {
   const result = icuCopyKeep(world.copy, current, planSide(world), planFingerprint(adopted));
   if (result.kind !== "done") return { ...world, copy: result.copy };
   if (world.plan.kind !== "workout") return { ...world, copy: result.copy, agreed: world.icu };
-  return { ...world, copy: result.copy, plan: adopted, agreed: world.icu, kept: world.icu };
+  return {
+    ...world,
+    copy: result.copy,
+    plan: adopted,
+    agreed: world.icu,
+    kept: world.icu.kind === "there" ? world.icu.content : "none",
+  };
 }
 
 function putBack(world: World): World {
@@ -326,7 +341,7 @@ function start(): World {
     copy: ICU_COPY_NOT_SENT,
     proposal: { kind: "none" },
     agreed: { kind: "gone" },
-    kept: { kind: "none" },
+    kept: "none",
     approvedOverEdit: "no",
     lost: false,
     lostKept: false,
@@ -563,9 +578,23 @@ describe("a Plan Workout's copy on intervals.icu", () => {
     );
     const away = appRuns(athleteDrags(kept, LATER_WEEK));
     expect(away.icu).toEqual({ kind: "gone" });
-    expect(away.copy).toEqual(ICU_COPY_NOT_SENT);
+    expect(away.copy).toEqual({ kind: "not-sent", owner: "athlete-edit" });
     const due = appRuns({ ...away, laterWeek: "due" });
     expect(due.icu).toEqual({ kind: "there", content: "E", day: LATER_WEEK });
+    expect(due.copy).toMatchObject({ kind: "on-icu", baseline: { owner: "athlete-edit" } });
+    expect(coachProposes(due, { kind: "change-to-q" }).proposal).toMatchObject({
+      view: { mark: "replaces-your-edit" },
+    });
+  });
+
+  it("keeps a moving kept edit as the athlete's when the Plan drops the workout", () => {
+    const kept = keep(
+      appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
+    );
+    const dragged = athleteDrags(kept, SATURDAY);
+    const dropped = appRuns({ ...dragged, plan: { kind: "withdrawn" } });
+    expect(dropped.icu).toEqual({ kind: "there", content: "E", day: THURSDAY });
+    expect(dropped.copy).toEqual({ kind: "kept-as-yours", eventId: EVENT_ID });
   });
 
   it("shows the card when intervals.icu changed after a drag", () => {

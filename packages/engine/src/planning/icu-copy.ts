@@ -23,7 +23,7 @@ export interface IcuBaseline {
 }
 
 export type IcuCopy =
-  | { readonly kind: "not-sent" }
+  | { readonly kind: "not-sent"; readonly owner: IcuCopyOwner }
   | { readonly kind: "on-icu"; readonly baseline: IcuBaseline }
   | {
       readonly kind: "moving-by-you";
@@ -85,7 +85,7 @@ export type ChangeSetTargetApproval =
   | { readonly kind: "approve"; readonly mark: ChangeSetMark }
   | { readonly kind: "refresh"; readonly view: ChangeSetTargetView };
 
-export const ICU_COPY_NOT_SENT: IcuCopy = Object.freeze({ kind: "not-sent" });
+export const ICU_COPY_NOT_SENT: IcuCopy = Object.freeze({ kind: "not-sent", owner: "plan" });
 
 export const UNKNOWN_PLAN_FINGERPRINT = "unknown";
 
@@ -125,6 +125,13 @@ function decideMove(
   plan: IcuPlanSide,
 ): IcuCopyDecision {
   const expected = { eventId: copy.baseline.eventId, expected: copy.baseline.readBack };
+  if (
+    plan.kind === "withdraw" &&
+    plan.reason === "not-in-plan" &&
+    copy.baseline.owner === "athlete-edit"
+  ) {
+    return decision({ kind: "kept-as-yours", eventId: copy.baseline.eventId });
+  }
   if (plan.kind === "withdraw") return decision(copy, { kind: "delete", ...expected });
   if (plan.planFingerprint !== copy.planFingerprint) {
     return decideInSync(copy.baseline, plan);
@@ -154,20 +161,22 @@ function decideInSync(baseline: IcuBaseline, plan: IcuPlanSide): IcuCopyDecision
   });
 }
 
-function decideNotSent(plan: IcuPlanSide, sighting: IcuSighting): IcuCopyDecision {
+function decideNotSent(
+  copy: Extract<IcuCopy, { kind: "not-sent" }>,
+  plan: IcuPlanSide,
+  sighting: IcuSighting,
+): IcuCopyDecision {
   if (sighting.kind === "absent") {
-    return plan.kind === "send"
-      ? decision(ICU_COPY_NOT_SENT, { kind: "create" })
-      : decision(ICU_COPY_NOT_SENT);
+    return plan.kind === "send" ? decision(copy, { kind: "create" }) : decision(copy);
   }
-  if (plan.kind === "withdraw") return decision(ICU_COPY_NOT_SENT);
+  if (plan.kind === "withdraw") return decision(copy);
   return decideInSync(
     {
       eventId: sighting.eventId,
       dateKey: sighting.dateKey,
       planFingerprint: UNKNOWN_PLAN_FINGERPRINT,
       readBack: sighting.version,
-      owner: "plan",
+      owner: copy.owner,
     },
     plan,
   );
@@ -183,7 +192,7 @@ export function icuCopyOnRun(
     case "kept-as-yours":
       return decision(copy);
     case "not-sent":
-      return decideNotSent(plan, sighting);
+      return decideNotSent(copy, plan, sighting);
     case "moving-by-you": {
       if (matchesBaseline(copy.baseline, sighting)) {
         return decideMove({ ...copy, baseline: withFreshToken(copy.baseline, sighting) }, plan);
@@ -302,7 +311,7 @@ export function icuCopyPutBack(
 
 export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy {
   if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") return copy;
-  const kept = copy.kind === "moving-by-you" ? copy.baseline.owner : "plan";
+  const kept = copy.kind === "not-sent" ? copy.owner : copy.baseline.owner;
   return {
     kind: "on-icu",
     baseline: {
@@ -316,28 +325,35 @@ export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy
 }
 
 export function icuCopyDeleted(copy: IcuCopy): IcuCopy {
-  return copy.kind === "removed-by-you" || copy.kind === "kept-as-yours" ? copy : ICU_COPY_NOT_SENT;
+  if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") return copy;
+  if (copy.kind === "moving-by-you") return { kind: "not-sent", owner: copy.baseline.owner };
+  return ICU_COPY_NOT_SENT;
 }
 
 export function icuCopyAllowsMove(copy: IcuCopy): boolean {
-  return icuCopyDrag(copy, "") !== null;
+  return dragAllowed(copy);
+}
+
+function dragAllowed(
+  copy: IcuCopy,
+): copy is Extract<IcuCopy, { kind: "not-sent" | "on-icu" | "moving-by-you" }> {
+  return copy.kind === "not-sent" || copy.kind === "on-icu" || copy.kind === "moving-by-you";
 }
 
 export function icuCopyDrag(copy: IcuCopy, draggedPlanFingerprint: string): IcuCopy | null {
+  if (!dragAllowed(copy)) return null;
   if (copy.kind === "not-sent") return copy;
-  if (copy.kind === "on-icu" || copy.kind === "moving-by-you") {
-    return {
-      kind: "moving-by-you",
-      baseline: copy.baseline,
-      planFingerprint: draggedPlanFingerprint,
-    };
-  }
-  return null;
+  return {
+    kind: "moving-by-you",
+    baseline: copy.baseline,
+    planFingerprint: draggedPlanFingerprint,
+  };
 }
 
 export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCopy {
   if (mark !== "replaces-your-edit") return copy;
   if (copy.kind === "removed-by-you") return ICU_COPY_NOT_SENT;
+  if (copy.kind === "not-sent") return ICU_COPY_NOT_SENT;
   if (
     (copy.kind === "on-icu" || copy.kind === "moving-by-you" || copy.kind === "changed-in-icu") &&
     copy.baseline.owner === "athlete-edit"
@@ -348,6 +364,7 @@ export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCo
 }
 
 function ownedByAthlete(copy: IcuCopy): boolean {
+  if (copy.kind === "not-sent") return copy.owner === "athlete-edit";
   return (
     (copy.kind === "on-icu" || copy.kind === "moving-by-you" || copy.kind === "changed-in-icu") &&
     copy.baseline.owner === "athlete-edit"
@@ -367,6 +384,7 @@ function sightingKey(sighting: IcuSighting): string {
 function basis(copy: IcuCopy, planFingerprint: string): string {
   switch (copy.kind) {
     case "not-sent":
+      return `${copy.kind}|${copy.owner}|${planFingerprint}`;
     case "removed-by-you":
       return `${copy.kind}|${planFingerprint}`;
     case "kept-as-yours":
