@@ -29,6 +29,7 @@ export interface PlanCalendarDrain {
 
 const MIRROR_FAILURE_BUDGET = 5;
 const CLEANUP_RETRY_MS = 900_000;
+const HELD_OBSERVE_MS = 300_000;
 
 function jobErrorCode(failure: PlanIcuWriteErrorCode | undefined): PlanReconciliationErrorCode {
   if (failure === "calendar-create-failed" || failure === "calendar-delete-failed") return failure;
@@ -89,6 +90,7 @@ export function createPlanCalendarDrain(deps: {
   logger: { warn(event: string, fields?: Record<string, unknown>): void };
 }): PlanCalendarDrain {
   let active: Promise<void> | undefined;
+  const observedAt = new Map<string, number>();
   let rerun = false;
   let reclaimRunning = false;
 
@@ -126,10 +128,14 @@ export function createPlanCalendarDrain(deps: {
       now: deps.now,
     };
     for (const planId of await createPlanCleanupHoldRepository(store).readHeldPlanIds()) {
+      const seenAt = observedAt.get(planId);
+      if (seenAt !== undefined && deps.now() - seenAt < HELD_OBSERVE_MS) continue;
+      observedAt.set(planId, deps.now());
       const held = await plans.read(planId);
       if (held === undefined) continue;
       const window = {
         planId,
+        workouts: await plans.readWorkouts(planId),
         startDateKey: addCivilDays(today, 1),
         endDateKey: addCivilDays(held.startDateKey, held.totalWeeks * 7 - 1),
       };

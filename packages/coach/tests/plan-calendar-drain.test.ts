@@ -12,6 +12,7 @@ import {
   addCivilDays,
   createPlanCreationRepository,
   createPlanChangeRepository,
+  createPlanCalendarMirrorRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
 } from "@enduragent/kernel/planning";
@@ -907,6 +908,29 @@ describe("Plan calendar drain", () => {
       movedByYou: { fromDateKey: first.dateKey },
       copy: { kind: "on-intervals" },
     });
+  });
+
+  it("keeps a drag not yet sent as a drag while the Plan is held behind a Replace", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    const mirror = createPlanCalendarMirrorRepository(test.store);
+    const dragged = async () =>
+      (await mirror.readCopies(planId)).find((copy) => copy.planWorkoutId === first.id);
+    expect(await dragged()).toMatchObject({ stateKind: "moving-by-you" });
+    const replacement = await test.activate();
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.drain.kick();
+    expect(
+      await dragged(),
+      "the held Plan's unsent drag after the drain read it back",
+    ).toMatchObject({
+      stateKind: "moving-by-you",
+    });
+    expect(test.calendar.updates, "nothing is written to the held Plan").toEqual([]);
   });
 
   it("swaps with the workout already on the target day when asked", async () => {

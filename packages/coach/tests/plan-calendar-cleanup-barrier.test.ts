@@ -813,6 +813,7 @@ describe("Replace as one Change Set", () => {
     test.calendar.editByAthlete(changed.id, { name: "Changed during the hold" });
     test.calendar.editByAthlete(moved.id, { dateKey: addCivilDays(moved.dateKey, 1) });
     test.calendar.deleteByAthlete(deleted.id);
+    test.advanceMs(300_000);
     await test.drain.kick();
 
     const replacing = await test.replacing();
@@ -833,6 +834,29 @@ describe("Replace as one Change Set", () => {
     for (const kept of [edited, changed, moved]) {
       expect(test.calendar.events.some((event) => event.id === kept.id)).toBe(true);
     }
+  });
+
+  it("reads a held Plan back from intervals.icu at most every five minutes, and only when it has workouts there", async () => {
+    const { test, oldPlan } = await mirroredPlanWithAnEdit();
+    await test.activate(false);
+    const heldLists = () =>
+      test.calendar.lists.filter((list) => list.startDateKey === addCivilDays(closedOn, 1)).length;
+    const before = heldLists();
+    await test.drain.kick();
+    expect(heldLists(), "the first run after Replace").toBe(before + 1);
+    await test.drain.kick();
+    await test.drain.kick();
+    expect(heldLists(), "runs within five minutes").toBe(before + 1);
+    test.advanceMs(300_000);
+    await test.drain.kick();
+    expect(heldLists(), "five minutes later").toBe(before + 2);
+    expect(test.datesOf(oldPlan).length).toBeGreaterThan(1);
+
+    const unsent = await harness();
+    await unsent.activate(false);
+    await unsent.activate(false);
+    await unsent.drain.kick();
+    expect(unsent.calendar.lists, "a held Plan with nothing on intervals.icu").toEqual([]);
   });
 
   it("counts and lists the old Plan's held workouts when the athlete ends the waiting Plan", async () => {

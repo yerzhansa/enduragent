@@ -361,6 +361,39 @@ describe("Plan Creation activation repository", () => {
     ).toEqual([]);
   });
 
+  it("drops a stale End choice when the drain releases a hold whose replacement no longer waits", async () => {
+    await review();
+    await repository.activate(activationInput());
+    await review("2");
+    await repository.activate(activationInput("2", { planId: id("11"), version: 1 }));
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      JSON.stringify({ kind: "remove-them", ticked: [], commandId: "an-unconfirmed-end" }),
+      id("11"),
+    ]);
+    await store.run(
+      "UPDATE plan_week_delivery SET state_kind='approved',state_json=? WHERE plan_id=?",
+      [JSON.stringify({ kind: "approved", firstSetWeeks: [], approvedWeeks: [] }), id("12")],
+    );
+    expect(
+      await createPlanCleanupHoldRepository(store).releaseOrphans({
+        closedOnDateKey: 19980101,
+        nowMs: nowMs + 30,
+        newId: () => id("62"),
+      }),
+    ).toEqual([id("11")]);
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+    ).toEqual({ close_choice_json: '{"kind":"keep-them"}' });
+    expect(
+      await store.get(
+        "SELECT plan_id,kind,window_start_date_key FROM plan_reconciliation_job WHERE id=?",
+        [id("62")],
+      ),
+    ).toEqual({ plan_id: id("11"), kind: "cleanup", window_start_date_key: 19980102 });
+  });
+
   it("leaves a released hold aimed at the Plan it was released for when that Plan is replaced", async () => {
     await review();
     await repository.activate(activationInput());

@@ -45,6 +45,15 @@ type HoldStore = Pick<SqlStore, "run" | "get" | "all">;
 
 const HOLD_COLUMNS = "plan_id,replacement_plan_id,held_at_ms,released_at_ms";
 
+const ORPHAN_FILTER = `FROM plan_cleanup_hold
+WHERE released_at_ms IS NULL AND replacement_plan_id NOT IN (
+  SELECT planning_plan.plan_id FROM planning_plan
+  JOIN plan_week_delivery ON plan_week_delivery.plan_id=planning_plan.plan_id
+  WHERE planning_plan.status='active' AND plan_week_delivery.state_kind='waiting-for-first-approve'
+)`;
+const ORPHANS = `SELECT ${HOLD_COLUMNS} ${ORPHAN_FILTER}`;
+const ORPHAN_IDS = `SELECT plan_id ${ORPHAN_FILTER}`;
+
 function holdFromRow(row: unknown): PlanCleanupHoldRecord {
   const parsed = HoldRowSchema.parse(row);
   return {
@@ -112,14 +121,13 @@ WHERE replacement_plan_id=? AND released_at_ms IS NULL ORDER BY held_at_ms,plan_
       return releaseAll(rows.map(holdFromRow), release);
     },
     async releaseOrphans(release) {
-      const rows = await store.all(
-        `SELECT ${HOLD_COLUMNS} FROM plan_cleanup_hold
-WHERE released_at_ms IS NULL AND replacement_plan_id NOT IN (
-  SELECT planning_plan.plan_id FROM planning_plan
-  JOIN plan_week_delivery ON plan_week_delivery.plan_id=planning_plan.plan_id
-  WHERE planning_plan.status='active' AND plan_week_delivery.state_kind='waiting-for-first-approve'
-) ORDER BY held_at_ms,plan_id`,
+      await store.run(
+        `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',
+updated_at_ms=MAX(updated_at_ms,?)
+WHERE plan_id IN (${ORPHAN_IDS})`,
+        [release.nowMs],
       );
+      const rows = await store.all(`${ORPHANS} ORDER BY held_at_ms,plan_id`);
       return releaseAll(rows.map(holdFromRow), release);
     },
     async readForReplacement(replacementPlanId) {
