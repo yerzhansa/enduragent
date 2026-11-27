@@ -29,6 +29,8 @@ AGENTS.override.md
 !.agents/skills/verify-enduragent/**
 !.agents/skills/verify-setup-operations/
 !.agents/skills/verify-setup-operations/**
+!.agents/skills/verify-calendar-machines/
+!.agents/skills/verify-calendar-machines/**
 !.agents/skills/code-review-and-quality/
 !.agents/skills/code-review-and-quality/**
 .worktrees/

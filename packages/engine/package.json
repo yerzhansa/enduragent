@@ -3,10 +3,11 @@
   "version": "0.0.9",
   "private": true,
   "description": "Private coaching engine boundary and sport contract.",
-  "type": "module",
+  "license": "MIT",
   "files": [
     "dist"
   ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +16,10 @@
     "./sport": {
       "types": "./dist/sport.d.ts",
       "import": "./dist/sport.js"
+    },
+    "./calendar": {
+      "types": "./dist/calendar.d.ts",
+      "import": "./dist/calendar.js"
     }
   },
   "scripts": {
@@ -46,6 +51,5 @@
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
-  },
-  "license": "MIT"
+  }
 }
