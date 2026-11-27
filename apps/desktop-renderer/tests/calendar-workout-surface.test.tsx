@@ -494,8 +494,7 @@ describe("one Calendar sheet at a time", () => {
     expect(useEnduragentStore.getState().calendarMove).toEqual(MOVE_DIALOG_CLOSED);
   });
 
-  it("lets the athlete page away while the move dialog is open, and Retry pages back to the target", async () => {
-    const user = userEvent.setup();
+  function paging() {
     const longer = calendarRead(
       TODAY,
       plan(
@@ -505,44 +504,93 @@ describe("one Calendar sheet at a time", () => {
       ),
     );
     show(longer);
-    const showWeekOf = vi.fn();
-    const refresh = vi.fn();
+    const calendar = {
+      refresh: vi.fn(),
+      previous: vi.fn(),
+      next: vi.fn(),
+      today: vi.fn(),
+      showWeekOf: vi.fn(),
+    };
     act(() => {
-      useEnduragentStore.setState({
-        calendarActions: { refresh, previous: vi.fn(), next: vi.fn(), today: vi.fn(), showWeekOf },
-      });
+      useEnduragentStore.setState({ calendarActions: calendar });
     });
+    const shows = (firstRowStart: number, refresh: "idle" | "failed" = "idle") =>
+      act(() => {
+        useEnduragentStore.setState({
+          calendar: {
+            kind: "ready",
+            read: { ...longer },
+            range: { firstRowStart, rowCount: 2 },
+            refresh,
+          },
+        });
+      });
+    const failed = () =>
+      act(() => {
+        const current = useEnduragentStore.getState().calendar;
+        if (current.kind === "ready") {
+          useEnduragentStore.setState({ calendar: { ...current, refresh: "failed" } });
+        }
+      });
+    return { calendar, shows, failed };
+  }
+
+  it("lets the athlete page away while the move dialog is open, and scrolls once per target", async () => {
+    const user = userEvent.setup();
+    const { calendar, shows } = paging();
     const scrolled = vi.fn();
     Element.prototype.scrollIntoView = scrolled;
     try {
       render(<CalendarView />);
       await user.click(gridCard(workoutId(1)));
       await user.click(screen.getByRole("button", { name: "Move…" }));
-      expect(showWeekOf).toHaveBeenCalledTimes(1);
-      const pageTo = (firstRowStart: number, refreshState: "idle" | "failed" = "idle") =>
-        act(() => {
-          useEnduragentStore.setState({
-            calendar: {
-              kind: "ready",
-              read: { ...longer },
-              range: { firstRowStart, rowCount: 2 },
-              refresh: refreshState,
-            },
-          });
-        });
-      pageTo(19980119);
+      expect(calendar.showWeekOf).toHaveBeenCalledTimes(1);
+      shows(19980119);
       expect(scrolled).toHaveBeenCalledTimes(1);
-      pageTo(19980202);
-      pageTo(19980216);
-      expect(showWeekOf).toHaveBeenCalledTimes(1);
-      pageTo(19980216);
+      await user.click(screen.getByRole("button", { name: "Next week" }));
+      shows(19980202);
+      await user.click(screen.getByRole("button", { name: "Next week" }));
+      shows(19980216);
+      shows(19980216);
+      expect(calendar.next).toHaveBeenCalledTimes(2);
+      expect(calendar.showWeekOf).toHaveBeenCalledTimes(1);
       expect(scrolled).toHaveBeenCalledTimes(1);
-      pageTo(19980216, "failed");
-      await user.click(screen.getByRole("button", { name: "Try again" }));
-      expect(showWeekOf).toHaveBeenLastCalledWith(19980126);
-      expect(refresh).not.toHaveBeenCalled();
     } finally {
       Reflect.deleteProperty(Element.prototype, "scrollIntoView");
     }
+  });
+
+  it("pages again when the target changed while its own page was loading", async () => {
+    const user = userEvent.setup();
+    const { calendar, shows } = paging();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    expect(calendar.showWeekOf).toHaveBeenLastCalledWith(19980126);
+    await user.click(screen.getByRole("button", { name: "Earlier day" }));
+    expect(calendar.showWeekOf).toHaveBeenCalledTimes(1);
+    shows(19980126);
+    expect(calendar.showWeekOf).toHaveBeenLastCalledWith(19980124);
+    expect(calendar.showWeekOf).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries the dialog's own failed page, and reloads the athlete's own view otherwise", async () => {
+    const user = userEvent.setup();
+    const { calendar, shows, failed } = paging();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    failed();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(calendar.showWeekOf).toHaveBeenLastCalledWith(19980126);
+    expect(calendar.showWeekOf).toHaveBeenCalledTimes(2);
+    expect(calendar.refresh).not.toHaveBeenCalled();
+    shows(19980119);
+    await user.click(screen.getByRole("button", { name: "Next week" }));
+    shows(19980202);
+    failed();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(calendar.refresh).toHaveBeenCalledOnce();
+    expect(calendar.showWeekOf).toHaveBeenCalledTimes(2);
   });
 });

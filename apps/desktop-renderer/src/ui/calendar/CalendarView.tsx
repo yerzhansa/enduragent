@@ -13,6 +13,7 @@ import {
 import type { MoveDialogState } from "../../calendar/move-controller";
 import { rendererPlatformProjection } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
+import type { CalendarActions } from "../../state/calendar-slice";
 import {
   approvalFor,
   approvedWeeks,
@@ -271,16 +272,65 @@ function DetailsLayer(props: { readonly read: PlanCalendarRead }): ReactElement 
   );
 }
 
+interface MovePaging {
+  takePaged(): boolean;
+  retry(): boolean;
+  athleteNavigates(): void;
+}
+
+function useMovePaging(
+  range: CalendarRange | null,
+  move: MoveDialogState,
+  calendar: CalendarActions | null,
+): MovePaging {
+  const paged = useRef(false);
+  const handled = useRef<number | null>(null);
+  const pending = useRef<number | null>(null);
+  const shown = useRef(range);
+  const target = move.kind === "closed" ? null : move.toDateKey;
+  useEffect(() => {
+    const moved = shown.current !== range;
+    shown.current = range;
+    if (target === null || range === null) {
+      paged.current = false;
+      handled.current = null;
+      pending.current = null;
+      return;
+    }
+    const landed = moved && pending.current !== null && inRange(range, pending.current);
+    if (moved) pending.current = null;
+    if (handled.current === target && !landed) return;
+    handled.current = target;
+    if (inRange(range, target)) return;
+    paged.current = true;
+    pending.current = target;
+    calendar?.showWeekOf(target);
+  }, [target, range, calendar]);
+  return {
+    takePaged() {
+      const was = paged.current;
+      paged.current = false;
+      return was;
+    },
+    retry() {
+      if (pending.current === null || target === null) return false;
+      pending.current = target;
+      calendar?.showWeekOf(target);
+      return true;
+    },
+    athleteNavigates() {
+      pending.current = null;
+    },
+  };
+}
+
 function MoveLayer(props: {
   readonly read: PlanCalendarRead;
-  readonly range: CalendarRange;
+  readonly takePaged: () => boolean;
   readonly onPageBack: (workoutId: string, dateKey: number) => void;
 }): ReactElement | null {
   const state = useEnduragentStore((store) => store.calendarMove);
   const actions = useEnduragentStore((store) => store.calendarMoveActions);
-  const calendar = useEnduragentStore((store) => store.calendarActions);
-  const paged = useRef(false);
-  const handled = useRef<number | null>(null);
   const preview =
     state.kind === "closed"
       ? null
@@ -288,20 +338,6 @@ function MoveLayer(props: {
   useEffect(() => {
     if (state.kind !== "closed" && state.kind !== "moving" && preview === null) actions?.cancel();
   }, [state.kind, preview, actions]);
-  const target = state.kind === "closed" ? null : state.toDateKey;
-  const offGrid = target !== null && !inRange(props.range, target);
-  useEffect(() => {
-    if (target === null) {
-      paged.current = false;
-      handled.current = null;
-      return;
-    }
-    if (handled.current === target) return;
-    handled.current = target;
-    if (!offGrid) return;
-    paged.current = true;
-    calendar?.showWeekOf(target);
-  }, [target, offGrid, calendar]);
   if (state.kind === "closed" || preview === null) return null;
   return (
     <MoveDialog
@@ -322,8 +358,7 @@ function MoveLayer(props: {
       onMove={() => actions?.confirm(preview.canSwap)}
       onCancel={() => {
         if (state.kind === "moving") return;
-        const pageBack = paged.current;
-        paged.current = false;
+        const pageBack = props.takePaged();
         actions?.cancel();
         if (pageBack) props.onPageBack(preview.workout.id, preview.workout.dateKey);
       }}
@@ -465,6 +500,7 @@ export function CalendarView(): ReactElement {
       approval.kind !== "closed",
     move.kind === "moving",
   );
+  const paging = useMovePaging(state.kind === "ready" ? state.range : null, move, actions);
   const locked = change.kind === "working" || detailsEnding(details) || move.kind === "moving";
   const clearSheets = (keep: "card" | "move" | "change" | "details" | "approve"): boolean => {
     if (locked) return false;
@@ -489,11 +525,21 @@ export function CalendarView(): ReactElement {
         variant="outline"
         size="icon"
         aria-label={say("plan.calendar.previous")}
-        onClick={() => actions?.previous()}
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.previous();
+        }}
       >
         <ChevronLeft aria-hidden="true" />
       </Button>
-      <Button type="button" variant="outline" onClick={() => actions?.today()}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.today();
+        }}
+      >
         {say("plan.calendar.today")}
       </Button>
       {read === null || read.plan === null ? null : (
@@ -514,7 +560,10 @@ export function CalendarView(): ReactElement {
         variant="outline"
         size="icon"
         aria-label={say("plan.calendar.next")}
-        onClick={() => actions?.next()}
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.next();
+        }}
       >
         <ChevronRight aria-hidden="true" />
       </Button>
@@ -549,11 +598,7 @@ export function CalendarView(): ReactElement {
             {state.refresh === "failed" ? (
               <RefreshFailed
                 onRetry={() => {
-                  if (move.kind !== "closed" && !inRange(state.range, move.toDateKey)) {
-                    actions?.showWeekOf(move.toDateKey);
-                  } else {
-                    actions?.refresh();
-                  }
+                  if (!paging.retry()) actions?.refresh();
                 }}
               />
             ) : null}
@@ -564,7 +609,10 @@ export function CalendarView(): ReactElement {
             ) : (
               <SeasonStrip
                 plan={state.read.plan}
-                onWeek={(dateKey) => actions?.showWeekOf(dateKey)}
+                onWeek={(dateKey) => {
+                  paging.athleteNavigates();
+                  actions?.showWeekOf(dateKey);
+                }}
               />
             )}
             <CalendarGrid
@@ -625,7 +673,7 @@ export function CalendarView(): ReactElement {
       {state.kind === "ready" ? (
         <MoveLayer
           read={state.read}
-          range={state.range}
+          takePaged={paging.takePaged}
           onPageBack={(workoutId, dateKey) => {
             returnFocus(workoutId, state.read);
             actions?.showWeekOf(dateKey);

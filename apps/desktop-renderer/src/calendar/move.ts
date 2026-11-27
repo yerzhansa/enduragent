@@ -7,6 +7,11 @@ export type MoveWhere =
   | { readonly kind: "leaves"; readonly week: number }
   | { readonly kind: "plan-only" };
 
+export type MoveChange =
+  | { readonly kind: "on" }
+  | { readonly kind: "off"; readonly week: number }
+  | null;
+
 export interface MovePreview {
   readonly workout: PlanCalendarWorkout;
   readonly toDateKey: number;
@@ -14,8 +19,8 @@ export interface MovePreview {
   readonly canSwap: boolean;
   readonly where: MoveWhere;
   readonly crossing: {
-    readonly moved: "on" | "off";
-    readonly swapped: { readonly kind: "on" } | { readonly kind: "off"; readonly week: number };
+    readonly moved: MoveChange;
+    readonly swapped: MoveChange;
   } | null;
   readonly weeks:
     | { readonly kind: "same"; readonly week: PlanCalendarWeek }
@@ -41,6 +46,11 @@ function whereTo(read: PlanCalendarRead, sent: boolean, dateKey: number): MoveWh
   return sent && to !== undefined ? { kind: "leaves", week: to.index } : { kind: "plan-only" };
 }
 
+function changeOf(sent: boolean, where: MoveWhere): MoveChange {
+  if (where.kind === "leaves") return { kind: "off", week: where.week };
+  return where.kind === "goes" && !sent ? { kind: "on" } : null;
+}
+
 function crossingOf(
   read: PlanCalendarRead,
   workout: PlanCalendarWorkout,
@@ -48,14 +58,9 @@ function crossingOf(
   clash: readonly PlanCalendarWorkout[],
 ): MovePreview["crossing"] {
   const clashSent = clash.some(sentCopy);
-  const swapped = whereTo(read, clashSent, workout.dateKey);
-  if (where.kind === "leaves" && swapped.kind === "goes" && !clashSent) {
-    return { moved: "off", swapped: { kind: "on" } };
-  }
-  if (where.kind === "goes" && !sentCopy(workout) && swapped.kind === "leaves") {
-    return { moved: "on", swapped: { kind: "off", week: swapped.week } };
-  }
-  return null;
+  const moved = changeOf(sentCopy(workout), where);
+  const swapped = changeOf(clashSent, whereTo(read, clashSent, workout.dateKey));
+  return moved === null && swapped === null ? null : { moved, swapped };
 }
 
 function weekOf(read: PlanCalendarRead, dateKey: number): PlanCalendarWeek | undefined {

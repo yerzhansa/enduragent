@@ -29,6 +29,14 @@ function keepTargetClear(frame: HTMLElement, dateKey: number): boolean {
   return true;
 }
 
+function staysText(preview: MovePreview, text: CalendarText, say: Say): string {
+  return preview.where.kind === "goes"
+    ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
+    : preview.where.kind === "leaves"
+      ? say("plan.calendar.move.leaves", { week: preview.where.week })
+      : say("plan.calendar.move.planOnly");
+}
+
 function crossingText(
   preview: MovePreview,
   crossing: NonNullable<MovePreview["crossing"]>,
@@ -36,15 +44,18 @@ function crossingText(
   say: Say,
 ): string {
   const moved =
-    preview.where.kind === "leaves"
-      ? say("plan.calendar.move.movedOff", {
-          name: preview.workout.name,
-          week: preview.where.week,
-        })
-      : say("plan.calendar.move.movedOn", {
-          name: preview.workout.name,
-          date: text.weekdayDayMonth(preview.toDateKey),
-        });
+    crossing.moved === null
+      ? staysText(preview, text, say)
+      : crossing.moved.kind === "off"
+        ? say("plan.calendar.move.movedOff", {
+            name: preview.workout.name,
+            week: crossing.moved.week,
+          })
+        : say("plan.calendar.move.movedOn", {
+            name: preview.workout.name,
+            date: text.weekdayDayMonth(preview.toDateKey),
+          });
+  if (crossing.swapped === null) return moved;
   const names = text.names(preview.clash.map((workout) => workout.name));
   const swapped =
     crossing.swapped.kind === "on"
@@ -63,13 +74,9 @@ function crossingText(
 
 function effect(preview: MovePreview, text: CalendarText, say: Say): string {
   const where =
-    preview.crossing !== null
-      ? crossingText(preview, preview.crossing, text, say)
-      : preview.where.kind === "goes"
-        ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
-        : preview.where.kind === "leaves"
-          ? say("plan.calendar.move.leaves", { week: preview.where.week })
-          : say("plan.calendar.move.planOnly");
+    preview.crossing === null
+      ? staysText(preview, text, say)
+      : crossingText(preview, preview.crossing, text, say);
   const weeks = preview.weeks;
   if (weeks === null) return where;
   const totals =

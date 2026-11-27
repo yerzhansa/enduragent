@@ -1,5 +1,5 @@
 import { renderLocalized as render } from "./language-harness";
-import type { PlanCalendarWorkout } from "@enduragent/coach-contract";
+import type { PlanCalendarWeek, PlanCalendarWorkout } from "@enduragent/coach-contract";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -348,6 +348,86 @@ describe("moving a workout on the Calendar", () => {
         /^It moves on intervals.icu too, so your head unit gets it for Saturday./u,
       );
       expect(body).not.toHaveTextContent("Long ride");
+    });
+  });
+
+  describe("naming every workout whose intervals.icu state changes with Swap", () => {
+    const JAN_5 = 19980105;
+    const sent = { kind: "on-intervals", owner: "plan" } as const;
+    const planOnly = { kind: "plan-only" } as const;
+    const goesOut = { status: { kind: "goes-out", onDateKey: 19980112 } } as const;
+    const waiting = { status: { kind: "waiting-for-week-approve" } } as const;
+    function build(
+      weekTwo: Partial<PlanCalendarWeek>,
+      second: number,
+      secondCopy: PlanCalendarWorkout["copy"],
+    ) {
+      return calendarRead(
+        JAN_5,
+        plan(
+          JAN_5,
+          [week(1, JAN_5), week(2, 19980112, weekTwo), week(3, 19980119, goesOut)],
+          [
+            workout(1, 19980107, { name: "Endurance ride", movable: true, copy: sent }),
+            workout(2, second, { name: "Long ride", movable: true, copy: secondCopy }),
+          ],
+        ),
+      );
+    }
+    it.each([
+      [
+        "A: an intervals.icu workout swaps into a week that has not gone out",
+        build({}, 19980121, planOnly),
+        1,
+        19980121,
+        "Endurance ride comes off intervals.icu until Week 3 goes out. Long ride goes on intervals.icu for Wed 7 Jan.",
+      ],
+      [
+        "B: a Plan-only workout swaps into a week on intervals.icu",
+        build({}, 19980121, planOnly),
+        2,
+        19980107,
+        "Long ride goes on intervals.icu for Wed 7 Jan. Endurance ride comes off intervals.icu until Week 3 goes out.",
+      ],
+      [
+        "C: only the other workout goes on, into a week waiting for Approve",
+        build(waiting, 19980114, planOnly),
+        1,
+        19980114,
+        "It moves on intervals.icu too, so your head unit gets it for Wednesday. Long ride goes on intervals.icu for Wed 7 Jan.",
+      ],
+      [
+        "D: only the moved workout goes on, from a week waiting for Approve",
+        build(waiting, 19980114, planOnly),
+        2,
+        19980107,
+        "Long ride goes on intervals.icu for Wed 7 Jan. Week 2 becomes",
+      ],
+      [
+        "E: both workouts stay on intervals.icu",
+        build({}, 19980114, sent),
+        1,
+        19980114,
+        "It moves on intervals.icu too, so your head unit gets it for Wednesday. Week 1 becomes",
+      ],
+    ] as const)("%s", (_case, calendar, moving, toDateKey, expected) => {
+      show(
+        { kind: "open", planId: PLAN_ID, workoutId: workoutId(moving), toDateKey, swap: true },
+        calendar,
+      );
+      act(() => {
+        useEnduragentStore.setState({
+          calendar: {
+            kind: "ready",
+            read: calendar,
+            range: { firstRowStart: JAN_5, rowCount: 3 },
+            refresh: "idle",
+          },
+        });
+      });
+      render(<CalendarView />);
+      const body = document.querySelector("[data-move-effect]");
+      expect(body?.textContent?.replaceAll("\u00a0", " ")).toContain(expected);
     });
   });
 
