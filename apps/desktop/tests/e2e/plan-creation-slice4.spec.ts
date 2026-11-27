@@ -201,7 +201,9 @@ async function completeFitness(scenario: Scenario): Promise<void> {
   await scenario.page.locator('[data-answer="hours-6"]').click();
   await scenario.page.locator('[data-parity="availability.longest"]').fill("2");
   await continueAnswer(scenario);
-  await choose(scenario, "asap");
+  await scenario.page.locator('[data-answer="earliest"]').click();
+  await scenario.page.getByLabel("Plan starts", { exact: true }).fill("1998-01-01");
+  await continueAnswer(scenario);
   await choose(scenario, "none");
   await choose(scenario, "regular");
   await scenario.page.locator('[data-parity="choice.custom"][data-answer="custom"]').click();

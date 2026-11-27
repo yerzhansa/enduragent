@@ -152,15 +152,28 @@ export function digest(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-export function buildCreationDraft(input: CreationDraftInput): CreationDraftResult {
+export function pickedStart(picked: string, today: string, eventDate: string | null): string {
+  const pickedKey = dateKeyFromText(picked);
+  const todayKey = dateKeyFromText(today);
+  if (pickedKey >= todayKey) return picked;
+  const moved = civilText(
+    addCivilDays(pickedKey, Math.ceil((inclusiveCivilDays(pickedKey, todayKey) - 1) / 7) * 7),
+  );
+  return eventDate !== null && moved > eventDate ? today : moved;
+}
+
+export function creationStart(input: CreationDraftInput): string | null {
   const { answers } = input;
-  const { availability, goal } = answers;
-  const earliest =
-    answers.startTiming.kind === "earliest" && answers.startTiming.date > input.today
-      ? answers.startTiming.date
-      : input.today;
-  const earliestKey = dateKeyFromText(earliest);
-  let startKey: number | undefined;
+  const { availability } = answers;
+  const earliestKey = dateKeyFromText(
+    answers.startTiming.kind === "earliest"
+      ? pickedStart(
+          answers.startTiming.date,
+          input.today,
+          answers.goal.kind === "event" ? answers.goal.date : null,
+        )
+      : input.today,
+  );
   for (let offset = 0; offset < 370; offset++) {
     const date = addCivilDays(earliestKey, offset);
     if (
@@ -168,16 +181,27 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
         availability.usableWeekdays.includes(weekdayForDateKey(date) || 7)) &&
       !rulesFor(answers, date).unavailable
     ) {
-      startKey = date;
-      break;
+      return civilText(
+        answers.startTiming.kind === "earliest"
+          ? addCivilDays(earliestKey, Math.floor(offset / 7) * 7)
+          : date,
+      );
     }
   }
-  if (startKey === undefined)
+  return null;
+}
+
+export function buildCreationDraft(input: CreationDraftInput): CreationDraftResult {
+  const { answers } = input;
+  const { availability, goal } = answers;
+  const start = creationStart(input);
+  if (start === null)
     return {
       kind: "no-workouts",
       explanation:
         "No Workouts fit anywhere in this Plan under your confirmed limits. Edit those limits to continue.",
     };
+  const startKey = dateKeyFromText(start);
   if (goal.kind === "event" && dateKeyFromText(goal.date) < startKey)
     return { kind: "no-workouts", explanation: "Choose an event date on or after the Plan start." };
   const computedWeeks =
@@ -315,7 +339,7 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
     guidance,
     ftp: null,
     builderId: "cycling-creation-draft",
-    builderVersion: "1",
+    builderVersion: "2",
   };
   return { ...draft, inputFingerprint: digest(input), outputFingerprint: digest(draft) };
 }

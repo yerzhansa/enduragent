@@ -128,13 +128,15 @@ describe("workouts changed in intervals.icu on the Calendar", () => {
     const deleted = within(cell(19980117)).getByRole("button", { name: /Long endurance/u });
     expect(deleted).toHaveTextContent("Long endurance2h 45mDeleted in intervals.icu");
     expect(cell(19980116)).not.toHaveTextContent("Rest day");
-    expect(within(cell(19980118)).queryByRole("button")).toBeNull();
+    const unchanged = within(cell(19980118)).getByRole("button", { name: /Endurance 4/u });
     await user.click(edited);
     await user.click(movedIn);
     await user.click(deleted);
+    await user.click(unchanged);
     expect(bound.open).toHaveBeenNthCalledWith(1, PLAN_ID, workoutId(1));
     expect(bound.open).toHaveBeenNthCalledWith(2, PLAN_ID, workoutId(2));
     expect(bound.open).toHaveBeenNthCalledWith(3, PLAN_ID, workoutId(3));
+    expect(bound.open).toHaveBeenCalledTimes(3);
   });
 
   it("compares an edit side by side and offers Keep and Put back with their lengths", async () => {

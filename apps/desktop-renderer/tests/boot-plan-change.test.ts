@@ -149,12 +149,12 @@ const creation: PlanCreationCardModel = {
     earliestAllowed: "1998-10-01",
     options: [
       {
-        timing: "as-soon-as-possible",
-        label: "As soon as possible",
-        detail: "Start at the earliest suitable week.",
+        timing: "first-day-of-week",
+        label: "First day of your week",
+        detail: "One calendar row is one Training Week.",
       },
     ],
-    dateLabel: "Earliest start date",
+    dateLabel: "Plan starts",
   },
 };
 const pendingChangeCheck: PlanChangePendingCheck = {

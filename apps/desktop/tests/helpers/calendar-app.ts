@@ -44,7 +44,7 @@ export async function launch(
     calendar: ReturnType<typeof createMemoryPlanCalendar>,
   ) => Promise<string>,
   colorScheme: "light" | "dark" = "light",
-  options: { readonly waitForApprove?: boolean } = {},
+  options: { readonly waitForApprove?: boolean; readonly keepsDraftText?: boolean } = {},
 ): Promise<Scenario> {
   const scratch = await mkdtemp(join(tmpdir(), "calendar-page-"));
   const calendar = createMemoryPlanCalendar();
@@ -52,6 +52,7 @@ export async function launch(
     calendar,
     calendarConnected: true,
     waitForApprove: options.waitForApprove ?? false,
+    keepsDraftText: options.keepsDraftText ?? false,
   });
   let fixture: RunningDesktopFixture | undefined;
   try {

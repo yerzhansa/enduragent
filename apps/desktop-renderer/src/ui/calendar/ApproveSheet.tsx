@@ -156,7 +156,11 @@ export function ApproveSheet(props: {
       data-replace-sheet={replace === null ? undefined : replace.replacing.cleanup}
     >
       <span className="text-xs text-ink-2">{caption}</span>
-      <h2 ref={title} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
+      <h2
+        ref={title}
+        tabIndex={-1}
+        className="m-0 text-lg font-semibold text-ink focus:outline-none"
+      >
         {heading}
       </h2>
       {removing === null ? (

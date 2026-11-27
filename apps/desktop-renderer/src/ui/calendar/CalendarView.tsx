@@ -1,15 +1,19 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { Button, Page } from "@enduragent/ui";
+import { Button, Page, cn } from "@enduragent/ui";
 import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import { useEffect, type ReactElement } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 import {
   calendarRows,
   currentWeek,
   intervalsChanges,
+  rangeDates,
+  type CalendarRange,
   type PlanCalendarRead,
 } from "../../calendar/grid";
+import type { MoveDialogState } from "../../calendar/move-controller";
 import { rendererPlatformProjection } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
+import type { CalendarActions } from "../../state/calendar-slice";
 import {
   approvalFor,
   approvedWeeks,
@@ -21,14 +25,16 @@ import {
 } from "../../calendar/approval";
 import type { ApproveSheetState } from "../../calendar/approve-controller";
 import { ApproveSheet, type ApproveSheetPhase, type ApproveSheetReplace } from "./ApproveSheet";
-import { CalendarGrid } from "./CalendarGrid";
+import type { PlanCalendarWorkout } from "@enduragent/coach-contract";
+import { CalendarGrid, type CalendarMoving } from "./CalendarGrid";
 import { ChangeSheet } from "./ChangeSheet";
 import { MoveDialog } from "./MoveDialog";
 import { PlanDetailsSheet } from "./PlanDetailsSheet";
-import { movePreview } from "../../calendar/move";
+import { dropDayFrom, firstDropDay, movePreview } from "../../calendar/move";
 import { detailsEnding } from "../../calendar/details-controller";
 import { ReplaceWaitingBanner, WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
+import { WorkoutSheet } from "./WorkoutSheet";
 import { useCalendarText } from "./calendar-text";
 
 function useSubtitle(read: PlanCalendarRead | null): string | undefined {
@@ -266,7 +272,63 @@ function DetailsLayer(props: { readonly read: PlanCalendarRead }): ReactElement 
   );
 }
 
-function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+interface MovePaging {
+  takePaged(): boolean;
+  retry(): boolean;
+  athleteNavigates(): void;
+}
+
+function useMovePaging(
+  range: CalendarRange | null,
+  move: MoveDialogState,
+  calendar: CalendarActions | null,
+): MovePaging {
+  const paged = useRef(false);
+  const handled = useRef<number | null>(null);
+  const pending = useRef<number | null>(null);
+  const shown = useRef(range);
+  const target = move.kind === "closed" ? null : move.toDateKey;
+  useEffect(() => {
+    const moved = shown.current !== range;
+    shown.current = range;
+    if (target === null || range === null) {
+      paged.current = false;
+      handled.current = null;
+      pending.current = null;
+      return;
+    }
+    const landed = moved && pending.current !== null && inRange(range, pending.current);
+    if (moved) pending.current = null;
+    if (handled.current === target && !landed) return;
+    handled.current = target;
+    if (inRange(range, target)) return;
+    paged.current = true;
+    pending.current = target;
+    calendar?.showWeekOf(target);
+  }, [target, range, calendar]);
+  return {
+    takePaged() {
+      const was = paged.current;
+      paged.current = false;
+      return was;
+    },
+    retry() {
+      if (pending.current === null || target === null) return false;
+      pending.current = target;
+      calendar?.showWeekOf(target);
+      return true;
+    },
+    athleteNavigates() {
+      pending.current = null;
+    },
+  };
+}
+
+function MoveLayer(props: {
+  readonly read: PlanCalendarRead;
+  readonly takePaged: () => boolean;
+  readonly onPageBack: (workoutId: string, dateKey: number) => void;
+}): ReactElement | null {
   const state = useEnduragentStore((store) => store.calendarMove);
   const actions = useEnduragentStore((store) => store.calendarMoveActions);
   const preview =
@@ -281,14 +343,134 @@ function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | n
     <MoveDialog
       state={state}
       preview={preview}
+      revision={props.read}
+      earlier={dropDayFrom(props.read, preview.workout, state.toDateKey, -1)}
+      later={dropDayFrom(props.read, preview.workout, state.toDateKey, 1)}
+      onDay={(toDateKey) =>
+        actions?.request(
+          state.planId,
+          state.workoutId,
+          toDateKey,
+          movePreview(props.read, state.workoutId, toDateKey, true)?.canSwap === true,
+        )
+      }
       onSwap={(swap) => actions?.setSwap(swap)}
       onMove={() => actions?.confirm(preview.canSwap)}
-      onCancel={() => actions?.cancel()}
+      onCancel={() => {
+        if (state.kind === "moving") return;
+        const pageBack = props.takePaged();
+        actions?.cancel();
+        if (pageBack) props.onPageBack(preview.workout.id, preview.workout.dateKey);
+      }}
     />
   );
 }
 
-function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+function inRange(range: CalendarRange, dateKey: number): boolean {
+  const { startDateKey, endDateKey } = rangeDates(range);
+  return dateKey >= startDateKey && dateKey <= endDateKey;
+}
+
+function movingView(read: PlanCalendarRead, move: MoveDialogState): CalendarMoving | null {
+  if (move.kind === "closed") return null;
+  const preview = movePreview(read, move.workoutId, move.toDateKey, move.swap);
+  return {
+    workoutId: move.workoutId,
+    toDateKey: move.toDateKey,
+    fromDateKey: preview?.workout.dateKey ?? move.toDateKey,
+    swapIds:
+      preview !== null && move.swap && preview.canSwap
+        ? preview.clash.map((workout) => workout.id)
+        : [],
+    landed: false,
+  };
+}
+
+function useLandingMove(
+  read: PlanCalendarRead | null,
+  move: MoveDialogState,
+): CalendarMoving | null {
+  const saving = useRef<{ readonly read: PlanCalendarRead; readonly view: CalendarMoving } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (move.kind === "moving" && read !== null) {
+      const view = movingView(read, move);
+      saving.current = view === null ? null : { read, view: { ...view, landed: true } };
+      return;
+    }
+    if (move.kind !== "closed" || saving.current?.read !== read) saving.current = null;
+  });
+  const landing = saving.current;
+  return move.kind === "closed" && landing !== null && landing.read === read ? landing.view : null;
+}
+
+function WorkoutLayer(props: {
+  readonly read: PlanCalendarRead;
+  readonly onMove: (planId: string, workout: PlanCalendarWorkout, toDateKey: number) => void;
+  readonly onClose: (workoutId: string) => void;
+}): ReactElement | null {
+  const state = useEnduragentStore((store) => store.calendarWorkout);
+  const actions = useEnduragentStore((store) => store.calendarWorkoutActions);
+  const open = state.kind === "closed" ? null : state;
+  const workout =
+    open === null || props.read.plan?.planId !== open.planId
+      ? undefined
+      : props.read.plan.workouts.find((entry) => entry.id === open.workoutId);
+  const gone =
+    open !== null && (workout === undefined || workout.copy.kind === "changed-in-intervals");
+  const { onClose } = props;
+  useEffect(() => {
+    if (gone && open !== null) onClose(open.workoutId);
+  }, [gone, open, onClose]);
+  if (open === null || workout === undefined || gone) return null;
+  const day = firstDropDay(props.read, workout);
+  return (
+    <WorkoutSheet
+      key={workout.id}
+      workout={workout}
+      read={props.read}
+      canMove={day !== null}
+      onMove={() => {
+        if (day !== null) props.onMove(open.planId, workout, day);
+      }}
+      onAsk={(draft) => actions?.askCoach(draft)}
+      onClose={() => props.onClose(workout.id)}
+    />
+  );
+}
+
+function useReturnFocus(
+  read: PlanCalendarRead | null,
+  covered: boolean,
+  moving: boolean,
+): (workoutId: string, after?: PlanCalendarRead | null) => void {
+  const target = useRef<{ readonly id: string; readonly after: PlanCalendarRead | null } | null>(
+    null,
+  );
+  useEffect(() => {
+    const pending = target.current;
+    if (pending === null || read === null) return;
+    if (moving) {
+      target.current = { id: pending.id, after: read };
+      return;
+    }
+    if (covered || pending.after === read) return;
+    target.current = null;
+    (
+      document.querySelector<HTMLElement>(`[data-workout-id="${pending.id}"]`) ??
+      document.querySelector<HTMLElement>("[data-calendar-grid]")
+    )?.focus();
+  });
+  return (workoutId, after = null) => {
+    target.current = { id: workoutId, after };
+  };
+}
+
+function WeekReady(props: {
+  readonly read: PlanCalendarRead;
+  readonly clear: () => boolean;
+}): ReactElement | null {
   const sheet = useEnduragentStore((store) => store.calendarApproval);
   const actions = useEnduragentStore((store) => store.calendarApproveActions);
   const pending = weekApprovals(props.read)[0];
@@ -298,12 +480,21 @@ function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | n
     return (
       <ReplaceWaitingBanner
         replacing={replacing}
-        onReview={() => actions?.open({ kind: "first-weeks" })}
+        onReview={() => {
+          if (props.clear()) actions?.open({ kind: "first-weeks" });
+        }}
       />
     );
   }
   if (pending === undefined) return null;
-  return <WeekReadyBanner pending={pending} onReview={() => actions?.open(pending.scope)} />;
+  return (
+    <WeekReadyBanner
+      pending={pending}
+      onReview={() => {
+        if (props.clear()) actions?.open(pending.scope);
+      }}
+    />
+  );
 }
 
 export function CalendarView(): ReactElement {
@@ -317,7 +508,35 @@ export function CalendarView(): ReactElement {
   const details = useEnduragentStore((store) => store.calendarDetails);
   const detailsActions = useEnduragentStore((store) => store.calendarDetailsActions);
   const moveActions = useEnduragentStore((store) => store.calendarMoveActions);
+  const workoutCard = useEnduragentStore((store) => store.calendarWorkout);
+  const workoutActions = useEnduragentStore((store) => store.calendarWorkoutActions);
   const read = state.kind === "ready" ? state.read : null;
+  const returnFocus = useReturnFocus(
+    read,
+    workoutCard.kind !== "closed" ||
+      move.kind !== "closed" ||
+      change.kind !== "closed" ||
+      details.kind !== "closed" ||
+      approval.kind !== "closed",
+    move.kind === "moving",
+  );
+  const landing = useLandingMove(read, move);
+  const paging = useMovePaging(state.kind === "ready" ? state.range : null, move, actions);
+  const locked = change.kind === "working" || detailsEnding(details) || move.kind === "moving";
+  const clearSheets = (keep: "card" | "move" | "change" | "details" | "approve"): boolean => {
+    if (locked) return false;
+    if (keep !== "card") workoutActions?.close();
+    if (keep !== "move") moveActions?.cancel();
+    if (keep !== "change") changeActions?.close();
+    if (keep !== "details") detailsActions?.close();
+    return true;
+  };
+  const changeWorkoutId =
+    change.kind === "closed"
+      ? null
+      : "detail" in change
+        ? change.detail.planWorkoutId
+        : change.planWorkoutId;
   const subtitle = useSubtitle(read);
   const firstDay = rendererPlatformProjection().firstDayOfWeek;
   const navigation = (
@@ -327,21 +546,31 @@ export function CalendarView(): ReactElement {
         variant="outline"
         size="icon"
         aria-label={say("plan.calendar.previous")}
-        onClick={() => actions?.previous()}
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.previous();
+        }}
       >
         <ChevronLeft aria-hidden="true" />
       </Button>
-      <Button type="button" variant="outline" onClick={() => actions?.today()}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.today();
+        }}
+      >
         {say("plan.calendar.today")}
       </Button>
       {read === null || read.plan === null ? null : (
         <Button
           type="button"
           variant="outline"
-          disabled={detailsEnding(details)}
+          disabled={locked}
           onClick={() => {
             const planId = read.plan?.planId;
-            if (planId !== undefined) detailsActions?.open(planId);
+            if (planId !== undefined && clearSheets("details")) detailsActions?.open(planId);
           }}
         >
           {say("plan.calendar.details.open")}
@@ -352,7 +581,10 @@ export function CalendarView(): ReactElement {
         variant="outline"
         size="icon"
         aria-label={say("plan.calendar.next")}
-        onClick={() => actions?.next()}
+        onClick={() => {
+          paging.athleteNavigates();
+          actions?.next();
+        }}
       >
         <ChevronRight aria-hidden="true" />
       </Button>
@@ -367,7 +599,13 @@ export function CalendarView(): ReactElement {
       className="calendar-view relative"
       contentMode="workspace"
     >
-      <div className="h-full min-h-0 overflow-auto px-5 pt-3.5 pb-6" data-page-scroll="">
+      <div
+        className={cn(
+          "h-full min-h-0 overflow-auto scrollbar-gutter-stable px-5 pt-3.5",
+          move.kind === "closed" ? "pb-6" : "pb-96",
+        )}
+        data-page-scroll=""
+      >
         {state.kind === "unavailable" ? (
           <section className="flex flex-col items-start gap-3 py-6" role="alert">
             <p className="m-0 text-sm text-ink-2">{say("plan.calendar.unavailable")}</p>
@@ -379,16 +617,23 @@ export function CalendarView(): ReactElement {
         {state.kind === "ready" ? (
           <div className="flex min-w-0 flex-col gap-3" data-calendar-state="ready">
             {state.refresh === "failed" ? (
-              <RefreshFailed onRetry={() => actions?.refresh()} />
+              <RefreshFailed
+                onRetry={() => {
+                  if (!paging.retry()) actions?.refresh();
+                }}
+              />
             ) : null}
             <ChangesBanner read={state.read} />
-            <WeekReady read={state.read} />
+            <WeekReady read={state.read} clear={() => clearSheets("approve")} />
             {state.read.plan === null ? (
               <NoPlanCard />
             ) : (
               <SeasonStrip
                 plan={state.read.plan}
-                onWeek={(dateKey) => actions?.showWeekOf(dateKey)}
+                onWeek={(dateKey) => {
+                  paging.athleteNavigates();
+                  actions?.showWeekOf(dateKey);
+                }}
               />
             )}
             <CalendarGrid
@@ -396,19 +641,23 @@ export function CalendarView(): ReactElement {
               rows={calendarRows(state.read, state.range)}
               firstDay={firstDay}
               highlighted={beingApproved(state.read, approval)}
+              selected={workoutCard.kind === "open" ? workoutCard.workoutId : changeWorkoutId}
               onOpen={(planWorkoutId) => {
                 const planId = state.read.plan?.planId;
-                if (planId !== undefined) changeActions?.open(planId, planWorkoutId);
+                const opened = state.read.plan?.workouts.find(
+                  (workout) => workout.id === planWorkoutId,
+                );
+                if (planId === undefined || opened === undefined) return;
+                const changed = opened.copy.kind === "changed-in-intervals";
+                if (!clearSheets(changed ? "change" : "card")) return;
+                if (changed) changeActions?.open(planId, planWorkoutId);
+                else workoutActions?.open(planId, planWorkoutId);
               }}
-              moving={
-                move.kind === "closed"
-                  ? null
-                  : { workoutId: move.workoutId, toDateKey: move.toDateKey }
-              }
+              moving={movingView(state.read, move) ?? landing}
               onMove={(workoutId, toDateKey) => {
                 const planId = state.read.plan?.planId;
                 const preview = movePreview(state.read, workoutId, toDateKey, true);
-                if (planId !== undefined) {
+                if (planId !== undefined && clearSheets("move")) {
                   moveActions?.request(planId, workoutId, toDateKey, preview?.canSwap === true);
                 }
               }}
@@ -419,10 +668,39 @@ export function CalendarView(): ReactElement {
       {state.kind === "ready" &&
       change.kind === "closed" &&
       move.kind === "closed" &&
-      details.kind === "closed" ? (
+      details.kind === "closed" &&
+      workoutCard.kind === "closed" ? (
         <ApprovalLayer read={state.read} />
       ) : null}
-      {state.kind === "ready" ? <MoveLayer read={state.read} /> : null}
+      {state.kind === "ready" ? (
+        <WorkoutLayer
+          read={state.read}
+          onMove={(planId, workout, toDateKey) => {
+            if (!clearSheets("move")) return;
+            returnFocus(workout.id);
+            moveActions?.request(
+              planId,
+              workout.id,
+              toDateKey,
+              movePreview(state.read, workout.id, toDateKey, true)?.canSwap === true,
+            );
+          }}
+          onClose={(workoutId) => {
+            returnFocus(workoutId);
+            workoutActions?.close();
+          }}
+        />
+      ) : null}
+      {state.kind === "ready" ? (
+        <MoveLayer
+          read={state.read}
+          takePaged={paging.takePaged}
+          onPageBack={(workoutId, dateKey) => {
+            returnFocus(workoutId, state.read);
+            actions?.showWeekOf(dateKey);
+          }}
+        />
+      ) : null}
       {state.kind === "ready" ? <DetailsLayer read={state.read} /> : null}
       {state.kind === "ready" ? <ChangeLayer read={state.read} /> : null}
     </Page>

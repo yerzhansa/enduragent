@@ -151,17 +151,17 @@ const newQuestions = [
   {
     kind: "start-timing-question",
     step,
-    prompt: "When can this Plan start?",
+    prompt: "When should this Plan start?",
     earliestAllowed: "1998-09-03",
     options: [
       {
-        timing: "as-soon-as-possible",
-        label: "As soon as possible",
-        detail: "Start at the earliest suitable week.",
+        timing: "first-day-of-week",
+        label: "First day of your week",
+        detail: "One calendar row is one Training Week.",
       },
-      { timing: "earliest", label: "From a date", detail: "Set an earliest date." },
+      { timing: "earliest", label: "Pick another day", detail: "Start on that day." },
     ],
-    dateLabel: "Earliest start date",
+    dateLabel: "Plan starts",
   },
   {
     kind: "schedule-mode-question",
@@ -253,6 +253,16 @@ const invalidNewQuestions = [
     },
   ],
   ["start-timing", { ...newQuestions[1], earliestAllowed: "1998-02-31" }],
+  [
+    "start-timing",
+    {
+      ...newQuestions[1],
+      options: [
+        newQuestions[1].options[0],
+        { timing: "as-soon-as-possible", label: "As soon as possible", detail: "Start now." },
+      ],
+    },
+  ],
   [
     "schedule-mode",
     {
@@ -1000,6 +1010,31 @@ describe("Plan Creation Draft contract", () => {
     expect(PlanCreationCardModelSchema.parse({ ...review, draftStale: true }).draftStale).toBe(
       true,
     );
+  });
+
+  it("still reads a stored Draft whose start question offered As soon as possible", () => {
+    const legacyQuestion = {
+      ...newQuestions[1],
+      options: [
+        { timing: "as-soon-as-possible", label: "As soon as possible", detail: "Start now." },
+        newQuestions[1].options[1],
+      ],
+    };
+    const stored = {
+      ...draft,
+      answeredSummaries: [
+        ...draft.answeredSummaries,
+        {
+          answerKey: "start-timing",
+          title: "Start timing",
+          detail: "As soon as possible",
+          source: { kind: "athlete" },
+          question: legacyQuestion,
+          answer: { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+        },
+      ],
+    };
+    expect(PlanCreationDraftSchema.parse(stored)).toEqual(stored);
   });
 
   it("requires valid answer summaries and limits them to sixteen", () => {

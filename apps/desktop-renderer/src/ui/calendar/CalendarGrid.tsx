@@ -20,10 +20,18 @@ import {
 import { canDropOn } from "../../calendar/move";
 import { useCalendarText, type CalendarText } from "./calendar-text";
 
+export interface CalendarMoving {
+  readonly workoutId: string;
+  readonly toDateKey: number;
+  readonly fromDateKey: number;
+  readonly swapIds: readonly string[];
+  readonly landed: boolean;
+}
+
 interface Dragging {
   readonly workout: PlanCalendarWorkout | null;
   readonly over: number | null;
-  readonly moving: { readonly workoutId: string; readonly toDateKey: number } | null;
+  readonly moving: CalendarMoving | null;
   start(workout: PlanCalendarWorkout): void;
   enter(dateKey: number | null): void;
   end(): void;
@@ -259,6 +267,7 @@ function WorkoutCard(props: {
   readonly workout: PlanCalendarWorkout;
   readonly activities: readonly PlanCalendarActivity[];
   readonly highlighted: boolean;
+  readonly selected: boolean;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly drag: Dragging;
@@ -267,20 +276,27 @@ function WorkoutCard(props: {
   const { say } = usePhrasebook();
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
   const { drag, workout } = props;
-  const beingMoved = props.preview !== true && drag.moving?.workoutId === workout.id;
+  const beingMoved =
+    props.preview !== true &&
+    (drag.moving?.workoutId === workout.id || drag.moving?.swapIds.includes(workout.id) === true);
+  const landed = props.preview === true && drag.moving?.landed === true;
   const draggable = props.preview !== true && workout.movable && !look.opens;
+  const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
+  const interactive = props.preview !== true && (look.opens || !ghost);
   const shared = {
     className: cn(
       CARD,
       FRAME[look.frame],
-      look.opens && OPENS,
+      interactive && OPENS,
       props.highlighted && "border-brand",
       draggable && "cursor-grab",
       beingMoved && "border-dashed opacity-45",
-      props.preview === true && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
+      props.preview === true && !landed && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
+      props.selected && "outline-2 outline-offset-1 outline-brand",
     ),
     "data-workout-id": props.preview === true ? undefined : workout.id,
-    "data-move-preview": props.preview === true ? workout.id : undefined,
+    "data-move-preview": props.preview === true && !landed ? workout.id : undefined,
+    "data-move-landed": landed ? workout.id : undefined,
     "data-outcome": workout.outcome.kind,
     "data-copy": workout.copy.kind,
     "data-highlighted": props.highlighted ? "" : undefined,
@@ -298,8 +314,14 @@ function WorkoutCard(props: {
     onDragEnd: draggable ? () => drag.end() : undefined,
   };
   const body = <CardBody name={props.workout.name} look={look} />;
-  return look.opens ? (
-    <button type="button" {...shared} onClick={() => props.onOpen(props.workout.id)}>
+  return interactive ? (
+    <button
+      type="button"
+      {...shared}
+      aria-haspopup={look.opens ? undefined : "dialog"}
+      aria-expanded={props.selected}
+      onClick={() => props.onOpen(props.workout.id)}
+    >
       {body}
     </button>
   ) : (
@@ -309,6 +331,7 @@ function WorkoutCard(props: {
 
 function MovedInCard(props: {
   readonly workout: PlanCalendarWorkout;
+  readonly selected: boolean;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
 }): ReactElement {
@@ -328,8 +351,14 @@ function MovedInCard(props: {
   return (
     <button
       type="button"
-      className={cn(CARD, FRAME.changed, OPENS)}
+      className={cn(
+        CARD,
+        FRAME.changed,
+        OPENS,
+        props.selected && "outline-2 outline-offset-1 outline-brand",
+      )}
       data-moved-in={workout.id}
+      aria-expanded={props.selected}
       onClick={() => props.onOpen(workout.id)}
     >
       <CardBody
@@ -521,6 +550,7 @@ function DayCell(props: {
   readonly day: CalendarDay;
   readonly read: PlanCalendarRead;
   readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly drag: Dragging;
@@ -529,10 +559,15 @@ function DayCell(props: {
   const { day, read, text, drag } = props;
   const dragged = drag.workout;
   const accepts = dragged !== null && canDropOn(read, dragged, day.dateKey);
-  const incoming =
-    drag.moving?.toDateKey === day.dateKey
-      ? read.plan?.workouts.find((workout) => workout.id === drag.moving?.workoutId)
-      : undefined;
+  const moving = drag.moving;
+  const landedIds = moving?.landed === true ? [moving.workoutId, ...moving.swapIds] : [];
+  const workouts = day.workouts.filter((workout) => !landedIds.includes(workout.id));
+  const incoming = (read.plan?.workouts ?? []).filter(
+    (workout) =>
+      moving !== null &&
+      ((moving.toDateKey === day.dateKey && workout.id === moving.workoutId) ||
+        (moving.fromDateKey === day.dateKey && moving.swapIds.includes(workout.id))),
+  );
   const number = text.dayOfMonth(day.dateKey);
   const heading =
     day.today === "today"
@@ -541,10 +576,10 @@ function DayCell(props: {
         ? say("plan.calendar.day.weekStarts", { day: number, week: day.weekStarts.index })
         : number;
   const empty =
-    day.workouts.length === 0 &&
+    workouts.length === 0 &&
     day.movedIn.length === 0 &&
     day.activities.length === 0 &&
-    incoming === undefined;
+    incoming.length === 0;
   return (
     <div
       className={cn(
@@ -584,30 +619,39 @@ function DayCell(props: {
       >
         {heading}
       </span>
-      {day.workouts.map((workout) => (
+      {workouts.map((workout) => (
         <WorkoutCard
           key={workout.id}
           workout={workout}
           activities={read.activities}
           highlighted={props.highlighted.has(workout.id)}
+          selected={props.selected === workout.id}
           text={text}
           onOpen={props.onOpen}
           drag={drag}
         />
       ))}
-      {incoming === undefined ? null : (
+      {incoming.map((workout) => (
         <WorkoutCard
-          workout={incoming}
+          key={`preview-${workout.id}`}
+          workout={workout}
           activities={read.activities}
           highlighted={false}
+          selected={false}
           text={text}
           onOpen={props.onOpen}
           drag={drag}
           preview
         />
-      )}
+      ))}
       {day.movedIn.map((workout) => (
-        <MovedInCard key={`in-${workout.id}`} workout={workout} text={text} onOpen={props.onOpen} />
+        <MovedInCard
+          key={`in-${workout.id}`}
+          workout={workout}
+          selected={props.selected === workout.id}
+          text={text}
+          onOpen={props.onOpen}
+        />
       ))}
       {day.activities.map((activity) => (
         <ActivityCard
@@ -632,6 +676,7 @@ export function CalendarGrid(props: {
   readonly rows: readonly CalendarRow[];
   readonly firstDay: FirstDayOfWeek;
   readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly moving: Dragging["moving"];
   readonly onMove: (workoutId: string, toDateKey: number) => void;
@@ -662,6 +707,8 @@ export function CalendarGrid(props: {
         className="grid min-w-205 grid-cols-[128px_repeat(7,minmax(0,1fr))] overflow-hidden rounded-card border border-line bg-surface"
         role="table"
         aria-label={say("sidebar.views.calendar")}
+        tabIndex={-1}
+        data-calendar-grid=""
       >
         <div className="bg-surface-2 px-2 py-1.5 text-xs text-ink-2" role="columnheader">
           {props.read.plan === null
@@ -692,6 +739,7 @@ export function CalendarGrid(props: {
                 day={day}
                 read={props.read}
                 highlighted={props.highlighted}
+                selected={props.selected}
                 text={text}
                 onOpen={props.onOpen}
                 drag={drag}
