@@ -46,3 +46,12 @@ export function intervalsMutationError(
     ? "intervals-runtime-not-working"
     : "intervals-runtime-unavailable";
 }
+
+export function intervalsErrorWithRetry(
+  error: OnboardingErrorCode,
+  retryShown: boolean,
+): OnboardingErrorCode {
+  return error === "intervals-runtime-not-working" && !retryShown
+    ? "intervals-runtime-unavailable"
+    : error;
+}

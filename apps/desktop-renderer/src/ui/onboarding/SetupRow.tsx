@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { OnboardingSurfaceState } from "../../onboarding/controller";
 import { errorSection, type SetupErrorSection } from "../../onboarding/lanes";
+import type { OnboardingErrorCode } from "../../onboarding/machine";
 import { ERROR_COPY } from "./copy";
 
 export type SetupRowStatus = "ready" | "attention" | "pending" | "none";
@@ -113,13 +114,16 @@ export function SetupSubPanel(props: {
 export function SetupError(props: {
   readonly surface: OnboardingSurfaceState;
   readonly section: SetupErrorSection;
+  readonly shown?: (error: OnboardingErrorCode) => OnboardingErrorCode;
 }): ReactElement | null {
   const { say } = usePhrasebook();
   const wizard = props.surface.wizard;
   if (errorSection(wizard.fixedError, props.surface.lastCommit) !== props.section) return null;
+  const error =
+    wizard.fixedError === null ? null : (props.shown?.(wizard.fixedError) ?? wizard.fixedError);
   return (
     <p id="onboarding-error" className="mt-2 text-sm text-danger">
-      {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
+      {error === null ? "" : say(ERROR_COPY[error])}
     </p>
   );
 }

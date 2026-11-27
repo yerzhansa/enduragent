@@ -98,6 +98,16 @@ describe("intervalsMutationError", () => {
     },
   );
 
+  it("trusts an active saved status over the reported outcome", () => {
+    expect(
+      intervalsMutationError({
+        outcome: "uncertain",
+        reason: "runtime-uncertain",
+        current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      }),
+    ).toBeNull();
+  });
+
   it("asks for a new sign-in when activation failed and nothing usable is saved", () => {
     expect(
       intervalsMutationError({

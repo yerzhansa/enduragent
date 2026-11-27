@@ -641,6 +641,40 @@ describe("Intervals.icu sign-in panel", () => {
     });
 
     it.each(["gate", "settings"] as const)(
+      "names only Sign in again when the new sign-in is saved but cannot be used (%s)",
+      async (placement) => {
+        const user = userEvent.setup();
+        const { bridge, signIn } = rejectedBridge();
+        const wizard = mountWizard({ bridge, placement });
+        await wizard.open();
+        act(() => {
+          useEnduragentStore.getState().setIntervalsSignInRejected(true);
+        });
+        await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+        await waitFor(() => {
+          expect(signInPhase()).toBe("waiting-for-browser");
+        });
+
+        await settle(wizard, signIn, {
+          outcome: "uncertain",
+          reason: "runtime-uncertain",
+          current: { ...ACTIVE, runtimeState: "failed" },
+        });
+
+        expect(rowState("training")).toBe("attention");
+        expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+        expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
+        expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeEnabled();
+        expect(errorText()).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+        expect(document.querySelectorAll("#onboarding-error")).toHaveLength(1);
+        await waitFor(() => {
+          expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toHaveFocus();
+        });
+        wizard.controller.dispose();
+      },
+    );
+
+    it.each(["gate", "settings"] as const)(
       "shows the amber row instead of Retry when the saved sign-in failed to apply (%s)",
       async (placement) => {
         const user = userEvent.setup();

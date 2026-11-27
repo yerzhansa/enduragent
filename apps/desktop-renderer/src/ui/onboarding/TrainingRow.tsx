@@ -8,7 +8,9 @@ import {
   type OnboardingSurfaceState,
 } from "../../onboarding/controller";
 import { credentialPresentation } from "../../onboarding/credential-presentation";
+import { intervalsErrorWithRetry } from "../../onboarding/intervals-sign-in";
 import { errorSection } from "../../onboarding/lanes";
+import type { OnboardingErrorCode } from "../../onboarding/machine";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -148,6 +150,8 @@ export function TrainingRow(props: {
   );
   const retryable = retryableStatus && !rejected;
   const ownsError = errorSection(wizard.fixedError, surface.lastCommit) === "training";
+  const shownError = (error: OnboardingErrorCode): OnboardingErrorCode =>
+    intervalsErrorWithRetry(error, retryable);
   const [openRequested, setOpen] = useState(false);
   const open = openRequested || signInPhase !== "idle";
   const [connectPhase, setConnectPhase] = useState<"idle" | "connecting">("idle");
@@ -363,7 +367,7 @@ export function TrainingRow(props: {
               {say(TRAINING_REOPEN_SIGN_IN_LABEL)}
             </Button>
           ) : null}
-          <SetupError surface={surface} section="training" />
+          <SetupError surface={surface} section="training" shown={shownError} />
         </SetupSubPanel>
       ) : null}
       {connected && !signInPanelOpen && (retryable || ownsError) ? (
@@ -385,12 +389,12 @@ export function TrainingRow(props: {
               {say(RETRY_SAVED_KEYS_LABEL)}
             </Button>
           ) : null}
-          <SetupError surface={surface} section="training" />
+          <SetupError surface={surface} section="training" shown={shownError} />
         </SetupSubPanel>
       ) : null}
       {!connected && !open && ownsError ? (
         <SetupSubPanel name="training-error">
-          <SetupError surface={surface} section="training" />
+          <SetupError surface={surface} section="training" shown={shownError} />
         </SetupSubPanel>
       ) : null}
     </>
