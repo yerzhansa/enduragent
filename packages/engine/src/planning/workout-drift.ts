@@ -20,7 +20,6 @@ export interface PlanWorkoutDriftSnapshot {
   readonly name: string;
   readonly durationS: number | null;
   readonly description: string | null;
-  readonly workoutDoc: Readonly<Record<string, unknown>> | null;
 }
 
 export interface PlanWorkoutDriftIdentity {
@@ -53,34 +52,21 @@ export class PlanWorkoutDriftError extends Error {
   }
 }
 
-function structure(value: string): {
-  readonly description: string | null;
-  readonly workoutDoc: Readonly<Record<string, unknown>> | null;
-} {
+function structureDescription(value: string): string | null {
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>;
-    return {
-      description: typeof parsed.description === "string" ? parsed.description : null,
-      workoutDoc:
-        parsed.workoutDoc !== null &&
-        typeof parsed.workoutDoc === "object" &&
-        !Array.isArray(parsed.workoutDoc)
-          ? (parsed.workoutDoc as Readonly<Record<string, unknown>>)
-          : null,
-    };
+    return typeof parsed.description === "string" ? parsed.description : null;
   } catch {
-    return { description: null, workoutDoc: null };
+    return null;
   }
 }
 
 export function planWorkoutDriftSnapshot(workout: PlanWorkoutRecord): PlanWorkoutDriftSnapshot {
-  const content = structure(workout.structureJson);
   return Object.freeze({
     dateKey: workout.dateKey,
     name: workout.name,
     durationS: workout.durationS,
-    description: content.description,
-    workoutDoc: content.workoutDoc,
+    description: structureDescription(workout.structureJson),
   });
 }
 
@@ -102,12 +88,15 @@ export function providerWorkoutDriftSnapshot(event: PlanMirrorEvent): PlanWorkou
     name: event.name,
     durationS: event.durationS ?? null,
     description: event.description ?? null,
-    workoutDoc: event.workoutDoc ?? null,
   });
 }
 
 function snapshotJson(snapshot: PlanWorkoutDriftSnapshot): string {
   return canonicalJson(snapshot);
+}
+
+function comparableSnapshotJson(snapshot: PlanWorkoutDriftSnapshot): string {
+  return snapshotJson(snapshot.description === null ? snapshot : { ...snapshot, durationS: null });
 }
 
 function revision(event: PlanMirrorEvent, snapshot: PlanWorkoutDriftSnapshot): string {
@@ -158,8 +147,7 @@ export async function refreshPlanWorkoutDrifts(
     if (event === undefined) continue;
     const planned = planWorkoutDriftSnapshot(workout);
     const provider = providerWorkoutDriftSnapshot(event);
-    if (snapshotJson(planned) === snapshotJson(provider) && !existing.has(workout.id)) continue;
-    if (snapshotJson(planned) === snapshotJson(provider)) continue;
+    if (comparableSnapshotJson(planned) === comparableSnapshotJson(provider)) continue;
     const now = deps.now();
     const stamp = deps.identity.stamp();
     const open = existing.get(workout.id);
@@ -275,10 +263,12 @@ function mergedStructure(currentJson: string, provider: PlanWorkoutDriftSnapshot
     current = {};
   }
   const next = { ...current };
+  if (
+    provider.description !== (typeof current.description === "string" ? current.description : null)
+  )
+    delete next.workoutDoc;
   if (provider.description === null) delete next.description;
   else next.description = provider.description;
-  if (provider.workoutDoc === null) delete next.workoutDoc;
-  else next.workoutDoc = provider.workoutDoc;
   return canonicalJson(next);
 }
 
@@ -384,8 +374,8 @@ export async function restorePlanWorkout(
   }
   if (
     verified.externalId !== planMirrorExternalId(input.planId, input.workoutId) ||
-    snapshotJson(providerWorkoutDriftSnapshot(verified)) !==
-      snapshotJson(planWorkoutDriftSnapshot(value.workout))
+    comparableSnapshotJson(providerWorkoutDriftSnapshot(verified)) !==
+      comparableSnapshotJson(planWorkoutDriftSnapshot(value.workout))
   ) {
     throw new PlanWorkoutDriftError("verification-failed");
   }

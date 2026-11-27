@@ -1,5 +1,6 @@
 export const COACH_EVENT_TAG = "cycling-coach";
 export const COACH_EXTERNAL_ID_PREFIX = `${COACH_EVENT_TAG}:`;
+export const PLAN_MIRROR_EXTERNAL_ID_PREFIX = `${COACH_EXTERNAL_ID_PREFIX}plan:`;
 
 function slugifyName(name: string): string {
   const slug = name
@@ -29,6 +30,7 @@ export function isCoachOwnedEvent(event: {
   tags?: string[] | null;
   externalId?: string | null;
 }): boolean {
+  if (event.externalId?.startsWith(PLAN_MIRROR_EXTERNAL_ID_PREFIX)) return false;
   if (event.tags?.includes(COACH_EVENT_TAG)) return true;
   if (event.externalId?.startsWith(COACH_EXTERNAL_ID_PREFIX)) return true;
   return false;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   COACH_EVENT_TAG,
   COACH_EXTERNAL_ID_PREFIX,
+  PLAN_MIRROR_EXTERNAL_ID_PREFIX,
   buildCoachExternalId,
   isCoachOwnedEvent,
 } from "../src/sport/event-provenance.js";
@@ -10,10 +11,7 @@ import {
   createCoreToolsWithSportConfig,
 } from "../src/sport/platform-tools.js";
 import { todayInTZ } from "../src/sport/user-time.js";
-import type {
-  AthleteDataReaderPort,
-  PlatformCalendarMutationsPort,
-} from "../src/host-ports.js";
+import type { AthleteDataReaderPort, PlatformCalendarMutationsPort } from "../src/host-ports.js";
 
 type EventKnobs = {
   id?: number;
@@ -128,11 +126,7 @@ function makeUpdateFake(
   return { mutations, updateCalls };
 }
 
-async function runUpdate(
-  event: EventKnobs,
-  changes: Record<string, unknown>,
-  tz = "UTC",
-) {
+async function runUpdate(event: EventKnobs, changes: Record<string, unknown>, tz = "UTC") {
   const { mutations, updateCalls } = makeUpdateFake(event);
   const tools = createPureCoreIntervalsTools(null, tz, undefined, mutations);
   const result = (await tools.intervals_update_workout!.execute!(
@@ -226,6 +220,12 @@ describe("event provenance helpers", () => {
   it("rejects near-miss forgeries: tag 'cycling-coach-pro', externalId 'evil-cycling-coach:...'", () => {
     expect(isCoachOwnedEvent({ tags: ["cycling-coach-pro"] })).toBe(false);
     expect(isCoachOwnedEvent({ externalId: "evil-cycling-coach:2026-05-01:x" })).toBe(false);
+  });
+
+  it("isCoachOwnedEvent: Plan calendar events belong to their Plan, not to the chat tools", () => {
+    expect(
+      isCoachOwnedEvent({ externalId: `${PLAN_MIRROR_EXTERNAL_ID_PREFIX}plan-id:workout-id` }),
+    ).toBe(false);
   });
 });
 
