@@ -716,11 +716,18 @@ function subject(
   }));
   const openChat = vi.fn();
   const readPlanChange = vi.fn(() => EMPTY_PLAN_CHANGE_SURFACE);
+  const openListeners = new Set<() => void>();
   const provider: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => first),
     reconnect: vi.fn(async () => reconnected),
-    onConnectionOpen: () => () => {},
+    onConnectionOpen: (listener) => {
+      openListeners.add(listener);
+      return () => openListeners.delete(listener);
+    },
     close: vi.fn(async () => {}),
+  };
+  const openConnection = (): void => {
+    for (const listener of openListeners) listener();
   };
   const controller = createChatController({
     clients: provider,
@@ -772,6 +779,8 @@ function subject(
   return {
     controller: submittedController,
     provider,
+    openConnection,
+    openListeners,
     states,
     controls,
     refresh,
@@ -3844,6 +3853,120 @@ describe("chat controller", () => {
       draftError: null,
       error: CHAT_ATTACHMENT_FAILURE_COPY,
     });
+  });
+
+  it("saves a draft again when a new connection opens after its save failed, then clears the error", async () => {
+    let attempt = 0;
+    const saveText = vi.fn(async (_text: string) => {
+      attempt += 1;
+      if (attempt === 1) throw new CoachClientDisconnectedError(1006, "");
+      return emptyComposer();
+    });
+    const fake = client(replies(), { saveAttachmentDraftText: saveText });
+    const { controller, controls, openConnection } = subject(fake);
+
+    controller.saveAttachmentDraftText("Unsaved question");
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+      }),
+    );
+
+    openConnection();
+
+    await vi.waitFor(() => {
+      expect(saveText).toHaveBeenCalledTimes(2);
+      expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null });
+    });
+    expect(saveText).toHaveBeenLastCalledWith("Unsaved question");
+  });
+
+  it("keeps the error and asks again on the next connection when the saved-again draft also fails", async () => {
+    let attempt = 0;
+    const saveText = vi.fn(async (_text: string) => {
+      attempt += 1;
+      if (attempt < 3) throw new CoachClientDisconnectedError(1006, "");
+      return emptyComposer();
+    });
+    const fake = client(replies(), { saveAttachmentDraftText: saveText });
+    const { controller, controls, openConnection } = subject(fake);
+
+    controller.saveAttachmentDraftText("Unsaved question");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(1));
+    openConnection();
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+      }),
+    );
+
+    openConnection();
+
+    await vi.waitFor(() => {
+      expect(saveText).toHaveBeenCalledTimes(3);
+      expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null });
+    });
+    expect(saveText.mock.calls.map(([text]) => text)).toEqual([
+      "Unsaved question",
+      "Unsaved question",
+      "Unsaved question",
+    ]);
+  });
+
+  it("does not save on a new connection when nothing failed, or when a newer draft save started after the failure", async () => {
+    let failNext = false;
+    let releaseNewer!: () => void;
+    const newerHeld = new Promise<void>((resolve) => {
+      releaseNewer = resolve;
+    });
+    const saveText = vi.fn(async (text: string) => {
+      if (failNext) {
+        failNext = false;
+        throw new CoachClientDisconnectedError(1006, "");
+      }
+      if (text === "Newer text") await newerHeld;
+      return emptyComposer();
+    });
+    const fake = client(replies(), { saveAttachmentDraftText: saveText });
+    const { controller, controls, openConnection } = subject(fake);
+
+    controller.saveAttachmentDraftText("Saved text");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(1));
+    openConnection();
+    await Promise.resolve();
+    expect(saveText).toHaveBeenCalledTimes(1);
+
+    failNext = true;
+    controller.saveAttachmentDraftText("Failed text");
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+      }),
+    );
+    controller.saveAttachmentDraftText("Newer text");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(3));
+    openConnection();
+    releaseNewer();
+
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null }),
+    );
+    expect(saveText.mock.calls.map(([text]) => text)).toEqual([
+      "Saved text",
+      "Failed text",
+      "Newer text",
+    ]);
+  });
+
+  it("stops following new connections once disposed", async () => {
+    const fake = client(replies());
+    const { controller, openListeners } = subject(fake);
+
+    expect(openListeners.size).toBe(1);
+    controller.dispose();
+
+    expect(openListeners.size).toBe(0);
   });
 
   it("starts one exact session probe and deduplicates repeated starts", async () => {
