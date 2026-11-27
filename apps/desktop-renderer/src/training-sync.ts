@@ -41,7 +41,7 @@ export type TrainingSyncState =
   | {
       readonly status: "failed";
       readonly operation: number;
-      readonly kind: "partial" | "operation" | "indeterminate" | "protocol";
+      readonly kind: "partial" | "operation" | "indeterminate" | "not-in-use" | "protocol";
       readonly retryable: boolean;
     };
 
@@ -53,6 +53,9 @@ export interface TrainingSyncCoordinator {
   request(): Promise<void>;
   dispose(): void;
 }
+
+const REASK_WAITS_MS = [0, 5_000, 30_000, 120_000];
+const REASK_EVERY_MS = 300_000;
 
 function isIndeterminateFailure(error: unknown): boolean {
   return (
@@ -116,6 +119,7 @@ function isSameTrainingSyncState(left: TrainingSyncState, right: TrainingSyncSta
 export function createTrainingSyncCoordinator(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly refreshTrainingContext: () => Promise<void>;
+  readonly intervalsSignInSaved?: () => boolean;
 }): TrainingSyncCoordinator {
   let state: TrainingSyncState = { status: "idle" };
   let operation = 0;
@@ -124,6 +128,8 @@ export function createTrainingSyncCoordinator(input: {
   let disposed = false;
   let needsReconnect = false;
   let failedClient: DesktopCoachClient | undefined;
+  let reasks = 0;
+  let pendingReask: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<TrainingSyncStateListener>();
 
   const current = (selectedEpoch: number): boolean => !disposed && selectedEpoch === epoch;
@@ -134,7 +140,9 @@ export function createTrainingSyncCoordinator(input: {
     for (const listener of listeners) {
       try {
         listener(state);
-      } catch {}
+      } catch {
+        console.error("desktop-training-sync-listener-failed");
+      }
     }
   };
   const publishProtocol = (selectedEpoch: number, selectedOperation: number): void => {
@@ -152,7 +160,7 @@ export function createTrainingSyncCoordinator(input: {
   ): Promise<DesktopCoachClient> =>
     previous === undefined ? input.clients.getClient() : input.clients.reconnect(previous);
 
-  const begin = (): Promise<void> => {
+  const begin = (reasking: boolean): Promise<void> => {
     const selectedEpoch = ++epoch;
     const selectedOperation = ++operation;
     publish({ status: "queued", operation: selectedOperation });
@@ -272,14 +280,15 @@ export function createTrainingSyncCoordinator(input: {
       }
       if (terminal === undefined) {
         if (failure !== undefined && !admitted) {
-          if (isIndeterminateFailure(failure)) {
+          const connectionLost = isIndeterminateFailure(failure);
+          if (connectionLost) {
             needsReconnect = true;
             failedClient = selectedClient;
           }
           publish({
             status: "failed",
             operation: selectedOperation,
-            kind: "operation",
+            kind: reasking && connectionLost ? "indeterminate" : "operation",
             retryable: true,
           });
           return;
@@ -314,7 +323,9 @@ export function createTrainingSyncCoordinator(input: {
 
       try {
         await input.refreshTrainingContext();
-      } catch {}
+      } catch {
+        console.error("desktop-training-sync-refresh-failed");
+      }
       if (!current(selectedEpoch)) return;
       if (protocolFault) {
         publishProtocol(selectedEpoch, selectedOperation);
@@ -336,6 +347,16 @@ export function createTrainingSyncCoordinator(input: {
           status: "failed",
           operation: selectedOperation,
           kind: "operation",
+          retryable: true,
+        });
+      } else if (
+        result.backfill === "skipped-no-credential" &&
+        input.intervalsSignInSaved?.() === true
+      ) {
+        publish({
+          status: "failed",
+          operation: selectedOperation,
+          kind: "not-in-use",
           retryable: true,
         });
       } else if (result.published && result.referenceSucceeded) {
@@ -370,30 +391,62 @@ export function createTrainingSyncCoordinator(input: {
     })();
 
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    const settle = (): void => {
+      if (inFlight === task) inFlight = undefined;
+    };
+    void task.then(settle, settle);
     return task;
   };
+
+  const interrupted = (): boolean =>
+    !disposed &&
+    inFlight === undefined &&
+    state.status === "failed" &&
+    state.kind === "indeterminate";
+
+  const cancelReask = (): void => {
+    clearTimeout(pendingReask);
+    pendingReask = undefined;
+  };
+
+  const reask = (): void => {
+    pendingReask = undefined;
+    if (!interrupted()) return;
+    reasks += 1;
+    void begin(true);
+  };
+
+  const request = (): Promise<void> => {
+    if (disposed || (state.status === "failed" && state.kind === "protocol")) {
+      return Promise.resolve();
+    }
+    if (inFlight !== undefined) return inFlight;
+    cancelReask();
+    reasks = 0;
+    return begin(false);
+  };
+
+  const stopFollowingConnections = input.clients.onConnectionOpen(() => {
+    if (pendingReask !== undefined || !interrupted()) return;
+    const wait = REASK_WAITS_MS.at(reasks) ?? REASK_EVERY_MS;
+    if (wait === 0) reask();
+    else pendingReask = setTimeout(reask, wait);
+  });
 
   return {
     getState: () => state,
     subscribe(listener) {
-      if (disposed) return () => {};
+      const unsubscribe = (): boolean => listeners.delete(listener);
+      if (disposed) return unsubscribe;
       listeners.add(listener);
       try {
         listener(state);
-      } catch {}
-      return () => listeners.delete(listener);
-    },
-    request() {
-      if (disposed || (state.status === "failed" && state.kind === "protocol")) {
-        return Promise.resolve();
+      } catch {
+        console.error("desktop-training-sync-listener-failed");
       }
-      return inFlight ?? begin();
+      return unsubscribe;
     },
+    request,
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -402,6 +455,8 @@ export function createTrainingSyncCoordinator(input: {
       needsReconnect = false;
       failedClient = undefined;
       listeners.clear();
+      cancelReask();
+      stopFollowingConnections();
     },
   };
 }

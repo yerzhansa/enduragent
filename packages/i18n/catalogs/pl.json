@@ -710,7 +710,7 @@
       "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
       "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że to konto {{intervals}} odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
       "intervalsRuntimeUnavailable": "Nie udało się aktywować logowania do {{intervals}}. Zaloguj się ponownie.",
-      "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy logowanie jest aktywne. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsSavedNotActive": "Twoje logowanie do {{intervals}} jest zapisane, ale trener nie mógł zacząć go używać. Wybierz Ponów zapisane klucze, aby spróbować ponownie.",
       "intervalsSignInDenied": "Nie przyznano dostępu w {{intervals}}. Zaloguj się ponownie, gdy zechcesz.",
       "intervalsSignInFailed": "Logowanie przez {{intervals}} nie zostało dokończone. Zaloguj się ponownie.",
       "intervalsSignInRejected": "{{intervals}} nie zaakceptował logowania. Zaloguj się ponownie.",
@@ -823,6 +823,7 @@
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów.",
+        "notWorking": "Zalogowano, ale jeszcze nie działa",
         "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować.",
         "savedRides": "Przejazdy zapisane na {{computer}} · połącz, aby synchronizować nowe"
       },
@@ -842,6 +843,7 @@
     "checkingSetup": "Sprawdzanie konfiguracji…",
     "loading": {
       "archive": "Wczytywanie wcześniejszych rozmów…",
+      "calendar": "Wczytywanie kalendarza…",
       "chat": "Wczytywanie czatu…",
       "plan": "Wczytywanie planu…",
       "settings": "Wczytywanie ustawień…",
@@ -884,7 +886,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Połączenie przerwane. Synchronizacja może jeszcze dobiegać końca. {{product}} nie ponowi jej automatycznie.",
+        "indeterminate": "Połączenie przerwane. {{product}} ponownie sprawdzi synchronizację po przywróceniu połączenia.",
         "noChange": "Zakończono lokalne przetwarzanie danych treningowych.",
         "noChangeRestricted_one": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc jedna aktywność nie została uwzględniona.",
         "noChangeRestricted_other": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",
@@ -896,6 +898,7 @@
         "publishedRestricted_other": "Zakończono sprawdzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",
         "queued": "Synchronizacja w kolejce.",
         "running": "Synchronizowanie danych treningowych…",
+        "signInNotInUse": "{{intervals}} nie jest teraz połączony, więc nic nie zostało zsynchronizowane. {{product}} spróbuje ponownie, gdy sieć znów będzie dostępna.",
         "noChangeRestricted_few": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostały uwzględnione.",
         "noChangeRestricted_many": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",
         "publishedRestricted_few": "Zakończono sprawdzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostały uwzględnione.",
@@ -927,6 +930,7 @@
     },
     "views": {
       "archive": "Wcześniejsze rozmowy",
+      "calendar": "Kalendarz",
       "chat": "Czat",
       "plan": "Plan",
       "settings": "Ustawienia",
@@ -1545,6 +1549,104 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Dodatkowa",
+        "untitled": "Przejazd"
+      },
+      "column": {
+        "trainingWeek": "Tydzień treningowy",
+        "week": "Tydzień"
+      },
+      "copy": {
+        "changed": "Zmieniono w intervals.icu",
+        "deleted": "Usunięto w intervals.icu",
+        "moved": "Przeniesiono na {{date}} w intervals.icu",
+        "notSent": "Nie wysłano: intervals.icu nie odpowiedział"
+      },
+      "day": {
+        "beforePlan": "Przed planem",
+        "rest": "Dzień odpoczynku",
+        "today": "{{day}} · Dzisiaj",
+        "weekStarts": "{{day}} · Tydzień {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} z {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} godz. {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Następny tydzień",
+      "noPlan": {
+        "body": "Plan umieszcza treningi w tych dniach i w twoim kalendarzu intervals.icu, skąd pobiera je twój licznik rowerowy. Trener tworzy go razem z tobą na czacie i nic nie zostanie wysłane, dopóki go nie zatwierdzisz.",
+        "start": "Zacznij tworzyć plan na czacie",
+        "title": "Nie masz jeszcze planu"
+      },
+      "outcome": {
+        "doneAsPlanned": "Wykonano zgodnie z planem",
+        "doneDifferently": "Wykonano inaczej",
+        "isThisIt": "Czy to ten?",
+        "missed": "Pominięty",
+        "missedDetail": "{{planned}} · brak aktywności",
+        "moved": "Przeniesiono na {{date}}",
+        "notSyncedYet": "Jeszcze nie zsynchronizowano",
+        "removedByYou": "Usunięty przez ciebie",
+        "rideSynced": "Zsynchronizowano przejazd",
+        "rideSyncedLength": "Zsynchronizowano przejazd trwający {{duration}}",
+        "noActivity": "Brak aktywności"
+      },
+      "previous": "Poprzedni tydzień",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "Nie udało się odświeżyć kalendarza.",
+      "retry": "Spróbuj ponownie",
+      "season": {
+        "race": "Wyścig {{date}}",
+        "week": "Tydzień {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Zatwierdź od {{date}}",
+        "goesOut": "Wysyłka {{date}}",
+        "notSentYet": "Jeszcze nie w intervals.icu",
+        "onIntervals": "W intervals.icu",
+        "waitingForApprove": "Czeka na zatwierdzenie",
+        "notConnected": "intervals.icu nie jest połączone"
+      },
+      "subtitle": {
+        "ended": "{{name}} · zakończony",
+        "noPlan": "Brak planu · twoje aktywności z intervals.icu",
+        "starts": "{{name}} · początek: {{date}}",
+        "week": "{{name}} · Tydzień treningowy {{week}} z {{total}}",
+        "weekPhase": "{{name}} · Tydzień treningowy {{week}} z {{total}} · {{phase}}"
+      },
+      "today": "Dzisiaj",
+      "unavailable": "Nie udało się wczytać kalendarza.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} aktywność",
+        "activities_few": "{{duration}} · {{count}} aktywności",
+        "activities_many": "{{duration}} · {{count}} aktywności",
+        "activities_other": "{{duration}} · {{count}} aktywności",
+        "crossing": "Tydzień {{from}} → {{to}}",
+        "endsOn": "do {{date}}",
+        "label": "Tydzień {{week}}",
+        "load": "Obciążenie treningowe {{load}}",
+        "nextStarts": "Tydzień {{week}} zaczyna się {{date}}",
+        "nothingPlanned": "Nic nie zaplanowano",
+        "planned": "Zaplanowano: {{planned}}",
+        "planOnly": "{{planned}} · tylko w planie",
+        "soFar": "Dotąd: {{duration}}",
+        "startsOn": "zaczyna się {{date}}",
+        "toConfirm_one": "{{count}} przejazd do potwierdzenia",
+        "toConfirm_few": "{{count}} przejazdy do potwierdzenia",
+        "toConfirm_many": "{{count}} przejazdów do potwierdzenia",
+        "toConfirm_other": "{{count}} przejazdu do potwierdzenia"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Czyszczenie zakończone",

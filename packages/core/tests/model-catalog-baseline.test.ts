@@ -1,10 +1,10 @@
+import type { CatalogPricing } from "@enduragent/coach-contract/model-catalog";
 import { describe, expect, it } from "vitest";
-import { priceClaudeCliInclusiveUsage } from "../../engine/src/agent/claude-cli/cost.js";
 import {
   resolveAttachmentCapabilities,
   transportForProvider,
 } from "../../engine/src/attachment-capabilities.js";
-import { priceInclusiveUsage } from "../../engine/src/usage-cost.js";
+import { priceResolvedModelUsage } from "../../engine/src/usage-cost.js";
 import {
   COMPACT_MODEL_DEFAULTS,
   LLM_MODEL_CATALOGUE,
@@ -22,26 +22,19 @@ import {
 
 const MILLION = 1_000_000;
 
-function currentPricing(provider: string, model: string) {
+function currentPricing(pricing: CatalogPricing) {
   const price = (
     inputTokens: number,
     outputTokens: number,
     cacheReadTokens: number,
     cacheWriteTokens: number,
   ) =>
-    provider === "claude-cli"
-      ? priceClaudeCliInclusiveUsage(model, {
-          inputTokens,
-          outputTokens,
-          cacheReadTokens,
-          cacheWriteTokens,
-        })
-      : priceInclusiveUsage(provider, model, {
-          inputTokens,
-          outputTokens,
-          cacheReadTokens,
-          cacheWriteTokens,
-        });
+    priceResolvedModelUsage(pricing, {
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+    });
   const input = price(MILLION, 0, 0, 0);
   const output = price(0, MILLION, 0, 0);
   const cacheRead = price(MILLION, 0, MILLION, 0);
@@ -111,15 +104,12 @@ describe("compiled model catalog baseline", () => {
           label: model.label,
           ...(model.hint === undefined ? {} : { hint: model.hint }),
           contextWindowTokens: contextWindowForModel(model.modelId, provider.provider),
-          catalogContext:
-            provider.provider === "qwen" && model.modelId === "qwen3.7-max"
-              ? { kind: "unknown" as const }
-              : {
-                  kind: "known" as const,
-                  tokens: contextWindowForModel(model.modelId, provider.provider),
-                },
+          catalogContext: {
+            kind: "known" as const,
+            tokens: contextWindowForModel(model.modelId, provider.provider),
+          },
           imageInput: currentImageInput(provider.provider, model.modelId),
-          pricing: currentPricing(provider.provider, model.modelId),
+          pricing: currentPricing(model.pricing),
         })),
       };
     });

@@ -230,7 +230,7 @@ async function writeAcceptedModelCatalog(
   snapshot.provenance = { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" };
   const anthropic = snapshot.providers.find((provider) => provider.providerId === "anthropic");
   if (anthropic === undefined) throw new Error("Bundled catalog is missing Anthropic");
-  const overlay = ["claude-sonnet-5", "claude-haiku-4-5-20251001", "claude-opus-5"] as const;
+  const overlay = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"] as const;
   for (const [order, modelId] of overlay.entries()) {
     const model = anthropic.models.find((entry) => entry.modelId === modelId);
     if (model === undefined) throw new Error(`Bundled catalog is missing ${modelId}`);
@@ -344,6 +344,7 @@ function runtime(
     },
     runExclusive,
     runOutsideWindow: runExclusive,
+    abortActiveWindow: () => () => {},
     async runActivityWrite(work) {
       return {
         value: await runExclusive(work),
@@ -583,6 +584,14 @@ async function planCalendarFixture(credentials: {
     incumbent: null,
   });
   if (activated.planId === null) throw new Error("Expected active Plan");
+  await expect(
+    lifecycle.operations["plan.calendar"]({
+      action: "approve-weeks",
+      planId: activated.planId,
+      scope: { kind: "first-weeks" },
+    }),
+  ).resolves.toMatchObject({ status: "approved" });
+  await created.value.idle();
   return {
     lifecycle,
     requests,
@@ -2232,6 +2241,7 @@ describe("local coach composition", () => {
     for (let poll = 0; poll < 5; poll += 1) await fixture.listPlans();
     expect(fixture.requests).toHaveLength(1);
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "failed", failure_count: 1 },
     ]);
     await expect(fixture.listPlans()).resolves.toMatchObject({
@@ -2246,6 +2256,7 @@ describe("local coach composition", () => {
       path: "/api/v1/athlete/synthetic/events",
     });
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "verified", failure_count: 1 },
     ]);
     await expect(fixture.listPlans()).resolves.toMatchObject({
@@ -2268,6 +2279,7 @@ describe("local coach composition", () => {
       })),
     );
     await expect(fixture.jobs()).resolves.toEqual([
+      { kind: "mirror", status: "verified", failure_count: 0 },
       { kind: "mirror", status: "failed", failure_count: 5 },
     ]);
     await fixture.lifecycle.close();
@@ -3995,9 +4007,9 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       ...config(home),
       llm: {
         provider: "anthropic" as const,
-        model: "claude-sonnet-5",
-        compactModel: "claude-haiku-4-5-20251001",
-        flushModel: "claude-opus-5",
+        model: "claude-sonnet-5-5",
+        compactModel: "claude-haiku-5-5",
+        flushModel: "claude-opus-5-5",
         apiKey: "",
       },
     };
@@ -4107,9 +4119,9 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       ...config(home),
       llm: {
         provider: "anthropic" as const,
-        model: "claude-sonnet-5",
-        compactModel: "claude-haiku-4-5-20251001",
-        flushModel: "claude-opus-5",
+        model: "claude-sonnet-5-5",
+        compactModel: "claude-haiku-5-5",
+        flushModel: "claude-opus-5-5",
         apiKey: "",
       },
     };
@@ -4138,7 +4150,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await lifecycle.operations.configureRuntime({
       llm: {
         provider: "anthropic",
-        model: "claude-opus-5",
+        model: "claude-opus-5-5",
         api_key: "replacement",
         catalog_snapshot: pinnedSnapshot,
       },
@@ -4148,7 +4160,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     expect(received[1]?.ports.config.models).toMatchObject({
       catalogRevision: 17,
       chat: {
-        model: "claude-opus-5",
+        model: "claude-opus-5-5",
         contextWindowTokens: 312_000,
         pricing: { kind: "token-rates", inputUsdPerMillion: 19 },
       },
@@ -6501,7 +6513,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "anthropic",
         model: "new-model",
         api_key: "obviously-fake-implicit-provider-key",
-        compact_model: "claude-haiku-4-5-20251001",
+        compact_model: "claude-haiku-5-5",
         retained_llm_field: true,
       },
     });
@@ -6912,7 +6924,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     );
 
     await lifecycle.operations.configureRuntime({
-      llm: { provider: "zai", api_key: "obviously-fake-zai-key" },
+      llm: { provider: "zai", model: "glm-4.7", api_key: "obviously-fake-zai-key" },
     });
 
     expect(received.at(-1)?.ports.config).toMatchObject({

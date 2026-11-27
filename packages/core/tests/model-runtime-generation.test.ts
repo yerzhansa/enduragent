@@ -20,14 +20,14 @@ function temporaryDirectory(): string {
   return directory;
 }
 
-function config(dataDir: string, model = "gpt-5.6-sol"): Config {
+function config(dataDir: string, model = "gpt-6.2-sol"): Config {
   return {
     dataSource: "platform",
     llm: {
       provider: "openai",
       model,
-      compactModel: "gpt-5.6-luna",
-      flushModel: "gpt-5.6-terra",
+      compactModel: "gpt-6-luna",
+      flushModel: "gpt-6.1-terra",
       apiKey: "synthetic",
     },
     intervals: { apiKey: "", athleteId: "0" },
@@ -78,22 +78,22 @@ describe("model runtime generation", () => {
       kind: "catalog",
       catalogRevision: 7,
       provider: "openai",
-      model: "gpt-5.6-sol",
+      model: "gpt-6.2-sol",
       contextWindowTokens: 1_050_000,
       imageInput: "supported",
-      pricing: { kind: "token-rates", inputUsdPerMillion: 5 },
+      pricing: { kind: "token-rates", inputUsdPerMillion: 4 },
     });
     expect(projected.models.compact).toMatchObject({
       kind: "catalog",
       catalogRevision: 7,
       provider: "openai",
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
     });
     expect(projected.models.flush).toMatchObject({
       kind: "catalog",
       catalogRevision: 7,
       provider: "openai",
-      model: "gpt-5.6-terra",
+      model: "gpt-6.1-terra",
     });
     expect(
       new Set([
@@ -200,7 +200,7 @@ describe("model runtime generation", () => {
 
     const incompatible = revision(15);
     const openai = incompatible.providers.find((provider) => provider.providerId === "openai");
-    const model = openai?.models.find((entry) => entry.modelId === "gpt-5.6-sol");
+    const model = openai?.models.find((entry) => entry.modelId === "gpt-6.2-sol");
     if (model === undefined) throw new Error("OpenAI default model is missing");
     model.compatibilityProfile = "openai-ai-sdk-v2";
 
@@ -213,7 +213,7 @@ describe("model runtime generation", () => {
       kind: "custom",
       catalogRevision: 15,
       provider: "openai",
-      model: "gpt-5.6-sol",
+      model: "gpt-6.2-sol",
       contextWindowTokens: 200_000,
       imageInput: "unknown",
       pricing: { kind: "unknown" },

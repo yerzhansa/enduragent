@@ -1,10 +1,21 @@
+import { cleanupPlanMirror, type PlanMirrorCalendarPort } from "@enduragent/engine";
 import {
-  cleanupPlanMirror,
-  reconcileActivePlanWindow,
-  verifyPlanMirror,
-  type PlanMirrorCalendarPort,
-} from "@enduragent/engine";
-import { addCivilDays, createPlanReconciliationRepository } from "@enduragent/kernel/planning";
+  cleanupPlanCalendar,
+  dueWindow,
+  firstChangeSetWeeks,
+  mirrorPlanCalendar,
+  readWeekDelivery,
+  saveWeekDelivery,
+  type CalendarMirrorPort,
+} from "@enduragent/engine/calendar";
+import {
+  createPlanCalendarMirrorRepository,
+  createPlanReconciliationRepository,
+  type PlanIcuWriteErrorCode,
+  type PlanReconciliationErrorCode,
+  type PlanReconciliationJobRecord,
+  type PlanReconciliationRepository,
+} from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 
@@ -13,13 +24,61 @@ export interface PlanCalendarDrain {
   idle(): Promise<void>;
 }
 
+const MIRROR_FAILURE_BUDGET = 5;
+const CLEANUP_RETRY_MS = 900_000;
+
+function jobErrorCode(failure: PlanIcuWriteErrorCode | undefined): PlanReconciliationErrorCode {
+  if (failure === "calendar-create-failed" || failure === "calendar-delete-failed") return failure;
+  return "calendar-verification-failed";
+}
+
+async function retireJob(
+  repository: PlanReconciliationRepository,
+  jobId: string,
+  nowMs: number,
+): Promise<void> {
+  for (const item of await repository.readItems(jobId)) await repository.deleteItem(item.id);
+  await repository.beginAttempt(jobId, nowMs);
+  await repository.verifyJob(jobId, nowMs);
+}
+
+async function ledgerWindow(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  planId: string,
+  today: number,
+): Promise<{ readonly endDateKey: number } | null> {
+  const plan = await createLegacyPlanRepository(store).read(planId);
+  if (plan === undefined || plan.status !== "active") return null;
+  return dueWindow({ plan, workouts: [], todayDateKey: today, firstEligibleDateKey: today });
+}
+
+async function todaysMirrorJob(
+  repository: PlanReconciliationRepository,
+  input: {
+    readonly planId: string;
+    readonly todayDateKey: number;
+    readonly windowEndDateKey: number;
+    readonly newId: () => string;
+    readonly nowMs: number;
+  },
+): Promise<PlanReconciliationJobRecord> {
+  return repository.createOrGetJob({
+    id: input.newId(),
+    planId: input.planId,
+    kind: "mirror",
+    windowStartDateKey: input.todayDateKey,
+    windowEndDateKey: input.windowEndDateKey,
+    createdAtMs: input.nowMs,
+  });
+}
+
 function hasTransactions(store: SqlStore): store is SqlStore & Pick<MigratorStore, "transaction"> {
   return "transaction" in store && typeof store.transaction === "function";
 }
 
 export function createPlanCalendarDrain(deps: {
   store: SqlStore;
-  calendar: PlanMirrorCalendarPort;
+  calendar: PlanMirrorCalendarPort & { readonly mirror: CalendarMirrorPort };
   calendarConnected: () => boolean;
   identity: { newUlid(): string };
   todayDateKey: () => number;
@@ -43,30 +102,28 @@ export function createPlanCalendarDrain(deps: {
       now: deps.now,
     };
     const today = deps.todayDateKey();
-    const activePlan = await store.get("SELECT plan_id FROM planning_plan WHERE status='active'");
-    if (typeof activePlan?.plan_id === "string") {
-      const existing = await store.get(
-        "SELECT id FROM plan_reconciliation_job WHERE plan_id=? AND kind='mirror' AND window_start_date_key=?",
-        [activePlan.plan_id, today],
-      );
-      if (existing === undefined) {
-        await repository.createOrGetJob({
-          id: deps.identity.newUlid(),
-          planId: activePlan.plan_id,
-          kind: "mirror",
-          windowStartDateKey: today,
-          windowEndDateKey: addCivilDays(today, 6),
-          createdAtMs: deps.now(),
-        });
-      }
-    }
     const jobs = await repository.listRunnable({
       nowMs: deps.now(),
       leaseMs: reclaim ? 0 : 300_000,
-      maxFailures: 5,
+      maxFailures: MIRROR_FAILURE_BUDGET,
+      cleanupRetryMs: CLEANUP_RETRY_MS,
     });
+    const mirrorDeps = {
+      calendar: deps.calendar.mirror,
+      workouts: (planId: string) => plans.readWorkouts(planId),
+      mirror: createPlanCalendarMirrorRepository(store),
+      reconciliation: repository,
+      now: deps.now,
+    };
     for (const job of jobs) {
       try {
+        const chatPlan = await store.get("SELECT plan_id FROM planning_plan WHERE plan_id=?", [
+          job.planId,
+        ]);
+        if (job.kind === "cleanup" && chatPlan !== undefined) {
+          await cleanupPlanCalendar(job, mirrorDeps);
+          continue;
+        }
         if (job.kind === "cleanup") {
           await cleanupPlanMirror(
             {
@@ -79,43 +136,16 @@ export function createPlanCalendarDrain(deps: {
           );
           continue;
         }
-        const target = await store.get(
-          "SELECT status, version FROM planning_plan WHERE plan_id=?",
-          [job.planId],
-        );
-        if (target?.status !== "active" || job.windowStartDateKey > today) continue;
-        if (job.windowStartDateKey < today) {
-          if ((await repository.readItems(job.id)).length > 0) {
-            await verifyPlanMirror(job, engine);
-          } else {
-            await repository.beginAttempt(job.id, deps.now());
-            await repository.verifyJob(job.id, deps.now());
-          }
+        if (chatPlan === undefined) continue;
+        const ledger = await ledgerWindow(store, job.planId, today);
+        if (
+          ledger !== null &&
+          job.windowStartDateKey === today &&
+          job.windowEndDateKey === ledger.endDateKey
+        ) {
           continue;
         }
-        const plan = await plans.read(job.planId);
-        if (plan === undefined || plan.status !== "active") continue;
-        const tomorrow = addCivilDays(today, 1);
-        const cleanup = await store.get(
-          "SELECT id FROM plan_reconciliation_job WHERE kind='cleanup' AND plan_id<>? AND window_start_date_key=? LIMIT 1",
-          [job.planId, tomorrow],
-        );
-        await reconcileActivePlanWindow(
-          {
-            plan,
-            workouts: await plans.readWorkouts(job.planId),
-            todayDateKey: today,
-            firstEligibleDateKey: cleanup === undefined ? today : tomorrow,
-          },
-          engine,
-        );
-        const current = await store.get("SELECT version FROM planning_plan WHERE plan_id=?", [
-          job.planId,
-        ]);
-        if (current?.version !== target.version) {
-          await repository.reopenJob(job.id, deps.now());
-          rerun = true;
-        }
+        await retireJob(repository, job.id, deps.now());
       } catch (error) {
         deps.logger.warn("plan_calendar_drain_failed", { jobId: job.id, kind: job.kind, error });
         const current = await repository.readJob(job.id);
@@ -124,6 +154,57 @@ export function createPlanCalendarDrain(deps: {
         }
       }
     }
+    const activePlan = await store.get(
+      "SELECT plan_id, version FROM planning_plan WHERE status='active'",
+    );
+    if (typeof activePlan?.plan_id !== "string") return;
+    const barrier = await repository.readCleanupBarrier();
+    if (barrier !== undefined && barrier.status !== "verified") return;
+    const barrierStart = barrier?.windowStartDateKey ?? today;
+    const plan = await plans.read(activePlan.plan_id);
+    if (plan === undefined || plan.status !== "active") return;
+    const input = {
+      plan,
+      workouts: await plans.readWorkouts(plan.id),
+      todayDateKey: today,
+      firstEligibleDateKey: Math.max(today, barrierStart),
+    };
+    const window = dueWindow(input);
+    if ((await mirrorDeps.mirror.readDelivery(plan.id)) === undefined) {
+      await saveWeekDelivery(
+        mirrorDeps.mirror,
+        plan.id,
+        { kind: "approved", firstSetWeeks: firstChangeSetWeeks(plan, today), approvedWeeks: [] },
+        deps.now(),
+      );
+    }
+    const delivery = await readWeekDelivery(mirrorDeps.mirror, plan.id);
+    if (window === null || delivery.kind === "waiting-for-first-approve") return;
+    const job = await todaysMirrorJob(repository, {
+      planId: plan.id,
+      todayDateKey: today,
+      windowEndDateKey: window.endDateKey,
+      newId: () => deps.identity.newUlid(),
+      nowMs: deps.now(),
+    });
+    if (job.status === "failed" && job.failureCount >= MIRROR_FAILURE_BUDGET) return;
+    if (job.status === "verified") await repository.reopenJob(job.id, deps.now());
+    await repository.beginAttempt(job.id, deps.now());
+    try {
+      const result = await mirrorPlanCalendar(input, mirrorDeps);
+      if (result.kind === "list-failed") {
+        await repository.failJob(job.id, "calendar-list-failed", deps.now());
+      } else if (result.kind === "ran" && result.failures.length > 0) {
+        await repository.failJob(job.id, jobErrorCode(result.failures[0]), deps.now());
+      } else {
+        await repository.verifyJob(job.id, deps.now());
+      }
+    } catch (error) {
+      deps.logger.warn("plan_calendar_drain_failed", { planId: plan.id, kind: "mirror", error });
+      await repository.failJob(job.id, "calendar-verification-failed", deps.now());
+    }
+    const current = await store.get("SELECT version FROM planning_plan WHERE plan_id=?", [plan.id]);
+    if (current?.version !== activePlan.version) rerun = true;
   };
 
   return {

@@ -706,7 +706,7 @@
       "endpointInvalid": "Introduce una dirección de servicio HTTPS válida o una dirección HTTP de bucle local.",
       "intervalsOwnerUnavailable": "{{product}} no ha podido confirmar que esta cuenta de {{intervals}} corresponda a los datos de entrenamiento de {{computer}}. Inténtalo de nuevo cuando los datos de entrenamiento estén disponibles.",
       "intervalsRuntimeUnavailable": "No se ha podido activar el inicio de sesión de {{intervals}}. Vuelve a iniciar sesión.",
-      "intervalsRuntimeUncertain": "{{product}} no ha podido confirmar si el inicio de sesión está activo. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
+      "intervalsSavedNotActive": "Tu inicio de sesión de {{intervals}} está guardado, pero el entrenador no ha podido empezar a usarlo. Elige Reintentar claves guardadas para volver a intentarlo.",
       "intervalsSignInDenied": "No se ha permitido el acceso en {{intervals}}. Vuelve a iniciar sesión cuando quieras.",
       "intervalsSignInFailed": "El inicio de sesión con {{intervals}} no se ha completado. Vuelve a iniciar sesión.",
       "intervalsSignInRejected": "{{intervals}} no ha aceptado el inicio de sesión. Vuelve a iniciar sesión.",
@@ -817,6 +817,7 @@
         "connected": "Conectado · de donde vienen tus salidas",
         "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas.",
+        "notWorking": "Sesión iniciada, pero aún no funciona",
         "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando.",
         "savedRides": "Salidas guardadas en {{computer}} · conecta para sincronizar las nuevas"
       },
@@ -836,6 +837,7 @@
     "checkingSetup": "Comprobando configuración…",
     "loading": {
       "archive": "Cargando chats anteriores…",
+      "calendar": "Cargando calendario…",
       "chat": "Cargando chat…",
       "plan": "Cargando plan…",
       "settings": "Cargando ajustes…",
@@ -878,7 +880,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Conexión interrumpida. Puede que la sincronización aún esté terminando. {{product}} no la reintentará automáticamente.",
+        "indeterminate": "Conexión interrumpida. {{product}} volverá a comprobar la sincronización cuando se restablezca la conexión.",
         "noChange": "Procesamiento local de los datos de entrenamiento completado.",
         "noChangeRestricted_one": "Procesamiento local de los datos de entrenamiento completado. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluye una actividad.",
         "noChangeRestricted_other": "Procesamiento local de los datos de entrenamiento completado. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluyen {{formattedCount}} actividades.",
@@ -889,7 +891,8 @@
         "publishedRestricted_one": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluye una actividad.",
         "publishedRestricted_other": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluyen {{formattedCount}} actividades.",
         "queued": "Sincronización en cola.",
-        "running": "Sincronizando datos de entrenamiento…"
+        "running": "Sincronizando datos de entrenamiento…",
+        "signInNotInUse": "{{intervals}} no está conectado en este momento, así que no se ha sincronizado nada. {{product}} lo volverá a intentar cuando vuelva tu conexión de red."
       },
       "restriction": {
         "fixAction": "· Cómo solucionarlo",
@@ -913,6 +916,7 @@
     },
     "views": {
       "archive": "Chats anteriores",
+      "calendar": "Calendario",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Ajustes",
@@ -1519,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Adicional",
+        "untitled": "Salida"
+      },
+      "column": {
+        "trainingWeek": "Semana de entrenamiento",
+        "week": "Semana"
+      },
+      "copy": {
+        "changed": "Cambiado en intervals.icu",
+        "deleted": "Eliminado en intervals.icu",
+        "moved": "Movido al {{date}} en intervals.icu",
+        "notSent": "No enviado: intervals.icu no respondió"
+      },
+      "day": {
+        "beforePlan": "Antes del plan",
+        "rest": "Día de descanso",
+        "today": "{{day}} · Hoy",
+        "weekStarts": "{{day}} · Semana {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} de {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Semana siguiente",
+      "noPlan": {
+        "body": "Un plan coloca entrenamientos en estos días y en tu calendario de intervals.icu, donde tu ciclocomputador los recoge. El entrenador lo crea contigo en el chat, y no se envía nada hasta que lo apruebes.",
+        "start": "Iniciar un plan en el chat",
+        "title": "Aún no hay plan"
+      },
+      "outcome": {
+        "doneAsPlanned": "Completado según lo previsto",
+        "doneDifferently": "Completado de otra forma",
+        "isThisIt": "¿Es este?",
+        "missed": "No realizado",
+        "missedDetail": "{{planned}} · sin actividad",
+        "moved": "Movido al {{date}}",
+        "notSyncedYet": "Aún sin sincronizar",
+        "removedByYou": "Eliminado por ti",
+        "rideSynced": "Se sincronizó una salida",
+        "rideSyncedLength": "Se sincronizó una salida de {{duration}}",
+        "noActivity": "Sin actividad"
+      },
+      "previous": "Semana anterior",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "No se pudo actualizar el calendario.",
+      "retry": "Intentar de nuevo",
+      "season": {
+        "race": "Carrera el {{date}}",
+        "week": "Semana {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Aprobar desde el {{date}}",
+        "goesOut": "Se envía el {{date}}",
+        "notSentYet": "Aún no está en intervals.icu",
+        "onIntervals": "En intervals.icu",
+        "waitingForApprove": "Esperando aprobación",
+        "notConnected": "intervals.icu no está conectado"
+      },
+      "subtitle": {
+        "ended": "{{name}} · terminado",
+        "noPlan": "Sin plan · tus actividades de intervals.icu",
+        "starts": "{{name}} · empieza el {{date}}",
+        "week": "{{name}} · Semana de entrenamiento {{week}} de {{total}}",
+        "weekPhase": "{{name}} · Semana de entrenamiento {{week}} de {{total}} · {{phase}}"
+      },
+      "today": "Hoy",
+      "unavailable": "No se pudo cargar el calendario.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} actividad",
+        "activities_other": "{{duration}} · {{count}} actividades",
+        "crossing": "Semana {{from}} → {{to}}",
+        "endsOn": "hasta el {{date}}",
+        "label": "Semana {{week}}",
+        "load": "Carga {{load}}",
+        "nextStarts": "La semana {{week}} empieza el {{date}}",
+        "nothingPlanned": "Nada planificado",
+        "planned": "Planificado: {{planned}}",
+        "planOnly": "{{planned}} · solo en el plan",
+        "soFar": "{{duration}} hasta ahora",
+        "startsOn": "empieza el {{date}}",
+        "toConfirm_one": "{{count}} salida por confirmar",
+        "toConfirm_other": "{{count}} salidas por confirmar"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Limpieza completada",

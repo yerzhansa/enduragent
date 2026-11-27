@@ -153,6 +153,7 @@ function fakeVault(initialRuntime: CredentialRuntimeApplication) {
       }
     },
     async retryFailed() {},
+    async forgetStorageStateAfterReset() {},
   };
 
   return {

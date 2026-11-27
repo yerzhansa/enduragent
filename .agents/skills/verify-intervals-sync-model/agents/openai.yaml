@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify intervals.icu sync model"
+  short_description: "Model-check the coach connection, sync and sign-in"
+  default_prompt: "Use $verify-intervals-sync-model to model-check the window's coach connection, the intervals.icu sync and the stored sign-in against the current code."

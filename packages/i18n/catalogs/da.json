@@ -706,7 +706,7 @@
       "endpointInvalid": "Indtast et gyldigt HTTPS-slutpunkt eller et HTTP-loopbackslutpunkt.",
       "intervalsOwnerUnavailable": "{{product}} kunne ikke bekræfte, at denne {{intervals}}-konto passer til træningsdataene på {{computer}}. Prøv igen, når træningsdata er tilgængelige.",
       "intervalsRuntimeUnavailable": "Login til {{intervals}} kunne ikke aktiveres. Log ind igen.",
-      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekræfte, om login er aktivt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
+      "intervalsSavedNotActive": "Dit login til {{intervals}} er gemt, men træneren kunne ikke begynde at bruge det. Vælg Prøv gemte nøgler igen for at prøve igen.",
       "intervalsSignInDenied": "Adgang blev ikke tilladt på {{intervals}}. Log ind igen, når du er klar.",
       "intervalsSignInFailed": "Login med {{intervals}} blev ikke fuldført. Log ind igen.",
       "intervalsSignInRejected": "{{intervals}} accepterede ikke login. Log ind igen.",
@@ -817,6 +817,7 @@
         "connected": "Forbundet · hvor dine ture kommer fra",
         "connectedAs": "Forbundet som {{name}} · hvor dine ture kommer fra",
         "missing": "Opret forbindelse, eller importér turfiler.",
+        "notWorking": "Logget ind, men virker ikke endnu",
         "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere.",
         "savedRides": "Ture gemt på {{computer}} · opret forbindelse for at synkronisere nye"
       },
@@ -836,6 +837,7 @@
     "checkingSetup": "Kontrollerer opsætning…",
     "loading": {
       "archive": "Indlæser tidligere chats…",
+      "calendar": "Indlæser kalender…",
       "chat": "Indlæser chat…",
       "plan": "Indlæser plan…",
       "settings": "Indlæser indstillinger…",
@@ -878,7 +880,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Forbindelsen blev afbrudt. Synkroniseringen er muligvis stadig ved at blive afsluttet. {{product}} prøver ikke automatisk igen.",
+        "indeterminate": "Forbindelsen blev afbrudt. {{product}} kontrollerer synkroniseringen igen, når forbindelsen er genoprettet.",
         "noChange": "Lokal behandling af træningsdata fuldført.",
         "noChangeRestricted_one": "Lokal behandling af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så én aktivitet er ikke med.",
         "noChangeRestricted_other": "Lokal behandling af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så {{formattedCount}} aktiviteter er ikke med.",
@@ -889,7 +891,8 @@
         "publishedRestricted_one": "Kontrol af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så én aktivitet er ikke med.",
         "publishedRestricted_other": "Kontrol af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så {{formattedCount}} aktiviteter er ikke med.",
         "queued": "Synkronisering sat i kø.",
-        "running": "Synkroniserer træningsdata…"
+        "running": "Synkroniserer træningsdata…",
+        "signInNotInUse": "{{intervals}} er ikke forbundet lige nu, så intet blev synkroniseret. {{product}} prøver igen, når dit netværk er tilbage."
       },
       "restriction": {
         "fixAction": "· Sådan løser du det",
@@ -913,6 +916,7 @@
     },
     "views": {
       "archive": "Tidligere chats",
+      "calendar": "Kalender",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Indstillinger",
@@ -1519,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Ekstra",
+        "untitled": "Tur"
+      },
+      "column": {
+        "trainingWeek": "Træningsuge",
+        "week": "Uge"
+      },
+      "copy": {
+        "changed": "Ændret i intervals.icu",
+        "deleted": "Slettet i intervals.icu",
+        "moved": "Flyttet til {{date}} i intervals.icu",
+        "notSent": "Ikke sendt: intervals.icu svarede ikke"
+      },
+      "day": {
+        "beforePlan": "Før træningsplanen",
+        "rest": "Hviledag",
+        "today": "{{day}} · I dag",
+        "weekStarts": "{{day}} · Uge {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} af {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} t {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Næste uge",
+      "noPlan": {
+        "body": "En træningsplan lægger træninger på disse dage og i din intervals.icu-kalender, hvor din cykelcomputer henter dem. Træneren laver den sammen med dig i Chat, og intet sendes, før du godkender den.",
+        "start": "Start en træningsplan i Chat",
+        "title": "Ingen træningsplan endnu"
+      },
+      "outcome": {
+        "doneAsPlanned": "Gennemført som planlagt",
+        "doneDifferently": "Gennemført anderledes",
+        "isThisIt": "Er det den?",
+        "missed": "Ikke gennemført",
+        "missedDetail": "{{planned}} · ingen aktivitet",
+        "moved": "Flyttet til {{date}}",
+        "notSyncedYet": "Endnu ikke synkroniseret",
+        "removedByYou": "Fjernet af dig",
+        "rideSynced": "En tur er synkroniseret",
+        "rideSyncedLength": "En tur på {{duration}} er synkroniseret",
+        "noActivity": "Ingen aktivitet"
+      },
+      "previous": "Forrige uge",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}.–{{end}}"
+      },
+      "refreshFailed": "Kalenderen kunne ikke opdateres.",
+      "retry": "Prøv igen",
+      "season": {
+        "race": "Konkurrence {{date}}",
+        "week": "Uge {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Godkend fra {{date}}",
+        "goesOut": "Sendes {{date}}",
+        "notSentYet": "Ikke på intervals.icu endnu",
+        "onIntervals": "På intervals.icu",
+        "waitingForApprove": "Venter på godkendelse",
+        "notConnected": "intervals.icu er ikke forbundet"
+      },
+      "subtitle": {
+        "ended": "{{name}} · afsluttet",
+        "noPlan": "Ingen træningsplan · dine aktiviteter fra intervals.icu",
+        "starts": "{{name}} · starter {{date}}",
+        "week": "{{name}} · Træningsuge {{week}} af {{total}}",
+        "weekPhase": "{{name}} · Træningsuge {{week}} af {{total}} · {{phase}}"
+      },
+      "today": "I dag",
+      "unavailable": "Kalenderen kunne ikke indlæses.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} aktivitet",
+        "activities_other": "{{duration}} · {{count}} aktiviteter",
+        "crossing": "Uge {{from}} → {{to}}",
+        "endsOn": "til {{date}}",
+        "label": "Uge {{week}}",
+        "load": "Træningsbelastning {{load}}",
+        "nextStarts": "Uge {{week}} starter {{date}}",
+        "nothingPlanned": "Intet planlagt",
+        "planned": "{{planned}} planlagt",
+        "planOnly": "{{planned}} · kun i træningsplanen",
+        "soFar": "{{duration}} indtil nu",
+        "startsOn": "starter {{date}}",
+        "toConfirm_one": "{{count}} tur skal bekræftes",
+        "toConfirm_other": "{{count}} ture skal bekræftes"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Oprydning fuldført",

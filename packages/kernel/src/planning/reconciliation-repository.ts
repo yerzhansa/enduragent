@@ -82,6 +82,7 @@ export interface PlanReconciliationRepository {
     nowMs: number;
     leaseMs: number;
     maxFailures: number;
+    cleanupRetryMs: number;
   }): Promise<readonly PlanReconciliationJobRecord[]>;
   claim(
     id: string,
@@ -93,6 +94,8 @@ export interface PlanReconciliationRepository {
     kind: PlanReconciliationKind,
   ): Promise<PlanReconciliationJobRecord | undefined>;
   readLatestJobsForLibrary(): Promise<readonly PlanReconciliationJobRecord[]>;
+  readCleanupBarrier(): Promise<PlanReconciliationJobRecord | undefined>;
+  reopenFailedCleanups(updatedAtMs: number): Promise<void>;
   beginAttempt(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
   reopenJob(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
   failJob(
@@ -413,8 +416,13 @@ export function createPlanReconciliationRepository(
       );
       return row === undefined ? undefined : jobFromRow(row);
     },
-    async listRunnable({ nowMs, leaseMs, maxFailures }) {
-      if (!validTimestamp(nowMs) || !validTimestamp(leaseMs) || !validTimestamp(maxFailures)) {
+    async listRunnable({ nowMs, leaseMs, maxFailures, cleanupRetryMs }) {
+      if (
+        !validTimestamp(nowMs) ||
+        !validTimestamp(leaseMs) ||
+        !validTimestamp(maxFailures) ||
+        !validTimestamp(cleanupRetryMs)
+      ) {
         throw new PlanReconciliationValidationError("invalid-job");
       }
       const rows = await store.all(
@@ -423,9 +431,10 @@ export function createPlanReconciliationRepository(
            SELECT plan_id FROM planning_plan WHERE status='active'
          ))) AND (status IN ('pending','retrying')
            OR (status='failed' AND failure_count<?)
+           OR (status='failed' AND kind='cleanup' AND updated_at_ms+?<=?)
            OR (status='running' AND updated_at_ms+?<=?))
          ORDER BY window_start_date_key ASC,created_at_ms ASC,id ASC`,
-        [maxFailures, leaseMs, nowMs],
+        [maxFailures, cleanupRetryMs, nowMs, leaseMs, nowMs],
       );
       return Object.freeze(rows.map(jobFromRow));
     },
@@ -468,6 +477,23 @@ export function createPlanReconciliationRepository(
          ) WHERE job_rank=1 ORDER BY plan_id,kind`,
       );
       return Object.freeze(rows.map(jobFromRow));
+    },
+    async readCleanupBarrier() {
+      const row = await store.get(
+        `SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job
+         WHERE kind='cleanup' AND plan_id NOT IN (
+           SELECT plan_id FROM planning_plan WHERE status='active'
+         ) ORDER BY status='failed' DESC,status<>'verified' DESC,created_at_ms DESC,id DESC LIMIT 1`,
+      );
+      return row === undefined ? undefined : jobFromRow(row);
+    },
+    async reopenFailedCleanups(updatedAtMs) {
+      if (!validTimestamp(updatedAtMs)) throw new PlanReconciliationValidationError("invalid-job");
+      await store.run(
+        `UPDATE plan_reconciliation_job SET status='pending',last_error_code=NULL,
+         completed_at_ms=NULL,updated_at_ms=? WHERE kind='cleanup' AND status='failed'`,
+        [updatedAtMs],
+      );
     },
     async beginAttempt(id, updatedAtMs) {
       if (!ULID.test(id) || !validTimestamp(updatedAtMs)) {

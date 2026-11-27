@@ -1,6 +1,7 @@
 import type {
   IntervalsCredentialMutationRefusalReason,
   IntervalsCredentialMutationResult,
+  IntervalsCredentialStatus,
   IntervalsSignInPhase,
 } from "./bridge";
 import type { OnboardingErrorCode } from "./machine";
@@ -32,16 +33,24 @@ const INTERVALS_REFUSAL_ERRORS = {
   Record<IntervalsCredentialMutationRefusalReason, OnboardingErrorCode | null>
 >;
 
+function savedSignInError(current: IntervalsCredentialStatus): OnboardingErrorCode | null {
+  if (current.state !== "configured") return "intervals-runtime-unavailable";
+  if (current.runtimeState === "active") return null;
+  return current.runtimeState === "failed"
+    ? "intervals-saved-not-active"
+    : "intervals-runtime-unavailable";
+}
+
 export function intervalsMutationError(
   result: IntervalsCredentialMutationResult,
 ): OnboardingErrorCode | null {
-  if (result.outcome === "applied") {
-    return result.current.state === "configured" && result.current.runtimeState === "active"
-      ? null
-      : "intervals-runtime-unavailable";
+  switch (result.outcome) {
+    case "applied":
+    case "saved-not-active":
+      return savedSignInError(result.current);
+    case "refused":
+      return INTERVALS_REFUSAL_ERRORS[result.reason];
+    case "uncertain":
+      return "intervals-storage-uncertain";
   }
-  if (result.outcome === "refused") return INTERVALS_REFUSAL_ERRORS[result.reason];
-  return result.reason === "storage-uncertain"
-    ? "intervals-storage-uncertain"
-    : "intervals-runtime-uncertain";
 }

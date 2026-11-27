@@ -2,6 +2,7 @@ import { msg, type Message } from "@enduragent/i18n";
 import {
   Activity,
   CalendarDays,
+  Calendar,
   History,
   MessageSquare,
   Settings,
@@ -9,7 +10,7 @@ import {
 } from "lucide-react";
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 
-export type ViewId = "chat" | "archive" | "plan" | "training" | "settings";
+export type ViewId = "chat" | "archive" | "calendar" | "plan" | "training" | "settings";
 export type StoredViewId = ViewId;
 
 export const REACT_CHAT_REGION = "react-chat-region";
@@ -47,6 +48,16 @@ export const VIEWS: readonly ViewDefinition[] = Object.freeze([
     title: msg("sidebar.views.archive"),
     page: lazy(async () => ({
       default: (await import("../ui/archive/ArchiveView")).ArchiveView,
+    })),
+  },
+  {
+    id: "calendar",
+    label: msg("sidebar.views.calendar"),
+    loading: msg("shell.loading.calendar"),
+    icon: Calendar,
+    title: msg("sidebar.views.calendar"),
+    page: lazy(async () => ({
+      default: (await import("../ui/calendar/CalendarView")).CalendarView,
     })),
   },
   {

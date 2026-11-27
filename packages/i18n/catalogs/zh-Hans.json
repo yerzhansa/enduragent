@@ -704,7 +704,7 @@
       "endpointInvalid": "请输入有效的 HTTPS 端点，或使用回环地址的 HTTP 端点。",
       "intervalsOwnerUnavailable": "{{product}} 无法确认此 {{intervals}} 账号是否与 {{computer}} 上的训练数据匹配。请在训练数据可用后重试。",
       "intervalsRuntimeUnavailable": "无法启用 {{intervals}} 登录。请重新登录。",
-      "intervalsRuntimeUncertain": "{{product}} 无法确认登录是否有效。请重新加载凭据状态后重试。",
+      "intervalsSavedNotActive": "{{intervals}} 登录已保存，但教练无法开始使用。请选择“重试已保存的密钥”再试一次。",
       "intervalsSignInDenied": "未在 {{intervals}} 上允许访问。准备好后请重新登录。",
       "intervalsSignInFailed": "使用 {{intervals}} 登录未完成。请重新登录。",
       "intervalsSignInRejected": "{{intervals}} 未接受此次登录。请重新登录。",
@@ -814,6 +814,7 @@
         "connected": "已连接 · 骑行数据来源",
         "connectedAs": "已以 {{name}} 身份连接 · 骑行数据来源",
         "missing": "请连接或导入骑行文件。",
+        "notWorking": "已登录，但尚未生效",
         "rejected": "{{intervals}} 不再接受此登录。请重新登录以继续同步。",
         "savedRides": "骑行已保存在 {{computer}} 上 · 连接后可同步新的骑行"
       },
@@ -833,6 +834,7 @@
     "checkingSetup": "正在检查初始设置…",
     "loading": {
       "archive": "正在加载历史聊天…",
+      "calendar": "正在加载日历…",
       "chat": "正在加载聊天…",
       "plan": "正在加载计划…",
       "settings": "正在加载设置…",
@@ -874,7 +876,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "连接中断。同步可能仍在完成中。{{product}} 不会自动重试。",
+        "indeterminate": "连接中断。重新连接后，{{product}} 会再次检查同步。",
         "noChange": "本地训练数据处理已完成。",
         "noChangeRestricted_other": "本地训练数据处理已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "operationFailure": "无法完成训练数据检查。现有数据仍可使用。",
@@ -883,7 +885,8 @@
         "published": "训练数据检查已完成。",
         "publishedRestricted_other": "训练数据检查已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "queued": "同步已加入队列。",
-        "running": "正在同步训练数据…"
+        "running": "正在同步训练数据…",
+        "signInNotInUse": "{{intervals}} 当前未连接，因此没有同步任何内容。网络恢复后，{{product}} 会再次尝试。"
       },
       "restriction": {
         "fixAction": "· 如何解决",
@@ -905,6 +908,7 @@
     },
     "views": {
       "archive": "历史聊天",
+      "calendar": "日历",
       "chat": "聊天",
       "plan": "计划",
       "settings": "设置",
@@ -1506,6 +1510,98 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "额外",
+        "untitled": "骑行"
+      },
+      "column": {
+        "trainingWeek": "训练周",
+        "week": "周"
+      },
+      "copy": {
+        "changed": "已在 intervals.icu 中更改",
+        "deleted": "已在 intervals.icu 中删除",
+        "moved": "已在 intervals.icu 中移至 {{date}}",
+        "notSent": "未发送：intervals.icu 没有响应"
+      },
+      "day": {
+        "beforePlan": "计划开始前",
+        "rest": "休息日",
+        "today": "{{day}} · 今天",
+        "weekStarts": "{{day}} · 第 {{week}} 周"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} / {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}}小时 {{minutes}}分钟",
+        "minutes": "{{minutes}}分钟"
+      },
+      "next": "下周",
+      "noPlan": {
+        "body": "计划会把训练课程安排到这些日期和 intervals.icu 日历中，码表会从那里获取。教练会在聊天中与你一起制定计划，批准之前不会发送任何内容。",
+        "start": "在聊天中开始制定计划",
+        "title": "还没有计划"
+      },
+      "outcome": {
+        "doneAsPlanned": "按计划完成",
+        "doneDifferently": "完成情况与计划不同",
+        "isThisIt": "是这次吗？",
+        "missed": "未完成",
+        "missedDetail": "{{planned}} · 无活动",
+        "moved": "已移至 {{date}}",
+        "notSyncedYet": "尚未同步",
+        "removedByYou": "已由你移除",
+        "rideSynced": "已同步一次骑行",
+        "rideSyncedLength": "已同步一次 {{duration}} 的骑行",
+        "noActivity": "无活动"
+      },
+      "previous": "上周",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}日–{{end}}"
+      },
+      "refreshFailed": "日历无法刷新。",
+      "retry": "重试",
+      "season": {
+        "race": "比赛 {{date}}",
+        "week": "第 {{week}} 周，{{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "{{date}} 起可批准",
+        "goesOut": "{{date}} 发送",
+        "notSentYet": "尚未发送到 intervals.icu",
+        "onIntervals": "已在 intervals.icu 上",
+        "waitingForApprove": "等待批准",
+        "notConnected": "intervals.icu 未连接"
+      },
+      "subtitle": {
+        "ended": "{{name}} · 已结束",
+        "noPlan": "无计划 · 来自 intervals.icu 的活动",
+        "starts": "{{name}} · {{date}}开始",
+        "week": "{{name}} · 第 {{week}} 训练周，共 {{total}} 周",
+        "weekPhase": "{{name}} · 第 {{week}} 训练周，共 {{total}} 周 · {{phase}}"
+      },
+      "today": "今天",
+      "unavailable": "日历无法加载。",
+      "week": {
+        "activities_other": "{{duration}} · {{count}} 次活动",
+        "crossing": "第 {{from}} 周 → 第 {{to}} 周",
+        "endsOn": "至 {{date}}",
+        "label": "第 {{week}} 周",
+        "load": "训练负荷 {{load}}",
+        "nextStarts": "第 {{week}} 周于 {{date}}开始",
+        "nothingPlanned": "无安排",
+        "planned": "已安排 {{planned}}",
+        "planOnly": "{{planned}} · 仅在计划中",
+        "soFar": "目前 {{duration}}",
+        "startsOn": "{{date}}开始",
+        "toConfirm_other": "{{count}} 次骑行待确认"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "清理完成",

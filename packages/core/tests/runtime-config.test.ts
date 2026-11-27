@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRuntimeConfig } from "../src/runtime-config.js";
+import { currentModelId, resolveRuntimeConfig, type LlmProvider } from "../src/runtime-config.js";
 
 describe("runtime configuration authority", () => {
   it("preserves same-provider custom fields for a credential-only patch", () => {
@@ -54,14 +54,88 @@ describe("runtime configuration authority", () => {
 
     expect(next.llm).toEqual({
       provider: "zai",
-      model: "glm-4.7",
+      model: "glm-5.3",
       apiKey: "obviously-fake-zai-key",
       authProfile: undefined,
       flushModel: undefined,
-      compactModel: "glm-4.7",
+      compactModel: "glm-5.3",
       baseUrl: "https://api.z.ai/api/openai/v1",
     });
-    expect(next.contextWindowTokens).toBe(200_000);
+    expect(next.contextWindowTokens).toBe(1_000_000);
+  });
+
+  it("moves saved models their provider retired to the replacement and keeps the rest", () => {
+    const load = (
+      provider: LlmProvider,
+      model: string,
+      extra: { compactModel?: string; flushModel?: string; baseUrl?: string } = {},
+    ) =>
+      resolveRuntimeConfig({ llm: { provider, model, apiKey: "obviously-fake-key", ...extra } })
+        .llm;
+
+    expect(load("deepseek", "deepseek-v4-flash")).toMatchObject({
+      model: "deepseek-flash",
+      compactModel: "deepseek-flash",
+    });
+    expect(load("google", "gemini-3.7-flash").model).toBe("gemini-3.8-flash");
+    expect(load("minimax", "MiniMax-M2.7").model).toBe("MiniMax-M3");
+    expect(load("minimax", "MiniMax-M2.7-highspeed").model).toBe("MiniMax-M3.1-Flash");
+    expect(
+      load("openrouter", "qwen/qwen3.8-max", {
+        compactModel: "qwen/qwen3.8-max",
+        flushModel: "qwen/qwen3.8-max",
+      }),
+    ).toMatchObject({
+      model: "qwen/qwen4-max",
+      compactModel: "qwen/qwen4-max",
+      flushModel: "qwen/qwen4-max",
+    });
+    expect(
+      load("deepseek", "deepseek-v4-flash", { baseUrl: "https://api.deepseek.com/v1" }).model,
+    ).toBe("deepseek-flash");
+    expect(
+      resolveRuntimeConfig({
+        llm: { provider: "deepseek", model: "deepseek-v4-flash", apiKey: "obviously-fake-key" },
+      }).contextWindowTokens,
+    ).toBe(1_000_000);
+
+    expect(load("anthropic", "claude-opus-5").model).toBe("claude-opus-5");
+    expect(load("kimi", "kimi-k2.6").model).toBe("kimi-k2.6");
+    expect(load("openrouter", "deepseek/deepseek-v4-flash").model).toBe(
+      "deepseek/deepseek-v4-flash",
+    );
+    expect(load("deepseek", "qwen/qwen3.8-max").model).toBe("qwen/qwen3.8-max");
+    expect(load("deepseek", "constructor").model).toBe("constructor");
+    expect(currentModelId("constructor", "name", undefined)).toBe("name");
+  });
+
+  it("keeps a retired model name the athlete sends to their own endpoint", () => {
+    const viaGateway = resolveRuntimeConfig({
+      llm: {
+        provider: "deepseek",
+        model: "deepseek-v4-flash",
+        compactModel: "deepseek-v4-flash",
+        baseUrl: "https://gateway.invalid.example.test/v1",
+        apiKey: "obviously-fake-key",
+      },
+    }).llm;
+    expect(viaGateway).toMatchObject({
+      model: "deepseek-v4-flash",
+      compactModel: "deepseek-v4-flash",
+      baseUrl: "https://gateway.invalid.example.test/v1",
+    });
+    expect(
+      resolveRuntimeConfig(
+        { llm: { model: "deepseek-v4-flash" } },
+        resolveRuntimeConfig({
+          llm: {
+            provider: "deepseek",
+            baseUrl: "https://gateway.invalid.example.test/v1",
+            apiKey: "obviously-fake-key",
+          },
+        }),
+      ).llm.model,
+    ).toBe("deepseek-v4-flash");
   });
 
   it("keeps ChatGPT compaction aligned at startup and after model changes", () => {
@@ -184,15 +258,15 @@ describe("Astra explicit public API selection", () => {
       llm: {
         provider: "openai",
         apiKey: "fake-key",
-        compactModel: "gpt-5.6-luna",
-        flushModel: "gpt-5.6-luna",
+        compactModel: "gpt-6-luna",
+        flushModel: "gpt-6-luna",
       },
     });
-    expect(initial.llm.model).toBe("gpt-5.6-sol");
+    expect(initial.llm.model).toBe("gpt-6.2-sol");
     const selected = resolveRuntimeConfig({ llm: { model: "gpt-6-astra" } }, initial);
     expect(selected.llm).toEqual({ ...initial.llm, model: "gpt-6-astra" });
     expect(selected.contextWindowTokens).toBe(1_050_000);
-    const restored = resolveRuntimeConfig({ llm: { model: "gpt-5.6-sol" } }, selected);
+    const restored = resolveRuntimeConfig({ llm: { model: "gpt-6.2-sol" } }, selected);
     expect(restored.llm).toEqual(initial.llm);
     expect(restored.contextWindowTokens).toBe(initial.contextWindowTokens);
   });
@@ -212,6 +286,6 @@ it("keeps implicit OpenAI background work on its previous model when opting into
   const fresh = resolveRuntimeConfig({
     llm: { provider: "openai", model: "gpt-6-astra", apiKey: "fake-key" },
   });
-  expect(fresh.llm.flushModel).toBe("gpt-5.6-sol");
-  expect(fresh.llm.compactModel).toBe("gpt-5.6-sol");
+  expect(fresh.llm.flushModel).toBe("gpt-6.2-sol");
+  expect(fresh.llm.compactModel).toBe("gpt-6.2-sol");
 });

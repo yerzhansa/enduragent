@@ -706,7 +706,7 @@
       "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
       "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että tämä {{intervals}}-tili vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
       "intervalsRuntimeUnavailable": "{{intervals}}-kirjautumista ei voitu ottaa käyttöön. Kirjaudu uudelleen.",
-      "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kirjautuminen käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsSavedNotActive": "{{intervals}}-kirjautumisesi on tallennettu, mutta valmentaja ei voinut alkaa käyttää sitä. Yritä uudelleen valitsemalla Yritä tallennettuja avaimia uudelleen.",
       "intervalsSignInDenied": "Käyttöoikeutta ei myönnetty palvelussa {{intervals}}. Kirjaudu uudelleen, kun olet valmis.",
       "intervalsSignInFailed": "Kirjautuminen palvelulla {{intervals}} jäi kesken. Kirjaudu uudelleen.",
       "intervalsSignInRejected": "{{intervals}} ei hyväksynyt kirjautumista. Kirjaudu uudelleen.",
@@ -817,6 +817,7 @@
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja.",
+        "notWorking": "Kirjautunut, mutta ei vielä toimi",
         "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu.",
         "savedRides": "Lenkit tallennettu tietokoneelle {{computer}} · yhdistä, niin uudet synkronoidaan"
       },
@@ -836,6 +837,7 @@
     "checkingSetup": "Tarkistetaan käyttöönottoa…",
     "loading": {
       "archive": "Ladataan aiempia keskusteluja…",
+      "calendar": "Ladataan kalenteria…",
       "chat": "Ladataan keskustelua…",
       "plan": "Ladataan suunnitelmaa…",
       "settings": "Ladataan asetuksia…",
@@ -878,7 +880,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Yhteys katkesi. Synkronointi saattaa vielä olla valmistumassa. {{product}} ei yritä sitä uudelleen automaattisesti.",
+        "indeterminate": "Yhteys katkesi. {{product}} tarkistaa synkronoinnin uudelleen, kun yhteys palaa.",
         "noChange": "Harjoitustietojen paikallinen käsittely valmistui.",
         "noChangeRestricted_one": "Harjoitustietojen paikallinen käsittely valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten yhtä suoritusta ei ole mukana.",
         "noChangeRestricted_other": "Harjoitustietojen paikallinen käsittely valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten {{formattedCount}} suoritusta ei ole mukana.",
@@ -889,7 +891,8 @@
         "publishedRestricted_one": "Harjoitustietojen tarkistus valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten yhtä suoritusta ei ole mukana.",
         "publishedRestricted_other": "Harjoitustietojen tarkistus valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten {{formattedCount}} suoritusta ei ole mukana.",
         "queued": "Synkronointi jonossa.",
-        "running": "Synkronoidaan harjoitustietoja…"
+        "running": "Synkronoidaan harjoitustietoja…",
+        "signInNotInUse": "{{intervals}} ei ole juuri nyt yhdistettynä, joten mitään ei synkronoitu. {{product}} yrittää uudelleen, kun verkkoyhteytesi palaa."
       },
       "restriction": {
         "fixAction": "· Näin korjaat tämän",
@@ -913,6 +916,7 @@
     },
     "views": {
       "archive": "Aiemmat keskustelut",
+      "calendar": "Kalenteri",
       "chat": "Keskustelu",
       "plan": "Suunnitelma",
       "settings": "Asetukset",
@@ -1519,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Ylimääräinen",
+        "untitled": "Lenkki"
+      },
+      "column": {
+        "trainingWeek": "Harjoitusviikko",
+        "week": "Viikko"
+      },
+      "copy": {
+        "changed": "Muutettu intervals.icu-palvelussa",
+        "deleted": "Poistettu intervals.icu-palvelussa",
+        "moved": "Siirretty päivälle {{date}} intervals.icu-palvelussa",
+        "notSent": "Ei lähetetty: intervals.icu ei vastannut"
+      },
+      "day": {
+        "beforePlan": "Ennen suunnitelmaa",
+        "rest": "Lepopäivä",
+        "today": "{{day}} · Tänään",
+        "weekStarts": "{{day}} · Viikko {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} / {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Seuraava viikko",
+      "noPlan": {
+        "body": "Suunnitelma lisää harjoituksia näille päiville ja intervals.icu-kalenteriisi, josta pyörätietokoneesi hakee ne. Valmentaja laatii sen kanssasi keskustelussa, eikä mitään lähetetä ennen kuin hyväksyt sen.",
+        "start": "Aloita suunnitelma keskustelussa",
+        "title": "Ei vielä suunnitelmaa"
+      },
+      "outcome": {
+        "doneAsPlanned": "Tehty suunnitellusti",
+        "doneDifferently": "Tehty eri tavalla",
+        "isThisIt": "Onko tämä se?",
+        "missed": "Väliin jäänyt",
+        "missedDetail": "{{planned}} · ei suoritusta",
+        "moved": "Siirretty päivälle {{date}}",
+        "notSyncedYet": "Ei vielä synkronoitu",
+        "removedByYou": "Poistit tämän",
+        "rideSynced": "Lenkki synkronoitiin",
+        "rideSyncedLength": "Lenkki ({{duration}}) synkronoitiin",
+        "noActivity": "Ei suoritusta"
+      },
+      "previous": "Edellinen viikko",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}.–{{end}}"
+      },
+      "refreshFailed": "Kalenteria ei voitu päivittää.",
+      "retry": "Yritä uudelleen",
+      "season": {
+        "race": "Kilpailu {{date}}",
+        "week": "Viikko {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Hyväksy {{date}} alkaen",
+        "goesOut": "Lähetetään {{date}}",
+        "notSentYet": "Ei vielä intervals.icu-palvelussa",
+        "onIntervals": "intervals.icu-palvelussa",
+        "waitingForApprove": "Odottaa hyväksyntää",
+        "notConnected": "intervals.icu ei ole yhdistettynä"
+      },
+      "subtitle": {
+        "ended": "{{name}} · päättynyt",
+        "noPlan": "Ei suunnitelmaa · suorituksesi intervals.icu-palvelusta",
+        "starts": "{{name}} · alkaa {{date}}",
+        "week": "{{name}} · Harjoitusviikko {{week}}/{{total}}",
+        "weekPhase": "{{name}} · Harjoitusviikko {{week}}/{{total}} · {{phase}}"
+      },
+      "today": "Tänään",
+      "unavailable": "Kalenteria ei voitu ladata.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} suoritus",
+        "activities_other": "{{duration}} · {{count}} suoritusta",
+        "crossing": "Viikko {{from}} → {{to}}",
+        "endsOn": "{{date}} asti",
+        "label": "Viikko {{week}}",
+        "load": "Harjoituskuorma {{load}}",
+        "nextStarts": "Viikko {{week}} alkaa {{date}}",
+        "nothingPlanned": "Ei suunniteltua",
+        "planned": "Suunniteltu {{planned}}",
+        "planOnly": "{{planned}} · vain suunnitelmassa",
+        "soFar": "{{duration}} tähän mennessä",
+        "startsOn": "alkaa {{date}}",
+        "toConfirm_one": "{{count}} lenkki vahvistettavana",
+        "toConfirm_other": "{{count}} lenkkiä vahvistettavana"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Siivous valmis",

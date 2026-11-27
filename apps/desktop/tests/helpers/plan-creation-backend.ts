@@ -13,6 +13,7 @@ import {
   type PlanCreationAnswerInput,
   PlanCreationActivateRpcParamsSchema,
   PlanCreationPreviewRpcParamsSchema,
+  PlanCalendarRpcParamsSchema,
   type CoachEngine,
   type LegacyPlanSummary,
   type PlanningOperations,
@@ -20,9 +21,12 @@ import {
 } from "@enduragent/coach-contract";
 import {
   createPlanCreationRepository,
+  createPlanWorkoutMatchRepository,
   type PlanCreationRepository,
 } from "@enduragent/kernel/planning";
+import { createPlanCalendarOperations } from "../../../../packages/coach/src/plan-calendar-operations.js";
 import type { PlanMirrorCalendarPort } from "@enduragent/engine";
+import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import {
   createPlanCalendarDrain,
@@ -174,7 +178,7 @@ export class PlanCreationBackend {
     coexistence = false,
     readStoredPlans = false,
     private readonly options: {
-      readonly calendar?: PlanMirrorCalendarPort;
+      readonly calendar?: PlanMirrorCalendarPort & { readonly mirror: CalendarMirrorPort };
       readonly calendarConnected?: boolean;
       readonly legacy?: LegacyPlanSummary | null;
     } = {},
@@ -318,6 +322,21 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
           } finally {
             if (fail) await this.requireStore().run("DROP TRIGGER reject_close");
           }
+        }
+        if (request.method === "plan.calendar") {
+          const civilDate = (ms: number) =>
+            Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", ""));
+          return response(
+            await createPlanCalendarOperations({
+              store: this.requireStore(),
+              todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
+              calendarConnected: () =>
+                this.options.calendarConnected ?? this.options.calendar !== undefined,
+              dateKeyOfMs: civilDate,
+              now: () => this.instant,
+              changed: () => void this.calendarDrain?.kick(),
+            })["plan.calendar"](PlanCalendarRpcParamsSchema.parse(request.params)),
+          );
         }
         if (request.method === "plan.history") {
           return response(
@@ -1045,6 +1064,64 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
         valueJson: String(row.value_json),
       })),
     };
+  }
+
+  async seedCalendarRide(ride: {
+    readonly key: string;
+    readonly dateKey: number;
+    readonly name: string;
+    readonly movingS: number;
+    readonly distanceM: number;
+    readonly match?: {
+      readonly planId: string;
+      readonly planWorkoutId: string;
+      readonly decision: "confirmed" | "suggested";
+    };
+  }): Promise<void> {
+    const store = this.requireStore();
+    const day = String(ride.dateKey);
+    const startUtc = Date.parse(
+      `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T08:00:00Z`,
+    );
+    await store.run(
+      "INSERT INTO workout (workout_key, start_utc, tz_offset_s, name, dedup_cluster_id) VALUES (?, ?, 0, ?, ?)",
+      [ride.key, startUtc / 1000, ride.name, ride.key],
+    );
+    await store.run(
+      `INSERT INTO session (session_key, workout_key, session_seq, sport, start_utc, tz_offset_s,
+        local_date_key, elapsed_s, timer_s, moving_s, distance_m, is_transition)
+       VALUES (?, ?, 0, 'cycling', ?, 0, ?, ?, ?, ?, ?, 0)`,
+      [
+        ride.key,
+        ride.key,
+        startUtc / 1000,
+        ride.dateKey,
+        ride.movingS,
+        ride.movingS,
+        ride.movingS,
+        ride.distanceM,
+      ],
+    );
+    if (ride.match === undefined) return;
+    const decided = ride.match.decision === "confirmed" ? this.instant : null;
+    await createPlanWorkoutMatchRepository(store).observe({
+      id: fixtureId(`M${ride.key.slice(0, 4)}`),
+      planId: ride.match.planId,
+      planWorkoutId: ride.match.planWorkoutId,
+      activityId: ride.key,
+      providerActivityId: null,
+      providerEventId: null,
+      source: "heuristic",
+      decision: ride.match.decision,
+      activityDateKey: ride.dateKey,
+      activitySport: "Ride",
+      activityDurationS: ride.movingS,
+      observedAtMs: this.instant,
+      decidedAtMs: decided,
+      deviceId: "fixture-device",
+      hlcPhysicalMs: this.instant,
+      hlcCounter: 0,
+    });
   }
 
   async seedUnrelatedPlans(): Promise<void> {

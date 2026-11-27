@@ -310,12 +310,8 @@ export function createPlanCreationOperations(input: {
       return { status: "pending", window, currentThrough: null, error: null };
     if (job.status === "failed") {
       const error = job.kind === "mirror" ? "Calendar sync failed." : "Calendar cleanup failed.";
-      return {
-        status: "failed",
-        window,
-        currentThrough: null,
-        error: job.failureCount >= 5 ? error : `${error} Retry available.`,
-      };
+      const retry = job.kind === "cleanup" || job.failureCount < 5 ? " Retry available." : "";
+      return { status: "failed", window, currentThrough: null, error: `${error}${retry}` };
     }
     return { status: "running", window, currentThrough: null, error: null };
   };
@@ -359,7 +355,7 @@ export function createPlanCreationOperations(input: {
   };
   return {
     async "plan.list"(request) {
-      ListPlansParamsSchema.parse(request);
+      const { retryCalendar } = ListPlansParamsSchema.parse(request);
       await checks.ready();
       const legacy = await legacyPlan();
       const sources = intervalsConfigured() ? await input.eventSources.read() : [];
@@ -390,16 +386,20 @@ export function createPlanCreationOperations(input: {
         const creation = await input.repository.readUnfinished();
         const records = await plans.listPlans();
         const reconciliation = createPlanReconciliationRepository(transactionStore);
+        if (retryCalendar === true) await reconciliation.reopenFailedCleanups(now());
         const jobs = new Map(
           (await reconciliation.readLatestJobsForLibrary()).map((job) => [
             `${job.planId}:${job.kind}`,
             job,
           ]),
         );
+        const barrier = await reconciliation.readCleanupBarrier();
+        const holding = barrier?.status !== "verified" ? barrier : undefined;
         const summaries = records.map((plan) => ({
           ...summarizePlan(plan),
           calendar: summarizeCalendar(
-            jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
+            (plan.status === "active" ? holding : undefined) ??
+              jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;

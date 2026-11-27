@@ -5,9 +5,7 @@ export const NONCE_BYTES = 12 as const;
 export const AES_KEY_BITS = 256 as const;
 
 export interface ExportCryptoPort {
-  /** Cryptographically-random bytes. */
   randomBytes(n: number): Uint8Array;
-  /** PBKDF2(SHA-256, iterations) → AES-256-GCM encrypt. Returns ciphertext||tag. */
   encrypt(input: {
     readonly passphrase: string;
     readonly salt: Uint8Array;
@@ -16,8 +14,6 @@ export interface ExportCryptoPort {
     readonly aad: Uint8Array;
     readonly plaintext: Uint8Array;
   }): Promise<Uint8Array>;
-  /** Reverse of encrypt. MUST reject (throw) on any authentication failure
-   *  (wrong passphrase OR modified bytes — AES-GCM cannot distinguish them). */
   decrypt(input: {
     readonly passphrase: string;
     readonly salt: Uint8Array;
@@ -43,11 +39,7 @@ export interface ArchiveArtifact {
 export type AuthoredRow = Record<string, unknown>;
 
 export interface ExportSource {
-  /** The store's current PRAGMA user_version at export time. */
   readUserVersion(): Promise<number>;
-  /** Rows of one authored-class table. For a mixed table, opts.manualOnly
-   *  is true and the source MUST return only provenance='manual' rows. Rows
-   *  MUST be JSON-serializable (the adapter normalizes any bigint columns). */
   readAuthoredTable(
     table: string,
     opts: { readonly manualOnly: boolean },
@@ -55,7 +47,6 @@ export interface ExportSource {
 }
 
 export interface ArchiveManifestReader {
-  /** Every raw-archive artifact as address+metadata; NO blob bytes. */
   listArtifacts(): Promise<readonly ArchiveArtifact[]>;
 }
 
@@ -70,8 +61,6 @@ export interface RestoreTableOptions {
 }
 
 export interface ImportSink {
-  /** Idempotent insert-if-absent by the table's primary key. Re-importing
-   *  the same container inserts zero duplicate rows (skipped counts them). */
   restoreAuthoredTable(
     table: string,
     rows: readonly AuthoredRow[],
@@ -80,7 +69,6 @@ export interface ImportSink {
 }
 
 export interface ArchivePresenceChecker {
-  /** True iff an artifact with this content address exists in the archive. */
   hasArtifact(address: string): Promise<boolean>;
 }
 
@@ -117,6 +105,9 @@ export const PURE_AUTHORED_TABLES = [
   "plan_race_outcome",
   "plan_replacement",
   "plan_settings",
+  "plan_icu_copy",
+  "plan_week_delivery",
+  "planning_calendar_setting",
   "plan_source_request",
   "plan_workout",
   "plan_workout_drift",
@@ -127,7 +118,6 @@ export const PURE_AUTHORED_TABLES = [
   "planning_request_tombstone",
 ] as const;
 
-/** Mixed source|authored tables — ONLY provenance='manual' rows are authored. */
 export const MIXED_AUTHORED_TABLES = [
   "anchor_history",
   "zone_set_history",

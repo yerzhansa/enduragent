@@ -566,6 +566,7 @@ describe("first sync controller", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn(async () => client),
       reconnect: vi.fn(async () => client),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const refreshTrainingContext = vi.fn(async () => {});

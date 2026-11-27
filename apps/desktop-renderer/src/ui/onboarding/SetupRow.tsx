@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { OnboardingSurfaceState } from "../../onboarding/controller";
 import { errorSection, type SetupErrorSection } from "../../onboarding/lanes";
 import { ERROR_COPY } from "./copy";
+import { shownSetupError, useIntervalsRecovery } from "./intervals-recovery";
 
 export type SetupRowStatus = "ready" | "attention" | "pending" | "none";
 
@@ -116,10 +117,11 @@ export function SetupError(props: {
 }): ReactElement | null {
   const { say } = usePhrasebook();
   const wizard = props.surface.wizard;
+  const shown = shownSetupError(wizard.fixedError, useIntervalsRecovery(props.surface));
   if (errorSection(wizard.fixedError, props.surface.lastCommit) !== props.section) return null;
   return (
     <p id="onboarding-error" className="mt-2 text-sm text-danger">
-      {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
+      {shown === null ? "" : say(ERROR_COPY[shown])}
     </p>
   );
 }

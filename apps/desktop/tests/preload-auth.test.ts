@@ -920,16 +920,20 @@ describe("desktop preload ChatGPT auth", () => {
     expect(copied).not.toBe(uncertain);
     expect(copied.current).not.toBe(current);
 
-    const runtimeUncertain = { ...uncertain, reason: "runtime-uncertain" };
-    mocks.invoke.mockResolvedValueOnce(runtimeUncertain);
-    const copiedRuntimeUncertain = (await bridge.signInWithIntervals()) as typeof runtimeUncertain;
-    expect(copiedRuntimeUncertain).toEqual(runtimeUncertain);
-    expect(copiedRuntimeUncertain).not.toBe(runtimeUncertain);
-    expect(copiedRuntimeUncertain.current).not.toBe(current);
+    const failed = { slot: "intervals-icu", state: "configured", runtimeState: "failed" };
+    const savedNotActive = { outcome: "saved-not-active", current: failed };
+    mocks.invoke.mockResolvedValueOnce(savedNotActive);
+    const copiedSavedNotActive = (await bridge.signInWithIntervals()) as typeof savedNotActive;
+    expect(copiedSavedNotActive).toEqual(savedNotActive);
+    expect(copiedSavedNotActive).not.toBe(savedNotActive);
+    expect(copiedSavedNotActive.current).not.toBe(failed);
 
     for (const malformed of [
       { ...uncertain, credential: "intervals-oauth:fixture-token" },
       { ...uncertain, reason: "storage-failed" },
+      { ...uncertain, reason: "runtime-uncertain" },
+      { ...savedNotActive, reason: "runtime-uncertain" },
+      { ...savedNotActive, athleteName: "Test Athlete" },
       { ...uncertain, athleteName: "Test Athlete" },
       { ...uncertain, current: { ...current, owner: "private" } },
       {

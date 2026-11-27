@@ -59,8 +59,8 @@ export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "intervals-runtime-unavailable": msg("setup.error.intervalsRuntimeUnavailable", {
     intervals: "Intervals.icu",
   }),
-  "intervals-runtime-uncertain": msg("setup.error.intervalsRuntimeUncertain", {
-    product: "Enduragent",
+  "intervals-saved-not-active": msg("setup.error.intervalsSavedNotActive", {
+    intervals: "Intervals.icu",
   }),
   "training-data-required": msg("setup.error.trainingDataRequired", {
     intervalsLower: "intervals.icu",
@@ -236,6 +236,7 @@ export const TRAINING_ROW_TITLE = "Intervals.icu";
 export const TRAINING_ROW_SUBTITLES = {
   connected: msg("setup.training.subtitle.connected"),
   missing: msg("setup.training.subtitle.missing"),
+  notWorking: msg("setup.training.subtitle.notWorking"),
   savedRides: msg("setup.training.subtitle.savedRides", { computer: PLATFORM_COPY.computer }),
   rejected: msg("setup.training.subtitle.rejected", { intervals: "Intervals.icu" }),
 } as const;

@@ -706,7 +706,7 @@
       "endpointInvalid": "Gib einen gültigen HTTPS-Endpunkt oder einen HTTP-Endpunkt mit Loopback-Adresse ein.",
       "intervalsOwnerUnavailable": "{{product}} konnte nicht bestätigen, dass dieses {{intervals}}-Konto zu den Trainingsdaten auf {{computer}} gehört. Versuche es erneut, wenn Trainingsdaten verfügbar sind.",
       "intervalsRuntimeUnavailable": "Die {{intervals}}-Anmeldung konnte nicht aktiviert werden. Melde dich erneut an.",
-      "intervalsRuntimeUncertain": "{{product}} konnte nicht bestätigen, ob die Anmeldung aktiv ist. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
+      "intervalsSavedNotActive": "Deine {{intervals}}-Anmeldung ist gespeichert, aber der Coach konnte sie nicht verwenden. Wähle „Gespeicherte Schlüssel erneut versuchen“, um es noch einmal zu versuchen.",
       "intervalsSignInDenied": "Auf {{intervals}} wurde der Zugriff nicht erlaubt. Melde dich erneut an, wenn du bereit bist.",
       "intervalsSignInFailed": "Die Anmeldung mit {{intervals}} wurde nicht abgeschlossen. Melde dich erneut an.",
       "intervalsSignInRejected": "{{intervals}} hat die Anmeldung nicht akzeptiert. Melde dich erneut an.",
@@ -817,6 +817,7 @@
         "connected": "Verbunden · Quelle deiner Fahrten",
         "connectedAs": "Verbunden als {{name}} · Quelle deiner Fahrten",
         "missing": "Verbinden oder Fahrtdateien importieren.",
+        "notWorking": "Angemeldet, funktioniert aber noch nicht",
         "rejected": "{{intervals}} akzeptiert die Anmeldung nicht mehr. Melde dich erneut an, damit weiter synchronisiert wird.",
         "savedRides": "Fahrten auf {{computer}} gespeichert · verbinde, um neue zu synchronisieren"
       },
@@ -836,6 +837,7 @@
     "checkingSetup": "Einrichtung wird geprüft…",
     "loading": {
       "archive": "Bisherige Chats werden geladen…",
+      "calendar": "Kalender wird geladen…",
       "chat": "Chat wird geladen…",
       "plan": "Plan wird geladen…",
       "settings": "Einstellungen werden geladen…",
@@ -878,7 +880,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Verbindung unterbrochen. Die Synchronisierung wird möglicherweise noch abgeschlossen. {{product}} versucht sie nicht automatisch erneut.",
+        "indeterminate": "Verbindung unterbrochen. {{product}} prüft die Synchronisierung erneut, sobald die Verbindung wiederhergestellt ist.",
         "noChange": "Lokale Verarbeitung der Trainingsdaten abgeschlossen.",
         "noChangeRestricted_one": "Lokale Verarbeitung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher ist eine Aktivität nicht enthalten.",
         "noChangeRestricted_other": "Lokale Verarbeitung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher sind {{formattedCount}} Aktivitäten nicht enthalten.",
@@ -889,7 +891,8 @@
         "publishedRestricted_one": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher ist eine Aktivität nicht enthalten.",
         "publishedRestricted_other": "Prüfung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher sind {{formattedCount}} Aktivitäten nicht enthalten.",
         "queued": "Synchronisierung vorgemerkt.",
-        "running": "Trainingsdaten werden synchronisiert…"
+        "running": "Trainingsdaten werden synchronisiert…",
+        "signInNotInUse": "{{intervals}} ist gerade nicht verbunden, deshalb wurde nichts synchronisiert. {{product}} versucht es erneut, sobald dein Netzwerk wieder da ist."
       },
       "restriction": {
         "fixAction": "· So lässt sich das beheben",
@@ -913,6 +916,7 @@
     },
     "views": {
       "archive": "Bisherige Chats",
+      "calendar": "Kalender",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Einstellungen",
@@ -1519,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Zusätzlich",
+        "untitled": "Fahrt"
+      },
+      "column": {
+        "trainingWeek": "Trainingswoche",
+        "week": "Woche"
+      },
+      "copy": {
+        "changed": "In intervals.icu geändert",
+        "deleted": "In intervals.icu gelöscht",
+        "moved": "In intervals.icu auf {{date}} verschoben",
+        "notSent": "Nicht gesendet: intervals.icu hat nicht geantwortet"
+      },
+      "day": {
+        "beforePlan": "Vor dem Plan",
+        "rest": "Ruhetag",
+        "today": "{{day}} · Heute",
+        "weekStarts": "{{day}} · Woche {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} von {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "minutes": "{{minutes}} min"
+      },
+      "next": "Nächste Woche",
+      "noPlan": {
+        "body": "Ein Plan setzt Trainings auf diese Tage und in deinen intervals.icu-Kalender, von wo dein Radcomputer sie übernimmt. Der Coach erstellt ihn mit dir im Chat, und nichts wird gesendet, bevor du zustimmst.",
+        "start": "Einen Plan im Chat starten",
+        "title": "Noch kein Plan"
+      },
+      "outcome": {
+        "doneAsPlanned": "Wie geplant absolviert",
+        "doneDifferently": "Anders absolviert",
+        "isThisIt": "Ist es das?",
+        "missed": "Verpasst",
+        "missedDetail": "{{planned}} · keine Aktivität",
+        "moved": "Verschoben auf {{date}}",
+        "notSyncedYet": "Noch nicht synchronisiert",
+        "removedByYou": "Von dir entfernt",
+        "rideSynced": "Eine Fahrt wurde synchronisiert",
+        "rideSyncedLength": "Eine Fahrt von {{duration}} wurde synchronisiert",
+        "noActivity": "Keine Aktivität"
+      },
+      "previous": "Vorherige Woche",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}.–{{end}}"
+      },
+      "refreshFailed": "Der Kalender konnte nicht aktualisiert werden.",
+      "retry": "Erneut versuchen",
+      "season": {
+        "race": "Rennen am {{date}}",
+        "week": "Woche {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Zustimmen ab {{date}}",
+        "goesOut": "Wird am {{date}} gesendet",
+        "notSentYet": "Noch nicht in intervals.icu",
+        "onIntervals": "In intervals.icu",
+        "waitingForApprove": "Wartet auf Zustimmung",
+        "notConnected": "intervals.icu ist nicht verbunden"
+      },
+      "subtitle": {
+        "ended": "{{name}} · beendet",
+        "noPlan": "Kein Plan · deine Aktivitäten aus intervals.icu",
+        "starts": "{{name}} · beginnt am {{date}}",
+        "week": "{{name}} · Trainingswoche {{week}} von {{total}}",
+        "weekPhase": "{{name}} · Trainingswoche {{week}} von {{total}} · {{phase}}"
+      },
+      "today": "Heute",
+      "unavailable": "Der Kalender konnte nicht geladen werden.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} Aktivität",
+        "activities_other": "{{duration}} · {{count}} Aktivitäten",
+        "crossing": "Woche {{from}} → {{to}}",
+        "endsOn": "bis {{date}}",
+        "label": "Woche {{week}}",
+        "load": "Trainingsbelastung {{load}}",
+        "nextStarts": "Woche {{week}} beginnt am {{date}}",
+        "nothingPlanned": "Nichts geplant",
+        "planned": "{{planned}} geplant",
+        "planOnly": "{{planned}} · nur im Plan",
+        "soFar": "{{duration}} bisher",
+        "startsOn": "beginnt am {{date}}",
+        "toConfirm_one": "{{count}} Fahrt zu bestätigen",
+        "toConfirm_other": "{{count}} Fahrten zu bestätigen"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Bereinigung abgeschlossen",

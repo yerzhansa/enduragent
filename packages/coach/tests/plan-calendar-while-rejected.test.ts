@@ -107,6 +107,7 @@ function runtime(): LocalStoreRuntime {
     },
     runExclusive,
     runOutsideWindow: runExclusive,
+    abortActiveWindow: () => () => {},
     async runActivityWrite(work) {
       return { value: await runExclusive(work), activityReadAvailable: true };
     },

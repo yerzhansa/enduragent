@@ -9,10 +9,10 @@ import {
   createPlanRepository,
   planWeekIndex,
   planWeekRange,
-  type PlanRecord,
   type PlanWorkoutRecord,
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
+import { phaseForWeek } from "./plan-phase.js";
 
 export interface PlanningReadService {
   getPlanningReadModel(
@@ -41,30 +41,6 @@ function todayInTimezone(nowMs: number, timezone: string): number {
 
 function record(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function phaseForWeek(plan: PlanRecord, weekIndex: number | null): string | null {
-  if (weekIndex === null) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(plan.structureJson) as unknown;
-  } catch {
-    return null;
-  }
-  if (!record(parsed) || !Array.isArray(parsed.phases)) return null;
-  let throughWeek = 0;
-  for (const candidate of parsed.phases) {
-    if (!record(candidate)) continue;
-    const duration = candidate.durationWeeks;
-    if (!Number.isSafeInteger(duration) || Number(duration) < 1) continue;
-    throughWeek += Number(duration);
-    if (weekIndex > throughWeek) continue;
-    const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-    if (name.length > 0) return name;
-    const focus = typeof candidate.focus === "string" ? candidate.focus.trim() : "";
-    return focus.length > 0 ? focus.replaceAll("_", " ") : null;
-  }
-  return null;
 }
 
 function workoutDetails(row: PlanWorkoutRecord): {

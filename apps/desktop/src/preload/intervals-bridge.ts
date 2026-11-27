@@ -68,12 +68,15 @@ export function parseIntervalsSignInResult(value: unknown): unknown {
   ) {
     return { outcome: "refused", reason: value.reason, current };
   }
+  if (value.outcome === "saved-not-active" && exactKeys(value, ["current", "outcome"])) {
+    return { outcome: "saved-not-active", current };
+  }
   if (
     value.outcome === "uncertain" &&
-    (value.reason === "storage-uncertain" || value.reason === "runtime-uncertain") &&
+    value.reason === "storage-uncertain" &&
     exactKeys(value, ["current", "outcome", "reason"])
   ) {
-    return { outcome: "uncertain", reason: value.reason, current };
+    return { outcome: "uncertain", reason: "storage-uncertain", current };
   }
   throw new TypeError();
 }

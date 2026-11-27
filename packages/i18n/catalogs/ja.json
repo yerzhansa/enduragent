@@ -704,7 +704,7 @@
       "endpointInvalid": "有効なHTTPSエンドポイント、またはループバックHTTPエンドポイントを入力してください。",
       "intervalsOwnerUnavailable": "{{product}}は、この{{intervals}}アカウントが{{computer}}のトレーニングデータと一致するか確認できませんでした。トレーニングデータを利用できるようになったら再試行してください。",
       "intervalsRuntimeUnavailable": "{{intervals}}のサインインを有効にできませんでした。もう一度サインインしてください。",
-      "intervalsRuntimeUncertain": "{{product}}は、サインインが有効か確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
+      "intervalsSavedNotActive": "{{intervals}}のサインインは保存されていますが、コーチが使用を開始できませんでした。「保存済みのキーを再試行」を選んで、もう一度お試しください。",
       "intervalsSignInDenied": "{{intervals}}でアクセスが許可されませんでした。準備ができたら、もう一度サインインしてください。",
       "intervalsSignInFailed": "{{intervals}}でのサインインが完了しませんでした。もう一度サインインしてください。",
       "intervalsSignInRejected": "{{intervals}}がサインインを受け付けませんでした。もう一度サインインしてください。",
@@ -814,6 +814,7 @@
         "connected": "接続済み · ライドの取得元",
         "connectedAs": "{{name}}として接続済み · ライドの取得元",
         "missing": "接続するか、ライドファイルをインポートしてください。",
+        "notWorking": "サインイン済みですが、まだ使用できません",
         "rejected": "{{intervals}}がサインインを受け付けなくなりました。同期を続けるには、もう一度サインインしてください。",
         "savedRides": "ライドは{{computer}}に保存済み · 接続すると新しいライドを同期します"
       },
@@ -833,6 +834,7 @@
     "checkingSetup": "セットアップを確認中…",
     "loading": {
       "archive": "過去のチャットを読み込み中…",
+      "calendar": "カレンダーを読み込み中…",
       "chat": "チャットを読み込み中…",
       "plan": "プランを読み込み中…",
       "settings": "設定を読み込み中…",
@@ -874,7 +876,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "接続が中断されました。同期はまだ完了処理中の可能性があります。{{product}}は自動で再試行しません。",
+        "indeterminate": "接続が中断されました。再接続すると、{{product}}が同期をもう一度確認します。",
         "noChange": "このコンピュータでのトレーニングデータの処理が完了しました。",
         "noChangeRestricted_other": "このコンピュータでのトレーニングデータの処理が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "operationFailure": "トレーニングデータの確認を完了できませんでした。既存のデータは引き続き利用できます。",
@@ -883,7 +885,8 @@
         "published": "トレーニングデータの確認が完了しました。",
         "publishedRestricted_other": "トレーニングデータの確認が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "queued": "同期待ちです。",
-        "running": "トレーニングデータを同期中…"
+        "running": "トレーニングデータを同期中…",
+        "signInNotInUse": "現在{{intervals}}に接続されていないため、何も同期されませんでした。ネットワークが復旧すると、{{product}}が再試行します。"
       },
       "restriction": {
         "fixAction": "· 対処方法",
@@ -905,6 +908,7 @@
     },
     "views": {
       "archive": "過去のチャット",
+      "calendar": "カレンダー",
       "chat": "チャット",
       "plan": "プラン",
       "settings": "設定",
@@ -1506,6 +1510,98 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "追加",
+        "untitled": "ライド"
+      },
+      "column": {
+        "trainingWeek": "トレーニング週",
+        "week": "週"
+      },
+      "copy": {
+        "changed": "intervals.icuで変更済み",
+        "deleted": "intervals.icuで削除済み",
+        "moved": "intervals.icuで{{date}}に移動済み",
+        "notSent": "未送信: intervals.icuから応答がありません"
+      },
+      "day": {
+        "beforePlan": "プラン開始前",
+        "rest": "休養日",
+        "today": "{{day}} · 今日",
+        "weekStarts": "{{day}} · 第{{week}}週"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} / {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}}時間{{minutes}}分",
+        "minutes": "{{minutes}}分"
+      },
+      "next": "翌週",
+      "noPlan": {
+        "body": "プランを作成すると、これらの日とintervals.icuカレンダーにワークアウトが登録され、サイクルコンピュータに取り込まれます。プランはチャットでコーチと一緒に作成します。承認するまで何も送信されません。",
+        "start": "チャットでプランの作成を開始",
+        "title": "プランはまだありません"
+      },
+      "outcome": {
+        "doneAsPlanned": "予定どおり完了",
+        "doneDifferently": "予定と異なる内容で完了",
+        "isThisIt": "これですか？",
+        "missed": "未実施",
+        "missedDetail": "{{planned}} · アクティビティなし",
+        "moved": "{{date}}に移動",
+        "notSyncedYet": "未同期",
+        "removedByYou": "自分で削除済み",
+        "rideSynced": "ライドが同期されました",
+        "rideSyncedLength": "{{duration}}のライドが同期されました",
+        "noActivity": "アクティビティなし"
+      },
+      "previous": "前週",
+      "range": {
+        "crossMonth": "{{start}}〜{{end}}",
+        "sameMonth": "{{startDay}}日〜{{end}}"
+      },
+      "refreshFailed": "カレンダーを更新できませんでした。",
+      "retry": "再試行",
+      "season": {
+        "race": "レース {{date}}",
+        "week": "第{{week}}週、{{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "{{date}}から承認可能",
+        "goesOut": "{{date}}に送信",
+        "notSentYet": "intervals.icuに未送信",
+        "onIntervals": "intervals.icuに送信済み",
+        "waitingForApprove": "承認待ち",
+        "notConnected": "intervals.icuに接続されていません"
+      },
+      "subtitle": {
+        "ended": "{{name}} · 終了",
+        "noPlan": "プランなし · intervals.icuのアクティビティ",
+        "starts": "{{name}} · {{date}}開始",
+        "week": "{{name}} · トレーニング週 {{week}}/{{total}}",
+        "weekPhase": "{{name}} · トレーニング週 {{week}}/{{total}} · {{phase}}"
+      },
+      "today": "今日",
+      "unavailable": "カレンダーを読み込めませんでした。",
+      "week": {
+        "activities_other": "{{duration}} · アクティビティ{{count}}件",
+        "crossing": "第{{from}}週 → 第{{to}}週",
+        "endsOn": "{{date}}まで",
+        "label": "第{{week}}週",
+        "load": "負荷{{load}}",
+        "nextStarts": "第{{week}}週は{{date}}開始",
+        "nothingPlanned": "予定なし",
+        "planned": "予定: {{planned}}",
+        "planOnly": "{{planned}} · プランのみ",
+        "soFar": "これまで{{duration}}",
+        "startsOn": "{{date}}開始",
+        "toConfirm_other": "確認待ちのライド{{count}}件"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "整理が完了しました",

@@ -46,6 +46,7 @@ const API_KEY_PANEL_HINT = english.say(API_KEY_PANEL_HINT_MESSAGE);
 const FOOTER_NOTE = english.say(FOOTER_NOTE_MESSAGE);
 const SETUP_MENU_LABEL = english.say(SETUP_MENU_LABEL_MESSAGE);
 const LOCAL_RIDES_SUBTITLE = "Rides saved on this Mac · connect to sync new ones";
+const NOT_WORKING_SUBTITLE = "Signed in, but not working yet";
 
 const CLAUDE_CONFIGURATION: OnboardingLlmConfiguration = {
   ...TEST_LLM_CONFIGURATION,
@@ -641,6 +642,35 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
+  it.each(["failed", "stored-inactive"] as const)(
+    "marks a saved Intervals sign-in that is not working as needing attention (%s)",
+    async (runtimeState) => {
+      bindCredentialPort();
+      const bridge = claudeReadyBridge();
+      bridge.credentialStatuses.mockResolvedValue([
+        { slot: "intervals-icu", state: "configured", runtimeState },
+      ]);
+      const wizard = mountWizard({ bridge });
+      await wizard.open();
+
+      expect(document.querySelector("[data-setup-readiness]")).toHaveTextContent(
+        "1 of 2 required ready",
+      );
+      expect(primaryButton()).toBeDisabled();
+      expect(
+        rowState("training"),
+        "training row should not look done while the badge says 1 of 2",
+      ).toBe("attention");
+      expect(setupRow("training").querySelector('[data-setup-disc="ready"]')).toBeNull();
+      expect(rowSubtitle("training")).toBe(NOT_WORKING_SUBTITLE);
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
+      expect(screen.queryAllByRole("button", { name: "Retry saved keys" })).toHaveLength(
+        runtimeState === "failed" ? 1 : 0,
+      );
+      wizard.controller.dispose();
+    },
+  );
+
   it("keeps saved-key recovery without exposing a sign-in replacement", async () => {
     const user = userEvent.setup();
     const bridge = claudeReadyBridge();
@@ -652,6 +682,7 @@ describe("setup card", () => {
     ]);
     const wizard = mountWizard({ bridge });
     await wizard.open();
+    expect(rowState("training")).toBe("attention");
 
     await user.click(screen.getByRole("button", { name: "Retry saved keys" }));
 

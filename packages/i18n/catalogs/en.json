@@ -947,6 +947,100 @@
     "continue": "Continue"
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Extra",
+        "untitled": "Ride"
+      },
+      "column": {
+        "trainingWeek": "Training Week",
+        "week": "Week"
+      },
+      "copy": {
+        "changed": "Changed in intervals.icu",
+        "deleted": "Deleted in intervals.icu",
+        "moved": "Moved to {{date}} in intervals.icu",
+        "notSent": "Not sent: intervals.icu did not answer"
+      },
+      "day": {
+        "beforePlan": "Before the Plan",
+        "rest": "Rest day",
+        "today": "{{day}} · Today",
+        "weekStarts": "{{day}} · Week {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} of {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}}h {{minutes}}m",
+        "minutes": "{{minutes}}m"
+      },
+      "next": "Next week",
+      "noPlan": {
+        "body": "A Plan puts workouts on these days and on your intervals.icu calendar, where your head unit picks them up. The coach builds it with you in Chat, and nothing is sent until you approve it.",
+        "start": "Start a Plan in Chat",
+        "title": "No Plan yet"
+      },
+      "outcome": {
+        "doneAsPlanned": "Done as planned",
+        "doneDifferently": "Done differently",
+        "isThisIt": "Is this it?",
+        "missed": "Missed",
+        "missedDetail": "{{planned}} · no Activity",
+        "moved": "Moved to {{date}}",
+        "noActivity": "No Activity",
+        "notSyncedYet": "Not synced yet",
+        "removedByYou": "Removed by you",
+        "rideSynced": "A ride synced",
+        "rideSyncedLength": "A {{duration}} ride synced"
+      },
+      "previous": "Previous week",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "The calendar could not refresh.",
+      "retry": "Try again",
+      "season": {
+        "race": "Race {{date}}",
+        "week": "Week {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Approve from {{date}}",
+        "goesOut": "Goes out {{date}}",
+        "notConnected": "intervals.icu is not connected",
+        "notSentYet": "Not on intervals.icu yet",
+        "onIntervals": "On intervals.icu",
+        "waitingForApprove": "Waiting for Approve"
+      },
+      "subtitle": {
+        "ended": "{{name}} · ended",
+        "noPlan": "No Plan · your Activities from intervals.icu",
+        "starts": "{{name}} · starts {{date}}",
+        "week": "{{name}} · Training Week {{week}} of {{total}}",
+        "weekPhase": "{{name}} · Training Week {{week}} of {{total}} · {{phase}}"
+      },
+      "today": "Today",
+      "unavailable": "The calendar could not load.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} Activity",
+        "activities_other": "{{duration}} · {{count}} Activities",
+        "crossing": "Week {{from}} → {{to}}",
+        "endsOn": "until {{date}}",
+        "label": "Week {{week}}",
+        "load": "Load {{load}}",
+        "nextStarts": "Week {{week}} starts {{date}}",
+        "nothingPlanned": "Nothing planned",
+        "planned": "{{planned}} planned",
+        "planOnly": "{{planned}} · Plan only",
+        "soFar": "{{duration}} so far",
+        "startsOn": "starts {{date}}",
+        "toConfirm_one": "{{count}} ride to confirm",
+        "toConfirm_other": "{{count}} rides to confirm"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Cleanup complete",
@@ -2230,7 +2324,7 @@
       "endpointInvalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
       "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that this {{intervals}} account matches the training data on {{computer}}. Try again when training data is available.",
       "intervalsRuntimeUnavailable": "The {{intervals}} sign-in couldn’t be activated. Sign in again.",
-      "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the sign-in is active. Reload credential status before trying again.",
+      "intervalsSavedNotActive": "Your {{intervals}} sign-in is saved, but the coach couldn’t start using it. Choose Retry saved keys to try again.",
       "intervalsSignInDenied": "Access wasn’t allowed on {{intervals}}. Sign in again when you’re ready.",
       "intervalsSignInFailed": "Signing in with {{intervals}} didn’t finish. Sign in again.",
       "intervalsSignInRejected": "{{intervals}} didn’t accept the sign-in. Sign in again.",
@@ -2342,6 +2436,7 @@
         "connected": "Connected · where your rides come from",
         "connectedAs": "Connected as {{name}} · where your rides come from",
         "missing": "Connect or import ride files.",
+        "notWorking": "Signed in, but not working yet",
         "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing.",
         "savedRides": "Rides saved on {{computer}} · connect to sync new ones"
       },
@@ -2360,6 +2455,7 @@
     "checkingSetup": "Checking setup…",
     "loading": {
       "archive": "Loading past chats…",
+      "calendar": "Loading the calendar…",
       "chat": "Loading chat…",
       "plan": "Loading plan…",
       "settings": "Loading settings…",
@@ -2402,7 +2498,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Connection interrupted. The sync may still be finishing. {{product}} won’t retry it automatically.",
+        "indeterminate": "Connection interrupted. {{product}} will check the sync again when it reconnects.",
         "noChange": "Local training-data processing completed.",
         "noChangeRestricted_one": "Local training-data processing completed. {{source}} does not allow third-party AI tools to use data from its API, so one activity isn’t included.",
         "noChangeRestricted_other": "Local training-data processing completed. {{source}} does not allow third-party AI tools to use data from its API, so {{formattedCount}} activities aren’t included.",
@@ -2413,7 +2509,8 @@
         "publishedRestricted_one": "Training-data check completed. {{source}} does not allow third-party AI tools to use data from its API, so one activity isn’t included.",
         "publishedRestricted_other": "Training-data check completed. {{source}} does not allow third-party AI tools to use data from its API, so {{formattedCount}} activities aren’t included.",
         "queued": "Sync queued.",
-        "running": "Syncing training data…"
+        "running": "Syncing training data…",
+        "signInNotInUse": "{{intervals}} isn’t connected right now, so nothing was synced. {{product}} will try again when your network is back."
       },
       "restriction": {
         "fixAction": "· How to fix this",
@@ -2437,6 +2534,7 @@
     },
     "views": {
       "archive": "Past chats",
+      "calendar": "Calendar",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Settings",

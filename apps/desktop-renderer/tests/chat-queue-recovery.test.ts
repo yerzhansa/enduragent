@@ -55,6 +55,7 @@ function harness(
   const provider: DesktopCoachClientProvider = clientProvider ?? {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
   const controller = createChatController({
@@ -128,6 +129,7 @@ function disconnectedQueueHarness(
       providerClient = recovered;
       return recovered;
     }),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
   const subject = harness(failed, () => true, provider);
@@ -1205,6 +1207,7 @@ describe("durable chat queue controller", () => {
         providerClient = recovered;
         return recovered;
       }),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const { controller, states } = harness(failed, () => true, provider);
