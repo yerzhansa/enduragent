@@ -2,7 +2,7 @@
   "activity": {
     "review": {
       "ask": "De coach over deze rit vragen",
-      "askDraft": "Wat vind je van mijn rit \"{{name}}\" op {{day}}?",
+      "askDraft": "Wat vind je van mijn rit “{{name}}” op {{day}}?",
       "empty": "Nog geen ritten uit de afgelopen 120 dagen. Ritten uit intervals.icu verschijnen hier na een synchronisatie.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -1938,7 +1938,7 @@
       },
       "workout": {
         "ask": "De coach vragen dit te wijzigen",
-        "askDraft": "Wijzig {{name}} op {{day}}:",
+        "askDraft": "Wijzig “{{name}}” op {{day}}:",
         "close": "Sluiten",
         "export": "Trainingen van deze dag exporteren",
         "move": "Verplaatsen…",

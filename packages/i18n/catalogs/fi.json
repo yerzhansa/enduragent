@@ -1938,7 +1938,7 @@
       },
       "workout": {
         "ask": "Pyydä valmentajaa muuttamaan sitä",
-        "askDraft": "Muuta harjoitusta {{name}} ({{day}}):",
+        "askDraft": "Muuta harjoitusta ”{{name}}” ({{day}}):",
         "close": "Sulje",
         "export": "Vie tämän päivän harjoitukset",
         "move": "Siirrä…",

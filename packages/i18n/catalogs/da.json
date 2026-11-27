@@ -2,7 +2,7 @@
   "activity": {
     "review": {
       "ask": "Spørg træneren om denne tur",
-      "askDraft": "Hvad synes du om min tur \"{{name}}\" fra {{day}}?",
+      "askDraft": "Hvad synes du om min tur “{{name}}” fra {{day}}?",
       "empty": "Ingen ture fra de seneste 120 dage endnu. Ture fra intervals.icu vises her efter en synkronisering.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -1938,7 +1938,7 @@
       },
       "workout": {
         "ask": "Bed træneren om at ændre den",
-        "askDraft": "Ændr venligst {{name}} {{day}}:",
+        "askDraft": "Ændr venligst “{{name}}” {{day}}:",
         "close": "Luk",
         "export": "Eksportér dagens træninger",
         "move": "Flyt…",

@@ -1894,7 +1894,7 @@
       },
       "workout": {
         "ask": "請教練修改",
-        "askDraft": "請修改 {{day}} 的 {{name}}：",
+        "askDraft": "請修改 {{day}} 的「{{name}}」：",
         "close": "關閉",
         "export": "匯出這一天的訓練課表",
         "move": "移動…",

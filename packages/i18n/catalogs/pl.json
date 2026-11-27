@@ -2026,7 +2026,7 @@
       },
       "workout": {
         "ask": "Poproś trenera o zmianę",
-        "askDraft": "Zmień, proszę, {{name}} z dnia {{day}}:",
+        "askDraft": "Zmień, proszę, „{{name}}” z dnia {{day}}:",
         "close": "Zamknij",
         "export": "Eksportuj treningi z tego dnia",
         "move": "Przenieś…",

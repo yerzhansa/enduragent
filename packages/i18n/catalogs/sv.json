@@ -2305,7 +2305,7 @@
       },
       "workout": {
         "ask": "Be tränaren att ändra det",
-        "askDraft": "Ändra {{name}} på {{day}}:",
+        "askDraft": "Ändra ”{{name}}” på {{day}}:",
         "close": "Stäng",
         "export": "Exportera dagens träningspass",
         "move": "Flytta…",

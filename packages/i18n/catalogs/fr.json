@@ -1938,7 +1938,7 @@
       },
       "workout": {
         "ask": "Demander au coach de le modifier",
-        "askDraft": "Modifie {{name}} du {{day}}, s’il te plaît :",
+        "askDraft": "Modifie « {{name}} » du {{day}}, s’il te plaît :",
         "close": "Fermer",
         "export": "Exporter les entraînements de ce jour",
         "move": "Déplacer…",
