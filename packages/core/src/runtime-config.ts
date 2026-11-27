@@ -39,10 +39,19 @@ export const RETIRED_MODEL_REPLACEMENTS = {
   openrouter: { "qwen/qwen3.8-max": "qwen/qwen4-max" },
 } as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string>>>>;
 
-export function currentModelId(provider: LlmProvider, model: string): string {
-  const replacements: Readonly<Record<string, string>> | undefined =
+export function currentModelId(
+  provider: string,
+  model: string,
+  baseUrl: string | undefined,
+): string {
+  if (!Object.hasOwn(RETIRED_MODEL_REPLACEMENTS, provider)) return model;
+  const replacements: Readonly<Record<string, string>> =
     RETIRED_MODEL_REPLACEMENTS[provider as keyof typeof RETIRED_MODEL_REPLACEMENTS];
-  return replacements?.[model] ?? model;
+  const providerEndpoint =
+    baseUrl === undefined ||
+    baseUrl === PROVIDER_BASE_URLS[provider as keyof typeof PROVIDER_BASE_URLS];
+  const replacement = Object.hasOwn(replacements, model) ? replacements[model] : undefined;
+  return providerEndpoint && replacement !== undefined ? replacement : model;
 }
 
 export const DEFAULT_MODELS = {
@@ -378,10 +387,13 @@ function optionalModel(
   patch: NonNullable<RuntimeConfigPatch["llm"]>,
   field: "flushModel" | "compactModel",
   provider: LlmProvider,
+  baseUrl: string | undefined,
 ): string | null | undefined {
   if (!isSpecified(patch, field)) return undefined;
   const value = patch[field];
-  return value === null ? null : currentModelId(provider, requireString(value, `llm.${field}`));
+  return value === null
+    ? null
+    : currentModelId(provider, requireString(value, `llm.${field}`), baseUrl);
 }
 
 function requireBoolean(value: unknown, name: string): boolean {
@@ -481,8 +493,39 @@ export function resolveRuntimeConfig(
     ? resolveLlmProvider(llmPatch.provider)
     : (current?.llm.provider ?? "anthropic");
   const providerChanged = current !== undefined && provider !== current.llm.provider;
+  let baseUrl: string | undefined;
+  if (
+    provider === "claude-cli" &&
+    isSpecified(llmPatch, "baseUrl") &&
+    llmPatch.baseUrl !== null &&
+    llmPatch.baseUrl !== ""
+  ) {
+    throw new TypeError(
+      "llm.baseUrl must be absent for claude-cli — the Claude Code CLI owns its endpoint.",
+    );
+  }
+  if (
+    provider === "codex-agent" &&
+    isSpecified(llmPatch, "baseUrl") &&
+    llmPatch.baseUrl !== null &&
+    llmPatch.baseUrl !== ""
+  ) {
+    throw new TypeError(
+      "llm.baseUrl must be absent for codex-agent — the Codex CLI owns its endpoint.",
+    );
+  }
+  if (isSpecified(llmPatch, "baseUrl")) {
+    baseUrl =
+      llmPatch.baseUrl === null
+        ? providerBaseUrl(provider)
+        : requireString(llmPatch.baseUrl, "llm.baseUrl", true) || undefined;
+  } else {
+    baseUrl =
+      current !== undefined && !providerChanged ? current.llm.baseUrl : providerBaseUrl(provider);
+  }
+
   const model = isSpecified(llmPatch, "model")
-    ? currentModelId(provider, requireString(llmPatch.model, "llm.model"))
+    ? currentModelId(provider, requireString(llmPatch.model, "llm.model"), baseUrl)
     : current !== undefined && !providerChanged
       ? current.llm.model
       : DEFAULT_MODELS[provider];
@@ -530,7 +573,7 @@ export function resolveRuntimeConfig(
       ? current.llm.model
       : DEFAULT_MODELS.openai
     : model;
-  const requestedFlushModel = optionalModel(llmPatch, "flushModel", provider);
+  const requestedFlushModel = optionalModel(llmPatch, "flushModel", provider, baseUrl);
   const flushModel =
     requestedFlushModel === null
       ? undefined
@@ -538,7 +581,7 @@ export function resolveRuntimeConfig(
         (current !== undefined && !providerChanged ? current.llm.flushModel : undefined) ??
         (astra ? backgroundModel : undefined));
 
-  const requestedCompactModel = optionalModel(llmPatch, "compactModel", provider);
+  const requestedCompactModel = optionalModel(llmPatch, "compactModel", provider, baseUrl);
   const compactModel =
     provider === "openai-codex"
       ? model
@@ -550,37 +593,6 @@ export function resolveRuntimeConfig(
               ? backgroundModel
               : current.llm.compactModel
             : (compactModelDefault(provider) ?? backgroundModel)));
-
-  let baseUrl: string | undefined;
-  if (
-    provider === "claude-cli" &&
-    isSpecified(llmPatch, "baseUrl") &&
-    llmPatch.baseUrl !== null &&
-    llmPatch.baseUrl !== ""
-  ) {
-    throw new TypeError(
-      "llm.baseUrl must be absent for claude-cli — the Claude Code CLI owns its endpoint.",
-    );
-  }
-  if (
-    provider === "codex-agent" &&
-    isSpecified(llmPatch, "baseUrl") &&
-    llmPatch.baseUrl !== null &&
-    llmPatch.baseUrl !== ""
-  ) {
-    throw new TypeError(
-      "llm.baseUrl must be absent for codex-agent — the Codex CLI owns its endpoint.",
-    );
-  }
-  if (isSpecified(llmPatch, "baseUrl")) {
-    baseUrl =
-      llmPatch.baseUrl === null
-        ? providerBaseUrl(provider)
-        : requireString(llmPatch.baseUrl, "llm.baseUrl", true) || undefined;
-  } else {
-    baseUrl =
-      current !== undefined && !providerChanged ? current.llm.baseUrl : providerBaseUrl(provider);
-  }
 
   const intervalsApiKeySpecified = isSpecified(intervalsPatch, "apiKey");
   const intervalsApiKey = intervalsApiKeySpecified

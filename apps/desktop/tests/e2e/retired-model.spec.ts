@@ -40,7 +40,7 @@ function savedConfig(provider: string, model: string): string {
 for (const retired of RETIRED_MODELS) {
   test.describe(`an athlete who saved ${retired.savedLabel}`, () => {
     test.use({
-      recordDesktopVideo: true,
+      recordDesktopVideo: process.env.ENDURAGENT_E2E_VIDEO === "1",
       savedConfig: savedConfig(retired.provider, retired.saved),
     });
 
@@ -66,12 +66,10 @@ for (const retired of RETIRED_MODELS) {
       await page.getByText("Advanced", { exact: true }).click();
       const modelPicker = page.getByRole("combobox").nth(1);
       await expect(modelPicker).toBeVisible();
-      await page.waitForTimeout(600);
       await expect(
         modelPicker,
         `${retired.providerLabel} retired ${retired.savedLabel}, so the Model picker should offer ${retired.replacement}, not the retired model`,
       ).toHaveText(pickerShows(retired.replacement));
-      await page.waitForTimeout(600);
     });
   });
 }
