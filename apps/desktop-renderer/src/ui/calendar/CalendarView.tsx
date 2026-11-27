@@ -382,7 +382,27 @@ function movingView(read: PlanCalendarRead, move: MoveDialogState): CalendarMovi
       preview !== null && move.swap && preview.canSwap
         ? preview.clash.map((workout) => workout.id)
         : [],
+    landed: false,
   };
+}
+
+function useLandingMove(
+  read: PlanCalendarRead | null,
+  move: MoveDialogState,
+): CalendarMoving | null {
+  const saving = useRef<{ readonly read: PlanCalendarRead; readonly view: CalendarMoving } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (move.kind === "moving" && read !== null) {
+      const view = movingView(read, move);
+      saving.current = view === null ? null : { read, view: { ...view, landed: true } };
+      return;
+    }
+    if (move.kind !== "closed" || saving.current?.read !== read) saving.current = null;
+  });
+  const landing = saving.current;
+  return move.kind === "closed" && landing !== null && landing.read === read ? landing.view : null;
 }
 
 function WorkoutLayer(props: {
@@ -500,6 +520,7 @@ export function CalendarView(): ReactElement {
       approval.kind !== "closed",
     move.kind === "moving",
   );
+  const landing = useLandingMove(read, move);
   const paging = useMovePaging(state.kind === "ready" ? state.range : null, move, actions);
   const locked = change.kind === "working" || detailsEnding(details) || move.kind === "moving";
   const clearSheets = (keep: "card" | "move" | "change" | "details" | "approve"): boolean => {
@@ -581,7 +602,7 @@ export function CalendarView(): ReactElement {
       <div
         className={cn(
           "h-full min-h-0 overflow-auto px-5 pt-3.5",
-          move.kind === "closed" ? "pb-6" : "pb-72",
+          move.kind === "closed" ? "pb-6" : "pb-96",
         )}
         data-page-scroll=""
       >
@@ -632,7 +653,7 @@ export function CalendarView(): ReactElement {
                 if (changed) changeActions?.open(planId, planWorkoutId);
                 else workoutActions?.open(planId, planWorkoutId);
               }}
-              moving={movingView(state.read, move)}
+              moving={movingView(state.read, move) ?? landing}
               onMove={(workoutId, toDateKey) => {
                 const planId = state.read.plan?.planId;
                 const preview = movePreview(state.read, workoutId, toDateKey, true);

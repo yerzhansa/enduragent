@@ -25,6 +25,7 @@ export interface CalendarMoving {
   readonly toDateKey: number;
   readonly fromDateKey: number;
   readonly swapIds: readonly string[];
+  readonly landed: boolean;
 }
 
 interface Dragging {
@@ -278,6 +279,7 @@ function WorkoutCard(props: {
   const beingMoved =
     props.preview !== true &&
     (drag.moving?.workoutId === workout.id || drag.moving?.swapIds.includes(workout.id) === true);
+  const landed = props.preview === true && drag.moving?.landed === true;
   const draggable = props.preview !== true && workout.movable && !look.opens;
   const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
   const interactive = props.preview !== true && (look.opens || !ghost);
@@ -289,11 +291,12 @@ function WorkoutCard(props: {
       props.highlighted && "border-brand",
       draggable && "cursor-grab",
       beingMoved && "border-dashed opacity-45",
-      props.preview === true && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
+      props.preview === true && !landed && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
       props.selected && "outline-2 outline-offset-1 outline-brand",
     ),
     "data-workout-id": props.preview === true ? undefined : workout.id,
-    "data-move-preview": props.preview === true ? workout.id : undefined,
+    "data-move-preview": props.preview === true && !landed ? workout.id : undefined,
+    "data-move-landed": landed ? workout.id : undefined,
     "data-outcome": workout.outcome.kind,
     "data-copy": workout.copy.kind,
     "data-highlighted": props.highlighted ? "" : undefined,
@@ -557,6 +560,8 @@ function DayCell(props: {
   const dragged = drag.workout;
   const accepts = dragged !== null && canDropOn(read, dragged, day.dateKey);
   const moving = drag.moving;
+  const landedIds = moving?.landed === true ? [moving.workoutId, ...moving.swapIds] : [];
+  const workouts = day.workouts.filter((workout) => !landedIds.includes(workout.id));
   const incoming = (read.plan?.workouts ?? []).filter(
     (workout) =>
       moving !== null &&
@@ -571,7 +576,7 @@ function DayCell(props: {
         ? say("plan.calendar.day.weekStarts", { day: number, week: day.weekStarts.index })
         : number;
   const empty =
-    day.workouts.length === 0 &&
+    workouts.length === 0 &&
     day.movedIn.length === 0 &&
     day.activities.length === 0 &&
     incoming.length === 0;
@@ -614,7 +619,7 @@ function DayCell(props: {
       >
         {heading}
       </span>
-      {day.workouts.map((workout) => (
+      {workouts.map((workout) => (
         <WorkoutCard
           key={workout.id}
           workout={workout}

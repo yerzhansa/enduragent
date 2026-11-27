@@ -13,19 +13,50 @@ const STEP = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 const GAP_PX = 12;
 
-function keepTargetClear(frame: HTMLElement, dateKey: number): boolean {
-  const cell = document.querySelector<HTMLElement>(`[role="cell"][data-date-key="${dateKey}"]`);
+interface Box {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+}
+
+function cellOf(dateKey: number): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[role="cell"][data-date-key="${dateKey}"]`);
+}
+
+function shiftFor(box: Box, view: DOMRect, dialog: DOMRect): number | null {
+  const under = box.right > dialog.left && box.left < dialog.right;
+  const limit = under ? dialog.top - GAP_PX : view.bottom;
+  if (box.bottom - box.top > limit - view.top) return null;
+  if (box.bottom > limit) return box.bottom - limit;
+  return box.top < view.top ? box.top - view.top : 0;
+}
+
+function keepTargetClear(frame: HTMLElement, dateKey: number, sourceKey: number | null): boolean {
+  const cell = cellOf(dateKey);
   if (cell === null) return false;
   cell.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   const scroller = cell.closest<HTMLElement>("[data-page-scroll]");
-  const target = cell.getBoundingClientRect();
+  if (scroller === null) return true;
+  const view = scroller.getBoundingClientRect();
   const dialog = frame.getBoundingClientRect();
-  const covered =
-    target.bottom + GAP_PX > dialog.top &&
-    target.top < dialog.bottom &&
-    target.right > dialog.left &&
-    target.left < dialog.right;
-  if (scroller !== null && covered) scroller.scrollTop += target.bottom + GAP_PX - dialog.top;
+  const target = cell.getBoundingClientRect();
+  const source = sourceKey === null ? null : (cellOf(sourceKey)?.getBoundingClientRect() ?? null);
+  const both =
+    source === null || source.right <= view.left || source.left >= view.right
+      ? null
+      : shiftFor(
+          {
+            top: Math.min(target.top, source.top),
+            bottom: Math.max(target.bottom, source.bottom),
+            left: Math.min(target.left, source.left),
+            right: Math.max(target.right, source.right),
+          },
+          view,
+          dialog,
+        );
+  scroller.scrollTop +=
+    both ?? shiftFor(target, view, dialog) ?? target.bottom - (dialog.top - GAP_PX);
   return true;
 }
 
@@ -134,11 +165,25 @@ export function MoveDialog(props: {
     if (frame.current?.contains(document.activeElement) === true) return;
     heading.current?.focus();
   }, [preview.toDateKey]);
-  const cleared = useRef<number | null>(null);
+  const swapSource = state.swap && preview.canSwap ? preview.workout.dateKey : null;
+  const clearKey = `${preview.toDateKey}:${swapSource ?? "none"}`;
+  const cleared = useRef<string | null>(null);
+  const latest = useRef({ key: clearKey, toDateKey: preview.toDateKey, swapSource });
   useLayoutEffect(() => {
-    if (frame.current === null || cleared.current === preview.toDateKey) return;
-    if (keepTargetClear(frame.current, preview.toDateKey)) cleared.current = preview.toDateKey;
-  }, [preview.toDateKey, props.revision]);
+    latest.current = { key: clearKey, toDateKey: preview.toDateKey, swapSource };
+    if (frame.current === null || cleared.current === clearKey) return;
+    if (keepTargetClear(frame.current, preview.toDateKey, swapSource)) cleared.current = clearKey;
+  }, [clearKey, preview.toDateKey, swapSource, props.revision]);
+  useEffect(() => {
+    const node = frame.current;
+    if (node === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const now = latest.current;
+      if (cleared.current === now.key) keepTargetClear(node, now.toDateKey, now.swapSource);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const title = say("plan.calendar.move.title", {
     name: preview.workout.name,
     day: text.weekdayDayMonth(preview.toDateKey),

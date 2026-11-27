@@ -593,4 +593,60 @@ describe("one Calendar sheet at a time", () => {
     expect(calendar.refresh).toHaveBeenCalledOnce();
     expect(calendar.showWeekOf).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps the moved layout from Move until the read with the move arrives", async () => {
+    const user = userEvent.setup();
+    const bound = show();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    await user.click(screen.getByRole("button", { name: "Move" }));
+    expect(bound.call).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const day = (dateKey: number) => {
+      const found = document.querySelector(`[role="cell"][data-date-key="${dateKey}"]`);
+      if (found === null) throw new Error(`No day ${dateKey}`);
+      return found;
+    };
+    expect(day(19980115).querySelector(`[data-move-landed="${workoutId(1)}"]`)).not.toBeNull();
+    expect(day(TODAY).querySelector(`[data-workout-id="${workoutId(1)}"]`)).toBeNull();
+    const moved = read();
+    const landed = {
+      ...moved,
+      plan:
+        moved.plan === null
+          ? null
+          : {
+              ...moved.plan,
+              workouts: moved.plan.workouts.map((entry) =>
+                entry.id === workoutId(1) ? { ...entry, dateKey: 19980115 } : entry,
+              ),
+            },
+    };
+    act(() => {
+      useEnduragentStore.setState({
+        calendar: {
+          kind: "ready",
+          read: landed,
+          range: { firstRowStart: MONDAY, rowCount: 2 },
+          refresh: "idle",
+        },
+      });
+    });
+    expect(day(19980115).querySelector("[data-move-landed]")).toBeNull();
+    expect(day(19980115).querySelector(`[data-workout-id="${workoutId(1)}"]`)).not.toBeNull();
+  });
+
+  it("goes back to the preview when the move fails", async () => {
+    const user = userEvent.setup();
+    const bound = show();
+    bound.call.mockRejectedValueOnce(new Error("offline"));
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    await user.click(screen.getByRole("button", { name: "Move" }));
+    expect(within(screen.getByRole("dialog")).getByRole("alert")).toBeVisible();
+    expect(document.querySelector("[data-move-landed]")).toBeNull();
+    expect(gridCard(workoutId(1))).toHaveAttribute("aria-label", "Long endurance, being moved");
+  });
 });

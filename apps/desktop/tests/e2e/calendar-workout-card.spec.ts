@@ -86,7 +86,59 @@ async function previewUncovered(scenario: Scenario, dateKey: number, workoutId: 
   );
 }
 
-async function expectTargetClear(scenario: Scenario, dateKey: number, workoutId: string) {
+async function clearance(
+  scenario: Scenario,
+  dateKey: number,
+  workoutId: string,
+  swap: { readonly dateKey: number; readonly id: string } | null,
+) {
+  return scenario.page.evaluate(
+    ([day, id, swapDay, swapId]) => {
+      const margin = 11;
+      const dialog = document.querySelector("[data-move-dialog]")?.getBoundingClientRect();
+      const view = document.querySelector("[data-page-scroll]")?.getBoundingClientRect();
+      if (dialog === undefined || view === undefined) return null;
+      const clearOf = (element: Element | null | undefined) => {
+        if (element == null) return null;
+        const box = element.getBoundingClientRect();
+        return (
+          box.bottom <= dialog.top - margin || box.right <= dialog.left || box.left >= dialog.right
+        );
+      };
+      const target = document.querySelector(`[role="cell"][data-date-key="${day}"]`);
+      const source =
+        swapDay === null
+          ? null
+          : document.querySelector(`[role="cell"][data-date-key="${swapDay}"]`);
+      let bothFit = false;
+      if (target !== null && source !== null) {
+        const a = target.getBoundingClientRect();
+        const b = source.getBoundingClientRect();
+        const left = Math.min(a.left, b.left);
+        const right = Math.max(a.right, b.right);
+        const under = right > dialog.left && left < dialog.right;
+        const limit = under ? dialog.top - 12 : view.bottom;
+        bothFit =
+          b.right > view.left &&
+          b.left < view.right &&
+          Math.max(a.bottom, b.bottom) - Math.min(a.top, b.top) <= limit - view.top;
+      }
+      return {
+        target: clearOf(target?.querySelector(`[data-move-preview="${id}"]`)),
+        swapped: clearOf(source?.querySelector(`[data-move-preview="${swapId}"]`)),
+        bothFit,
+      };
+    },
+    [dateKey, workoutId, swap?.dateKey ?? null, swap?.id ?? null] as const,
+  );
+}
+
+async function expectTargetClear(
+  scenario: Scenario,
+  dateKey: number,
+  workoutId: string,
+  swap: { readonly dateKey: number; readonly id: string } | null = null,
+) {
   await expect(
     cell(scenario, dateKey).locator(`[data-move-preview="${workoutId}"]`),
     `the preview on ${dateKey} is missing`,
@@ -96,6 +148,15 @@ async function expectTargetClear(scenario: Scenario, dateKey: number, workoutId:
       message: `the move dialog covers its target ${dateKey}`,
     })
     .toBe(true);
+  await expect
+    .poll(async () => (await clearance(scenario, dateKey, workoutId, swap))?.target, {
+      message: `the move dialog covers the bottom of its target ${dateKey}`,
+    })
+    .toBe(true);
+  const both = await clearance(scenario, dateKey, workoutId, swap);
+  if (swap !== null && both?.bothFit === true && both.swapped !== null) {
+    expect(both.swapped, `the swapped preview on ${swap.dateKey} is covered`).toBe(true);
+  }
 }
 
 async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<void> {
@@ -113,7 +174,13 @@ async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<
     { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" },
   );
   for (const [index, day] of days.entries()) {
-    await expectTargetClear(scenario, day, chosen.id);
+    const other = chosen.busy.get(day);
+    await expectTargetClear(
+      scenario,
+      day,
+      chosen.id,
+      other === undefined ? null : { dateKey: chosen.fromDateKey, id: other.id },
+    );
     const clash = chosen.busy.get(day)?.id;
     if (!swapChecked && clash !== undefined && day <= LAST_SHOWN_DAY) {
       swapChecked = true;
@@ -127,7 +194,6 @@ async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<
       await expect(swapped).toBeVisible();
       await later.focus();
     }
-    const other = chosen.busy.get(day);
     if (
       !crossingChecked &&
       other !== undefined &&
