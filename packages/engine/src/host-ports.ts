@@ -427,6 +427,10 @@ export interface UsageCost {
 
 export type UsageCostBasis = "notional" | "actual";
 
+export type UsageCallOutcome = "ok" | "error";
+
+export type UsageErrorClass = FailureReason | "aborted";
+
 export interface UsageLedgerLine {
   readonly ts: number;
   readonly kind: "generate" | "turn" | "boot";
@@ -434,6 +438,9 @@ export interface UsageLedgerLine {
   readonly model: string;
   readonly durationMs: number;
   readonly caller?: CallerRole;
+  readonly turnId?: string;
+  readonly outcome?: UsageCallOutcome;
+  readonly errorClass?: UsageErrorClass;
   readonly templateHash?: string;
   readonly steps?: number;
   readonly inputTokens?: number;

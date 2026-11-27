@@ -18,10 +18,6 @@ import { todayInTZ } from "../sport/user-time.js";
 import { wrapAthleteContextFence } from "./prompt-fence.js";
 import { ATHLETE_CONTEXT_MAX_CHARS } from "./system-prompt.js";
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 export const SOFT_THRESHOLD_RATIO = 0.8;
 
 export const FLUSH_COOLDOWN_MESSAGES = 5;
@@ -42,12 +38,6 @@ export const FLUSH_ZERO_WRITE_MIN_MESSAGES = 4;
 export const FLUSH_SHRINK_MIN_CHARS = 200;
 export const FLUSH_SHRINK_RATIO = 0.7;
 
-// Prompt-layer target size for always-injected sections, used only by the flush
-// budget nudge (below) and the render-time cap math — it emits no event and
-// gates no write. This is a DIFFERENT number and layer from the store-level
-// `SECTION_SOFT_WARN_CHARS` (4000) in store.ts: that 4000 is a store-hygiene
-// backstop that warns on EVERY section write; this 1500 is the target size for
-// the small always-injected sections so the injected Athlete Context stays lean.
 export const MEMORY_SECTION_BUDGET_CHARS = 1500;
 
 export interface MemoryFlushOutcome {
@@ -57,10 +47,6 @@ export interface MemoryFlushOutcome {
   usage: GenerateResult["usage"];
   shrunkSections: Array<{ section: string; beforeChars: number; afterChars: number }>;
 }
-
-// ============================================================================
-// PROMPTS
-// ============================================================================
 
 const MEMORY_FLUSH_SYSTEM_PROMPT = `You are reviewing a conversation to extract and save important athlete
 information before it is summarized. Use the memory_write tool to save
@@ -128,10 +114,6 @@ Current memory:
 ${currentMemory}`;
 }
 
-// ============================================================================
-// APPEND-ONLY MEMORY WRITE TOOL
-// ============================================================================
-
 function createFlushMemoryWriteTool(
   memory: MemoryStorePort,
   sections: readonly MemorySectionSpec[],
@@ -144,7 +126,9 @@ function createFlushMemoryWriteTool(
     inputSchema: zodSchema(
       z.object({
         section: z.enum(sectionNames).describe("Which section to write"),
-        content: z.string().describe("Complete section content — include ALL facts for this section"),
+        content: z
+          .string()
+          .describe("Complete section content — include ALL facts for this section"),
       }),
     ),
     execute: async (input: { section: string; content: string }) => {
@@ -155,16 +139,6 @@ function createFlushMemoryWriteTool(
   });
 }
 
-// ============================================================================
-// CHRONIC-KEYWORD CONVERGENCE SCAN
-// ============================================================================
-
-// Substring matches against `cycling-history` body after each flush. Fires a
-// structured warn if chronic content (which belongs in `medical-history`) is
-// still parked in cycling-history — observability for the section-migration
-// "convergence over 1-3 flushes" assumption from ADR-0003. Substring matching
-// is intentional (catches plurals like "medications" via "medication"); expand
-// the list as we observe real data.
 export const CHRONIC_KEYWORDS = [
   "hypertension",
   "diabetes",
@@ -183,8 +157,6 @@ function scanForStuckChronic(memory: MemoryStorePort): void {
   const lower = cyclingHistory.toLowerCase();
   const matches = CHRONIC_KEYWORDS.filter((k) => lower.includes(k));
   if (matches.length === 0) return;
-  // Log only the count — the matched keywords are the athlete's actual
-  // conditions/medications and must not land in logs.
   console.warn(
     JSON.stringify({
       event: "chronic_facts_stuck_in_cycling_history",
@@ -194,10 +166,6 @@ function scanForStuckChronic(memory: MemoryStorePort): void {
   );
 }
 
-// ============================================================================
-// MEMORY FLUSH
-// ============================================================================
-
 export async function runMemoryFlush(params: {
   llm: LLM;
   messages: ModelMessage[];
@@ -205,6 +173,7 @@ export async function runMemoryFlush(params: {
   memorySections: readonly MemorySectionSpec[];
   tz?: string;
   budget?: Pick<TurnBudget, "chargeGenerateCall">;
+  turnId?: string;
 }): Promise<MemoryFlushOutcome> {
   if (params.memorySections.length === 0) {
     throw new Error(
@@ -260,6 +229,7 @@ export async function runMemoryFlush(params: {
     stopWhen: stepCountIs(5),
     maxSteps: 5,
     caller: "flush",
+    turnId: params.turnId,
   });
 
   params.memory.reload();
@@ -272,7 +242,6 @@ export async function runMemoryFlush(params: {
     const after = (params.memory.readSection(spec.name) ?? "").length;
     if (before >= FLUSH_SHRINK_MIN_CHARS && after < before * FLUSH_SHRINK_RATIO) {
       shrunkSections.push({ section: spec.name, beforeChars: before, afterChars: after });
-      // Char counts only — section bodies are athlete data and must not land in logs.
       console.warn(
         JSON.stringify({
           event: "memory_flush_section_shrunk",

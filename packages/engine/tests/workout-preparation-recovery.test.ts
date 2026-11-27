@@ -45,6 +45,7 @@ describe("workout preparation assessment", () => {
         budget: turnBudget,
         signal,
         cacheKey: "chat-key",
+        turnId: "turn-assessment",
       }),
     ).resolves.toEqual({ kind: "requires_preparation" });
 
@@ -52,6 +53,7 @@ describe("workout preparation assessment", () => {
     expect(generate).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         caller: "chat",
+        turnId: "turn-assessment",
         cacheKey: "chat-key",
         deadlineMs: 12_345,
         maxOutputTokens: 256,
@@ -87,6 +89,7 @@ describe("workout preparation assessment", () => {
         budget: budget(),
         signal: new AbortController().signal,
         cacheKey: "chat-key",
+        turnId: "turn-assessment",
       }),
     ).resolves.toEqual({ kind: "assessment_failed", reason: "invalid_response" });
   });
@@ -103,6 +106,7 @@ describe("workout preparation assessment", () => {
         budget: budget(),
         signal: new AbortController().signal,
         cacheKey: "chat-key",
+        turnId: "turn-assessment",
       }),
     ).resolves.toEqual({ kind: "assessment_failed", reason: "provider_failure" });
   });
@@ -122,6 +126,7 @@ describe("workout preparation assessment", () => {
         budget: budget(),
         signal: controller.signal,
         cacheKey: "chat-key",
+        turnId: "turn-assessment",
       }),
     ).rejects.toBe(failure);
   });

@@ -150,9 +150,6 @@ function catalogInputTokens(line: UsageLedgerLine): number | undefined {
   const inputTokens = line.inputTokens;
   if (line.provider !== "openai-codex" || inputTokens === undefined) return inputTokens;
 
-  // Older Codex rows stored uncached input while retaining the provider's
-  // inclusive total. Only that exact identity can distinguish them safely
-  // from current rows without rewriting the ledger.
   const { outputTokens, totalTokens, cacheReadTokens, cacheWriteTokens } = line;
   if (
     outputTokens === undefined ||
@@ -191,6 +188,16 @@ function catalogCacheReadSavingsFor(line: UsageLedgerLine, cacheReadTokens: numb
     return codexAgentCacheReadSavingsUsd(line.model, cacheReadTokens);
   }
   return cacheReadSavingsUsd(line.provider, line.model, cacheReadTokens);
+}
+
+function failedCallWithoutKnownUsage(line: UsageLedgerLine): boolean {
+  return (
+    line.outcome === "error" &&
+    line.inputTokens === undefined &&
+    line.outputTokens === undefined &&
+    line.providerReportedCostUsd === undefined &&
+    line.cost === undefined
+  );
 }
 
 function accruesToCap(line: UsageLedgerLine): boolean {
@@ -352,8 +359,10 @@ function aggregateLedger(
             cacheWriteTokens: line.cacheWriteTokens ?? 0,
           })
         : undefined;
-    const cost =
-      providerReported ?? (catalogRevision === undefined ? catalogCost?.total : storedCost?.total);
+    const cost = failedCallWithoutKnownUsage(line)
+      ? 0
+      : (providerReported ??
+        (catalogRevision === undefined ? catalogCost?.total : storedCost?.total));
     const accrues = accruesToCap(line);
     const running = accrues ? route.knownSpendUsd : route.notionalSpendUsd;
     if (cost === undefined || !Number.isFinite(running + cost)) {

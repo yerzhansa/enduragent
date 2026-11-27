@@ -1,8 +1,9 @@
 import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
-import { resolveTurnReply, type StepExhaustedRecovery } from "./workout-reply.js";
+import { resolveTurnReply } from "./workout-reply.js";
+import { recoverStepExhaustedText } from "./step-limit-recovery.js";
 import { createPendingWorkoutTool } from "./pending-workout-tool.js";
 import { stepCountIs } from "ai";
-import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
+import type { ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
 import { msg, type LanguageResolution } from "@enduragent/i18n";
@@ -164,12 +165,6 @@ for (const name of MEMORY_MUTATING_TOOL_NAMES) {
   }
 }
 
-function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean {
-  return text.trim() === "" && (finishReason === "tool-calls" || finishReason === "length");
-}
-
-const RECOVERY_PROMPT =
-  "Answer the athlete's latest request directly. Do not recap earlier conversation, infer pending approvals, or claim that you took any action. No tools are available for this response.";
 const SECTION_UPDATED_STAMP = "_updated: ";
 
 function archiveMarker(archivedAt: string): string {
@@ -208,6 +203,11 @@ type MemoryFlushTrigger =
   | "pre-compaction"
   | "overflow-recovery"
   | "soft-threshold";
+
+interface FlushScope {
+  readonly budget?: Pick<TurnBudget, "chargeGenerateCall">;
+  readonly turnId?: string;
+}
 
 interface TurnOutcome {
   turnId: string;
@@ -684,7 +684,7 @@ export class CoachAgent {
   private async flushMemory(
     messages: ModelMessage[],
     trigger: MemoryFlushTrigger,
-    budget?: Pick<TurnBudget, "chargeGenerateCall">,
+    scope: FlushScope = {},
   ): Promise<MemoryFlushOutcome> {
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_FLUSH_ATTEMPTS; attempt++) {
@@ -695,7 +695,8 @@ export class CoachAgent {
           memory: this.memory,
           memorySections: getEffectiveSections(this.sport),
           tz: this.tz,
-          budget,
+          budget: scope.budget,
+          turnId: scope.turnId,
         });
       } catch (err) {
         lastError = err;
@@ -737,7 +738,7 @@ export class CoachAgent {
     chatId: string,
     history: ModelMessage[],
     trigger: MemoryFlushTrigger,
-    budget?: Pick<TurnBudget, "chargeGenerateCall">,
+    scope: FlushScope = {},
     currentTurn: ModelMessage[] = [],
   ): Promise<void> {
     const window = [
@@ -749,7 +750,7 @@ export class CoachAgent {
       this.log.info("memory_flush_skipped", { trigger, reason: "no_new_messages" });
       return;
     }
-    await this.flushMemory(window, trigger, budget);
+    await this.flushMemory(window, trigger, scope);
     this.markFlushed(chatId, history.length + currentTurn.length);
   }
 
@@ -762,6 +763,7 @@ export class CoachAgent {
     chatId: string,
     messages: ModelMessage[],
     trigger: "stale-reset" | "soft-threshold",
+    turnId: string,
     onFlushed?: () => void,
   ): void {
     void withSessionLock(chatId, async () => {
@@ -772,7 +774,7 @@ export class CoachAgent {
         return;
       }
       try {
-        const outcome = await this.flushMemory(window, trigger);
+        const outcome = await this.flushMemory(window, trigger, { turnId });
         const zeroWrite =
           outcome.writes === 0 &&
           outcome.ledgerAppends === 0 &&
@@ -784,7 +786,7 @@ export class CoachAgent {
               messageCount: window.length,
             }),
           );
-          await this.flushMemory(window, trigger);
+          await this.flushMemory(window, trigger, { turnId });
         }
         this.pendingFlushMessages.delete(chatId);
         onFlushed?.();
@@ -794,66 +796,11 @@ export class CoachAgent {
     });
   }
 
-  private async recoverStepExhaustedText(
-    systemPrompt: string,
-    text: string,
-    finishReason: FinishReason,
-    messages: ModelMessage[],
-    cacheKey: string,
-    turnBudget: TurnBudget,
-    onTextDelta: (delta: string) => void,
-    signal: AbortSignal,
-  ): Promise<StepExhaustedRecovery> {
-    if (!isStepExhaustedEmpty(text, finishReason)) {
-      return {
-        kind: "unchanged",
-        reply: { text, attributionBasis: "attempt" },
-      };
-    }
-    turnBudget.chargeGenerateCall();
-    try {
-      const recovery = await this.llm.generate({
-        system: systemPrompt,
-        messages: [...messages, { role: "user", content: RECOVERY_PROMPT }],
-        tools: undefined,
-        caller: "chat",
-        cacheKey,
-        deadlineMs: turnBudget.remainingMs(),
-        onTextDelta,
-        signal,
-      });
-      return recovery.text.trim() !== ""
-        ? {
-            kind: "generated",
-            result: recovery,
-            reply: { text: recovery.text, attributionBasis: "prompt" },
-          }
-        : {
-            kind: "fixed",
-            reply: {
-              text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
-              message: STEP_LIMIT_TRUNCATION_MESSAGE,
-              attributionBasis: "none",
-            },
-          };
-    } catch (recoveryErr) {
-      if (signal.aborted) throw recoveryErr;
-      console.warn("Step-limit recovery completion failed; using truncation floor", recoveryErr);
-      return {
-        kind: "fixed",
-        reply: {
-          text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
-          message: STEP_LIMIT_TRUNCATION_MESSAGE,
-          attributionBasis: "none",
-        },
-      };
-    }
-  }
-
-  private compactionParams(budget?: Pick<TurnBudget, "chargeGenerateCall">) {
+  private compactionParams(budget: Pick<TurnBudget, "chargeGenerateCall">, turnId: string) {
     return {
       llm: this.compactLlm,
       caller: "compact" as const,
+      turnId,
       mustPreserveTokens: this.sport.mustPreserveTokens,
       memory: createMemorySnapshot(this.memory),
       contextWindowTokens: effectiveEstimatorWindowTokens(this.compactContextWindowTokens),
@@ -1025,6 +972,7 @@ export class CoachAgent {
               chatId,
               ramPending.length > 0 ? [] : (unflushed?.messages ?? []),
               "stale-reset",
+              turnId,
               markDiskFlushed,
             );
           }
@@ -1060,7 +1008,7 @@ export class CoachAgent {
           if (!flushedThisTurn) {
             flushedThisTurn = true;
             try {
-              await this.flushNewMessages(chatId, history, "trim", turnBudget);
+              await this.flushNewMessages(chatId, history, "trim", { budget: turnBudget, turnId });
             } catch (err) {
               trimFlushFailed = true;
               this.log.warn(
@@ -1074,7 +1022,7 @@ export class CoachAgent {
               dropped,
               previousSummary,
               previousSummaryProvenance,
-              ...this.compactionParams(turnBudget),
+              ...this.compactionParams(turnBudget, turnId),
             });
             compactions++;
             const summaryProvenance =
@@ -1115,8 +1063,12 @@ export class CoachAgent {
         ) {
           if (!flushedThisTurn && !recoveryFlushQueued) {
             flushedThisTurn = true;
-            this.queueFlush(chatId, this.unflushedMessages(chatId, history), "soft-threshold", () =>
-              this.markFlushed(chatId, history.length),
+            this.queueFlush(
+              chatId,
+              this.unflushedMessages(chatId, history),
+              "soft-threshold",
+              turnId,
+              () => this.markFlushed(chatId, history.length),
             );
           }
         }
@@ -1166,7 +1118,7 @@ export class CoachAgent {
         const compactInTurn = async () => {
           const compacted = await summarizeInStages({
             messages,
-            ...this.compactionParams(turnBudget),
+            ...this.compactionParams(turnBudget, turnId),
           });
           if (
             shouldCompact({
@@ -1205,9 +1157,13 @@ export class CoachAgent {
               if (!flushedThisTurn) {
                 flushedThisTurn = true;
                 try {
-                  await this.flushNewMessages(chatId, history, "pre-compaction", turnBudget, [
-                    userTurnMessage,
-                  ]);
+                  await this.flushNewMessages(
+                    chatId,
+                    history,
+                    "pre-compaction",
+                    { budget: turnBudget, turnId },
+                    [userTurnMessage],
+                  );
                 } catch (err) {
                   this.log.warn("In-turn memory flush failed; compacting without flush", err);
                 }
@@ -1243,6 +1199,7 @@ export class CoachAgent {
                 stopWhen: stepCountIs(10),
                 maxSteps: 10,
                 caller: "chat",
+                turnId,
                 context: ctx,
                 cacheKey,
                 deadlineMs: turnBudget.remainingMs(),
@@ -1313,16 +1270,19 @@ export class CoachAgent {
                 log: this.log,
                 replayUnsafeToolNames: REPLAY_UNSAFE_TOOL_NAMES,
                 recoverStepExhausted: (recoveryText, recoveryFinish, recoveryMessages) =>
-                  this.recoverStepExhaustedText(
-                    systemPrompt,
-                    recoveryText,
-                    recoveryFinish,
-                    recoveryMessages,
+                  recoverStepExhaustedText({
+                    llm: this.llm,
+                    phrasebook: this.english,
+                    system: systemPrompt,
+                    text: recoveryText,
+                    finishReason: recoveryFinish,
+                    messages: recoveryMessages,
                     cacheKey,
-                    turnBudget,
-                    onAttemptTextDelta,
-                    abortController.signal,
-                  ),
+                    turnId,
+                    budget: turnBudget,
+                    onTextDelta: onAttemptTextDelta,
+                    signal: abortController.signal,
+                  }),
               });
               result = resolved.result;
               providerMessages = resolved.messages;
@@ -1522,7 +1482,7 @@ export class CoachAgent {
                         chatId,
                         history,
                         "overflow-recovery",
-                        turnBudget,
+                        { budget: turnBudget, turnId },
                         [userTurnMessage],
                       );
                     } catch (flushErr) {
@@ -2086,6 +2046,7 @@ export class CoachAgent {
         stopWhen: stepCountIs(10),
         maxSteps: 10,
         caller: "chat",
+        turnId,
         context,
         cacheKey: sha256_16(decision.chatId),
         signal: abortController.signal,
