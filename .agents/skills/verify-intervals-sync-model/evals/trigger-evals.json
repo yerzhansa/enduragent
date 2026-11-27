@@ -1,0 +1,30 @@
+[
+  {
+    "query": "I changed how the ride analysis controller cancels getActivityAnalysis. Check that a cancel can no longer break a running sync or a streaming reply.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use $verify-intervals-sync-model after editing latchTerminal and the timeout path in packages/coach-client/src/client.ts.",
+    "should_trigger": true
+  },
+  {
+    "query": "The sync coordinator now re-reads the coach after a reconnect. Prove the sidebar can no longer stay on Connection interrupted after the coach finished.",
+    "should_trigger": true
+  },
+  {
+    "query": "Disconnect for intervals.icu now cancels the running sync window in the coach. Model-check that Disconnect always revokes or refuses clearly.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a new translation string for the Plan calendar empty state and run the i18n check.",
+    "should_trigger": false
+  },
+  {
+    "query": "Record before and after videos of the Training page for the pull request.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix the Telegram polling resume after the computer wakes and add its module test.",
+    "should_trigger": false
+  }
+]
