@@ -1,5 +1,5 @@
 {
-  "syncCommit": "dba5dea5",
+  "syncCommit": "112f60c5",
   "fingerprints": {
     "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
     "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
@@ -9,7 +9,7 @@
     "packages/coach-client/src/call-timeouts.ts :: getActivityAnalysis:": "8d0063591c78",
     "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
     "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "4a7e06e4386d",
-    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "31cc380d4186",
+    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "86bb9e060e32",
     "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "8ee69d264ee5",
     "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7397fbac5c44",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
