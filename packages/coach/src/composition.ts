@@ -759,6 +759,12 @@ export async function createLocalCoachComposition(
   const planningTimezone = resolveUserTimezone(input.config.session.timezone);
   const planningDateKey = (): number =>
     Number(todayInTZ(planningTimezone, new Date(now())).replaceAll("-", ""));
+  const intervalsConfigured = () => approvedConfig().intervals.apiKey.length > 0;
+  const calendarConnected = () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey);
+  const eventSources = createPlanChangeEventSourceReader({
+    calendarConnected: intervalsConfigured,
+    readLatest: () => readLatestReference(input.home.root),
+  });
   const planLifecycle = createPlanLifecycleRepository(input.context.store, {
     newId: () => planningIdentity.newUlid(),
   });
@@ -775,12 +781,10 @@ export async function createLocalCoachComposition(
     identity: planningIdentity,
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [] },
-    eventSources: createPlanChangeEventSourceReader({
-      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
-      readLatest: () => readLatestReference(input.home.root),
-    }),
+    eventSources,
     baselineEvidence: { read: async () => undefined },
-    calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+    calendarConnected,
+    intervalsConfigured,
     legacyPlan: () =>
       readLegacyCurrentPlanSummary({
         home: input.home,
@@ -1735,7 +1739,6 @@ export async function createLocalCoachComposition(
           }),
         )
         .then(() => {
-          if (!closing) void drain.kick();
           void resumeHistoryDownload(initialRefreshController.signal);
         })
         .finally(() => {
@@ -1972,10 +1975,7 @@ export async function createLocalCoachComposition(
       language: (text) => planningLanguage(text),
       translator: reconfigurable.intentTranslator,
       ftp,
-      eventSources: createPlanChangeEventSourceReader({
-        calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
-        readLatest: () => readLatestReference(input.home.root),
-      }),
+      eventSources,
       logger,
       store: input.context.store,
       identity: planningIdentity,
@@ -1983,7 +1983,7 @@ export async function createLocalCoachComposition(
       todayDateKey: planningDateKey,
       timezone: () => planningTimezone,
       now,
-      calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
+      calendarConnected: async () => intervalsConfigured(),
     });
     await planCreationOperations.ready();
     await planChangeOperations.ready();
@@ -1995,7 +1995,7 @@ export async function createLocalCoachComposition(
     });
     const calendarDeps = {
       store: input.context.store,
-      calendarConnected: () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey),
+      calendarConnected,
       todayDateKey: planningDateKey,
       now,
       dateKeyOfMs: (ms: number) =>
@@ -2006,19 +2006,15 @@ export async function createLocalCoachComposition(
       changed: () => closing || void drain.kick(),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
-    const runWindow = runtime.runWindow.bind(runtime);
-    runtime.runWindow = async () => {
-      const result = await runWindow();
-      if (!closing) void drain.kick();
-      return result;
-    };
     const kickAfter =
-      <Params, Result>(operation: (params: Params) => Promise<Result>) =>
-      async (params: Params): Promise<Result> => {
-        const result = await operation(params);
+      <Args extends unknown[], Result>(operation: (...args: Args) => Promise<Result>) =>
+      async (...args: Args): Promise<Result> => {
+        const result = await operation(...args);
         if (!closing) void drain.kick();
         return result;
       };
+    runtime.runWindow = kickAfter(runtime.runWindow.bind(runtime));
+    runtime.runWindowAfter = kickAfter(runtime.runWindowAfter.bind(runtime));
     const readiness = {
       async read({
         plan,

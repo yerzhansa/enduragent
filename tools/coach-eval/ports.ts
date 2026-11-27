@@ -402,6 +402,7 @@ export function createEvalPorts(input: EvalPortsInput): EvalPorts {
     memory: recordingMemory(base.memory, input.recorder),
     usage: {
       append: (line) => {
+        if (line.outcome === "error" && input.meter.takeRefusedCall()) return;
         input.recorder.usage.push(line);
         if (line.kind === "generate") input.meter.record(line);
         base.usage.append(line);
