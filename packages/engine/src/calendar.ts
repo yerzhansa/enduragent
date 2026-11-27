@@ -9,4 +9,3 @@ export * from "./planning/calendar-codec.js";
 export * from "./planning/calendar-mirror.js";
 export * from "./planning/conditional-write.js";
 export * from "./planning/calendar-cleanup.js";
-export * from "./coach-text-writer.js";

@@ -33,6 +33,7 @@ export type CoachTextMatched =
       readonly outcome: "done-as-planned" | "done-differently";
     }
   | { readonly kind: "extra" }
+  | { readonly kind: "outside-plan" }
   | { readonly kind: "no-plan" };
 
 export interface CoachTextFacts {
@@ -66,7 +67,7 @@ export class CoachTextWriteError extends Error {
 
 function languageRule(language: LanguageResolution): string {
   const { englishName, endonym } = describeLanguage(language.language);
-  return `Write in ${englishName} (${endonym}), whatever language the note uses.`;
+  return `Write in ${englishName} (${endonym}): the athlete's saved language, or the app's language when none is saved. Do not switch to the language of the note.`;
 }
 
 function matchRule(matched: CoachTextMatched): string {
@@ -75,6 +76,8 @@ function matchRule(matched: CoachTextMatched): string {
       return "The ride is matched to the Plan Workout in matched.workout. Say how the ride went against it.";
     case "extra":
       return "The ride matches no Plan Workout, so it counts as Extra. Say how it fits the Plan week in week.";
+    case "outside-plan":
+      return "The athlete has a Plan, but this ride falls outside its Training Weeks, so no Plan Workout or Plan week applies. Say how the ride went from its own facts.";
     case "no-plan":
       return "The athlete has no Plan. Say how the ride went from its own facts.";
   }
@@ -113,7 +116,7 @@ export function createCoachTextWriter(input: {
     async writeCoachText(facts, signal) {
       const language = await input.language.resolveFor({
         chatId: COACH_TEXT_CHAT_ID,
-        athleteText: facts.note ?? "",
+        athleteText: "",
       });
       const { system, prompt } = coachTextPrompt(facts, language);
       const result = await input.model.generate({

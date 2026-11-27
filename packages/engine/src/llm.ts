@@ -13,6 +13,11 @@ import { dirname } from "node:path";
 
 import { splitSystemPromptAtBoundary } from "./agent/system-prompt.js";
 import { priceResolvedModelUsage, resolvedModelCacheReadSavingsUsd } from "./usage-cost.js";
+import {
+  callerProviderOptions,
+  keylessBridgeCaller,
+  LOWEST_CODEX_AGENT_EFFORT,
+} from "./caller-options.js";
 
 import type {
   EngineConfig,
@@ -238,7 +243,8 @@ export class LLM {
           runtime: {
             enabled: codexAgent.enabled,
             binaryPath: codexAgent.binaryPath,
-            reasoningEffort: codexAgent.reasoningEffort,
+            reasoningEffort:
+              opts.caller === "coach-text" ? LOWEST_CODEX_AGENT_EFFORT : codexAgent.reasoningEffort,
           },
         },
       );
@@ -294,9 +300,10 @@ export class LLM {
     }
 
     const astra = this.profile.provider === "openai" && this.profile.model === "gpt-6-astra";
+    const providerOptions = callerProviderOptions(this.profile.provider, opts.caller, astra);
     const base = {
       model: this.aiSdkModel,
-      ...(astra ? { providerOptions: { openai: { forceReasoning: true } } } : {}),
+      ...(providerOptions === undefined ? {} : { providerOptions }),
       system,
       tools: opts.tools,
       stopWhen: opts.stopWhen,
@@ -683,10 +690,6 @@ function providerReportedCostFromSteps(steps: readonly unknown[]): number | unde
     if (!Number.isFinite(total)) return undefined;
   }
   return total;
-}
-
-export function keylessBridgeCaller(caller: GenerateOpts["caller"]): GenerateOpts["caller"] {
-  return caller === "coach-text" ? "intent-translation" : caller;
 }
 
 function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {

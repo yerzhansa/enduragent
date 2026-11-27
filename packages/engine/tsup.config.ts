@@ -5,6 +5,7 @@ export default defineConfig({
     index: "src/index.ts",
     sport: "src/sport.ts",
     calendar: "src/calendar.ts",
+    "coach-text-writer": "src/coach-text-writer.ts",
   },
   format: ["esm"],
   dts: true,
