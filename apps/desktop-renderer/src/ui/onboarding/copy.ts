@@ -298,6 +298,12 @@ export const TELEGRAM_AVAILABILITY_COPY = msg("setup.telegram.availability", {
   telegram: "Telegram",
 });
 
+export const TELEGRAM_UNAVAILABLE_COPY = msg("settings.telegram.feedback.unavailable", {
+  telegram: "Telegram",
+});
+
+export const TELEGRAM_RETRY_LABEL = msg("settings.telegram.retry");
+
 export const TELEGRAM_VERIFIED_PREFIX = msg("setup.telegram.verifiedPrefix");
 
 export const TELEGRAM_CREATE_TITLE = msg("setup.telegram.createTitle", { botFather: "BotFather" });

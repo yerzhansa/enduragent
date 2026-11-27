@@ -19,7 +19,9 @@ import {
   TELEGRAM_DELETE_COPY,
   TELEGRAM_DELETE_TITLE,
   TELEGRAM_OPTIONAL_LABEL,
+  TELEGRAM_RETRY_LABEL,
   TELEGRAM_ROW_TITLE,
+  TELEGRAM_UNAVAILABLE_COPY,
 } from "./copy";
 import { InlineConfirmation, type InlineConfirmationFocus } from "@enduragent/ui";
 import { SetupRow, SetupSubPanel } from "./SetupRow";
@@ -199,7 +201,8 @@ export function TelegramRow(): ReactElement {
     attempt?.phase === "settled" &&
     attempt.feedback?.tone === "warning" &&
     sameFeedback(feedback, attempt.feedback);
-  const mutationUnsafe = authoritativeCheckRequired;
+  const loadFailed = state.status === "error" && state.kind === "load" && telegram === null;
+  const mutationUnsafe = authoritativeCheckRequired || loadFailed;
   const panelId = "onboarding-telegram-panel";
 
   useEffect(() => {
@@ -439,17 +442,21 @@ export function TelegramRow(): ReactElement {
     <>
       <SetupRow
         id="telegram"
-        status={configured ? "ready" : "pending"}
+        status={loadFailed ? "attention" : configured ? "ready" : "pending"}
         title={TELEGRAM_ROW_TITLE}
         subtitle={
-          <>
-            {say(TELEGRAM_AVAILABILITY_COPY)}
-            {configured ? (
-              <span className="mt-1 block text-ok" data-telegram-identity="">
-                {say("setup.telegram.verified", { username })}
-              </span>
-            ) : null}
-          </>
+          loadFailed ? (
+            say(TELEGRAM_UNAVAILABLE_COPY)
+          ) : (
+            <>
+              {say(TELEGRAM_AVAILABILITY_COPY)}
+              {configured ? (
+                <span className="mt-1 block text-ok" data-telegram-identity="">
+                  {say("setup.telegram.verified", { username })}
+                </span>
+              ) : null}
+            </>
+          )
         }
         info={
           <span
@@ -460,10 +467,26 @@ export function TelegramRow(): ReactElement {
           </span>
         }
         announce={
-          panel === "token" ? say("setup.telegram.announcement", { telegram: "Telegram" }) : ""
+          loadFailed
+            ? say(TELEGRAM_UNAVAILABLE_COPY)
+            : panel === "token"
+              ? say("setup.telegram.announcement", { telegram: "Telegram" })
+              : ""
         }
         trailing={
-          configured ? (
+          loadFailed ? (
+            <Button
+              ref={trigger}
+              type="button"
+              variant="outline"
+              size="sm"
+              data-setup-retry="telegram"
+              disabled={busy}
+              onClick={checkAgain}
+            >
+              {say(TELEGRAM_RETRY_LABEL)}
+            </Button>
+          ) : configured ? (
             <Button
               ref={trigger}
               type="button"
@@ -540,7 +563,7 @@ export function TelegramRow(): ReactElement {
               >
                 {say("common.cancel")}
               </Button>
-              {mutationUnsafe ? (
+              {authoritativeCheckRequired ? (
                 <Button
                   ref={retryAction}
                   type="button"
@@ -576,7 +599,7 @@ export function TelegramRow(): ReactElement {
       attempt.phase === "settled" ? (
         <SetupSubPanel name="telegram-connect-recovery">
           {feedbackNode}
-          {mutationUnsafe ? (
+          {authoritativeCheckRequired ? (
             <Button
               ref={retryAction}
               type="button"
@@ -609,7 +632,7 @@ export function TelegramRow(): ReactElement {
           {panelFeedback === null ? null : (
             <SetupSubPanel name="telegram-delete-recovery">
               {feedbackNode}
-              {mutationUnsafe ? (
+              {authoritativeCheckRequired ? (
                 <Button
                   ref={retryAction}
                   type="button"
