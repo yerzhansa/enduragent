@@ -1762,8 +1762,8 @@
         "onIntervals": "De training wordt ook in intervals.icu verplaatst, zodat je fietscomputer die voor {{weekday}} krijgt.",
         "planOnly": "De training wordt in het trainingsschema verplaatst. intervals.icu krijgt die zodra de week wordt verzonden.",
         "refused": "Het trainingsschema kon deze verplaatsing niet overnemen, dus er is niets verplaatst.",
-        "swap_one": "Wisselen: {{names}} gaat naar {{weekday}}",
-        "swap_other": "Wisselen: {{names}} gaan naar {{weekday}}",
+        "swap_one": "Wisselen: {{names}} gaat naar {{date}}",
+        "swap_other": "Wisselen: {{names}} gaan naar {{date}}",
         "title": "{{name}} naar {{day}} verplaatsen?",
         "weeksChange": "Week {{from}} wordt {{fromTotal}} en week {{to}} wordt {{toTotal}}.",
         "weekStays": "De week blijft {{total}}."

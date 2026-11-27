@@ -1762,8 +1762,8 @@
         "onIntervals": "Ele também é movido no intervals.icu, para que seu ciclocomputador o receba para {{weekday}}.",
         "planOnly": "Ele é movido no plano. O intervals.icu recebe o treino quando a semana for enviada.",
         "refused": "O plano não conseguiu aceitar esta mudança, então nada foi movido.",
-        "swap_one": "Trocar: {{names}} passa para {{weekday}}",
-        "swap_other": "Trocar: {{names}} passam para {{weekday}}",
+        "swap_one": "Trocar: {{names}} passa para {{date}}",
+        "swap_other": "Trocar: {{names}} passam para {{date}}",
         "title": "Mover {{name}} para {{day}}?",
         "weeksChange": "A semana {{from}} passa a ter {{fromTotal}} e a semana {{to}}, {{toTotal}}.",
         "weekStays": "A semana continua com {{total}}."

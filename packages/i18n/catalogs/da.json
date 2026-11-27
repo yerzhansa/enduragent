@@ -1762,8 +1762,8 @@
         "onIntervals": "Den flyttes også i intervals.icu, så din cykelcomputer får den til {{weekday}}.",
         "planOnly": "Den flyttes i træningsplanen. intervals.icu får den, når dens uge sendes.",
         "refused": "Træningsplanen kunne ikke tage denne flytning, så intet blev flyttet.",
-        "swap_one": "Byt: {{names}} flyttes til {{weekday}}",
-        "swap_other": "Byt: {{names}} flyttes til {{weekday}}",
+        "swap_one": "Byt: {{names}} flyttes til {{date}}",
+        "swap_other": "Byt: {{names}} flyttes til {{date}}",
         "title": "Flyt {{name}} til {{day}}?",
         "weeksChange": "Uge {{from}} bliver {{fromTotal}}, og uge {{to}} bliver {{toTotal}}.",
         "weekStays": "Ugen forbliver {{total}}."

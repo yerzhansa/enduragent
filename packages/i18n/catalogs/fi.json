@@ -1762,8 +1762,8 @@
         "onIntervals": "Se siirtyy myös intervals.icu-palvelussa, joten pyörätietokoneesi saa sen oikealle päivälle ({{weekday}}).",
         "planOnly": "Se siirtyy suunnitelmassa. intervals.icu saa sen, kun sen viikko lähetetään.",
         "refused": "Suunnitelma ei voinut ottaa tätä siirtoa vastaan, joten mitään ei siirretty.",
-        "swap_one": "Vaihda: {{names}} siirtyy toiselle päivälle ({{weekday}})",
-        "swap_other": "Vaihda: {{names}} siirtyvät toiselle päivälle ({{weekday}})",
+        "swap_one": "Vaihda: {{names}} siirtyy toiselle päivälle ({{date}})",
+        "swap_other": "Vaihda: {{names}} siirtyvät toiselle päivälle ({{date}})",
         "title": "Siirretäänkö {{name}} päivälle {{day}}?",
         "weeksChange": "Viikon {{from}} kesto on {{fromTotal}} ja viikon {{to}} kesto {{toTotal}}.",
         "weekStays": "Viikon kesto pysyy: {{total}}."

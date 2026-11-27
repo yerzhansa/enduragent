@@ -1730,7 +1730,7 @@
         "onIntervals": "intervals.icu에서도 이동되므로 사이클링 컴퓨터가 {{weekday}} 일정으로 받습니다.",
         "planOnly": "계획에서 이동됩니다. intervals.icu에는 해당 주가 전송될 때 반영됩니다.",
         "refused": "계획에 이 이동을 반영할 수 없어 아무것도 이동되지 않았습니다.",
-        "swap_other": "맞바꾸기: {{names}} 워크아웃을 {{weekday}}로 이동",
+        "swap_other": "맞바꾸기: {{names}} 워크아웃을 {{date}}(으)로 이동",
         "title": "{{name}} 워크아웃을 {{day}} 날짜로 이동할까요?",
         "weeksChange": "{{from}}주차는 {{fromTotal}}, {{to}}주차는 {{toTotal}}이 됩니다.",
         "weekStays": "주간 합계는 그대로 {{total}}입니다."

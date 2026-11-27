@@ -1762,8 +1762,8 @@
         "onIntervals": "Il est aussi déplacé dans intervals.icu, donc ton compteur vélo le reçoit pour {{weekday}}.",
         "planOnly": "Il est déplacé dans le plan. intervals.icu le reçoit quand sa semaine part.",
         "refused": "Le plan n’a pas pu accepter ce déplacement, donc rien n’a été déplacé.",
-        "swap_one": "Échanger : {{names}} passe au {{weekday}}",
-        "swap_other": "Échanger : {{names}} passent au {{weekday}}",
+        "swap_one": "Échanger : {{names}} passe au {{date}}",
+        "swap_other": "Échanger : {{names}} passent au {{date}}",
         "title": "Déplacer {{name}} au {{day}} ?",
         "weeksChange": "La semaine {{from}} passe à {{fromTotal}} et la semaine {{to}} à {{toTotal}}.",
         "weekStays": "La semaine reste à {{total}}."

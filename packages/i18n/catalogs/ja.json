@@ -1730,7 +1730,7 @@
         "onIntervals": "intervals.icuでも移動するため、サイクルコンピュータには{{weekday}}の予定として届きます。",
         "planOnly": "プラン内で移動します。intervals.icuには、その週が送信されるときに届きます。",
         "refused": "プランにこの移動を反映できなかったため、何も移動していません。",
-        "swap_other": "入れ替え: {{names}}を{{weekday}}に移動",
+        "swap_other": "入れ替え: {{names}}を{{date}}に移動",
         "title": "{{name}}を{{day}}に移動しますか？",
         "weeksChange": "第{{from}}週は{{fromTotal}}、第{{to}}週は{{toTotal}}になります。",
         "weekStays": "週の合計は{{total}}のままです。"

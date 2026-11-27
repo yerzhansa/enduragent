@@ -1730,7 +1730,7 @@
         "onIntervals": "它在 intervals.icu 中也会移动，码表会按{{weekday}}收到。",
         "planOnly": "它会在计划中移动。intervals.icu 会在该周发送时收到。",
         "refused": "计划无法接受此次移动，因此未移动任何内容。",
-        "swap_other": "互换：{{names}} 移到{{weekday}}",
+        "swap_other": "互换：{{names}} 移到{{date}}",
         "title": "要将 {{name}} 移到 {{day}} 吗？",
         "weeksChange": "第 {{from}} 周变为 {{fromTotal}}，第 {{to}} 周变为 {{toTotal}}。",
         "weekStays": "本周总时长仍为 {{total}}。"
