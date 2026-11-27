@@ -165,7 +165,7 @@ export function replacementMaySend(ending: PlanEnding): boolean {
 function onIcuVersion(
   copy: IcuCopy,
 ): { readonly eventId: number; readonly dateKey: number; readonly version: IcuVersion } | null {
-  if (copy.kind === "on-icu") {
+  if (copy.kind === "on-icu" || copy.kind === "moving-by-you") {
     return {
       eventId: copy.baseline.eventId,
       dateKey: copy.baseline.dateKey,

@@ -184,7 +184,13 @@ const START: World = {
 };
 
 function shownFor(evidence: Evidence, today = TODAY): World {
-  return step(START, {
+  const seen = step(START, {
+    type: "checked",
+    evidence: { kind: "none" },
+    icuFtpWatts: ICU_NOW,
+    todayDateKey: today,
+  });
+  return step(seen, {
     type: "checked",
     evidence: engineEvidence(evidence),
     icuFtpWatts: ICU_NOW,
@@ -379,6 +385,20 @@ describe("FTP", () => {
     expect(changed.proposal).toMatchObject({
       kind: "quiet",
       memory: { ftpSeen: { watts: 300, sinceDateKey: TODAY + 1 } },
+    });
+  });
+
+  it("never raises drift on the first check, before it has seen an FTP", () => {
+    expect(
+      ftpProposalStep(FTP_PROPOSAL_START, {
+        type: "checked",
+        evidence: { kind: "drift", watts: 300 },
+        icuFtpWatts: ICU_NOW,
+        todayDateKey: TODAY,
+      }).proposal,
+    ).toMatchObject({
+      kind: "quiet",
+      memory: { ftpSeen: { watts: ICU_NOW, sinceDateKey: TODAY } },
     });
   });
 });

@@ -192,7 +192,7 @@ function onChecked(
     pause: pauseCovers(current.pause, event.todayDateKey) ? current.pause : { kind: "none" },
     ftpSeen: seenFtp(current.ftpSeen, event.icuFtpWatts, event.todayDateKey),
   };
-  const ftpChanged = current.ftpSeen.kind === "seen" && current.ftpSeen.watts !== event.icuFtpWatts;
+  const ftpChanged = current.ftpSeen.kind !== "seen" || current.ftpSeen.watts !== event.icuFtpWatts;
   const evidence = event.evidence;
   if (evidence.kind === "planned-test") {
     if (alreadyAnswered(memory.answeredTest, evidence.activityId, evidence.dateKey)) {
