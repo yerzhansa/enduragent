@@ -168,17 +168,18 @@ describe("Ask the coach about this ride", () => {
     act(() =>
       store
         .getState()
-        .activityReviewActions?.askCoach("What do you make of my ride on Thu 20 Aug, Road ride?"),
+        .activityReviewActions?.askCoach("What do you make of my ride “Road ride” on Thu 20 Aug?"),
     );
     expect(store.getState().activeView).toBe("chat");
     await waitFor(
-      () => expect(composer()).toHaveValue("What do you make of my ride on Thu 20 Aug, Road ride?"),
+      () =>
+        expect(composer()).toHaveValue("What do you make of my ride “Road ride” on Thu 20 Aug?"),
       SETTLED,
     );
     await vi.waitFor(
       () =>
         expect(store.getState().chat.attachments?.draft?.text).toBe(
-          "What do you make of my ride on Thu 20 Aug, Road ride?",
+          "What do you make of my ride “Road ride” on Thu 20 Aug?",
         ),
       SETTLED,
     );

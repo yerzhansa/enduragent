@@ -2,7 +2,7 @@
   "activity": {
     "review": {
       "ask": "Ask the coach about this ride",
-      "askDraft": "What do you make of my ride on {{day}}, {{name}}?",
+      "askDraft": "What do you make of my ride “{{name}}” on {{day}}?",
       "empty": "No rides from the last 120 days yet. Rides from intervals.icu show up here after a sync.",
       "header": {
         "day": "{{date}} · {{kind}}",
@@ -93,6 +93,7 @@
           "workout": "Written before you matched this ride to {{name}}"
         },
         "failed": "The coach could not write its verdict this time, so nothing was kept.",
+        "failedKeepsEarlier": "The coach could not write a new verdict this time, so the earlier one stays.",
         "meta": "{{written}} · {{replies}} · kept",
         "metaNoPlan": "Written at {{time}} · {{replies}}",
         "metaNoPlanOn": "Written on {{date}} at {{time}} · {{replies}}",

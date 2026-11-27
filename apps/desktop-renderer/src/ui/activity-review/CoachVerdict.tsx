@@ -132,7 +132,9 @@ export function CoachVerdict(props: {
     return (
       <Frame>
         <p className="m-0 text-sm text-warn" role="alert">
-          {say("activity.review.verdict.failed")}
+          {verdict.earlier === null
+            ? say("activity.review.verdict.failed")
+            : say("activity.review.verdict.failedKeepsEarlier")}
         </p>
         {canWrite ? (
           <div>

@@ -76,6 +76,7 @@ export type CatalogKey =
   | "activity.review.verdict.before.pending"
   | "activity.review.verdict.before.workout"
   | "activity.review.verdict.failed"
+  | "activity.review.verdict.failedKeepsEarlier"
   | "activity.review.verdict.meta"
   | "activity.review.verdict.metaNoPlan"
   | "activity.review.verdict.metaNoPlanOn"

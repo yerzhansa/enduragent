@@ -166,6 +166,7 @@ describe("the coach's verdict on Activity review", () => {
     expect(within(verdict()).getByRole("alert")).toHaveTextContent(
       "The coach could not write its verdict this time, so nothing was kept.",
     );
+    expect(verdict().querySelector("[data-earlier-verdict]")).toBeNull();
     await user.click(within(verdict()).getByRole("button", { name: "Write again · 1 reply" }));
     expect(bound.writeAgain).toHaveBeenCalledOnce();
   });
@@ -209,15 +210,16 @@ describe("the coach's verdict on Activity review", () => {
     );
     const view = render(<ActivityReviewView />);
     const section = verdict();
-    expect(section).toHaveTextContent(
-      "The coach could not write its verdict this time, so nothing was kept.",
+    expect(within(section).getByRole("alert")).toHaveTextContent(
+      "The coach could not write a new verdict this time, so the earlier one stays.",
     );
+    expect(section).not.toHaveTextContent("so nothing was kept");
     const kept = section.querySelector("[data-earlier-verdict]");
     expect(kept).toHaveTextContent("Three reps on target and the fourth stopped at 6 minutes.");
     expect(kept).toHaveTextContent(
       "Written at 7:58 AM, when you first opened this ride, from its file and your Plan · 1 coach reply · kept",
     );
-    expect(section.textContent?.indexOf("could not write")).toBeLessThan(
+    expect(section.textContent?.indexOf("could not write a new verdict")).toBeLessThan(
       section.textContent?.indexOf("Three reps") ?? 0,
     );
     await user.click(within(section).getByRole("button", { name: "Write again · 1 reply" }));
@@ -344,7 +346,7 @@ describe("the coach's verdict on Activity review", () => {
     render(<ActivityReviewView />);
     await user.click(screen.getByRole("button", { name: "Ask the coach about this ride" }));
     expect(bound.askCoach).toHaveBeenCalledWith(
-      "What do you make of my ride on Wed 19 Aug, Threshold 4×8?",
+      "What do you make of my ride “Threshold 4×8” on Wed 19 Aug?",
     );
   });
 });
