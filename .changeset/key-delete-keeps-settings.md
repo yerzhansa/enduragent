@@ -1,4 +1,5 @@
 ---
+"@enduragent/desktop": patch
 "@enduragent/desktop-renderer": patch
 ---
 
