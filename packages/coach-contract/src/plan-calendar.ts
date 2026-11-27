@@ -38,7 +38,36 @@ export const PlanCalendarRideExpectedSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCalendarRideExpected = z.infer<typeof PlanCalendarRideExpectedSchema>;
 
+export const PlanCalendarVerdictStateSchema = z.enum(["not-written", "writing", "kept", "failed"]);
+export type PlanCalendarVerdictState = z.infer<typeof PlanCalendarVerdictStateSchema>;
+
+export const PLAN_CALENDAR_NOTE_MAX = 2_000;
+
+export const PlanCalendarVerdictExpectedSchema = z
+  .object({
+    state: PlanCalendarVerdictStateSchema,
+    replies: z.number().int().min(0).max(1_000_000),
+  })
+  .strict();
+export type PlanCalendarVerdictExpected = z.infer<typeof PlanCalendarVerdictExpectedSchema>;
+
 export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("read-review"), activityId: ActivityIdSchema }).strict(),
+  z
+    .object({
+      action: z.literal("write-verdict"),
+      activityId: ActivityIdSchema,
+      event: z.enum(["opens", "asks-again"]),
+      expected: PlanCalendarVerdictExpectedSchema,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("save-note"),
+      activityId: ActivityIdSchema,
+      note: z.string().max(PLAN_CALENDAR_NOTE_MAX),
+    })
+    .strict(),
   z
     .object({
       action: z.literal("rides"),
@@ -125,6 +154,7 @@ export const PlanCalendarRefusalSchema = z.enum([
   "change-card-open",
   "outside-plan",
   "match-changed",
+  "review-changed",
 ]);
 export type PlanCalendarRefusal = z.infer<typeof PlanCalendarRefusalSchema>;
 
@@ -364,7 +394,49 @@ export const PlanCalendarRideWeekSchema = z
   .strict();
 export type PlanCalendarRideWeek = z.infer<typeof PlanCalendarRideWeekSchema>;
 
+export const PlanCalendarVerdictMarkerSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("current") }).strict(),
+  z.object({ kind: z.literal("matched-to"), name: z.string().min(1).max(512) }).strict(),
+  z.object({ kind: z.literal("matched-extra") }).strict(),
+  z.object({ kind: z.literal("match-pending") }).strict(),
+]);
+export type PlanCalendarVerdictMarker = z.infer<typeof PlanCalendarVerdictMarkerSchema>;
+
+export const PlanCalendarVerdictSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.enum(["not-written", "writing", "failed"]) }).strict(),
+  z
+    .object({
+      state: z.literal("kept"),
+      text: z.string().min(1).max(3_000),
+      writtenAtMs: z.number().int().nonnegative(),
+      trigger: z.enum(["opened", "matched", "asked"]),
+      usedPlan: z.boolean(),
+      usedNote: z.boolean(),
+      marker: PlanCalendarVerdictMarkerSchema,
+    })
+    .strict(),
+]);
+export type PlanCalendarVerdict = z.infer<typeof PlanCalendarVerdictSchema>;
+
+export const PlanCalendarRideReviewSchema = z
+  .object({
+    activityId: ActivityIdSchema,
+    verdict: PlanCalendarVerdictSchema,
+    replies: z.number().int().min(0).max(1_000_000),
+    blocked: z.enum(["none", "no-file", "no-model", "waiting-for-match"]),
+    note: z
+      .object({
+        text: z.string().min(1).max(PLAN_CALENDAR_NOTE_MAX),
+        savedAtMs: z.number().int().nonnegative(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type PlanCalendarRideReview = z.infer<typeof PlanCalendarRideReviewSchema>;
+
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("review"), review: PlanCalendarRideReviewSchema }).strict(),
   z
     .object({
       status: z.literal("rides"),

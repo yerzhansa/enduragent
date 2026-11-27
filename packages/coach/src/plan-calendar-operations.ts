@@ -22,6 +22,7 @@ import { planDetails, saveEndChoice } from "./plan-calendar-details.js";
 import { moveWorkout } from "./plan-calendar-move.js";
 import { readPlanCalendar } from "./plan-calendar-read.js";
 import { releaseReplacedPlans } from "./plan-calendar-replace.js";
+import { createPlanCalendarReview, type RideVerdictModel } from "./plan-calendar-review.js";
 import { decideRide, readRides } from "./plan-calendar-rides.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
@@ -54,9 +55,12 @@ export function createPlanCalendarOperations(
     readonly calendarConnected: () => boolean;
     readonly dateKeyOfMs: (ms: number) => number;
     readonly changed: () => Promise<void>;
+    readonly coachText?: RideVerdictModel;
+    readonly logger?: { warn(event: string): void };
   },
 ): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
+  const review = createPlanCalendarReview(deps);
   const plans = createLegacyPlanRepository(deps.store);
   return {
     async "plan.calendar"(raw) {
@@ -77,8 +81,17 @@ export function createPlanCalendarOperations(
             { store: deps.store, identity: deps.identity, todayDateKey: deps.todayDateKey() },
             request,
           );
-        case "decide-ride":
-          return decideRide(deps, request);
+        case "decide-ride": {
+          const decided = await decideRide(deps, request);
+          if (decided.status === "ride") await review.matchDecided(request.activityId);
+          return decided;
+        }
+        case "read-review":
+          return review.read(request.activityId);
+        case "write-verdict":
+          return review.write(request);
+        case "save-note":
+          return review.saveNote(request);
         case "send-again":
           await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
           await settledWithin(deps.changed, SEND_AGAIN_WAIT_MS);
