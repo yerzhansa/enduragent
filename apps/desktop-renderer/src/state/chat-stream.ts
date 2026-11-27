@@ -52,7 +52,11 @@ export function createChatStreamBuffer(): ChatStreamBuffer {
     },
     attach(messageId, host) {
       if (host === null) {
-        entries.delete(messageId);
+        const existing = entries.get(messageId);
+        if (existing !== undefined) {
+          existing.host = null;
+          existing.node = null;
+        }
         return;
       }
       const target = entry(messageId);
@@ -149,6 +153,42 @@ export function createChatScrollAnchor(): ChatScrollAnchor {
       if (host === null || !initialPending || host.scrollHeight === 0) return;
       host.scrollTop = host.scrollHeight;
       initialPending = false;
+    },
+  };
+}
+
+export interface DebouncedTask {
+  schedule(task: () => void): void;
+  cancel(): void;
+  flush(): void;
+}
+
+export function createDebouncedTask(delayMs: number): DebouncedTask {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: (() => void) | null = null;
+
+  const cancel = (): void => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    pending = null;
+  };
+
+  return {
+    schedule(task) {
+      cancel();
+      pending = task;
+      timer = setTimeout(() => {
+        const run = pending;
+        timer = null;
+        pending = null;
+        run?.();
+      }, delayMs);
+    },
+    cancel,
+    flush() {
+      const run = pending;
+      cancel();
+      run?.();
     },
   };
 }
