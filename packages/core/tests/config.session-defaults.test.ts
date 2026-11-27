@@ -29,7 +29,7 @@ describe("config — session defaults", () => {
 
   it("resolves contextWindowTokens from the default anthropic model", async () => {
     const { loadConfig } = await import("../src/config.js");
-    expect(loadConfig().llm.model).toBe("claude-sonnet-5");
+    expect(loadConfig().llm.model).toBe("claude-sonnet-5-5");
     expect(loadConfig().contextWindowTokens).toBe(1_000_000);
   });
 

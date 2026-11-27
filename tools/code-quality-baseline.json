@@ -146,7 +146,6 @@
     "packages/core/tests/secrets/backends/spawn-timeout.test.ts": 2,
     "packages/core/tests/setup-allowlist.test.ts": 20,
     "packages/core/tests/setup-merge.test.ts": 11,
-    "packages/core/tests/setup-providers.test.ts": 7,
     "packages/core/tests/setup.secret-ref.test.ts": 57,
     "packages/core/tests/snapshot-contract.test.ts": 1,
     "packages/core/tests/snapshot-determinism.test.ts": 1,
@@ -668,7 +667,6 @@
     "apps/desktop/tests/startup-catch.test.ts": 2,
     "apps/desktop/tests/tray-popover.test.ts": 4,
     "packages/core/tests/setup-merge.test.ts": 3,
-    "packages/core/tests/setup-providers.test.ts": 5,
     "packages/core/tests/telegram-generation-lifecycle.test.ts": 7,
     "packages/engine/src/sport.ts": 2
   },
