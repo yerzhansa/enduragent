@@ -188,16 +188,13 @@ async function openChanges(scenario: Scenario) {
   await expect(changes(scenario).last()).toBeVisible();
 }
 
-// Pick with the keyboard: when the select sits low in the window, its popup stops at the
-// window edge and the scroll-down arrow covers the last options, so a pointer click on
-// one of them retries until the test times out. The mouse is parked first because a
-// hovered option takes the highlight away from the keyboard.
-async function choose(scenario: Scenario, select: Locator, name: string) {
+async function pickOptionWithKeyboard(scenario: Scenario, select: Locator, name: string) {
   await select.click();
   const listbox = scenario.page.getByRole("listbox");
   const option = listbox.getByRole("option", { name, exact: true });
   await expect(option).toHaveCount(1);
-  await scenario.page.mouse.move(0, 0);
+  const parkMouseAwayFromHoverHighlight = () => scenario.page.mouse.move(0, 0);
+  await parkMouseAwayFromHoverHighlight();
   const options = listbox.getByRole("option");
   for (let presses = await options.count(); presses >= 0; presses -= 1) {
     const distance = await options.evaluateAll(
@@ -221,12 +218,12 @@ async function editEvent(scenario: Scenario, operation: string) {
     exact: true,
   });
   if (!(await editor.isVisible())) await openChanges(scenario);
-  await choose(
+  await pickOptionWithKeyboard(
     scenario,
     editor.getByRole("combobox", { name: "Change", exact: true }),
     "Supporting Event",
   );
-  await choose(
+  await pickOptionWithKeyboard(
     scenario,
     editor.getByRole("combobox", { name: "Supporting Event operation", exact: true }),
     operation,
@@ -273,7 +270,7 @@ for (const appearance of appearances) {
       const editor = await editEvent(scenario, "Add a Supporting Event");
       await editor.getByRole("textbox", { name: "Event name", exact: true }).fill("Meadow ride");
       await editor.getByLabel("Event date", { exact: true }).fill("1998-01-10");
-      await choose(
+      await pickOptionWithKeyboard(
         scenario,
         editor.getByRole("combobox", { name: "Plan role", exact: true }),
         "Training",
@@ -314,7 +311,7 @@ for (const appearance of appearances) {
       await expect(
         roleEditor.getByRole("combobox", { name: "Accepted Supporting Event", exact: true }),
       ).toContainText("Meadow ride");
-      await choose(
+      await pickOptionWithKeyboard(
         scenario,
         roleEditor.getByRole("combobox", { name: "Plan role", exact: true }),
         "Important",
@@ -409,7 +406,7 @@ for (const appearance of appearances) {
     try {
       await openChanges(scenario);
       const editor = await editEvent(scenario, "Add a Supporting Event");
-      await choose(
+      await pickOptionWithKeyboard(
         scenario,
         editor.getByRole("combobox", { name: "Synchronized event", exact: true }),
         "Local supporting ride · Intervals.icu event",
