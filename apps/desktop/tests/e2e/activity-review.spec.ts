@@ -91,6 +91,7 @@ test.describe("Activity review", () => {
       if (first === undefined) throw new TypeError("Training Plan has no workouts");
       const today = addCivilDays(first.dateKey, 21);
       backend.setCivilDate(isoDay(today));
+      backend.setSyncClock(Date.parse(`${isoDay(today)}T10:22:00Z`));
       const seconds = Math.round(minutesOf(first.structureJson) * 60);
       await backend.seedCalendarRide({
         key: rideKey(2),
@@ -110,6 +111,8 @@ test.describe("Activity review", () => {
     });
     try {
       const page = scenario.page;
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setTimezoneOverride", { timezoneId: "UTC" });
       await page
         .getByRole("navigation", { name: "Main navigation" })
         .getByRole("button", { name: "Activity review", exact: true })
@@ -121,7 +124,7 @@ test.describe("Activity review", () => {
         { timeout: 15_000 },
       );
       await expect(verdict).toContainText(
-        /Written at .+, when you first opened this ride, from its file and your Plan · 1 coach reply · kept/u,
+        "Written on Mon 26 Jan at 10:22 AM, when you first opened this ride, from its file and your Plan · 1 coach reply · kept",
       );
       await snap(scenario, "activity-review-verdict-light");
       const note = page.getByRole("textbox", { name: "Your note" });
