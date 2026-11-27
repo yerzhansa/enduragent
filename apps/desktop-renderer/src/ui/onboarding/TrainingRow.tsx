@@ -7,7 +7,6 @@ import {
   type OnboardingActions,
   type OnboardingSurfaceState,
 } from "../../onboarding/controller";
-import { credentialPresentation } from "../../onboarding/credential-presentation";
 import { errorSection } from "../../onboarding/lanes";
 import {
   credentialChangesBlocked,
@@ -18,7 +17,6 @@ import {
   settingsMutationActive,
 } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
-import { intervalsSignInNeedsRenewal } from "../../state/sync-slice";
 import {
   IMPORT_FILES_LABEL,
   INTERVALS_PANEL_HINT,
@@ -38,6 +36,7 @@ import {
   trainingConnectedAsSubtitle,
 } from "./copy";
 import { InfoTip } from "./InfoTip";
+import { useIntervalsRecovery } from "./intervals-recovery";
 import {
   CredentialDeleteButton,
   CredentialDeleteConfirmation,
@@ -103,13 +102,6 @@ function trainingRowState(input: {
   return input.trainingDataReady ? "saved-rides" : "missing";
 }
 
-function useHeldWhile<T>(value: T, holding: boolean): T {
-  const [held, setHeld] = useState<{ readonly value: T } | null>(null);
-  if (holding && held === null) setHeld({ value });
-  if (!holding && held !== null) setHeld(null);
-  return holding && held !== null ? held.value : value;
-}
-
 export function TrainingRow(props: {
   readonly surface: OnboardingSurfaceState;
   readonly actions: OnboardingActions | null;
@@ -133,20 +125,12 @@ export function TrainingRow(props: {
     surface.loadUnavailable ||
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const importing = surface.rideImport.status === "running";
-  const connected = wizard.credentialStatus["intervals-icu"] === "configured";
+  const recovery = useIntervalsRecovery(surface);
+  const { connected, rejected, retrySavedKeysShown: retryable } = recovery;
   const signInWorking = wizard.credentialRuntimeStatus["intervals-icu"] === "active";
-  const signInRejected = useHeldWhile(
-    useEnduragentStore(intervalsSignInNeedsRenewal),
-    credentialSettings.status === "deleting",
-  );
-  const rejected = connected && signInRejected;
   const signInPhase = surface.intervalsSignIn.phase;
   const phaseCopy = signInPhase === "idle" ? null : TRAINING_SIGN_IN_PHASE_COPY[signInPhase];
   const athleteName = surface.intervalsSignIn.athleteName;
-  const retryableStatus = surface.statuses.some(
-    (entry) => entry.slot === "intervals-icu" && credentialPresentation(entry).retryable,
-  );
-  const retryable = retryableStatus && !rejected;
   const ownsError = errorSection(wizard.fixedError, surface.lastCommit) === "training";
   const [openRequested, setOpen] = useState(false);
   const open = openRequested || signInPhase !== "idle";

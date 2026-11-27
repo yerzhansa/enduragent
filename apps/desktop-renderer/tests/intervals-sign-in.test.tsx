@@ -1,8 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import type { DesktopCoachClientProvider } from "../src/coach-client";
-import { createIntervalsSignInHealth } from "../src/intervals-sign-in-health";
 import type { IntervalsCredentialMutationResult } from "../src/onboarding/bridge";
 import { useEnduragentStore } from "../src/state/store";
 import {
@@ -33,11 +31,6 @@ const COMPLETING_HINT = "Approved. Saving the connection on this Mac…";
 const MISSING = { slot: "intervals-icu", state: "missing", runtimeState: null } as const;
 const ACTIVE = { slot: "intervals-icu", state: "configured", runtimeState: "active" } as const;
 const FAILED = { slot: "intervals-icu", state: "configured", runtimeState: "failed" } as const;
-const UNUSED_COACH_CLIENTS: DesktopCoachClientProvider = {
-  getClient: () => Promise.reject(new Error("no coach in this test")),
-  reconnect: () => Promise.reject(new Error("no coach in this test")),
-  close: async () => {},
-};
 
 interface PendingSignIn {
   readonly promise: Promise<IntervalsCredentialMutationResult>;
@@ -534,31 +527,50 @@ describe("Intervals.icu sign-in panel", () => {
       },
     );
 
-    it("points a new sign-in the coach can't use at Retry saved keys, not Sign in again", async () => {
-      const user = userEvent.setup();
-      const { bridge, signIn } = rejectedBridge();
-      const health = createIntervalsSignInHealth(UNUSED_COACH_CLIENTS, useEnduragentStore);
-      bridge.signInWithIntervals.mockImplementation(() => health.signedIn(signIn.promise));
-      const wizard = mountWizard({ bridge, placement: "settings" });
-      await wizard.open();
-      act(() => {
-        useEnduragentStore.getState().setIntervalsSignInRejected(true);
-      });
+    it.each([
+      ["was already rejected", true],
+      ["is rejected again on the next coach refresh", false],
+    ] as const)(
+      "never names a hidden Retry saved keys when the sign-in %s",
+      async (_case, rejectedBeforeSignIn) => {
+        const user = userEvent.setup();
+        const { bridge, signIn } = rejectedBridge();
+        const wizard = mountWizard({ bridge, placement: "settings" });
+        await wizard.open();
+        if (rejectedBeforeSignIn) {
+          act(() => {
+            useEnduragentStore.getState().setIntervalsSignInRejected(true);
+          });
+          await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+        } else {
+          act(() => {
+            useEnduragentStore.getState().onboardingActions?.connectTrainingData();
+          });
+        }
+        signIn.resolve({ outcome: "saved-not-active", current: FAILED });
+        await waitFor(() => {
+          expect(useEnduragentStore.getState().onboarding.wizard.busy).toBe(false);
+        });
+        if (!rejectedBeforeSignIn) {
+          expect(errorText()).toContain("Choose Retry saved keys to try again.");
+          act(() => {
+            useEnduragentStore.getState().setIntervalsSignInRejected(true);
+          });
+        }
 
-      await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
-      signIn.resolve({ outcome: "saved-not-active", current: FAILED });
-
-      await waitFor(() => {
-        expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
-      });
-      expect(
-        screen.getByRole("button", { name: "Retry saved keys" }),
-        "the message names Retry saved keys, so the link must be on screen",
-      ).toHaveFocus();
-      expect(errorText()).toContain("Choose Retry saved keys to try again.");
-      expect(screen.queryByRole("button", { name: SIGN_IN_AGAIN })).toBeNull();
-      wizard.controller.dispose();
-    });
+        expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+        expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
+        expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeEnabled();
+        expect(
+          errorText(),
+          "with Retry saved keys hidden, the message should point at Sign in again",
+        ).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+        expect(document.querySelector(".onboarding-error-announcer")).toHaveTextContent(
+          "The Intervals.icu sign-in couldn’t be activated. Sign in again.",
+        );
+        wizard.controller.dispose();
+      },
+    );
 
     it("starts the existing sign-in flow from Sign in again", async () => {
       const user = userEvent.setup();

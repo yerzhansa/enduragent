@@ -102,7 +102,7 @@ export function createIntervalsSignInHealth(
     },
     signedIn(result) {
       return result.then((value) => {
-        if (value.outcome === "applied" || value.outcome === "saved-not-active") {
+        if (value.outcome === "applied") {
           revision += 1;
           publish(false);
         }

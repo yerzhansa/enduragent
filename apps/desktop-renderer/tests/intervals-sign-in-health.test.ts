@@ -161,18 +161,6 @@ describe("intervals.icu sign-in health", () => {
     expect(test.published).toEqual([false]);
   });
 
-  it("clears the flag when a new sign-in is saved but the coach can't use it yet", async () => {
-    const test = subject(snapshot({ credential_rejected: true }));
-    const saved: IntervalsCredentialMutationResult = {
-      outcome: "saved-not-active",
-      current: { slot: "intervals-icu", state: "configured", runtimeState: "failed" },
-    };
-
-    await expect(test.health.signedIn(Promise.resolve(saved))).resolves.toBe(saved);
-
-    expect(test.published, "the rejection belonged to the replaced sign-in").toEqual([false]);
-  });
-
   it("keeps one wrapper per client and reconnects with the original client", async () => {
     const test = subject();
     const first = await test.health.clients.getClient();
