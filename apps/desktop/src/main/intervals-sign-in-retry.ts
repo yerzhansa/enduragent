@@ -22,7 +22,6 @@ type RetryState =
       readonly timer: ReturnType<typeof setTimeout>;
     }
   | { readonly kind: "retrying"; readonly attempt: number }
-  | { readonly kind: "exhausted" }
   | { readonly kind: "closed" };
 
 export interface IntervalsSignInRetry {
@@ -60,9 +59,7 @@ export function createIntervalsSignInRetry(
   };
 
   const scheduleAttempt = (attempt: number): void => {
-    const delay = delays[attempt];
-    if (delay === undefined) transition({ kind: "exhausted" });
-    else wait(attempt, delay);
+    wait(attempt, delays[Math.min(attempt, delays.length - 1)] ?? offlineRecheckMs);
   };
 
   const isAt = (kind: "waiting" | "retrying", attempt: number): boolean =>
@@ -85,7 +82,7 @@ export function createIntervalsSignInRetry(
   };
 
   const resume = (): void => {
-    if (state.kind === "waiting" || state.kind === "exhausted") scheduleAttempt(0);
+    if (state.kind === "waiting") scheduleAttempt(0);
   };
 
   const close = (): void => {

@@ -106,19 +106,23 @@ describe("intervals.icu sign-in retry", () => {
     expect(test.vault.retryFailed).not.toHaveBeenCalled();
   });
 
-  it("backs off 15 s, 1, 2, 5, 10 and 15 min, then stops", async () => {
+  it("backs off 15 s, 1, 2, 5, 10 and 15 min, then keeps trying every 15 min", async () => {
     const test = subject();
     await test.launchRefused();
 
-    await vi.advanceTimersByTimeAsync(6 * 60 * MINUTE);
-    expect(test.attempts).toEqual([
-      15_000,
-      15_000 + MINUTE,
-      15_000 + 3 * MINUTE,
-      15_000 + 8 * MINUTE,
-      15_000 + 18 * MINUTE,
-      15_000 + 33 * MINUTE,
-    ]);
+    await vi.advanceTimersByTimeAsync(63 * MINUTE);
+    expect(test.attempts).toEqual(
+      [
+        15_000,
+        15_000 + MINUTE,
+        15_000 + 3 * MINUTE,
+        15_000 + 8 * MINUTE,
+        15_000 + 18 * MINUTE,
+        15_000 + 33 * MINUTE,
+        15_000 + 48 * MINUTE,
+        15_000 + 63 * MINUTE,
+      ].filter((at) => at <= 63 * MINUTE),
+    );
   });
 
   it("counts a failed vault retry as a spent attempt and keeps going", async () => {
@@ -132,7 +136,7 @@ describe("intervals.icu sign-in retry", () => {
   it("restarts the schedule when the Mac wakes", async () => {
     const test = subject();
     await test.launchRefused();
-    await vi.advanceTimersByTimeAsync(6 * 60 * MINUTE);
+    await vi.advanceTimersByTimeAsync(40 * MINUTE);
     expect(test.attempts).toHaveLength(6);
 
     test.powerMonitor.emit("resume");
