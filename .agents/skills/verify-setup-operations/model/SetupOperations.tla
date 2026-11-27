@@ -171,8 +171,8 @@ Init ==
 (* The lock *)
 
 \* createCredentialMutationLock: the next queued operation starts.
-\* For a ChatGPT login that is performLogin, which opens the browser. A login
-\* aborted while queued gets "cancelled" from runLogin at once and frees the lock.
+\* For a ChatGPT login that is its store step. A login aborted while its store
+\* waits gets "cancelled" from throwIfAborted at once and frees the lock.
 LockGoesToNext ==
     /\ lockHolder = NoEntry
     /\ lockQueue # <<>>
@@ -184,51 +184,51 @@ LockGoesToNext ==
                         THEN [setup EXCEPT !.chatgpt = "idle", !.busy = FALSE]
                         ELSE setup
        ELSE /\ lockHolder' = Head(lockQueue)
-            /\ login' = IF Head(lockQueue).op = "chatgpt-login"
-                        THEN [login EXCEPT !.phase = "awaiting-browser"]
-                        ELSE login
-            /\ UNCHANGED setup
+            /\ UNCHANGED <<login, setup>>
     /\ UNCHANGED <<signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
 
 -----------------------------------------------------------------------------
 (* ChatGPT sign-in: controller.ts startChatGptLogin, chatgpt-auth.ts login *)
 
-\* login() refuses while activeLogin is set, else serializeCredentialMutation(performLogin).
+\* login() refuses while activeLogin is set, else runs performLogin, whose runLogin
+\* opens the browser without the lock.
 AthleteStartsChatGptSignIn ==
     /\ Athlete
     /\ SetupMayMutate
     /\ AiRowIdle
     /\ ChatGpt \notin stored
     /\ IF login.phase = "idle"
-       THEN /\ login' = [phase |-> "queued", page |-> page.id, aborted |-> FALSE]
-            /\ lockQueue' = Append(lockQueue, Entry("chatgpt-login", ChatGpt, page.id))
+       THEN /\ login' = [phase |-> "awaiting-browser", page |-> page.id, aborted |-> FALSE]
             /\ setup' = [setup EXCEPT !.chatgpt = "signing-in", !.busy = TRUE]
-       ELSE UNCHANGED <<login, lockQueue, setup>>
-    /\ UNCHANGED <<lockHolder, signIn, openRouter, coach, stored, windowVars, settings, telegramRow>>
+       ELSE UNCHANGED <<login, setup>>
+    /\ UNCHANGED <<lockHolder, lockQueue, signIn, openRouter, coach, stored, windowVars, settings, telegramRow>>
 
 \* Cancel sign-in (cancelLogin aborts the controller) or the 5-minute limit.
 ChatGptBrowserWaitEnds ==
     /\ login.phase = "awaiting-browser"
-    /\ lockHolder' = NoEntry
     /\ login' = LoginIdle
     /\ setup' = IF Owns(login.page) /\ setup.chatgpt = "signing-in"
                 THEN [setup EXCEPT !.chatgpt = "idle", !.busy = FALSE]
                 ELSE setup
-    /\ UNCHANGED <<lockQueue, signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
+    /\ UNCHANGED <<lockHolder, lockQueue, signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
 
-\* Cancel sign-in while the login still waits for the lock: cancelLogin only aborts.
+\* Cancel sign-in while the login's store step still waits for the lock: cancelLogin only aborts.
 \* activeLogin and Setup's busy stay until the lock reaches the login.
 AthleteCancelsQueuedChatGptSignIn ==
-    /\ login.phase = "queued"
+    /\ login.phase = "storing"
+    /\ lockHolder.op # "chatgpt-login"
     /\ ~login.aborted
     /\ Owns(login.page) /\ setup.chatgpt = "signing-in"
     /\ login' = [login EXCEPT !.aborted = TRUE]
     /\ UNCHANGED <<lockHolder, lockQueue, signIn, openRouter, coach, stored, windowVars, rendererVars, steps>>
 
+\* performLogin then queues signal.throwIfAborted() and storeProfile in
+\* serializeCredentialMutation.
 PersonFinishesChatGptInBrowser ==
     /\ login.phase = "awaiting-browser"
     /\ login' = [login EXCEPT !.phase = "storing"]
-    /\ UNCHANGED <<lockHolder, lockQueue, signIn, openRouter, coach, stored, windowVars, rendererVars, steps>>
+    /\ lockQueue' = Append(lockQueue, Entry("chatgpt-login", ChatGpt, login.page))
+    /\ UNCHANGED <<lockHolder, signIn, openRouter, coach, stored, windowVars, rendererVars, steps>>
 
 \* storeProfile, then the lock frees. The page that asked takes the result
 \* (withChatGptLoginResult) and, after the next paint, beginChatGptActivation
@@ -531,13 +531,16 @@ MainHandlesChatGptCancel ==
     /\ "chatgpt" \in pendingCancel
     /\ onboardingIpc = "registered"
     /\ pendingCancel' = pendingCancel \ {"chatgpt"}
-    /\ IF login.phase = "awaiting-browser" \/ login.phase = "storing"
+    /\ IF login.phase = "awaiting-browser"
        THEN /\ login' = LoginIdle
-            /\ lockHolder' = NoEntry
-       ELSE IF login.phase = "queued"
-            THEN /\ login' = [login EXCEPT !.aborted = TRUE]
-                 /\ UNCHANGED lockHolder
-            ELSE UNCHANGED <<login, lockHolder>>
+            /\ UNCHANGED lockHolder
+       ELSE IF login.phase = "storing" /\ lockHolder.op = "chatgpt-login"
+            THEN /\ login' = LoginIdle
+                 /\ lockHolder' = NoEntry
+            ELSE IF login.phase = "storing"
+                 THEN /\ login' = [login EXCEPT !.aborted = TRUE]
+                      /\ UNCHANGED lockHolder
+                 ELSE UNCHANGED <<login, lockHolder>>
     /\ UNCHANGED <<lockQueue, signIn, openRouter, coach, stored, page, onboardingIpc, rendererVars, steps>>
 
 \* intervals-ipc.ts is installed once per app, so this cancel always lands.
