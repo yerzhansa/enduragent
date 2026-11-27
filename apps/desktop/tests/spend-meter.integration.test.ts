@@ -1,8 +1,25 @@
 import { createServer } from "node:net";
-import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { CoachEngine, SpendSummary, TurnEvent } from "@enduragent/coach-contract";
+import {
+  Memory,
+  appendUsageLine,
+  classifyFailure,
+  createConversationStore,
+  createMissingPlatformCalendarMutations,
+  extractRetryAfterMs,
+} from "@enduragent/core";
+import {
+  createCoachEngine,
+  type EngineConfig,
+  type EngineHostPorts,
+  type ModelTransportRequest,
+} from "@enduragent/engine";
+import type { GenerateResult, Sport } from "@enduragent/engine/sport";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSpendMeterService } from "../../../packages/coach/src/spend-meter.js";
 import { isDesktopRendererUrl } from "../src/main/renderer-navigation.js";
 import {
   launchDesktopFixture,
@@ -103,7 +120,150 @@ function completeSummary(dailyCapUsd = 0.5) {
   } as const;
 }
 
-function script(calls: ScriptRequest[], initial: "reached" | "complete") {
+const liveModel = {
+  kind: "catalog" as const,
+  catalogRevision: 1,
+  provider: "anthropic" as const,
+  model: "claude-synthetic",
+  compatibilityProfile: "anthropic-ai-sdk-v1" as const,
+  contextWindowTokens: 200_000,
+  imageInput: "unsupported" as const,
+  pricing: {
+    kind: "token-rates" as const,
+    inputUsdPerMillion: 2,
+    outputUsdPerMillion: 10,
+    cacheReadUsdPerMillion: 0.2,
+    cacheWriteUsdPerMillion: 2.5,
+  },
+};
+
+const liveCallUsage = {
+  inputTokens: 50_000,
+  outputTokens: 5_000,
+  totalTokens: 55_000,
+  inputTokenDetails: { noCacheTokens: 50_000, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  outputTokenDetails: { textTokens: 5_000, reasoningTokens: 0 },
+};
+
+const liveSport = {
+  id: "cycling",
+  soul: "",
+  skills: {},
+  sessionClusterGapMinutes: 30,
+  memorySections: [],
+  mustPreserveTokens: [],
+  intervalsActivityTypes: [],
+  athleteProfileSchema: {},
+  tools: () => [],
+} as unknown as Sport;
+
+function liveServerError(): Error {
+  const error = new Error("Synthetic provider unavailable");
+  error.name = "ServerError";
+  return error;
+}
+
+class LiveSpendBackend {
+  readonly providerCalls: ModelTransportRequest[] = [];
+  private instant = Date.UTC(1998, 6, 6, 8);
+  private idSequence = 0;
+  private engine: CoachEngine | undefined;
+
+  constructor(private readonly root: string) {}
+
+  async open(): Promise<void> {
+    const dataDir = join(this.root, "data");
+    await mkdir(dataDir, { recursive: true, mode: 0o700 });
+    const conversation = createConversationStore(dataDir);
+    const config: EngineConfig = {
+      dataSource: "platform",
+      llm: {
+        provider: "anthropic",
+        model: liveModel.model,
+        ["api" + "Key"]: "synthetic",
+      } as unknown as EngineConfig["llm"],
+      session: {
+        historyTokenBudgetRatio: 0.3,
+        idleMinutes: 0,
+        dailyResetHour: 4,
+        resetArchiveRetentionDays: 0,
+        timezone: "UTC",
+      },
+      models: { catalogRevision: 1, chat: liveModel, compact: liveModel, flush: liveModel },
+      contextWindowTokens: 200_000,
+      compactContextWindowTokens: 200_000,
+    };
+    const ports: EngineHostPorts = {
+      language: {
+        resolveFor: async () => ({ language: "en", source: "default", locale: "en-GB" }),
+      },
+      config,
+      memory: new Memory(dataDir, "UTC"),
+      chatStore: conversation,
+      transcriptWriter: conversation,
+      coachDecisions: conversation,
+      secrets: { resolve: async () => "" },
+      platform: {
+        legacyClient: null,
+        athleteData: undefined,
+        calendarMutations: createMissingPlatformCalendarMutations(),
+      },
+      logger: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
+      usage: { append: (line) => appendUsageLine(dataDir, line) },
+      stateReader: {
+        getAthleteState: async () => {
+          throw new TypeError("athlete state is unavailable in this fixture");
+        },
+      },
+      readReferenceState: () => ({ errorState: null, latest: null }),
+      getAccessToken: async () => "token",
+      classifyFailure,
+      extractRetryAfterMs,
+      now: () => ++this.instant,
+      randomId: () => `live-${++this.idSequence}`,
+      modelTransportDecorator: () => ({
+        generate: (request) => this.generate(request),
+      }),
+    };
+    this.engine = createCoachEngine({ sport: liveSport, ports });
+  }
+
+  async chat(message: string, emit: (event: TurnEvent) => void): Promise<string> {
+    if (this.engine === undefined) throw new TypeError("live engine is not open");
+    const result = await this.engine.chat({ chatId: "desktop", message }, emit);
+    return result.text;
+  }
+
+  summary(): Promise<SpendSummary> {
+    return createSpendMeterService({
+      dataDir: join(this.root, "data"),
+      configDir: join(this.root, "config"),
+      timezone: "UTC",
+      now: () => this.instant,
+    }).getSpendSummary();
+  }
+
+  private async generate(request: ModelTransportRequest): Promise<GenerateResult> {
+    this.providerCalls.push(request);
+    if (this.providerCalls.length === 1) throw liveServerError();
+    if (this.providerCalls.length === 2) {
+      request.options.onStepUsage?.({ usage: liveCallUsage });
+      throw liveServerError();
+    }
+    const text = "Keep tomorrow's ride easy.";
+    request.options.onTextDelta?.(text);
+    return {
+      text,
+      toolCalls: [],
+      finishReason: "stop",
+      usage: liveCallUsage,
+      totalUsage: liveCallUsage,
+      steps: 1,
+    };
+  }
+}
+
+function script(calls: ScriptRequest[], initial: "reached" | "complete", live?: LiveSpendBackend) {
   let cap = 0.5;
   let complete = initial === "complete";
   let spendAvailable = true;
@@ -124,9 +284,20 @@ function script(calls: ScriptRequest[], initial: "reached" | "complete") {
     items: queueItems,
   });
   const fixture: DesktopFixtureScript = {
-    onRequest(value) {
+    async onRequest(value) {
       const request = value as ScriptRequest;
       calls.push(request);
+      if (request.method === "getSpendSummary" && live !== undefined) {
+        return response(await live.summary());
+      }
+      if (request.method === "resumeChatQueue" && live !== undefined) {
+        const message = queueItems[0]?.text ?? "";
+        queueItems = [];
+        queueRevision += 1;
+        const frames: string[] = [];
+        const text = await live.chat(message, (event) => frames.push(JSON.stringify(event)));
+        return [...frames, JSON.stringify({ snapshot: queueSnapshot(), response: { text } })];
+      }
       if (request.method === "getSpendSummary") {
         if (!spendAvailable) throw new Error("synthetic spend failure");
         return response(complete ? completeSummary(cap) : summary(cap));
@@ -308,9 +479,10 @@ async function launch(
     readonly height?: number;
     readonly colorScheme?: "light" | "dark";
   } = {},
+  live?: LiveSpendBackend,
 ) {
   const calls: ScriptRequest[] = [];
-  const scripted = script(calls, initial);
+  const scripted = script(calls, initial, live);
   const fixture = await launchDesktopFixture({
     script: scripted.fixture,
     token,
@@ -360,6 +532,57 @@ afterEach(async () => {
 });
 
 describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend meter", () => {
+  it("counts the coach's failed provider calls in today's spend with their known usage", async () => {
+    const root = await mkdtemp(join(await realpath(tmpdir()), "spend-live-"));
+    scratch.push(root);
+    await mkdir(join(root, "config"), { recursive: true, mode: 0o700 });
+    const live = new LiveSpendBackend(root);
+    await live.open();
+    const { fixture } = await launch("complete", {}, live);
+
+    const shown = await fixture.evaluate<{
+      readonly reply: string;
+      readonly amount: string;
+      readonly route: string;
+      readonly notices: string;
+    }>(`
+      ${NAVIGATE}
+      const textarea = document.querySelector("#message");
+      textarea.value = "How should I ride tomorrow?";
+      textarea.closest("form").requestSubmit();
+      const replyDeadline = Date.now() + 15000;
+      let reply = "";
+      while (reply !== "Keep tomorrow's ride easy." && Date.now() < replyDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        reply = document.querySelector(".chat-message--coach .chat-message__text")?.textContent ?? "";
+      }
+      await navigate("Settings");
+      const spendDeadline = Date.now() + 5000;
+      const routeText = () =>
+        document.querySelector('[data-spend-meter] [aria-label="Spend details"] article')?.textContent ?? "";
+      while (!routeText().includes("generations priced") && Date.now() < spendDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const spending = document.querySelector("[data-spend-meter]");
+      return {
+        reply,
+        amount: spending.querySelector("strong").textContent,
+        route: routeText(),
+        notices: Array.from(spending.querySelectorAll("p")).map((node) => node.textContent).join(" | "),
+      };
+    `);
+
+    expect(live.providerCalls).toHaveLength(3);
+    expect(shown.reply).toBe("Keep tomorrow's ride easy.");
+    expect(shown.route, "every provider call the coach made is counted and priced").toContain(
+      "3/3 generations priced",
+    );
+    expect(shown.amount, "the failed call's known usage is part of today's spend").toBe(
+      "$0.30 / $0.50",
+    );
+    expect(shown.notices).not.toContain("Some provider costs are unavailable");
+  }, 60_000);
+
   it("keeps the spending surface visible at both viewport bands and never blocks reached-cap chat", async () => {
     const { fixture, calls } = await launch();
     const desktop = await fixture.evaluate<{
