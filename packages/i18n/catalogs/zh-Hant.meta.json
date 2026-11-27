@@ -10283,6 +10283,18 @@
     "sidebar.views.calendar": {
       "sourceHash": "d5d0a30b517e3beab07609d7e54c378db5e15066f22280af453f587f7eec7474",
       "translatedBy": "model"
+    },
+    "plan.calendar.activity.untitled": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.noActivity": {
+      "sourceHash": "d41255e50c5d76d3b8f6a004e07a92e1dbfd1168462329d64697a761e5717ce6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.notConnected": {
+      "sourceHash": "f7a5ea7f64280730e71e6eee237b5a3edb198457131f26030f404cd02ca97c73",
+      "translatedBy": "model"
     }
   }
 }

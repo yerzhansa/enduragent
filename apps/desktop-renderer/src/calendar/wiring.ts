@@ -27,10 +27,9 @@ export function startCalendar(
     showWeekOf: (dateKey) => void controller.showWeekOf(dateKey),
   });
   const dispose = store.subscribe((state, previousState) => {
-    if (state.activeView !== "calendar") return;
-    const opened = previousState.activeView !== "calendar";
-    const synced = previousState.sync.busy && !state.sync.busy;
-    if (opened || synced) void controller.refresh();
+    if (state.activeView === "calendar" && previousState.activeView !== "calendar") {
+      void controller.open();
+    }
   });
   return () => {
     dispose();

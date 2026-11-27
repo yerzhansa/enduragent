@@ -27,8 +27,18 @@ export function regionFirstDayOfWeek(countryCode: string): RegionFirstDay {
   }
 }
 
-export function regionFirstDayArgument(countryCode: string): string {
-  return `${REGION_FIRST_DAY_ARGUMENT}${regionFirstDayOfWeek(countryCode)}`;
+export function macFirstWeekday(preference: unknown): RegionFirstDay | null {
+  if (preference === null || typeof preference !== "object") return null;
+  const gregorian: unknown = Reflect.get(preference, "gregorian");
+  if (typeof gregorian !== "number" || !Number.isInteger(gregorian)) return null;
+  return firstDay(((gregorian + 5) % 7) + 1);
+}
+
+export function regionFirstDayArgument(
+  countryCode: string,
+  chosen: RegionFirstDay | null = null,
+): string {
+  return `${REGION_FIRST_DAY_ARGUMENT}${chosen ?? regionFirstDayOfWeek(countryCode)}`;
 }
 
 export function regionFirstDayFromArguments(argv: readonly string[]): RegionFirstDay {

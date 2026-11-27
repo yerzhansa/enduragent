@@ -1512,7 +1512,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "추가"
+        "extra": "추가",
+        "untitled": "라이딩"
       },
       "column": {
         "trainingWeek": "훈련 주차",
@@ -1554,7 +1555,8 @@
         "notSyncedYet": "아직 동기화되지 않음",
         "removedByYou": "직접 삭제함",
         "rideSynced": "라이딩이 동기화됨",
-        "rideSyncedLength": "{{duration}} 라이딩이 동기화됨"
+        "rideSyncedLength": "{{duration}} 라이딩이 동기화됨",
+        "noActivity": "활동 없음"
       },
       "previous": "이전 주",
       "range": {
@@ -1573,7 +1575,8 @@
         "goesOut": "{{date}}에 전송",
         "notSentYet": "아직 intervals.icu에 없음",
         "onIntervals": "intervals.icu에 있음",
-        "waitingForApprove": "승인 대기 중"
+        "waitingForApprove": "승인 대기 중",
+        "notConnected": "intervals.icu가 연결되지 않았습니다"
       },
       "subtitle": {
         "ended": "{{name}} · 종료됨",

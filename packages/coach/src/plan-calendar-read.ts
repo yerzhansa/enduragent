@@ -7,6 +7,7 @@ import type {
   PlanCalendarWorkout,
 } from "@enduragent/coach-contract";
 import {
+  outcomeCount,
   readIcuCopies,
   readWeekDelivery,
   sentTrainingWeeks,
@@ -22,12 +23,16 @@ import {
 import {
   createPlanCalendarMirrorRepository,
   createPlanWorkoutMatchRepository,
-  type PlanRecord,
   type PlanWorkoutMatchRecord,
   type PlanWorkoutRecord,
 } from "@enduragent/kernel/planning";
-import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
+import {
+  createTrainingHistoryReader,
+  type MigratorStore,
+  type SqlStore,
+} from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { phaseForWeek } from "./plan-phase.js";
 
 export type PlanCalendarRead = Extract<PlanCalendarRpcResult, { status: "calendar" }>;
 
@@ -101,77 +106,62 @@ function outcomeView(outcome: WorkoutOutcome, match: OutcomeMatch): PlanCalendar
   }
 }
 
-function text(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+const RANGE_LIMIT_DAYS = 120;
+
+function isoOf(dateKey: number): string {
+  const value = String(dateKey).padStart(8, "0");
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
 
-function finite(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+function boundedRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+  const limit = Number(
+    new Date(
+      Date.parse(`${isoOf(range.startDateKey)}T00:00:00Z`) + (RANGE_LIMIT_DAYS - 1) * 86_400_000,
+    )
+      .toISOString()
+      .slice(0, 10)
+      .replaceAll("-", ""),
+  );
+  return { startDateKey: range.startDateKey, endDateKey: Math.min(range.endDateKey, limit) };
 }
 
 async function readActivities(
   store: SqlStore,
   range: { readonly startDateKey: number; readonly endDateKey: number },
 ): Promise<readonly Omit<PlanCalendarActivity, "workoutId">[]> {
-  const rows = await store.all(
-    `SELECT s.session_key, s.local_date_key, s.sport,
-COALESCE(s.moving_s,s.timer_s,s.elapsed_s) AS duration_s, s.distance_m,
-COALESCE(json_extract(COALESCE(rev.payload_json,sr.payload_json),'$.name'),w.name) AS name,
-json_extract(COALESCE(rev.payload_json,sr.payload_json),'$.icu_training_load') AS load
-FROM session s
-LEFT JOIN workout w ON w.workout_key=s.workout_key
-LEFT JOIN source_record sr ON sr.session_key=s.session_key AND sr.source='intervals-icu'
-LEFT JOIN source_record_current current ON current.source_record_id=sr.id
-LEFT JOIN source_record_revision rev ON rev.source_record_id=current.source_record_id
-  AND rev.revision_id=current.revision_id
-WHERE s.local_date_key BETWEEN ? AND ? AND s.is_transition=0
-ORDER BY s.local_date_key,s.start_utc,s.session_key`,
-    [range.startDateKey, range.endDateKey],
-  );
-  const seen = new Set<string>();
-  const activities: Omit<PlanCalendarActivity, "workoutId">[] = [];
-  for (const row of rows) {
-    const activityId = text(row.session_key);
-    const dateKey = finite(row.local_date_key);
-    const sport = text(row.sport);
-    if (activityId === null || dateKey === null || sport === null || seen.has(activityId)) continue;
-    seen.add(activityId);
-    const duration = finite(row.duration_s);
-    const load = finite(row.load);
-    activities.push({
-      activityId,
-      dateKey,
-      name: text(row.name),
-      sport,
-      durationS: duration === null ? null : Math.max(0, Math.round(duration)),
-      distanceM: finite(row.distance_m),
-      load: load === null ? null : Math.max(0, Math.round(load)),
+  if (range.endDateKey < range.startDateKey) return [];
+  const window = await createTrainingHistoryReader(store).readWindow({
+    start: isoOf(range.startDateKey),
+    end: isoOf(range.endDateKey),
+  });
+  return [...window.rows]
+    .sort(
+      (left, right) =>
+        left.localDate.localeCompare(right.localDate) ||
+        left.startEpochSeconds - right.startEpochSeconds ||
+        left.id.localeCompare(right.id),
+    )
+    .map((row) => {
+      const seconds = row.movingSeconds ?? row.elapsedSeconds;
+      return {
+        activityId: row.id,
+        dateKey: Number(row.localDate.replaceAll("-", "")),
+        name: row.title,
+        sport: "cycling",
+        durationS: seconds === null ? null : Math.max(0, Math.round(seconds)),
+        distanceM: row.distanceMeters,
+        load: row.load.kind === "recorded" ? Math.max(0, Math.round(row.load.value)) : null,
+      };
     });
-  }
-  return activities;
 }
 
-function phaseForWeek(plan: PlanRecord, weekIndex: number | null): string | null {
-  if (weekIndex === null) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(plan.structureJson);
-  } catch {
-    return null;
-  }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const phases = Object.fromEntries(Object.entries(parsed)).phases;
-  if (!Array.isArray(phases)) return null;
-  let throughWeek = 0;
-  for (const candidate of phases) {
-    if (candidate === null || typeof candidate !== "object") continue;
-    const entry = Object.fromEntries(Object.entries(candidate));
-    const duration = finite(entry.durationWeeks);
-    if (duration === null || duration < 1) continue;
-    throughWeek += duration;
-    if (weekIndex <= throughWeek) return text(entry.name) ?? text(entry.focus);
-  }
-  return null;
+function doneSeconds(outcome: WorkoutOutcome, match: OutcomeMatch): number {
+  if (outcomeCount(outcome) !== "counts-done" || match.kind !== "confirmed") return 0;
+  return Math.max(0, Math.round(match.activityDurationS ?? 0));
+}
+
+function counted(workout: PlanCalendarWorkout): boolean {
+  return workout.outcome.kind !== "removed-by-you" && workout.copy.kind !== "kept-as-yours";
 }
 
 function weekOf(
@@ -184,6 +174,13 @@ function weekOf(
 }
 
 export async function readPlanCalendar(
+  deps: PlanCalendarReadDeps,
+  range: { readonly startDateKey: number; readonly endDateKey: number },
+): Promise<PlanCalendarRead> {
+  return deps.store.transaction(() => readInside(deps, boundedRange(range)));
+}
+
+async function readInside(
   deps: PlanCalendarReadDeps,
   range: { readonly startDateKey: number; readonly endDateKey: number },
 ): Promise<PlanCalendarRead> {
@@ -244,13 +241,9 @@ export async function readPlanCalendar(
       copy: copyView(copy),
       lastWrite: stored?.lastWrite.kind ?? "none",
       outcome: outcomeView(outcome, match),
+      doneS: doneSeconds(outcome, match),
     };
   });
-  const doneSeconds = new Map(
-    records
-      .filter((record) => record.decision === "confirmed")
-      .map((record) => [record.planWorkoutId, record.activityDurationS ?? 0]),
-  );
   const delivery = await readWeekDelivery(mirror, plan.id);
   const sent = await sentTrainingWeeks(
     { plan, workouts, todayDateKey: deps.todayDateKey, firstEligibleDateKey: deps.todayDateKey },
@@ -266,9 +259,9 @@ export async function readPlanCalendar(
       startDateKey: range.startDateKey,
       endDateKey: range.endDateKey,
       plannedS: inWeek
-        .filter((workout) => workout.outcome.kind !== "removed-by-you")
+        .filter(counted)
         .reduce((total, workout) => total + (workout.durationS ?? 0), 0),
-      doneS: inWeek.reduce((total, workout) => total + (doneSeconds.get(workout.id) ?? 0), 0),
+      doneS: inWeek.filter(counted).reduce((total, workout) => total + workout.doneS, 0),
       toConfirm: inWeek.filter((workout) => workout.outcome.kind === "is-this-it").length,
       phase: phaseForWeek(plan, range.index),
       status: weekDeliveryStatus({

@@ -1512,7 +1512,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "追加"
+        "extra": "追加",
+        "untitled": "ライド"
       },
       "column": {
         "trainingWeek": "トレーニング週",
@@ -1554,7 +1555,8 @@
         "notSyncedYet": "未同期",
         "removedByYou": "自分で削除済み",
         "rideSynced": "ライドが同期されました",
-        "rideSyncedLength": "{{duration}}のライドが同期されました"
+        "rideSyncedLength": "{{duration}}のライドが同期されました",
+        "noActivity": "アクティビティなし"
       },
       "previous": "前週",
       "range": {
@@ -1573,7 +1575,8 @@
         "goesOut": "{{date}}に送信",
         "notSentYet": "intervals.icuに未送信",
         "onIntervals": "intervals.icuに送信済み",
-        "waitingForApprove": "承認待ち"
+        "waitingForApprove": "承認待ち",
+        "notConnected": "intervals.icuに接続されていません"
       },
       "subtitle": {
         "ended": "{{name}} · 終了",

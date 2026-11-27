@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Extra"
+        "extra": "Extra",
+        "untitled": "Rit"
       },
       "column": {
         "trainingWeek": "Trainingsweek",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Nog niet gesynchroniseerd",
         "removedByYou": "Door jou verwijderd",
         "rideSynced": "Een rit gesynchroniseerd",
-        "rideSyncedLength": "Een rit van {{duration}} gesynchroniseerd"
+        "rideSyncedLength": "Een rit van {{duration}} gesynchroniseerd",
+        "noActivity": "Geen activiteit"
       },
       "previous": "Vorige week",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Wordt verzonden op {{date}}",
         "notSentYet": "Nog niet op intervals.icu",
         "onIntervals": "Op intervals.icu",
-        "waitingForApprove": "Wacht op goedkeuring"
+        "waitingForApprove": "Wacht op goedkeuring",
+        "notConnected": "intervals.icu is niet verbonden"
       },
       "subtitle": {
         "ended": "{{name}} · beëindigd",

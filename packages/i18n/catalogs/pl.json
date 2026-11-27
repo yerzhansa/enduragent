@@ -1551,7 +1551,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Dodatkowa"
+        "extra": "Dodatkowa",
+        "untitled": "Przejazd"
       },
       "column": {
         "trainingWeek": "Tydzień treningowy",
@@ -1593,7 +1594,8 @@
         "notSyncedYet": "Jeszcze nie zsynchronizowano",
         "removedByYou": "Usunięty przez ciebie",
         "rideSynced": "Zsynchronizowano przejazd",
-        "rideSyncedLength": "Zsynchronizowano przejazd trwający {{duration}}"
+        "rideSyncedLength": "Zsynchronizowano przejazd trwający {{duration}}",
+        "noActivity": "Brak aktywności"
       },
       "previous": "Poprzedni tydzień",
       "range": {
@@ -1612,7 +1614,8 @@
         "goesOut": "Wysyłka {{date}}",
         "notSentYet": "Jeszcze nie w intervals.icu",
         "onIntervals": "W intervals.icu",
-        "waitingForApprove": "Czeka na zatwierdzenie"
+        "waitingForApprove": "Czeka na zatwierdzenie",
+        "notConnected": "intervals.icu nie jest połączone"
       },
       "subtitle": {
         "ended": "{{name}} · zakończony",

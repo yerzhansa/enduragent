@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
   app: { getLocaleCountryCode: () => "US" },
+  systemPreferences: { getUserDefault: () => ({}) },
   BrowserWindow: class {},
   net: { fetch: vi.fn() },
   protocol: { registerSchemesAsPrivileged: vi.fn() },

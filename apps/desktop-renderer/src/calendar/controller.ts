@@ -43,6 +43,7 @@ export interface CalendarControllerDeps {
 
 export function createCalendarController(deps: CalendarControllerDeps): CalendarController {
   let state: CalendarViewState = CALENDAR_START;
+  let target: CalendarRange | null = null;
   let generation = 0;
 
   const publish = (next: CalendarViewState): void => {
@@ -50,16 +51,15 @@ export function createCalendarController(deps: CalendarControllerDeps): Calendar
     deps.publish(next);
   };
 
-  const currentRange = (): CalendarRange =>
-    state.range ?? defaultRange(deps.localTodayDateKey(), deps.firstDayOfWeek());
+  const todayRange = (): CalendarRange =>
+    defaultRange(deps.localTodayDateKey(), deps.firstDayOfWeek());
 
   const load = async (range: CalendarRange): Promise<void> => {
+    target = range;
     generation += 1;
     const mine = generation;
     publish(
-      state.kind === "ready"
-        ? { ...state, range, refresh: "refreshing" }
-        : { kind: "loading", range },
+      state.kind === "ready" ? { ...state, refresh: "refreshing" } : { kind: "loading", range },
     );
     let result: PlanCalendarRpcResult;
     try {
@@ -82,11 +82,11 @@ export function createCalendarController(deps: CalendarControllerDeps): Calendar
   };
 
   return {
-    open: () => load(currentRange()),
-    refresh: () => load(currentRange()),
-    previous: () => load(shiftRange(currentRange(), -1)),
-    next: () => load(shiftRange(currentRange(), 1)),
-    today: () => load(defaultRange(deps.localTodayDateKey(), deps.firstDayOfWeek())),
+    open: () => load(todayRange()),
+    refresh: () => load(target ?? todayRange()),
+    previous: () => load(shiftRange(target ?? todayRange(), -1)),
+    next: () => load(shiftRange(target ?? todayRange(), 1)),
+    today: () => load(todayRange()),
     showWeekOf: (dateKey) => load(defaultRange(dateKey, deps.firstDayOfWeek())),
   };
 }

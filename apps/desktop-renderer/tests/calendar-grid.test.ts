@@ -141,6 +141,7 @@ describe("the season strip", () => {
     const season = plan(MONDAY, weeks, [
       workout(1, MONDAY, {
         outcome: { kind: "done-differently", activityId: "a".repeat(64), actualDurationS: 2_400 },
+        doneS: 2_400,
       }),
       workout(2, addDays(MONDAY, 2), { outcome: { kind: "removed-by-you" } }),
       workout(3, addDays(MONDAY, 4)),
@@ -156,5 +157,58 @@ describe("the season strip", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("rows in other regions and across the year", () => {
+  it("starts rows on Sunday or Saturday and labels a Monday Plan as crossing weeks", () => {
+    const weeks = [week(1, MONDAY), week(2, 19980112), week(3, 19980119)];
+    const read = calendarRead(19980114, plan(MONDAY, weeks, []));
+    const sunday = calendarRows(read, defaultRange(19980114, 7));
+    expect(sunday.map((row) => row.startDateKey)).toEqual([19980104, 19980111, 19980118, 19980125]);
+    expect(sunday.map((row) => rowLabel(row, 19980114).kind)).toEqual([
+      "week-start",
+      "crossing",
+      "crossing",
+      "week-end",
+    ]);
+    const saturday = calendarRows(read, defaultRange(19980114, 6));
+    expect(saturday[0]?.startDateKey).toBe(19980103);
+    expect(saturday[0]?.days.slice(0, 2).map((day) => day.place)).toEqual([
+      "before-plan",
+      "before-plan",
+    ]);
+    expect(saturday[0]?.days[2]?.weekStarts?.index).toBe(1);
+  });
+
+  it("keeps week labels and places right across a year boundary", () => {
+    const start = 19971229;
+    const read = calendarRead(19980101, plan(start, [week(1, start), week(2, 19980105)], []));
+    const rows = calendarRows(read, { firstRowStart: start, rowCount: 2 });
+    expect(rows.map((row) => [row.startDateKey, row.endDateKey])).toEqual([
+      [19971229, 19980104],
+      [19980105, 19980111],
+    ]);
+    expect(rowLabel(rows[0]!, 19980101)).toMatchObject({
+      kind: "training-week",
+      week: { index: 1 },
+      timing: "current",
+    });
+    expect(rows[0]?.days.find((day) => day.today === "today")?.dateKey).toBe(19980101);
+  });
+});
+
+describe("rides nobody else shows", () => {
+  it("shows a ride as its own card when its workout is hidden or was removed by the athlete", () => {
+    const kept = workout(1, MONDAY, { copy: { kind: "kept-as-yours" } });
+    const removed = workout(2, 19980106, { outcome: { kind: "removed-by-you" } });
+    const read = calendarRead(19980114, plan(MONDAY, [week(1, MONDAY)], [kept, removed]), [
+      activity("a", MONDAY, { workoutId: kept.id }),
+      activity("b", 19980106, { workoutId: removed.id }),
+    ]);
+    const [row] = calendarRows(read, { firstRowStart: MONDAY, rowCount: 1 });
+    expect(row?.days[0]?.workouts).toEqual([]);
+    expect(row?.days[0]?.activities.map((entry) => entry.activityId)).toEqual(["a".repeat(64)]);
+    expect(row?.days[1]?.activities.map((entry) => entry.activityId)).toEqual(["b".repeat(64)]);
   });
 });

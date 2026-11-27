@@ -45,6 +45,7 @@ export function workout(
     copy: { kind: "on-intervals", owner: "plan" },
     lastWrite: "ok",
     outcome: { kind: "planned" },
+    doneS: 0,
     ...extra,
   };
 }

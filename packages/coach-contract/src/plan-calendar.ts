@@ -101,6 +101,7 @@ export const PlanCalendarWorkoutSchema = z
     copy: PlanCalendarCopySchema,
     lastWrite: z.enum(["none", "ok", "failed"]),
     outcome: PlanCalendarOutcomeSchema,
+    doneS: SecondsSchema,
   })
   .strict();
 export type PlanCalendarWorkout = z.infer<typeof PlanCalendarWorkoutSchema>;

@@ -1892,7 +1892,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Extra"
+        "extra": "Extra",
+        "untitled": "Cykeltur"
       },
       "column": {
         "trainingWeek": "Träningsvecka",
@@ -1934,7 +1935,8 @@
         "notSyncedYet": "Inte synkroniserat än",
         "removedByYou": "Borttaget av dig",
         "rideSynced": "En cykeltur synkroniserades",
-        "rideSyncedLength": "En cykeltur på {{duration}} synkroniserades"
+        "rideSyncedLength": "En cykeltur på {{duration}} synkroniserades",
+        "noActivity": "Ingen aktivitet"
       },
       "previous": "Föregående vecka",
       "range": {
@@ -1953,7 +1955,8 @@
         "goesOut": "Skickas {{date}}",
         "notSentYet": "Inte på intervals.icu än",
         "onIntervals": "På intervals.icu",
-        "waitingForApprove": "Väntar på godkännande"
+        "waitingForApprove": "Väntar på godkännande",
+        "notConnected": "intervals.icu är inte anslutet"
       },
       "subtitle": {
         "ended": "{{name}} · avslutad",

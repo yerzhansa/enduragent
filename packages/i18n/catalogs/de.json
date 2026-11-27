@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Zusätzlich"
+        "extra": "Zusätzlich",
+        "untitled": "Fahrt"
       },
       "column": {
         "trainingWeek": "Trainingswoche",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Noch nicht synchronisiert",
         "removedByYou": "Von dir entfernt",
         "rideSynced": "Eine Fahrt wurde synchronisiert",
-        "rideSyncedLength": "Eine Fahrt von {{duration}} wurde synchronisiert"
+        "rideSyncedLength": "Eine Fahrt von {{duration}} wurde synchronisiert",
+        "noActivity": "Keine Aktivität"
       },
       "previous": "Vorherige Woche",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Wird am {{date}} gesendet",
         "notSentYet": "Noch nicht in intervals.icu",
         "onIntervals": "In intervals.icu",
-        "waitingForApprove": "Wartet auf Zustimmung"
+        "waitingForApprove": "Wartet auf Zustimmung",
+        "notConnected": "intervals.icu ist nicht verbunden"
       },
       "subtitle": {
         "ended": "{{name}} · beendet",

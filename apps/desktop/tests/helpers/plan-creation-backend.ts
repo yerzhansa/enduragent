@@ -334,6 +334,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
                 this.options.calendarConnected ?? this.options.calendar !== undefined,
               dateKeyOfMs: civilDate,
               now: () => this.instant,
+              changed: () => void this.calendarDrain?.kick(),
             })["plan.calendar"](PlanCalendarRpcParamsSchema.parse(request.params)),
           );
         }
@@ -1089,7 +1090,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
     await store.run(
       `INSERT INTO session (session_key, workout_key, session_seq, sport, start_utc, tz_offset_s,
         local_date_key, elapsed_s, timer_s, moving_s, distance_m, is_transition)
-       VALUES (?, ?, 0, 'Ride', ?, 0, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, 0, 'cycling', ?, 0, ?, ?, ?, ?, ?, 0)`,
       [
         ride.key,
         ride.key,

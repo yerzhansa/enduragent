@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Ylimääräinen"
+        "extra": "Ylimääräinen",
+        "untitled": "Lenkki"
       },
       "column": {
         "trainingWeek": "Harjoitusviikko",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Ei vielä synkronoitu",
         "removedByYou": "Poistit tämän",
         "rideSynced": "Lenkki synkronoitiin",
-        "rideSyncedLength": "Lenkki ({{duration}}) synkronoitiin"
+        "rideSyncedLength": "Lenkki ({{duration}}) synkronoitiin",
+        "noActivity": "Ei suoritusta"
       },
       "previous": "Edellinen viikko",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Lähetetään {{date}}",
         "notSentYet": "Ei vielä intervals.icu-palvelussa",
         "onIntervals": "intervals.icu-palvelussa",
-        "waitingForApprove": "Odottaa hyväksyntää"
+        "waitingForApprove": "Odottaa hyväksyntää",
+        "notConnected": "intervals.icu ei ole yhdistettynä"
       },
       "subtitle": {
         "ended": "{{name}} · päättynyt",

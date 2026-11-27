@@ -7,11 +7,12 @@ import {
   type IpcMainInvokeEvent,
   net,
   protocol,
+  systemPreferences,
   type Session,
   type WebContents,
 } from "electron";
 import { desktopWindowBackgroundColor, type DesktopResolvedTheme } from "./appearance.js";
-import { regionFirstDayArgument } from "./region-week.js";
+import { macFirstWeekday, regionFirstDayArgument } from "./region-week.js";
 import {
   DESKTOP_HOST,
   DESKTOP_SCHEME,
@@ -150,7 +151,14 @@ export function desktopWindowOptions(
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      additionalArguments: [regionFirstDayArgument(app.getLocaleCountryCode())],
+      additionalArguments: [
+        regionFirstDayArgument(
+          app.getLocaleCountryCode(),
+          process.platform === "darwin"
+            ? macFirstWeekday(systemPreferences.getUserDefault("AppleFirstWeekday", "dictionary"))
+            : null,
+        ),
+      ],
     },
   };
 }

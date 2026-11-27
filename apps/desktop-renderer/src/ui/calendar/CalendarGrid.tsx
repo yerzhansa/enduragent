@@ -1,11 +1,18 @@
-import type { PlanCalendarActivity, PlanCalendarWorkout } from "@enduragent/coach-contract";
+import type {
+  PlanCalendarActivity,
+  PlanCalendarWeek,
+  PlanCalendarWeekStatus,
+  PlanCalendarWorkout,
+} from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { cn } from "@enduragent/ui";
 import type { ReactElement } from "react";
 import { weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
 import {
   rowLabel,
+  weekTiming,
   type CalendarDay,
+  type CalendarTiming,
   type CalendarRow,
   type CalendarRowLabel,
   type PlanCalendarRead,
@@ -16,7 +23,7 @@ type Tone = "ok" | "warn" | "danger" | "brand" | "muted";
 
 interface WorkoutLook {
   readonly frame: "sent" | "plan-only" | "missed" | "ask" | "changed" | "ghost";
-  readonly detail: string;
+  readonly detail: string | null;
   readonly status: { readonly tone: Tone; readonly text: string } | null;
 }
 
@@ -44,6 +51,47 @@ function activityDuration(
   return activities.find((activity) => activity.activityId === activityId)?.durationS ?? null;
 }
 
+type Say = ReturnType<typeof usePhrasebook>["say"];
+
+function changedLook(
+  workout: PlanCalendarWorkout,
+  planned: string | null,
+  say: Say,
+  text: CalendarText,
+): WorkoutLook | null {
+  const copy = workout.copy;
+  if (copy.kind !== "changed-in-intervals") return null;
+  if (copy.change === "deleted") {
+    return {
+      frame: "ghost",
+      detail: planned,
+      status: { tone: "warn", text: say("plan.calendar.copy.deleted") },
+    };
+  }
+  return {
+    frame: "changed",
+    detail: planned,
+    status: {
+      tone: "warn",
+      text:
+        copy.change === "moved" && copy.toDateKey !== null
+          ? say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) })
+          : say("plan.calendar.copy.changed"),
+    },
+  };
+}
+
+function plannedLook(workout: PlanCalendarWorkout, planned: string | null, say: Say): WorkoutLook {
+  const frame = workout.copy.kind === "plan-only" ? "plan-only" : "sent";
+  return workout.lastWrite === "failed"
+    ? {
+        frame,
+        detail: planned,
+        status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
+      }
+    : { frame, detail: planned, status: null };
+}
+
 function useWorkoutLook(): (
   workout: PlanCalendarWorkout,
   activities: readonly PlanCalendarActivity[],
@@ -51,8 +99,9 @@ function useWorkoutLook(): (
 ) => WorkoutLook {
   const { say } = usePhrasebook();
   return (workout, activities, text) => {
-    const planned = workout.durationS === null ? "" : text.duration(workout.durationS);
+    const planned = workout.durationS === null ? null : text.duration(workout.durationS);
     const outcome = workout.outcome;
+    const changed = changedLook(workout, planned, say, text);
     switch (outcome.kind) {
       case "done-as-planned":
       case "done-differently":
@@ -61,21 +110,28 @@ function useWorkoutLook(): (
           detail:
             outcome.actualDurationS === null
               ? planned
-              : say("plan.calendar.doneOf", {
-                  done: text.duration(outcome.actualDurationS),
-                  planned,
-                }),
+              : planned === null
+                ? text.duration(outcome.actualDurationS)
+                : say("plan.calendar.doneOf", {
+                    done: text.duration(outcome.actualDurationS),
+                    planned,
+                  }),
           status:
             outcome.kind === "done-as-planned"
               ? { tone: "ok", text: say("plan.calendar.outcome.doneAsPlanned") }
               : { tone: "warn", text: say("plan.calendar.outcome.doneDifferently") },
         };
       case "missed":
-        return {
-          frame: "missed",
-          detail: say("plan.calendar.outcome.missedDetail", { planned }),
-          status: { tone: "danger", text: say("plan.calendar.outcome.missed") },
-        };
+        return (
+          changed ?? {
+            frame: "missed",
+            detail:
+              planned === null
+                ? say("plan.calendar.outcome.noActivity")
+                : say("plan.calendar.outcome.missedDetail", { planned }),
+            status: { tone: "danger", text: say("plan.calendar.outcome.missed") },
+          }
+        );
       case "is-this-it": {
         const seconds = activityDuration(activities, outcome.activityId);
         return {
@@ -88,11 +144,13 @@ function useWorkoutLook(): (
         };
       }
       case "not-synced-yet":
-        return {
-          frame: "sent",
-          detail: planned,
-          status: { tone: "muted", text: say("plan.calendar.outcome.notSyncedYet") },
-        };
+        return (
+          changed ?? {
+            frame: "sent",
+            detail: planned,
+            status: { tone: "muted", text: say("plan.calendar.outcome.notSyncedYet") },
+          }
+        );
       case "moved":
         return {
           frame: "sent",
@@ -111,49 +169,8 @@ function useWorkoutLook(): (
           status: { tone: "muted", text: say("plan.calendar.outcome.removedByYou") },
         };
       case "planned":
-        return plannedLook(workout, planned, say, text);
+        return changed ?? plannedLook(workout, planned, say);
     }
-  };
-}
-
-function plannedLook(
-  workout: PlanCalendarWorkout,
-  planned: string,
-  say: ReturnType<typeof usePhrasebook>["say"],
-  text: CalendarText,
-): WorkoutLook {
-  const copy = workout.copy;
-  if (copy.kind === "changed-in-intervals") {
-    if (copy.change === "deleted") {
-      return {
-        frame: "ghost",
-        detail: planned,
-        status: { tone: "warn", text: say("plan.calendar.copy.deleted") },
-      };
-    }
-    return {
-      frame: "changed",
-      detail: planned,
-      status: {
-        tone: "warn",
-        text:
-          copy.change === "moved" && copy.toDateKey !== null
-            ? say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) })
-            : say("plan.calendar.copy.changed"),
-      },
-    };
-  }
-  if (workout.lastWrite === "failed") {
-    return {
-      frame: copy.kind === "plan-only" ? "plan-only" : "sent",
-      detail: planned,
-      status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
-    };
-  }
-  return {
-    frame: copy.kind === "plan-only" ? "plan-only" : "sent",
-    detail: planned,
-    status: null,
   };
 }
 
@@ -176,7 +193,7 @@ function WorkoutCard(props: {
       <span className={cn("font-semibold", look.frame === "ghost" ? "line-through" : "text-ink")}>
         {props.workout.name}
       </span>
-      {look.detail === "" ? null : <span className="text-ink-2">{look.detail}</span>}
+      {look.detail === null ? null : <span className="text-ink-2">{look.detail}</span>}
       {look.status === null ? null : (
         <span className={cn("font-semibold", TONE[look.status.tone])}>{look.status.text}</span>
       )}
@@ -205,7 +222,9 @@ function ActivityCard(props: {
       )}
       data-activity-id={activity.activityId}
     >
-      <span className="font-semibold text-ink">{activity.name ?? activity.sport}</span>
+      <span className="font-semibold text-ink">
+        {activity.name ?? say("plan.calendar.activity.untitled")}
+      </span>
       {parts.length === 0 ? null : (
         <span className="text-ink-2">{parts.join(say("plan.calendar.separator"))}</span>
       )}
@@ -216,55 +235,78 @@ function ActivityCard(props: {
   );
 }
 
+function statusLine(
+  status: PlanCalendarWeekStatus,
+  connected: boolean,
+  say: Say,
+  text: CalendarText,
+): string | null {
+  switch (status.kind) {
+    case "passed":
+      return null;
+    case "on-intervals":
+      return say("plan.calendar.status.onIntervals");
+    case "goes-out":
+      return connected
+        ? say("plan.calendar.status.goesOut", { date: text.weekdayDayMonth(status.onDateKey) })
+        : say("plan.calendar.status.notConnected");
+    case "approve-from":
+      return connected
+        ? say("plan.calendar.status.approveFrom", { date: text.weekdayDayMonth(status.onDateKey) })
+        : say("plan.calendar.status.notConnected");
+    case "waiting-for-first-approve":
+    case "waiting-for-week-approve":
+      return say("plan.calendar.status.waitingForApprove");
+    case "due":
+      return connected
+        ? say("plan.calendar.status.notSentYet")
+        : say("plan.calendar.status.notConnected");
+  }
+}
+
+function weekLines(
+  week: PlanCalendarWeek,
+  timing: CalendarTiming,
+  connected: boolean,
+  say: Say,
+  text: CalendarText,
+): readonly string[] {
+  const planned = text.duration(week.plannedS);
+  const status = statusLine(week.status, connected, say, text);
+  if (timing !== "future") {
+    return [
+      say("plan.calendar.doneOf", { done: text.duration(week.doneS), planned }),
+      ...(week.toConfirm > 0
+        ? [say("plan.calendar.week.toConfirm", { count: week.toConfirm })]
+        : []),
+      ...(timing === "current" && status !== null && week.status.kind !== "on-intervals"
+        ? [status]
+        : []),
+    ];
+  }
+  if (week.status.kind === "on-intervals") {
+    return [say("plan.calendar.week.planned", { planned }), ...(status === null ? [] : [status])];
+  }
+  return [say("plan.calendar.week.planOnly", { planned }), ...(status === null ? [] : [status])];
+}
+
 function RowLabelCell(props: {
   readonly label: CalendarRowLabel;
   readonly row: CalendarRow;
+  readonly today: number;
+  readonly connected: boolean;
   readonly text: CalendarText;
 }): ReactElement {
   const { say } = usePhrasebook();
-  const { label, row, text } = props;
+  const { label, row, text, today, connected } = props;
   const lines: string[] = [];
   let title: string;
   switch (label.kind) {
-    case "training-week": {
-      const week = label.week;
-      title = say("plan.calendar.week.label", { week: week.index });
-      lines.push(text.weekRange(week.startDateKey, week.endDateKey));
-      const planned = text.duration(week.plannedS);
-      if (label.timing !== "future") {
-        lines.push(say("plan.calendar.doneOf", { done: text.duration(week.doneS), planned }));
-        if (week.toConfirm > 0) {
-          lines.push(say("plan.calendar.week.toConfirm", { count: week.toConfirm }));
-        }
-        break;
-      }
-      const status = week.status;
-      if (status.kind === "on-intervals") {
-        lines.push(say("plan.calendar.week.planned", { planned }));
-        lines.push(say("plan.calendar.status.onIntervals"));
-        break;
-      }
-      lines.push(say("plan.calendar.week.planOnly", { planned }));
-      if (status.kind === "goes-out") {
-        lines.push(
-          say("plan.calendar.status.goesOut", { date: text.weekdayDayMonth(status.onDateKey) }),
-        );
-      } else if (status.kind === "approve-from") {
-        lines.push(
-          say("plan.calendar.status.approveFrom", {
-            date: text.weekdayDayMonth(status.onDateKey),
-          }),
-        );
-      } else if (
-        status.kind === "waiting-for-first-approve" ||
-        status.kind === "waiting-for-week-approve"
-      ) {
-        lines.push(say("plan.calendar.status.waitingForApprove"));
-      } else if (status.kind === "due") {
-        lines.push(say("plan.calendar.status.notSentYet"));
-      }
+    case "training-week":
+      title = say("plan.calendar.week.label", { week: label.week.index });
+      lines.push(text.weekRange(label.week.startDateKey, label.week.endDateKey));
+      lines.push(...weekLines(label.week, label.timing, connected, say, text));
       break;
-    }
     case "week-start":
       title = say("plan.calendar.week.label", { week: label.week.index });
       lines.push(
@@ -272,11 +314,14 @@ function RowLabelCell(props: {
           date: text.weekdayDayMonth(label.week.startDateKey),
         }),
       );
-      break;
-    case "week-end":
-      title = say("plan.calendar.week.label", { week: label.week.index });
       lines.push(
-        say("plan.calendar.week.endsOn", { date: text.weekdayDayMonth(label.week.endDateKey) }),
+        ...weekLines(
+          label.week,
+          weekTiming(label.week.startDateKey, label.week.endDateKey, today),
+          connected,
+          say,
+          text,
+        ),
       );
       break;
     case "crossing":
@@ -286,6 +331,21 @@ function RowLabelCell(props: {
           week: label.to.index,
           date: text.weekdayDayMonth(label.to.startDateKey),
         }),
+      );
+      lines.push(
+        ...weekLines(
+          label.to,
+          weekTiming(label.to.startDateKey, label.to.endDateKey, today),
+          connected,
+          say,
+          text,
+        ),
+      );
+      break;
+    case "week-end":
+      title = say("plan.calendar.week.label", { week: label.week.index });
+      lines.push(
+        say("plan.calendar.week.endsOn", { date: text.weekdayDayMonth(label.week.endDateKey) }),
       );
       break;
     case "dates":
@@ -311,8 +371,8 @@ function RowLabelCell(props: {
       role="rowheader"
     >
       <span className="text-sm font-semibold text-ink">{title}</span>
-      {lines.map((line) => (
-        <span key={line}>{line}</span>
+      {lines.map((line, index) => (
+        <span key={`${index}-${line}`}>{line}</span>
       ))}
     </div>
   );
@@ -406,7 +466,13 @@ export function CalendarGrid(props: {
         ))}
         {props.rows.map((row) => (
           <div key={row.startDateKey} className="contents" role="row">
-            <RowLabelCell label={rowLabel(row, props.read.todayDateKey)} row={row} text={text} />
+            <RowLabelCell
+              label={rowLabel(row, props.read.todayDateKey)}
+              row={row}
+              today={props.read.todayDateKey}
+              connected={props.read.calendarConnected}
+              text={text}
+            />
             {row.days.map((day) => (
               <DayCell key={day.dateKey} day={day} read={props.read} text={text} />
             ))}

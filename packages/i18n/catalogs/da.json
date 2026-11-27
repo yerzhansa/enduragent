@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Ekstra"
+        "extra": "Ekstra",
+        "untitled": "Tur"
       },
       "column": {
         "trainingWeek": "Træningsuge",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Endnu ikke synkroniseret",
         "removedByYou": "Fjernet af dig",
         "rideSynced": "En tur er synkroniseret",
-        "rideSyncedLength": "En tur på {{duration}} er synkroniseret"
+        "rideSyncedLength": "En tur på {{duration}} er synkroniseret",
+        "noActivity": "Ingen aktivitet"
       },
       "previous": "Forrige uge",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Sendes {{date}}",
         "notSentYet": "Ikke på intervals.icu endnu",
         "onIntervals": "På intervals.icu",
-        "waitingForApprove": "Venter på godkendelse"
+        "waitingForApprove": "Venter på godkendelse",
+        "notConnected": "intervals.icu er ikke forbundet"
       },
       "subtitle": {
         "ended": "{{name}} · afsluttet",

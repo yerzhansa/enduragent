@@ -1,4 +1,5 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
+import { dateOf } from "../../calendar/dates";
 import { usePlanDate } from "../plan/plan-date";
 
 export interface CalendarText {
@@ -19,7 +20,7 @@ function isoText(dateKey: number): string {
 const WEEKDAY_SAMPLE = [19980105, 19980106, 19980107, 19980108, 19980109, 19980110, 19980111];
 
 export function useCalendarText(): CalendarText {
-  const { say, format } = usePhrasebook();
+  const { say, format, tag, locale } = usePhrasebook();
   const planDate = usePlanDate();
   const dayOfMonth = (dateKey: number): string =>
     format.number(dateKey % 100, { useGrouping: false });
@@ -37,6 +38,13 @@ export function useCalendarText(): CalendarText {
     weekdayDayMonth: (dateKey) =>
       planDate(isoText(dateKey), { weekday: "short", day: "numeric", month: "short" }),
     weekRange(startDateKey, endDateKey) {
+      if (tag !== "en") {
+        return new Intl.DateTimeFormat(locale, {
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
+        }).formatRange(dateOf(startDateKey), dateOf(endDateKey));
+      }
       const sameMonth = Math.floor(startDateKey / 100) === Math.floor(endDateKey / 100);
       return sameMonth
         ? say("plan.calendar.range.sameMonth", {

@@ -1512,7 +1512,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "额外"
+        "extra": "额外",
+        "untitled": "骑行"
       },
       "column": {
         "trainingWeek": "训练周",
@@ -1554,7 +1555,8 @@
         "notSyncedYet": "尚未同步",
         "removedByYou": "已由你移除",
         "rideSynced": "已同步一次骑行",
-        "rideSyncedLength": "已同步一次 {{duration}} 的骑行"
+        "rideSyncedLength": "已同步一次 {{duration}} 的骑行",
+        "noActivity": "无活动"
       },
       "previous": "上周",
       "range": {
@@ -1573,7 +1575,8 @@
         "goesOut": "{{date}} 发送",
         "notSentYet": "尚未发送到 intervals.icu",
         "onIntervals": "已在 intervals.icu 上",
-        "waitingForApprove": "等待批准"
+        "waitingForApprove": "等待批准",
+        "notConnected": "intervals.icu 未连接"
       },
       "subtitle": {
         "ended": "{{name}} · 已结束",

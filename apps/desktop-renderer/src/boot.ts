@@ -168,6 +168,7 @@ export function bootRenderer(): Disposer {
     refreshTrainingContext: async () => {
       rideAnalysisController.invalidate();
       await Promise.all([trainingContextController.refresh(), planController.refresh()]);
+      if (store.getState().activeView === "calendar") store.getState().calendarActions?.refresh();
     },
     intervalsSignInSaved: () =>
       store.getState().onboarding.wizard.credentialStatus["intervals-icu"] === "configured",

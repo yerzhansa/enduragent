@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Extra"
+        "extra": "Extra",
+        "untitled": "Pedalada"
       },
       "column": {
         "trainingWeek": "Semana de treinamento",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Ainda não sincronizado",
         "removedByYou": "Removido por você",
         "rideSynced": "Uma pedalada foi sincronizada",
-        "rideSyncedLength": "Uma pedalada de {{duration}} foi sincronizada"
+        "rideSyncedLength": "Uma pedalada de {{duration}} foi sincronizada",
+        "noActivity": "Sem atividade"
       },
       "previous": "Semana anterior",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Envio em {{date}}",
         "notSentYet": "Ainda não está no intervals.icu",
         "onIntervals": "No intervals.icu",
-        "waitingForApprove": "Aguardando aprovação"
+        "waitingForApprove": "Aguardando aprovação",
+        "notConnected": "O intervals.icu não está conectado"
       },
       "subtitle": {
         "ended": "{{name}} · encerrado",

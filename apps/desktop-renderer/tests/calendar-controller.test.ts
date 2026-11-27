@@ -67,7 +67,7 @@ describe("the calendar controller", () => {
     await retry;
     const refresh = test.controller.refresh();
     expect(test.last()).toMatchObject({ kind: "ready", refresh: "refreshing" });
-    test.replies[2]?.resolve({ status: "refused", reason: "plan-not-found" });
+    test.replies[2]?.resolve({ status: "refused", reason: "no-active-plan" });
     await refresh;
     expect(test.last()).toMatchObject({ kind: "ready", refresh: "failed" });
   });
@@ -80,5 +80,29 @@ describe("the calendar controller", () => {
     expect(test.requests.map((request) => request.startDateKey)).toEqual([
       19971229, 19980105, 19980119,
     ]);
+  });
+
+  it("keeps showing the last read's rows until the next read lands, and after it fails", async () => {
+    const test = harness();
+    const first = test.controller.open();
+    test.replies[0]?.resolve(calendarRead(TODAY, null));
+    await first;
+    const next = test.controller.next();
+    expect(test.last()).toMatchObject({
+      kind: "ready",
+      refresh: "refreshing",
+      range: { firstRowStart: 19980105 },
+    });
+    test.replies[1]?.reject(new Error("offline"));
+    await next;
+    expect(test.last()).toMatchObject({
+      kind: "ready",
+      refresh: "failed",
+      range: { firstRowStart: 19980105 },
+    });
+    void test.controller.refresh();
+    expect(test.requests.at(-1)?.startDateKey).toBe(19980112);
+    void test.controller.open();
+    expect(test.requests.at(-1)?.startDateKey).toBe(19980105);
   });
 });

@@ -949,7 +949,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Extra"
+        "extra": "Extra",
+        "untitled": "Ride"
       },
       "column": {
         "trainingWeek": "Training Week",
@@ -988,6 +989,7 @@
         "missed": "Missed",
         "missedDetail": "{{planned}} · no Activity",
         "moved": "Moved to {{date}}",
+        "noActivity": "No Activity",
         "notSyncedYet": "Not synced yet",
         "removedByYou": "Removed by you",
         "rideSynced": "A ride synced",
@@ -1008,6 +1010,7 @@
       "status": {
         "approveFrom": "Approve from {{date}}",
         "goesOut": "Goes out {{date}}",
+        "notConnected": "intervals.icu is not connected",
         "notSentYet": "Not on intervals.icu yet",
         "onIntervals": "On intervals.icu",
         "waitingForApprove": "Waiting for Approve"

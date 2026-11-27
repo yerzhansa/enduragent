@@ -29,7 +29,7 @@ export function SeasonStrip(props: {
             <span
               key={`${phase.firstWeek}-${phase.text}`}
               className="truncate border-b-2 border-line-2 pb-0.5 text-xs font-semibold text-ink-2"
-              style={{ gridColumn: `${phase.firstWeek} / ${phase.lastWeek + 1}` }}
+              style={{ gridColumn: `${phase.firstWeek} / ${phase.lastWeek + 1}`, gridRow: 1 }}
             >
               {phase.text}
             </span>
@@ -37,7 +37,12 @@ export function SeasonStrip(props: {
           {race === null || props.plan.targetDateKey === null ? null : (
             <span
               className="truncate border-b-2 border-line-2 pb-0.5 text-right text-xs font-semibold text-ink-2"
-              style={{ gridColumn: `${race} / ${race + 1}`, gridRow: 1 }}
+              style={{
+                gridColumn: `${race} / ${race + 1}`,
+                gridRow: phases.some((phase) => race >= phase.firstWeek && race <= phase.lastWeek)
+                  ? 2
+                  : 1,
+              }}
             >
               {say("plan.calendar.season.race", { date: text.dayMonth(props.plan.targetDateKey) })}
             </span>

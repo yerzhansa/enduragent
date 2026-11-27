@@ -1525,7 +1525,8 @@
   "plan": {
     "calendar": {
       "activity": {
-        "extra": "Extra"
+        "extra": "Extra",
+        "untitled": "Volta"
       },
       "column": {
         "trainingWeek": "Semana de treino",
@@ -1567,7 +1568,8 @@
         "notSyncedYet": "Ainda não sincronizado",
         "removedByYou": "Removido por ti",
         "rideSynced": "Uma volta sincronizada",
-        "rideSyncedLength": "Uma volta de {{duration}} sincronizada"
+        "rideSyncedLength": "Uma volta de {{duration}} sincronizada",
+        "noActivity": "Sem atividade"
       },
       "previous": "Semana anterior",
       "range": {
@@ -1586,7 +1588,8 @@
         "goesOut": "Envio a {{date}}",
         "notSentYet": "Ainda não está no intervals.icu",
         "onIntervals": "No intervals.icu",
-        "waitingForApprove": "A aguardar aprovação"
+        "waitingForApprove": "A aguardar aprovação",
+        "notConnected": "O intervals.icu não está ligado"
       },
       "subtitle": {
         "ended": "{{name}} · terminado",

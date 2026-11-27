@@ -152,4 +152,80 @@ describe("the Calendar page", () => {
     render(<CalendarView />);
     expect(screen.getByRole("alert")).toHaveTextContent("The calendar could not load.");
   });
+
+  it("gives each Training Week its totals and status when rows cross weeks", () => {
+    const thursday = 19980108;
+    const weeks = [
+      week(1, thursday, { status: { kind: "passed" }, doneS: 1_800 }),
+      week(2, 19980115, { status: { kind: "waiting-for-first-approve" } }),
+      week(3, 19980122, { status: { kind: "goes-out", onDateKey: 19980115 } }),
+    ];
+    show({
+      kind: "ready",
+      read: calendarRead(19980116, plan(thursday, weeks, []), []),
+      range: { firstRowStart: MONDAY, rowCount: 4 },
+      refresh: "idle",
+    });
+    render(<CalendarView />);
+    const [first, second, third, fourth] = screen.getAllByRole("rowheader");
+    expect(first).toHaveTextContent("Week 1starts Thu 8 Jan30m of 3h 25m");
+    expect(second).toHaveTextContent(
+      "Week 1 → 2Week 2 starts Thu 15 Jan0m of 3h 25mWaiting for Approve",
+    );
+    expect(third).toHaveTextContent(
+      "Week 2 → 3Week 3 starts Thu 22 Jan3h 25m · Plan onlyGoes out Thu 15 Jan",
+    );
+    expect(fourth).toHaveTextContent("Week 3until Wed 28 Jan");
+  });
+
+  it("says when intervals.icu is not connected instead of a send day", () => {
+    const weeks = [
+      week(1, MONDAY, { status: { kind: "due" } }),
+      week(2, 19980112, { status: { kind: "goes-out", onDateKey: 19980105 } }),
+    ];
+    show({
+      kind: "ready",
+      read: { ...calendarRead(19980107, plan(MONDAY, weeks, [])), calendarConnected: false },
+      range: { firstRowStart: MONDAY, rowCount: 2 },
+      refresh: "idle",
+    });
+    render(<CalendarView />);
+    const [first, second] = screen.getAllByRole("rowheader");
+    expect(first).toHaveTextContent("intervals.icu is not connected");
+    expect(second).toHaveTextContent("3h 25m · Plan onlyintervals.icu is not connected");
+  });
+
+  it("shows moved, removed, not synced, not sent and intervals.icu changes over Missed", () => {
+    const workouts = [
+      workout(1, MONDAY, {
+        outcome: { kind: "moved", activityId: "a".repeat(64), toDateKey: 19980106 },
+      }),
+      workout(2, 19980106, { outcome: { kind: "removed-by-you" } }),
+      workout(3, 19980107, { outcome: { kind: "not-synced-yet" } }),
+      workout(4, 19980108, { copy: { kind: "plan-only" }, lastWrite: "failed" }),
+      workout(5, 19980109, {
+        outcome: { kind: "missed" },
+        copy: { kind: "changed-in-intervals", change: "deleted", toDateKey: null },
+      }),
+      workout(6, 19980110, { outcome: { kind: "missed" }, durationS: null }),
+    ];
+    show({
+      kind: "ready",
+      read: calendarRead(19980108, plan(MONDAY, [week(1, MONDAY)], workouts), [
+        activity("b", 19980111, { name: null }),
+      ]),
+      range: { firstRowStart: MONDAY, rowCount: 1 },
+      refresh: "idle",
+    });
+    render(<CalendarView />);
+    const cell = (dateKey: number) => document.querySelector(`[data-date-key="${dateKey}"]`);
+    expect(cell(MONDAY)).toHaveTextContent("Moved to Tue 6 Jan");
+    expect(cell(19980106)).toHaveTextContent("Removed by you");
+    expect(cell(19980107)).toHaveTextContent("Not synced yet");
+    expect(cell(19980108)).toHaveTextContent("Not sent: intervals.icu did not answer");
+    expect(cell(19980109)).toHaveTextContent("Deleted in intervals.icu");
+    expect(cell(19980109)).not.toHaveTextContent("Missed");
+    expect(cell(19980110)).toHaveTextContent("Endurance 6No ActivityMissed");
+    expect(cell(19980111)).toHaveTextContent("Ride");
+  });
 });

@@ -2001,13 +2001,12 @@ export async function createLocalCoachComposition(
       now,
       dateKeyOfMs: (ms: number) =>
         Number(todayInTZ(planningTimezone, new Date(ms)).replaceAll("-", "")),
-    };
-    const drain = createPlanCalendarDrain({
-      ...calendarDeps,
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
-    });
+      changed: () => closing || void drain.kick(),
+    };
+    const drain = createPlanCalendarDrain(calendarDeps);
     const runWindow = runtime.runWindow.bind(runtime);
     runtime.runWindow = async () => {
       const result = await runWindow();
@@ -2283,7 +2282,7 @@ export async function createLocalCoachComposition(
       ...planningRequestOperations,
       "plan.list": kickAfter(planCreationOperations["plan.list"]),
       "plan.close": kickAfter(planCreationOperations["plan.close"]),
-      "plan.calendar": kickAfter(createPlanCalendarOperations(calendarDeps)["plan.calendar"]),
+      "plan.calendar": createPlanCalendarOperations(calendarDeps)["plan.calendar"],
       ...planChangeOperations,
       "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
       "plan.history": planCreationOperations["plan.history"],

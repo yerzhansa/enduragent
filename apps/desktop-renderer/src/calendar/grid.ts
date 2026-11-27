@@ -65,9 +65,9 @@ function shownWorkout(workout: PlanCalendarWorkout): boolean {
 export function calendarRows(read: PlanCalendarRead, range: CalendarRange): readonly CalendarRow[] {
   const plan = read.plan;
   const matched = new Set(
-    (plan?.workouts ?? []).flatMap((workout) =>
-      "activityId" in workout.outcome ? [workout.outcome.activityId] : [],
-    ),
+    (plan?.workouts ?? [])
+      .filter(shownWorkout)
+      .flatMap((workout) => ("activityId" in workout.outcome ? [workout.outcome.activityId] : [])),
   );
   return Array.from({ length: range.rowCount }, (_, row) => {
     const startDateKey = addDays(range.firstRowStart, row * 7);
@@ -86,10 +86,7 @@ export function calendarRows(read: PlanCalendarRead, range: CalendarRange): read
           (workout) => workout.dateKey === dateKey && shownWorkout(workout),
         ),
         activities: read.activities.filter(
-          (activity) =>
-            activity.dateKey === dateKey &&
-            activity.workoutId === null &&
-            !matched.has(activity.activityId),
+          (activity) => activity.dateKey === dateKey && !matched.has(activity.activityId),
         ),
       };
     });
@@ -129,7 +126,11 @@ export type CalendarRowLabel =
       readonly load: number | null;
     };
 
-function timing(startDateKey: number, endDateKey: number, today: number): CalendarTiming {
+export function weekTiming(
+  startDateKey: number,
+  endDateKey: number,
+  today: number,
+): CalendarTiming {
   if (endDateKey < today) return "past";
   return startDateKey > today ? "future" : "current";
 }
@@ -143,7 +144,7 @@ export function rowLabel(row: CalendarRow, today: number): CalendarRowLabel {
     return {
       kind: "training-week",
       week: first,
-      timing: timing(first.startDateKey, first.endDateKey, today),
+      timing: weekTiming(first.startDateKey, first.endDateKey, today),
     };
   }
   if (first !== undefined && first.startDateKey > row.startDateKey) {
@@ -154,7 +155,7 @@ export function rowLabel(row: CalendarRow, today: number): CalendarRowLabel {
   const loads = activities.flatMap((activity) => (activity.load === null ? [] : [activity.load]));
   return {
     kind: "dates",
-    timing: timing(row.startDateKey, row.endDateKey, today),
+    timing: weekTiming(row.startDateKey, row.endDateKey, today),
     durationS: activities.reduce((total, activity) => total + (activity.durationS ?? 0), 0),
     count: activities.length,
     load: loads.length === 0 ? null : loads.reduce((total, load) => total + load, 0),
@@ -174,6 +175,19 @@ export interface SeasonWeek {
   readonly current: boolean;
 }
 
+function weekSent(plan: PlanCalendarPlan, week: PlanCalendarWeek): SeasonWeek["sent"] {
+  if (week.status.kind === "on-intervals") return "on-intervals";
+  if (week.status.kind !== "passed") return "plan-only";
+  return plan.workouts.some(
+    (workout) =>
+      workout.dateKey >= week.startDateKey &&
+      workout.dateKey <= week.endDateKey &&
+      workout.copy.kind !== "plan-only",
+  )
+    ? "on-intervals"
+    : "plan-only";
+}
+
 export function seasonWeeks(plan: PlanCalendarPlan): readonly SeasonWeek[] {
   return plan.weeks.map((week) => ({
     week,
@@ -182,21 +196,16 @@ export function seasonWeeks(plan: PlanCalendarPlan): readonly SeasonWeek[] {
         (workout) =>
           workout.dateKey >= week.startDateKey &&
           workout.dateKey <= week.endDateKey &&
-          workout.outcome.kind !== "removed-by-you",
+          workout.outcome.kind !== "removed-by-you" &&
+          shownWorkout(workout),
       )
       .sort((left, right) => left.dateKey - right.dateKey)
       .map((workout) => ({
         workoutId: workout.id,
         plannedS: workout.durationS ?? 0,
-        doneS:
-          workout.outcome.kind === "done-as-planned" || workout.outcome.kind === "done-differently"
-            ? (workout.outcome.actualDurationS ?? workout.durationS ?? 0)
-            : 0,
+        doneS: workout.doneS,
       })),
-    sent:
-      week.status.kind === "on-intervals" || week.status.kind === "passed"
-        ? "on-intervals"
-        : "plan-only",
+    sent: weekSent(plan, week),
     current: plan.currentWeek === week.index,
   }));
 }

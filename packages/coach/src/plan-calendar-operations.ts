@@ -19,6 +19,7 @@ export function createPlanCalendarOperations(deps: {
   readonly now: () => number;
   readonly calendarConnected: () => boolean;
   readonly dateKeyOfMs: (ms: number) => number;
+  readonly changed: () => void;
 }): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const plans = createLegacyPlanRepository(deps.store);
@@ -40,9 +41,10 @@ export function createPlanCalendarOperations(deps: {
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
         case "save-settings":
           await mirror.writeWeekDeliverySetting(request.weekDelivery, deps.now());
+          deps.changed();
           return { status: "settings", weekDelivery: request.weekDelivery };
-        case "approve-weeks":
-          return deps.store.transaction(async () => {
+        case "approve-weeks": {
+          const approved = await deps.store.transaction(async () => {
             const active = await deps.store.get(
               "SELECT plan_id FROM planning_plan WHERE plan_id=? AND status='active'",
               [request.planId],
@@ -74,6 +76,9 @@ export function createPlanCalendarOperations(deps: {
                   : [request.scope.week],
             } as const;
           });
+          if (approved.status === "approved") deps.changed();
+          return approved;
+        }
       }
     },
   };
