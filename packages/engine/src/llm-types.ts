@@ -12,8 +12,18 @@ export function cacheTokenDetails(
     | undefined;
 }
 
+export type UsageFieldsSource = Pick<
+  GenerateResult,
+  | "totalUsage"
+  | "providerReportedCostUsd"
+  | "catalogRevision"
+  | "cacheReadSavingsUsd"
+  | "costBasis"
+  | "cost"
+>;
+
 export function usageFieldsFromResult(
-  result: GenerateResult,
+  result: UsageFieldsSource,
 ): Pick<
   UsageLedgerLine,
   | "inputTokens"

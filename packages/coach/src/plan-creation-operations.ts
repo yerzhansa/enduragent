@@ -120,6 +120,7 @@ export function createPlanCreationOperations(input: {
   eventSources: { read(): Promise<PlanChangeEventSource[]> };
   baselineEvidence?: BaselineEvidenceSource;
   calendarConnected?: () => boolean;
+  intervalsConfigured?: () => boolean;
   legacyPlan?: () => Promise<LegacyPlanSummary | null>;
   translator?: IntentTranslationPort;
   language?: (text: string) => Promise<string>;
@@ -138,6 +139,7 @@ export function createPlanCreationOperations(input: {
   const timezone = input.timezone ?? (() => "UTC");
   const now = input.now ?? Date.now;
   const calendarConnected = input.calendarConnected ?? (() => false);
+  const intervalsConfigured = input.intervalsConfigured ?? calendarConnected;
   const legacyPlan = input.legacyPlan ?? (async () => null);
   const stamp = async (commandId: string, digest: string) => {
     const clock = input.identity.hlcStamp();
@@ -302,12 +304,10 @@ export function createPlanCreationOperations(input: {
         error: null,
       };
     }
-    if (!calendarConnected()) {
+    if (!calendarConnected())
       return { status: "not-connected", window, currentThrough: null, error: null };
-    }
-    if (job === undefined || job.status === "pending") {
+    if (job === undefined || job.status === "pending")
       return { status: "pending", window, currentThrough: null, error: null };
-    }
     if (job.status === "failed") {
       const error = job.kind === "mirror" ? "Calendar sync failed." : "Calendar cleanup failed.";
       const retry = job.kind === "cleanup" || job.failureCount < 5 ? " Retry available." : "";
@@ -358,7 +358,7 @@ export function createPlanCreationOperations(input: {
       const { retryCalendar } = ListPlansParamsSchema.parse(request);
       await checks.ready();
       const legacy = await legacyPlan();
-      const sources = calendarConnected() ? await input.eventSources.read() : [];
+      const sources = intervalsConfigured() ? await input.eventSources.read() : [];
       return input.store.transaction(async () => {
         const transactionStore = {
           exec: (sql: string) => input.store.exec(sql),
@@ -447,7 +447,7 @@ export function createPlanCreationOperations(input: {
             active === null
               ? null
               : await readPlanChangesPaused({
-                  calendarConnected: async () => calendarConnected(),
+                  calendarConnected: async () => intervalsConfigured(),
                   syncStatus: () =>
                     createPlanWorkoutMatchRepository(transactionStore).readSyncStatus(),
                   now,

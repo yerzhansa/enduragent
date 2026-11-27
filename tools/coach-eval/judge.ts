@@ -129,6 +129,7 @@ export function createJudge(input: JudgeInput): Judge {
     ...host,
     usage: {
       append: (line) => {
+        if (line.outcome === "error" && input.meter.takeRefusedCall()) return;
         usage.push(line);
         if (line.kind === "generate") input.meter.record(line);
       },

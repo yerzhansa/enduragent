@@ -30,6 +30,7 @@ import type {
 import { acquireWriteLock } from "../../../../packages/kernel-node/src/lock/index.js";
 import { createHealthzRequestHandler } from "../../../../packages/coach/src/daemon/healthz-server.js";
 import { createCoachRpcServer } from "../../../../packages/coach/src/daemon/rpc-server.js";
+import type { InvocationCoordinator } from "../../../../packages/coach/src/daemon/invocation-coordinator.js";
 import type { DesktopTelegramController } from "../../../../packages/coach/src/desktop-telegram-controller.js";
 import { connectCdp, reservePort, waitForPage } from "../../scripts/support/desktop-cdp.js";
 import { DESKTOP_RENDERER_URL } from "../../src/main/constants.js";
@@ -248,6 +249,7 @@ export async function launchDesktopFixture(input: {
   readonly seedConfig?: boolean;
   readonly sessionTimezonePinned?: false | "embedded" | "legacy";
   readonly extraEnv?: Readonly<Record<string, string>>;
+  readonly invocations?: InvocationCoordinator;
 }): Promise<RunningDesktopFixture> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(input.token)) throw new TypeError("invalid fixture token");
   if (!existsSync(join(desktopRoot, "out/main/index.js"))) {
@@ -680,6 +682,7 @@ export async function launchDesktopFixture(input: {
     token: input.token,
     athleteHome,
     owner: "unmanaged-foreground",
+    invocations: input.invocations,
   });
   const binding = await lock.listener.bind({
     request: createHealthzRequestHandler({ appVersion: "0.0.1" }),

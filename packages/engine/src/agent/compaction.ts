@@ -25,10 +25,6 @@ import type { TurnBudget } from "./turn-budget.js";
 
 type GenerateCallCharger = Pick<TurnBudget, "chargeGenerateCall">;
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 const MAX_SUMMARY_CHARS = 4_000;
 const SUMMARY_TRUNCATED_MARKER = "\n\n[Summary truncated]";
 const MAX_SUMMARY_TOKENS = 1000;
@@ -43,10 +39,6 @@ const REQUIRED_SUMMARY_SECTIONS = [
   "## Discussion Context",
   "## Pending Questions",
 ] as const;
-
-// ============================================================================
-// PROMPT BUILDERS
-// ============================================================================
 
 function resolveTokens(
   spec: SportMemoryShape["mustPreserveTokens"],
@@ -72,9 +64,8 @@ export function resolveMustPreserveTokens(
 }
 
 function buildMustPreserveBlock(tokens: readonly string[]): string {
-  const tokensClause = tokens.length > 0
-    ? `\n\nPreserve these literal tokens exactly: ${tokens.join(", ")}.`
-    : "";
+  const tokensClause =
+    tokens.length > 0 ? `\n\nPreserve these literal tokens exactly: ${tokens.join(", ")}.` : "";
   return `MUST PRESERVE:
 - Athlete profile details (FTP, weight, experience, schedule, goals)
 - Current training plan status and phase
@@ -94,9 +85,6 @@ PRIORITIZE recent context over older history.
 The coach needs to know what was being discussed, not just what topics were covered.${tokensClause}`;
 }
 
-// This block must stay at or above COMPACTION_PROMPT_MIN_CHARS: below the
-// provider's minimum cacheable prefix (4096 tokens) the compaction lane
-// silently stops caching, and the size is asserted by a unit test.
 export const COMPACTION_PROMPT_MIN_CHARS = 18_000;
 
 const COMPACTION_PROMPT_CORE = `You are the conversation-compaction summarizer for an endurance-coaching assistant. Older chat messages are about to be dropped from the coach's context window, and the summary you produce becomes the ONLY record of them the coach will ever see again. Anything you omit is gone for good. Anything you invent will be treated as fact by the coach in every later conversation and may end up steering a real athlete's training. Accuracy beats brevity, specifics beat generalities, and the athlete's own numbers beat everything else.
@@ -296,7 +284,9 @@ function buildUserMessage(
       ? `Existing summary of earlier context:\n${carried}`
       : "",
     `${transcriptLabel}\n${transcript}`,
-  ].filter((s) => s !== "").join("\n\n");
+  ]
+    .filter((s) => s !== "")
+    .join("\n\n");
 }
 
 function buildStagesUserMessage(carried: string | undefined, transcript: string): string {
@@ -321,12 +311,6 @@ function buildRestructureUserMessage(missing: string[], best: string): string {
   return `Restructure the following summary to include ALL required section headings: ${missing.join(", ")}.\n\n${best}`;
 }
 
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-// Exported for the compaction quality gate, which must scope its MUST-PRESERVE
-// check against the exact transcript text the summarizer prompt carries.
 export function formatTranscript(messages: ModelMessage[]): string {
   return messages.map((m) => `${m.role}: ${messageText(m)}`).join("\n");
 }
@@ -343,6 +327,7 @@ async function generateSummaryWithTimeout(
     userContent: string;
     maxOutputTokens: number;
     caller?: GenerateOptions["caller"];
+    turnId?: string;
     budget?: GenerateCallCharger;
   },
 ): Promise<string> {
@@ -420,10 +405,6 @@ function computeAdaptiveChunks(
   return chunkMessagesByMaxTokens(messages, maxChunkTokens);
 }
 
-// ============================================================================
-// QUALITY AUDIT
-// ============================================================================
-
 export function auditSummaryQuality(summary: string): { ok: boolean; missing: string[] } {
   const lower = summary.toLowerCase();
   const missing = REQUIRED_SUMMARY_SECTIONS.filter(
@@ -438,9 +419,10 @@ async function finalizeSummary(params: {
   system: string;
   maxRetries: number;
   caller?: GenerateOptions["caller"];
+  turnId?: string;
   budget?: GenerateCallCharger;
 }): Promise<string> {
-  const { llm, system, maxRetries, caller, budget } = params;
+  const { llm, system, maxRetries, caller, turnId, budget } = params;
   let best = capSummary(params.summary);
   const audit = auditSummaryQuality(best);
   if (audit.ok) return best;
@@ -452,6 +434,7 @@ async function finalizeSummary(params: {
         userContent: buildRestructureUserMessage(audit.missing, best),
         maxOutputTokens: MAX_SUMMARY_TOKENS,
         caller,
+        turnId,
         budget,
       });
       const capped = capSummary(text);
@@ -465,10 +448,6 @@ async function finalizeSummary(params: {
   return best;
 }
 
-// ============================================================================
-// DROPPED MESSAGE SUMMARIZATION
-// ============================================================================
-
 export async function summarizeDroppedMessages(params: {
   dropped: ModelMessage[];
   llm: LLM;
@@ -479,13 +458,26 @@ export async function summarizeDroppedMessages(params: {
   maxRetries?: number;
   contextWindowTokens?: number;
   caller?: GenerateOptions["caller"];
+  turnId?: string;
   budget?: GenerateCallCharger;
 }): Promise<{
   summary: string;
   unsummarized: ModelMessage[];
   provenance?: SourceProvenance;
 }> {
-  const { dropped, llm, mustPreserveTokens, memory, previousSummary, previousSummaryProvenance, maxRetries = 1, contextWindowTokens, caller, budget } = params;
+  const {
+    dropped,
+    llm,
+    mustPreserveTokens,
+    memory,
+    previousSummary,
+    previousSummaryProvenance,
+    maxRetries = 1,
+    contextWindowTokens,
+    caller,
+    turnId,
+    budget,
+  } = params;
 
   if (dropped.length === 0) return { summary: previousSummary ?? "", unsummarized: [] };
 
@@ -493,7 +485,6 @@ export async function summarizeDroppedMessages(params: {
   const system = buildCompactionSystemPrompt(tokens);
 
   const chunks = computeAdaptiveChunks(dropped, contextWindowTokens);
-  // Fallback: if adaptive chunking returns empty (shouldn't happen), use single chunk
   if (chunks.length === 0) chunks.push(dropped);
 
   let summary: string | undefined;
@@ -514,6 +505,7 @@ export async function summarizeDroppedMessages(params: {
         userContent: buildDroppedUserMessage(carriedSummary, transcript),
         maxOutputTokens: MAX_SUMMARY_TOKENS,
         caller,
+        turnId,
         budget,
       });
       summary = text;
@@ -533,15 +525,11 @@ export async function summarizeDroppedMessages(params: {
   }
 
   return {
-    summary: await finalizeSummary({ summary, llm, system, maxRetries, caller, budget }),
+    summary: await finalizeSummary({ summary, llm, system, maxRetries, caller, turnId, budget }),
     unsummarized,
     provenance: summaryProvenance,
   };
 }
-
-// ============================================================================
-// SUMMARIZE IN STAGES
-// ============================================================================
 
 export async function summarizeInStages(params: {
   messages: ModelMessage[];
@@ -552,9 +540,19 @@ export async function summarizeInStages(params: {
   previousSummary?: string;
   contextWindowTokens?: number;
   caller?: GenerateOptions["caller"];
+  turnId?: string;
   budget?: GenerateCallCharger;
 }): Promise<{ messages: ModelMessage[]; summary?: string; summaryProvenance?: SourceProvenance }> {
-  const { llm, mustPreserveTokens, memory, recentToKeep = 4, contextWindowTokens, caller, budget } = params;
+  const {
+    llm,
+    mustPreserveTokens,
+    memory,
+    recentToKeep = 4,
+    contextWindowTokens,
+    caller,
+    turnId,
+    budget,
+  } = params;
 
   let messages = params.messages;
   let previousSummary = params.previousSummary;
@@ -588,7 +586,6 @@ export async function summarizeInStages(params: {
 
   const chunks = computeAdaptiveChunks(toSummarize, contextWindowTokens);
 
-  // Thread previousSummary through chunk loop
   let summary = previousSummary;
   const unsummarized: ModelMessage[] = [];
   for (const [index, chunk] of chunks.entries()) {
@@ -600,6 +597,7 @@ export async function summarizeInStages(params: {
         userContent: buildStagesUserMessage(summary, transcript),
         maxOutputTokens: MAX_SUMMARY_TOKENS,
         caller,
+        turnId,
         budget,
       });
       summary = text;
@@ -628,6 +626,7 @@ export async function summarizeInStages(params: {
     system,
     maxRetries: 1,
     caller,
+    turnId,
     budget,
   });
   const durableProvenance = summaryProvenance ?? UNKNOWN_PROVENANCE;

@@ -122,7 +122,7 @@ describe("Astra public Responses compatibility", () => {
     expect(result.cost).toBeUndefined();
   });
 
-  it("surfaces a terminal stream failure without a success result or retry", async () => {
+  it("surfaces a terminal stream failure as one error row without a success result or retry", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
@@ -135,11 +135,20 @@ describe("Astra public Responses compatibility", () => {
     await expect(
       new LLM(config, { ...llmTestPorts(), usage: { append } }).generate({
         caller: "chat",
+        turnId: "turn-astra",
         prompt: "Hi",
       }),
     ).rejects.toBeDefined();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(append).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        kind: "generate",
+        turnId: "turn-astra",
+        outcome: "error",
+        errorClass: "unknown",
+      }),
+    );
+    expect(append.mock.calls[0]?.[0]).not.toHaveProperty("stopReason");
   });
 
   it("correlates a tool result with its original call across real SDK requests", async () => {
