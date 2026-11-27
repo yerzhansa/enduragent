@@ -103,7 +103,7 @@ describe("the Plan details controller", () => {
     [{ status: "rejected", reason: "stale-version" } as const, "changed"],
     [new Error("offline"), "unavailable"],
   ])(
-    "keeps the confirm open and puts the choice back when ending fails (%j)",
+    "keeps the confirm open, and saves the choice only once, when ending fails (%j)",
     async (reply, reason) => {
       const test = harness(reply);
       await test.controller.open(PLAN);
@@ -111,11 +111,17 @@ describe("the Plan details controller", () => {
       test.controller.setRemoveChanges(true);
       await test.controller.confirmEnd();
       expect(test.last()).toMatchObject({ end: { kind: "failed", reason, removeChanges: true } });
-      expect(test.call).toHaveBeenLastCalledWith({
-        action: "save-end-choice",
-        planId: PLAN,
-        ticked: [],
-      });
+      expect(
+        test.call.mock.calls.filter(([request]) => request.action === "save-end-choice"),
+      ).toEqual([
+        [
+          {
+            action: "save-end-choice",
+            planId: PLAN,
+            ticked: [DETAILS.ending.athleteChanges[0]?.tick],
+          },
+        ],
+      ]);
       expect(test.ended).not.toHaveBeenCalled();
     },
   );

@@ -1065,9 +1065,10 @@ describe("Plan calendar drain", () => {
     const editedWorkout = edited.externalId?.split(":").at(-1) ?? "";
     test.calendar.editByAthlete(edited.id, { durationS: 1_800 });
     await test.drain.kick();
-    expect(
-      await choose(test, "keep-change", { planId, planWorkoutId: editedWorkout }),
-    ).toEqual({ status: "change-resolved", outcome: "kept" });
+    expect(await choose(test, "keep-change", { planId, planWorkoutId: editedWorkout })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
     const details = await test.calendarOperations["plan.calendar"]({
       action: "plan-details",
       planId,
@@ -1130,6 +1131,38 @@ describe("Plan calendar drain", () => {
     expect(test.calendar.events.map((event) => event.id).sort()).toEqual(
       [...todayEvents.map((event) => event.id), kept.id].sort(),
     );
+  });
+
+  it("keeps the athlete's changes on Replace even when a failed End left them ticked", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const edited = test.calendar.events
+      .filter((event) => event.dateKey > test.today())
+      .sort((left, right) => left.dateKey - right.dateKey)[0];
+    if (edited === undefined) throw new Error("Expected a later event");
+    test.calendar.editByAthlete(edited.id, { name: "My own ride" });
+    await test.drain.kick();
+    const details = await test.calendarOperations["plan.calendar"]({
+      action: "plan-details",
+      planId,
+    });
+    if (details.status !== "plan-details") throw new Error("Expected Plan details");
+    const ticks = details.ending.athleteChanges.map((entry) => entry.tick);
+    expect(ticks.map((tick) => tick.eventId)).toEqual([edited.id]);
+    await test.calendarOperations["plan.calendar"]({
+      action: "save-end-choice",
+      planId,
+      ticked: ticks,
+    });
+    const replacement = await test.activate();
+    expect(replacement.closedPlanId).toBe(planId);
+    await test.drain.kick();
+    expect(
+      test.calendar.events.find((event) => event.id === edited.id)?.name,
+      "the athlete's own edit after Replace",
+    ).toBe("My own ride");
   });
 
   it("does nothing when the calendar is disconnected", async () => {

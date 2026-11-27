@@ -113,7 +113,6 @@ export function createDetailsController(deps: {
           expectedVersion: details.version,
         });
       } catch {
-        await saveChoice(details.planId, []).catch(() => undefined);
         withEnd({ kind: "failed", removeChanges, reason: "unavailable" });
         return;
       }
@@ -122,7 +121,6 @@ export function createDetailsController(deps: {
         deps.ended();
         return;
       }
-      await saveChoice(details.planId, []).catch(() => undefined);
       withEnd({ kind: "failed", removeChanges, reason: "changed" });
     },
   };
