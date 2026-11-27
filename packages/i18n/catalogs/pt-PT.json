@@ -1079,7 +1079,8 @@
       "feedbackFailed": "Não foi possível enviar essa nota. Continua na caixa — tenta novamente.",
       "feedbackSent": "Obrigado — recebemos a tua nota.",
       "feedbackTooLong": "Mantém a nota em 4000 caracteres ou menos. Nada foi enviado.",
-      "feedbackUsage": "Envia /feedback seguido da tua nota."
+      "feedbackUsage": "Envia /feedback seguido da tua nota.",
+      "addCredits": "Adicionar créditos"
     },
     "planChange": {
       "activePlan": "Plano ativo",
@@ -2671,6 +2672,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejeitou o pedido. Verifica a tua ligação a {{service}} ou a chave de API.",
       "intervalsTransient": "Não consegui contactar {{service}} agora. Tenta novamente daqui a pouco.",
+      "openRouterCredits": "A tua conta de {{openrouter}} não tem créditos suficientes. Adiciona créditos em {{openrouter}} e envia a tua mensagem novamente.",
       "providerCredentials": "O fornecedor do modelo rejeitou a chave de API. Verifica as tuas credenciais do fornecedor.",
       "providerDown": "O fornecedor do modelo está com dificuldades. Tenta novamente daqui a uns minutos.",
       "rateLimit": "Limite de pedidos atingido. Tenta novamente daqui a pouco.",

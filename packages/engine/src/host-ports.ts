@@ -458,6 +458,7 @@ export type FailureReason =
   | "network"
   | "auth"
   | "reauth"
+  | "payment_required"
   | "invalid_request"
   | "unknown";
 

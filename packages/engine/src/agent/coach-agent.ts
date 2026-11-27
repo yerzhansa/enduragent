@@ -1930,10 +1930,17 @@ export class CoachAgent {
                   kind: "provider-down" as const,
                   message: msg("coach.error.providerDown"),
                 }
-              : {
-                  kind: "unknown" as const,
-                  message: msg("coach.error.unknown"),
-                };
+              : // The kind names OpenRouter because Chat links it to OpenRouter's
+                // credits page; a 402 from any other provider stays generic.
+                failure === "payment_required" && this.config.models.chat.provider === "openrouter"
+                ? {
+                    kind: "openrouter-credits" as const,
+                    message: msg("coach.error.openRouterCredits", { openrouter: "OpenRouter" }),
+                  }
+                : {
+                    kind: "unknown" as const,
+                    message: msg("coach.error.unknown"),
+                  };
     return {
       type: "error",
       turnId: input.turnId,

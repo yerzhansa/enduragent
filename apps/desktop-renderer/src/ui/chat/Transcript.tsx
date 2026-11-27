@@ -28,6 +28,7 @@ import { HistoryControls } from "./HistoryControls";
 import { PlanReferenceCard } from "./PlanReferenceCard";
 import { StreamingMessage } from "./StreamingMessage";
 import { PlanCreationConversation, PlanCreationDiscardConsequence } from "./PlanCreationCards";
+import { AddOpenRouterCreditsButton } from "./Notice";
 import { useWireMessageText } from "./use-wire-message-text";
 
 function planHandoffSummary(suggestion: PlanHandoffSuggestion): Message {
@@ -81,7 +82,8 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
   return (
     <div className="flex min-w-0 items-center gap-inset">
       <CircleAlert className="size-3.5 shrink-0 text-danger" aria-hidden="true" />
-      {error == null ? null : (
+      {/* The credits callout under the message announces its own visible copy. */}
+      {error == null || props.message.addCredits === true ? null : (
         <span className="sr-only" role="alert">
           {text}
         </span>
@@ -109,6 +111,19 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
   );
 }
 
+function OpenRouterCreditsCallout(props: { readonly message: ChatMessageView }): ReactElement {
+  const text = useWireMessageText(props.message.error ?? "", props.message.errorMessage);
+  return (
+    <div className="chat-credits-notice flex flex-wrap items-center justify-between gap-inset rounded-ctl border border-danger/40 bg-surface p-row text-sm leading-5 text-danger">
+      <span className="flex min-w-0 items-center gap-inset">
+        <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+        <span role="alert">{text}</span>
+      </span>
+      <AddOpenRouterCreditsButton />
+    </div>
+  );
+}
+
 function MessageRow(props: {
   readonly message: ChatMessageView;
   readonly bufferedStreaming: boolean;
@@ -126,7 +141,7 @@ function MessageRow(props: {
   const streaming = message.role === "coach" && message.delivery === "streaming";
   const silent = message.historical || message.role === "athlete";
 
-  return (
+  const turn = (
     <ChatTurn
       speaker={message.role}
       label={
@@ -197,6 +212,15 @@ function MessageRow(props: {
         </div>
       )}
     </ChatTurn>
+  );
+  if (message.role !== "athlete" || message.retry !== true || message.addCredits !== true) {
+    return turn;
+  }
+  return (
+    <div className="grid gap-inset">
+      {turn}
+      <OpenRouterCreditsCallout message={message} />
+    </div>
   );
 }
 

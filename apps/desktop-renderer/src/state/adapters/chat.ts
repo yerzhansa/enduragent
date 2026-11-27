@@ -122,10 +122,12 @@ type TurnRecovery = {
   readonly messageId: string | null;
   readonly messageError: string | null;
   readonly messageErrorMessage: WireMessage | undefined;
+  readonly messageAddCredits: boolean;
   readonly notice: string | null;
   readonly noticeTone: "danger" | "neutral";
   readonly noticeMessage: WireMessage | undefined;
   readonly noticeRetry: boolean;
+  readonly noticeAddCredits: boolean;
 };
 
 function stampRecoveredMessage(message: ChatMessageView, recovery: TurnRecovery): ChatMessageView {
@@ -137,6 +139,7 @@ function stampRecoveredMessage(message: ChatMessageView, recovery: TurnRecovery)
     ...(recovery.messageErrorMessage === undefined
       ? {}
       : { errorMessage: recovery.messageErrorMessage }),
+    ...(recovery.messageAddCredits ? { addCredits: true as const } : {}),
   };
 }
 
@@ -167,10 +170,12 @@ function projectTurnRecovery(
     messageId: null,
     messageError: null,
     messageErrorMessage: undefined,
+    messageAddCredits: false,
     notice: null,
     noticeTone: "neutral",
     noticeMessage: undefined,
     noticeRetry: false,
+    noticeAddCredits: false,
   };
   const planDanger = input.planNotice == null && input.planValueMissing && input.planError != null;
   const planNotice = input.planActivated
@@ -178,10 +183,15 @@ function projectTurnRecovery(
     : (input.planNotice ?? (input.planValueMissing ? (input.planError ?? null) : null));
   if (input.decisionBlocksWork) return empty;
   const turnError = state.activeTurn?.error ?? null;
-  const errorNotice: Pick<TurnRecovery, "notice" | "noticeTone" | "noticeMessage"> = {
+  const addCredits = turnError?.kind === "openrouter-credits";
+  const errorNotice: Pick<
+    TurnRecovery,
+    "notice" | "noticeTone" | "noticeMessage" | "noticeAddCredits"
+  > = {
     notice: turnError?.athleteMessage ?? planNotice ?? null,
     noticeTone: turnError != null || planDanger ? "danger" : "neutral",
     noticeMessage: turnError?.message,
+    noticeAddCredits: addCredits,
   };
   if (state.status === "streaming") {
     return { ...empty, ...errorNotice };
@@ -193,10 +203,12 @@ function projectTurnRecovery(
       messageId: athleteId,
       messageError: turnError?.athleteMessage ?? null,
       messageErrorMessage: turnError?.message,
+      messageAddCredits: addCredits,
       notice: planNotice,
       noticeTone: planDanger ? "danger" : "neutral",
       noticeMessage: undefined,
       noticeRetry: false,
+      noticeAddCredits: false,
     };
   }
   return {
@@ -596,6 +608,7 @@ export function createChatViewAdapter(input: {
       notice: recovery.notice,
       noticeTone: recovery.noticeTone,
       noticeRetry: recovery.noticeRetry,
+      noticeAddCredits: recovery.noticeAddCredits,
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,
       interrupted: state.status === "interrupted" && !decisionBlocksWork && !planCreationBlocksWork,

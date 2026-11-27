@@ -10011,6 +10011,14 @@
     "sidebar.sync.headline.signInRejected": {
       "sourceHash": "ef5693b67a35f741962ffa928e516b04aaaef3d478356607f80dfb92db7d4627",
       "translatedBy": "model"
+    },
+    "chat.notice.addCredits": {
+      "sourceHash": "d22feb61298be94d7d0c019759aa00a603add7f22d5598356882fb8b4a909346",
+      "translatedBy": "model"
+    },
+    "coach.error.openRouterCredits": {
+      "sourceHash": "e4928f5da9a7fa07a3b0728c08a13ff7afd51f95db0f91fa18756f4dba5d2e83",
+      "translatedBy": "model"
     }
   }
 }

@@ -150,6 +150,9 @@ export function classifyAgentError(
         kind: "provider-down",
         athleteMessage: PROVIDER_DOWN_MESSAGE,
       };
+    // Only the desktop Coach names the provider's credits page; elsewhere a
+    // 402 keeps the generic reply.
+    case "payment_required":
     case "overflow":
     case "invalid_request":
     case "unknown":

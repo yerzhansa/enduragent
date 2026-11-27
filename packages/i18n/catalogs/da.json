@@ -1079,7 +1079,8 @@
       "feedbackFailed": "Noten kunne ikke sendes. Den bliver i feltet — prøv igen.",
       "feedbackSent": "Tak — vi har modtaget din note.",
       "feedbackTooLong": "Hold din note på 4000 tegn eller færre. Der blev ikke sendt noget.",
-      "feedbackUsage": "Send /feedback efterfulgt af din note."
+      "feedbackUsage": "Send /feedback efterfulgt af din note.",
+      "addCredits": "Tilføj kreditter"
     },
     "planChange": {
       "activePlan": "Aktiv træningsplan",
@@ -2828,6 +2829,7 @@
     "error": {
       "intervalsCredentials": "{{service}} afviste anmodningen — tjek din forbindelse til {{service}} eller din API-nøgle.",
       "intervalsTransient": "Jeg kunne ikke kontakte {{service}} lige nu — prøv igen om lidt.",
+      "openRouterCredits": "Din {{openrouter}}-konto har ikke nok kreditter. Tilføj kreditter hos {{openrouter}}, og send derefter din besked igen.",
       "providerCredentials": "Modeludbyderen afviste API-nøglen — tjek dine adgangsoplysninger til udbyderen.",
       "providerDown": "Modeludbyderen har problemer — prøv igen om et par minutter.",
       "rateLimit": "Grænsen for forespørgsler er nået — prøv igen om lidt.",

@@ -12,6 +12,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const descriptor = useEnduragentStore((state) => state.chat.noticeMessage);
   const tone = useEnduragentStore((state) => state.chat.noticeTone);
   const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
+  const noticeAddCredits = useEnduragentStore((state) => state.chat.noticeAddCredits);
   const message = notice === null ? null : chatFeedbackMessage(notice);
   const text = useWireMessageText(
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
@@ -38,6 +39,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
           <span>{text}</span>
         </span>
       ) : null}
+      {noticeAddCredits && hasNoticeText ? <AddOpenRouterCreditsButton /> : null}
       <RetryBar />
     </div>
   );
@@ -63,6 +65,25 @@ export function CoachProgress(): ReactElement | null {
       />
       <span>{label}</span>
     </div>
+  );
+}
+
+// Opens OpenRouter's credits page through the main process; Chat never builds
+// the URL itself.
+export function AddOpenRouterCreditsButton(): ReactElement {
+  const { say } = usePhrasebook();
+  const actions = useEnduragentStore((state) => state.chatActions);
+  return (
+    <Button
+      type="button"
+      className="chat-add-credits shrink-0"
+      variant="outline"
+      size="xs"
+      disabled={actions === null}
+      onClick={() => actions?.openOpenRouterCredits()}
+    >
+      {say("chat.notice.addCredits")}
+    </Button>
   );
 }
 

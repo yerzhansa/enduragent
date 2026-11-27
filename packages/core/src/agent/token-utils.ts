@@ -77,6 +77,7 @@ export type FailureReason =
   | "network"
   | "auth"
   | "reauth"
+  | "payment_required"
   | "invalid_request"
   | "unknown";
 
@@ -114,6 +115,18 @@ export function isAuthError(err: unknown): boolean {
   return APICallError.isInstance(err) && (err.statusCode === 401 || err.statusCode === 403);
 }
 
+// HTTP 402: the provider account cannot pay for the request. OpenRouter sends it
+// as the response status, or as a `{ code: 402 }` error part mid-stream.
+export function isPaymentRequiredError(err: unknown): boolean {
+  if (APICallError.isInstance(err)) return err.statusCode === 402;
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    !(err instanceof Error) &&
+    (err as { code?: unknown }).code === 402
+  );
+}
+
 export function isInvalidRequestError(err: unknown): boolean {
   return APICallError.isInstance(err) && err.statusCode === 400;
 }
@@ -121,6 +134,9 @@ export function isInvalidRequestError(err: unknown): boolean {
 export function classifyFailure(err: unknown): FailureReason {
   const refreshFailureReason = readRefreshFailureReason(err);
   if (refreshFailureReason !== null) return refreshFailureReason;
+  // Ahead of the message-text heuristics, so a provider's credit message can
+  // never read as overflow, timeout or rate limit.
+  if (isPaymentRequiredError(err)) return "payment_required";
   if (isContextOverflowError(err)) return "overflow";
   if (isTimeoutError(err)) return "timeout";
   if (isRateLimitError(err)) return "rate_limit";
