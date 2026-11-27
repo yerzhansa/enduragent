@@ -1714,7 +1714,7 @@ export async function createLocalCoachComposition(
       let ownerSucceeded = false;
       initialRefreshPromise = initialPlanCompletion
         .then(() =>
-          runtime.runWindowAfter(async (signal, fetchOffStoreLane) => {
+          runtime.runWindowAfter(async (signal) => {
             const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
             initializationSignal.throwIfAborted();
             initialRefreshConfigCaptured = true;
@@ -1742,11 +1742,11 @@ export async function createLocalCoachComposition(
                 return replacement;
               },
             );
-            await coachOperations.resumeHistoryDownload(initializationSignal, fetchOffStoreLane);
           }),
         )
         .then(() => {
           if (!closing) void drain.kick();
+          void resumeHistoryDownload(initialRefreshController.signal);
         })
         .finally(() => {
           if (ownerSucceeded && unapprovedConfig.intervals.apiKey.length > 0) {
@@ -1852,7 +1852,7 @@ export async function createLocalCoachComposition(
       credentials: options.liveIntervals,
       sources: trustedActivitySources,
     });
-    const coachOperations = createCoachOperations(
+    const { resumeHistoryDownload, ...coachOperations } = createCoachOperations(
       {
         languagePreference,
         home: input.home,

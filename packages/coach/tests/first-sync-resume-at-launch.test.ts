@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { encodeIntervalsOAuthCredential } from "../../core/src/intervals-credential.js";
+import type { runIntervalsBackfillInWriter } from "../src/backfill.js";
 import {
   createLocalCoachComposition,
   type LocalCoachComposition,
@@ -41,15 +42,52 @@ const COMPLETE_CURSOR = JSON.stringify({
   complete: true,
 });
 
+const HISTORY_DOWNLOADED = {
+  pages: 1,
+  artifacts: 0,
+  reports: [],
+  droppedActivityRows: { sourceRestricted: 0, other: 0, datedLocalDates: [], undatedCount: 0 },
+};
+
+type HistoryDownload = typeof runIntervalsBackfillInWriter;
+
 const cleanups: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
+function slowHistoryDownload() {
+  let finish = (): void => {};
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const download: HistoryDownload = ({ signal }) =>
+    new Promise((resolve, reject) => {
+      void finished.then(() => resolve(HISTORY_DOWNLOADED));
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  return { download, finish };
+}
+
 function captureRuntime() {
   const ledger = createPhysicalRequestLedger({ storeLimit: 64, legacyLimit: 15, totalLimit: 79 });
   const windows: string[] = [];
+  const inFlight = new Set<Promise<unknown>>();
+  const track = <T>(work: Promise<T>): Promise<T> => {
+    inFlight.add(work);
+    void work.then(
+      () => inFlight.delete(work),
+      () => inFlight.delete(work),
+    );
+    return work;
+  };
+  const settled = async (): Promise<void> => {
+    do {
+      await Promise.allSettled(inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+    } while (inFlight.size > 0);
+  };
   const offStoreLaneFetch: typeof globalThis.fetch = async () => {
     throw new Error("synthetic history download does not fetch");
   };
@@ -63,7 +101,7 @@ function captureRuntime() {
     };
   };
   const runExclusive: LocalStoreRuntime["runExclusive"] = (work) =>
-    work(new AbortController().signal);
+    track(work(new AbortController().signal));
   const runtime: LocalStoreRuntime = {
     athleteData: {
       async getAthlete() {
@@ -91,10 +129,13 @@ function captureRuntime() {
     currentDroppedActivities: () => EMPTY_DROPPED,
     attemptLedgerForRun: () => ledger,
     runWindow: capture,
-    async runWindowAfter(work) {
-      await work(new AbortController().signal, offStoreLaneFetch);
-      return capture();
-    },
+    runWindowAfter: (work) =>
+      track(
+        (async () => {
+          await work(new AbortController().signal, offStoreLaneFetch);
+          return capture();
+        })(),
+      ),
     runExclusive,
     runOutsideWindow: runExclusive,
     async runActivityWrite(work) {
@@ -103,10 +144,13 @@ function captureRuntime() {
     startScheduler() {},
     async close() {},
   };
-  return { runtime, windows, offStoreLaneFetch };
+  return { runtime, windows, offStoreLaneFetch, settled };
 }
 
-async function relaunchedCoach(savedHistoryCursor: string | null) {
+async function relaunchedCoach(
+  savedHistoryCursor: string | null,
+  download: HistoryDownload = async () => HISTORY_DOWNLOADED,
+) {
   const root = await mkdtemp(join(await realpath(tmpdir()), "first-sync-resume-"));
   cleanups.push(() => rm(root, { recursive: true, force: true }));
   const home = {
@@ -143,12 +187,7 @@ async function relaunchedCoach(savedHistoryCursor: string | null) {
     dataDir: root,
   };
   const captures = captureRuntime();
-  const historyDownloads = vi.fn(async () => ({
-    pages: 1,
-    artifacts: 0,
-    reports: [],
-    droppedActivityRows: { sourceRestricted: 0, other: 0, datedLocalDates: [], undatedCount: 0 },
-  }));
+  const historyDownloads = vi.fn(download);
   const catalog = bundledAcceptedCatalog();
   const lifecycle: LocalCoachComposition = await createLocalCoachComposition(
     {
@@ -187,18 +226,30 @@ async function relaunchedCoach(savedHistoryCursor: string | null) {
     },
   );
   cleanups.push(() => lifecycle.close());
-  return { lifecycle, historyDownloads, captures };
+  const loggedEvents = async (): Promise<string[]> => {
+    const log = await readFile(join(root, "logs", "log.jsonl"), "utf8").catch(() => "");
+    return log
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => (JSON.parse(line) as { event: string }).event);
+  };
+  return { lifecycle, historyDownloads, captures, loggedEvents };
 }
 
-async function launch(app: Awaited<ReturnType<typeof relaunchedCoach>>, apiKey: string) {
+async function signIn(app: Awaited<ReturnType<typeof relaunchedCoach>>, apiKey: string) {
   await expect(
     app.lifecycle.operations.configureRuntime({ intervals: { api_key: apiKey } }),
   ).resolves.toMatchObject({ status: "applied" });
+}
+
+async function launch(app: Awaited<ReturnType<typeof relaunchedCoach>>, apiKey: string) {
+  await signIn(app, apiKey);
   await app.lifecycle.startInitialRefresh();
+  await app.captures.settled();
 }
 
 describe("quitting during the first sync", () => {
-  it("finishes the unfinished history download in the startup refresh", async () => {
+  it("finishes the unfinished history download after the launch snapshot", async () => {
     const app = await relaunchedCoach(IN_PROGRESS_CURSOR);
 
     await launch(app, "synthetic-key");
@@ -212,7 +263,67 @@ describe("quitting during the first sync", () => {
         signal: expect.any(AbortSignal),
       }),
     );
+    expect(app.captures.windows).toEqual(["captured", "captured"]);
+  });
+
+  it("publishes the launch snapshot before a slow history download finishes", async () => {
+    const slow = slowHistoryDownload();
+    const app = await relaunchedCoach(IN_PROGRESS_CURSOR, slow.download);
+    await signIn(app, "synthetic-key");
+
+    const launched = app.lifecycle.startInitialRefresh();
+    try {
+      await vi.waitFor(() => expect(app.captures.windows).toEqual(["captured"]));
+      expect(app.historyDownloads).toHaveBeenCalledOnce();
+    } finally {
+      slow.finish();
+    }
+
+    await expect(launched).resolves.toBeUndefined();
+    await app.captures.settled();
+    expect(app.captures.windows).toEqual(["captured", "captured"]);
+  });
+
+  it.each([
+    [
+      "the history download fails",
+      IN_PROGRESS_CURSOR,
+      async () => {
+        throw new Error("synthetic history download failure");
+      },
+    ],
+    ["the saved history cursor does not parse", "{", async () => HISTORY_DOWNLOADED],
+  ])(
+    "still publishes the launch snapshot when %s",
+    async (_failure, savedHistoryCursor, download: HistoryDownload) => {
+      const app = await relaunchedCoach(savedHistoryCursor, download);
+      await signIn(app, "synthetic-key");
+
+      const launched = app.lifecycle.startInitialRefresh();
+      await expect(launched).resolves.toBeUndefined();
+      await app.captures.settled();
+
+      expect(app.captures.windows).toEqual(["captured"]);
+      expect(app.lifecycle.startInitialRefresh()).toBe(launched);
+      expect(await app.loggedEvents()).toContain("history_download_resume_failed");
+      expect(await app.loggedEvents()).not.toContain("initial_store_refresh_failed");
+    },
+  );
+
+  it("stops the resumed history download when the app quits", async () => {
+    const slow = slowHistoryDownload();
+    const app = await relaunchedCoach(IN_PROGRESS_CURSOR, slow.download);
+    await signIn(app, "synthetic-key");
+    const launched = app.lifecycle.startInitialRefresh();
+    await vi.waitFor(() => expect(app.historyDownloads).toHaveBeenCalledOnce());
+
+    await app.lifecycle.close();
+    await app.captures.settled();
+
+    await expect(launched).resolves.toBeUndefined();
+    expect(app.historyDownloads.mock.calls[0]?.[0].signal?.aborted).toBe(true);
     expect(app.captures.windows).toEqual(["captured"]);
+    expect(await app.loggedEvents()).not.toContain("history_download_resume_failed");
   });
 
   it.each([
@@ -237,6 +348,7 @@ describe("quitting during the first sync", () => {
 
     recordIntervalsCredentialResponse(signedIn, 401);
     await app.lifecycle.startInitialRefresh();
+    await app.captures.settled();
 
     expect(app.historyDownloads).not.toHaveBeenCalled();
     expect(app.captures.windows).toEqual(["captured"]);

@@ -66,7 +66,7 @@ import {
 } from "@enduragent/kernel/store";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { importFilesWithReport } from "@enduragent/kernel-node/ingest";
-import { isIntervalsCredentialRejected } from "@enduragent/core";
+import { createSubsystemLogger, isIntervalsCredentialRejected } from "@enduragent/core";
 import type { ImportReport } from "@enduragent/kernel/ingest";
 import { runIntervalsBackfillInWriter } from "./backfill.js";
 import { readBackfillState } from "./backfill-state.js";
@@ -118,10 +118,7 @@ export interface CreateCoachOperationsInput {
 }
 
 export interface LocalCoachOperations extends CoachOperations {
-  resumeHistoryDownload(
-    signal: AbortSignal,
-    fetchOffStoreLane: typeof globalThis.fetch,
-  ): Promise<void>;
+  resumeHistoryDownload(signal: AbortSignal): Promise<void>;
 }
 
 export interface CoachOperationsDependencies {
@@ -221,6 +218,12 @@ export function createCoachOperations(
       signal,
       baseFetch: fetchOffStoreLane,
     });
+  const resumableHistoryCredentials = async (signal: AbortSignal) => {
+    signal.throwIfAborted();
+    const credentials = await input.intervalsCredentials.read();
+    if (!isIntervalsCredentialUsable(credentials.apiKey)) return undefined;
+    return (await readBackfillState(store)).kind === "in-progress" ? credentials : undefined;
+  };
 
   const deliver = (
     onEvent: ((event: OperationProgressEvent) => void) | undefined,
@@ -300,11 +303,23 @@ export function createCoachOperations(
           return result;
         });
     },
-    async resumeHistoryDownload(signal, fetchOffStoreLane): Promise<void> {
-      const credentials = await input.intervalsCredentials.read();
-      if (!isIntervalsCredentialUsable(credentials.apiKey)) return;
-      if ((await readBackfillState(store)).kind !== "in-progress") return;
-      await downloadHistory(credentials, signal, fetchOffStoreLane);
+    async resumeHistoryDownload(signal): Promise<void> {
+      try {
+        const pending = await input.runtime.runExclusive(() => resumableHistoryCredentials(signal));
+        if (pending === undefined) return;
+        await input.runtime.runWindowAfter(async (windowSignal, fetchOffStoreLane) => {
+          const resumeSignal = AbortSignal.any([signal, windowSignal]);
+          const credentials = await resumableHistoryCredentials(resumeSignal);
+          if (credentials === undefined) return;
+          await downloadHistory(credentials, resumeSignal, fetchOffStoreLane);
+        });
+      } catch (error) {
+        if (signal.aborted) return;
+        createSubsystemLogger("sync", input.home.root).error(
+          "history_download_resume_failed",
+          error,
+        );
+      }
     },
     getSetupStatus(request: GetSetupStatusRpcParams): Promise<GetSetupStatusRpcResult> {
       GetSetupStatusRpcParamsSchema.parse(request);
