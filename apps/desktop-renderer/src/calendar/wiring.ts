@@ -29,11 +29,12 @@ export function startCalendar(
     },
   });
   const approve = createApproveController({
-    approve: async ({ planId, scope }) =>
+    approve: async ({ planId, scope, ticked }) =>
       (await clients.getClient()).call("plan.calendar", {
         action: "approve-weeks",
         planId,
         scope,
+        ticked: [...ticked],
       }),
     sendAgain: async () =>
       (await clients.getClient()).call("plan.calendar", { action: "send-again" }),
@@ -56,6 +57,7 @@ export function startCalendar(
   });
   store.getState().bindCalendarApproveActions({
     open: (scope) => approve.open(scope),
+    setRemoveChanges: (remove) => approve.setRemoveChanges(remove),
     approve: () => void approve.approve(),
     notNow: () => approve.notNow(),
     retry: () => void approve.retry(),

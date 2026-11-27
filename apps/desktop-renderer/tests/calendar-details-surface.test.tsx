@@ -133,7 +133,7 @@ describe("the Plan details sheet", () => {
       "1 of 3 Training Weeks done. 1 of 3 workouts done or done differently, 1 missed, 1 to confirm.",
     );
     expect(sheet).toHaveTextContent(
-      "When you activate it, the old Plan’s workouts from tomorrow on come off intervals.icu, and nothing from the new Plan goes on until you approve its first two Training Weeks.",
+      "What changes on intervals.icu comes to you as one Change Set before anything is written. After you approve, the old Plan’s workouts from tomorrow on are removed and checked first, then the new Plan’s first two weeks go out.",
     );
     const history = within(sheet)
       .getAllByRole("listitem")

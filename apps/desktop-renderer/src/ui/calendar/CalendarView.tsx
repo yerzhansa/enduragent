@@ -13,19 +13,21 @@ import { useEnduragentStore } from "../../state/store";
 import {
   approvalFor,
   approvedWeeks,
+  replacingOf,
+  replaceWaiting,
   sendingFailures,
   weekApprovals,
   type PendingApproval,
 } from "../../calendar/approval";
 import type { ApproveSheetState } from "../../calendar/approve-controller";
-import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
+import { ApproveSheet, type ApproveSheetPhase, type ApproveSheetReplace } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
 import { ChangeSheet } from "./ChangeSheet";
 import { MoveDialog } from "./MoveDialog";
 import { PlanDetailsSheet } from "./PlanDetailsSheet";
 import { movePreview } from "../../calendar/move";
 import { detailsEnding } from "../../calendar/details-controller";
-import { WeekReadyBanner } from "./WeekReadyBanner";
+import { ReplaceWaitingBanner, WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
 
@@ -89,10 +91,13 @@ function RefreshFailed(props: { readonly onRetry: () => void }): ReactElement {
   );
 }
 
-function sheetView(
-  read: PlanCalendarRead,
-  sheet: ApproveSheetState,
-): { readonly pending: PendingApproval; readonly phase: ApproveSheetPhase } | null {
+interface SheetView {
+  readonly pending: PendingApproval;
+  readonly phase: ApproveSheetPhase;
+  readonly replace: ApproveSheetReplace | null;
+}
+
+function sheetView(read: PlanCalendarRead, sheet: ApproveSheetState): SheetView | null {
   switch (sheet.kind) {
     case "closed":
       return null;
@@ -100,16 +105,52 @@ function sheetView(
     case "approving":
     case "refused": {
       const pending = approvalFor(read, sheet.scope);
-      return pending === null ? null : { pending, phase: { kind: sheet.kind } };
+      const replacing = sheet.scope.kind === "first-weeks" ? replacingOf(read) : null;
+      const removeChanges = sheet.kind !== "refused" && sheet.removeChanges === true;
+      return pending === null
+        ? null
+        : {
+            pending,
+            phase: { kind: sheet.kind },
+            replace: replacing === null ? null : { replacing, removeChanges },
+          };
     }
     case "sending":
+    case "remove-failed":
     case "send-failed": {
       const pending = approvedWeeks(read, sheet.scope, sheet.weeks);
       if (pending === null) return null;
-      if (sheet.kind === "sending") return { pending, phase: { kind: "sending" } };
+      const replacing = read.replacing;
+      if (sheet.kind !== "send-failed" && sheet.removing !== undefined && replacing !== null) {
+        const replace = { replacing, removeChanges: false };
+        if (sheet.kind === "remove-failed") {
+          const left = replacing.removes;
+          return {
+            pending,
+            replace,
+            phase: {
+              kind: "remove-failed",
+              done: Math.max(0, sheet.removing - left.length),
+              total: sheet.removing,
+              left,
+            },
+          };
+        }
+        return {
+          pending,
+          replace,
+          phase: {
+            kind: replacing.removes.length > 0 ? "removing" : "checking",
+            count: sheet.removing,
+          },
+        };
+      }
+      if (sheet.kind !== "send-failed")
+        return { pending, phase: { kind: "sending" }, replace: null };
       const progress = sendingFailures(read, sheet.weeks);
       return {
         pending,
+        replace: null,
         phase: {
           kind: "send-failed",
           sent: progress.sent,
@@ -146,8 +187,10 @@ function ApprovalLayer(props: { readonly read: PlanCalendarRead }): ReactElement
     <ApproveSheet
       pending={view.pending}
       phase={view.phase}
+      replace={view.replace}
       connected={props.read.calendarConnected}
       login={login}
+      onRemoveChanges={(remove) => actions?.setRemoveChanges(remove)}
       onApprove={() => actions?.approve()}
       onNotNow={() => actions?.notNow()}
       onConnect={() => actions?.connect()}
@@ -249,7 +292,17 @@ function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | n
   const sheet = useEnduragentStore((store) => store.calendarApproval);
   const actions = useEnduragentStore((store) => store.calendarApproveActions);
   const pending = weekApprovals(props.read)[0];
-  if (pending === undefined || sheet.kind !== "closed") return null;
+  const replacing = replaceWaiting(props.read);
+  if (sheet.kind !== "closed") return null;
+  if (replacing !== null) {
+    return (
+      <ReplaceWaitingBanner
+        replacing={replacing}
+        onReview={() => actions?.open({ kind: "first-weeks" })}
+      />
+    );
+  }
+  if (pending === undefined) return null;
   return <WeekReadyBanner pending={pending} onReview={() => actions?.open(pending.scope)} />;
 }
 

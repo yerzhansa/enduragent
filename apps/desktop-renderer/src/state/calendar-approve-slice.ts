@@ -10,6 +10,7 @@ import type { EnduragentState } from "./store";
 
 export interface CalendarApproveActions {
   open(scope: ApprovalScope): void;
+  setRemoveChanges(remove: boolean): void;
   approve(): void;
   notNow(): void;
   retry(): void;

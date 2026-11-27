@@ -1,22 +1,36 @@
-import type { PlanCalendarRpcResult } from "@enduragent/coach-contract";
-import { approvalFor, firstApproval, sendingFailures, type ApprovalScope } from "./approval";
+import type { PlanCalendarRpcResult, PlanCalendarTick } from "@enduragent/coach-contract";
+import {
+  approvalFor,
+  comingOff,
+  firstApproval,
+  replacingOf,
+  sendingFailures,
+  type ApprovalScope,
+} from "./approval";
 import type { CalendarRefresh } from "./controller";
 import type { PlanCalendarRead } from "./grid";
 
 export type ApproveSheetState =
   | { readonly kind: "closed" }
-  | { readonly kind: "open"; readonly scope: ApprovalScope }
-  | { readonly kind: "approving"; readonly scope: ApprovalScope }
+  | { readonly kind: "open"; readonly scope: ApprovalScope; readonly removeChanges?: boolean }
+  | { readonly kind: "approving"; readonly scope: ApprovalScope; readonly removeChanges?: boolean }
   | {
       readonly kind: "sending";
       readonly scope: ApprovalScope;
       readonly weeks: readonly number[];
       readonly polls: number;
+      readonly removing?: number;
     }
   | {
       readonly kind: "send-failed";
       readonly scope: ApprovalScope;
       readonly weeks: readonly number[];
+    }
+  | {
+      readonly kind: "remove-failed";
+      readonly scope: ApprovalScope;
+      readonly weeks: readonly number[];
+      readonly removing: number;
     }
   | { readonly kind: "refused"; readonly scope: ApprovalScope };
 
@@ -28,6 +42,7 @@ export interface ApproveController {
   pageOpened(): void;
   observe(read: PlanCalendarRead, refresh: CalendarRefresh): void;
   open(scope: ApprovalScope): void;
+  setRemoveChanges(remove: boolean): void;
   approve(): Promise<void>;
   notNow(): void;
   retry(): Promise<void>;
@@ -38,6 +53,7 @@ export interface ApproveControllerDeps {
   approve(input: {
     readonly planId: string;
     readonly scope: ApprovalScope;
+    readonly ticked: readonly PlanCalendarTick[];
   }): Promise<PlanCalendarRpcResult>;
   sendAgain(): Promise<PlanCalendarRpcResult>;
   libraryChanged(): void;
@@ -67,8 +83,19 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
     deps.publish(next);
   };
 
-  const poll = (weeks: readonly number[], scope: ApprovalScope, polls: number): void => {
-    publish({ kind: "sending", scope, weeks, polls });
+  const poll = (
+    weeks: readonly number[],
+    scope: ApprovalScope,
+    polls: number,
+    removing: number | undefined,
+  ): void => {
+    publish({
+      kind: "sending",
+      scope,
+      weeks,
+      polls,
+      ...(removing === undefined ? {} : { removing }),
+    });
     cancelTimer();
     cancelTimer = deps.later(() => {
       cancelTimer = NO_TIMER;
@@ -78,7 +105,16 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
 
   const nextPoll = (current: Extract<ApproveSheetState, { kind: "sending" }>): void => {
     if (current.polls < SENDING_POLLS) {
-      poll(current.weeks, current.scope, current.polls + 1);
+      poll(current.weeks, current.scope, current.polls + 1, current.removing);
+      return;
+    }
+    if (current.removing !== undefined && (latest?.replacing ?? null) !== null) {
+      publish({
+        kind: "remove-failed",
+        scope: current.scope,
+        weeks: current.weeks,
+        removing: current.removing,
+      });
       return;
     }
     publish({ kind: "send-failed", scope: current.scope, weeks: current.weeks });
@@ -88,6 +124,19 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
     read: PlanCalendarRead,
     current: Extract<ApproveSheetState, { kind: "sending" }>,
   ): void => {
+    if (current.removing !== undefined && read.replacing !== null) {
+      if (read.replacing.cleanup === "failed") {
+        publish({
+          kind: "remove-failed",
+          scope: current.scope,
+          weeks: current.weeks,
+          removing: current.removing,
+        });
+        return;
+      }
+      nextPoll(current);
+      return;
+    }
     const progress = sendingFailures(read, current.weeks);
     if (progress.waiting.length > 0) {
       nextPoll(current);
@@ -133,22 +182,39 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
           }
           return;
         }
+        case "remove-failed":
+          if (read.replacing === null) poll(state.weeks, state.scope, 0, state.removing);
+          return;
       }
     },
     open(scope) {
       publish({ kind: "open", scope });
     },
+    setRemoveChanges(remove) {
+      if (state.kind !== "open") return;
+      publish(remove ? { ...state, removeChanges: true } : { kind: "open", scope: state.scope });
+    },
     async approve() {
-      const plan = latest?.plan;
-      if (state.kind !== "open" || plan === null || plan === undefined) return;
+      const read = latest;
+      const plan = read?.plan;
+      if (state.kind !== "open" || read === null || plan === null || plan === undefined) return;
       const scope = state.scope;
+      const removeChanges = state.removeChanges === true;
       const planId = plan.planId;
-      publish({ kind: "approving", scope });
+      const replacing = scope.kind === "first-weeks" ? replacingOf(read) : null;
+      const ticked =
+        replacing === null || !removeChanges
+          ? []
+          : replacing.athleteChanges.map((change) => change.tick);
+      const removing = replacing === null ? undefined : comingOff(replacing, removeChanges).length;
+      publish(
+        removeChanges ? { kind: "approving", scope, removeChanges } : { kind: "approving", scope },
+      );
       let result: PlanCalendarRpcResult;
       try {
-        result = await deps.approve({ planId, scope });
+        result = await deps.approve({ planId, scope, ticked });
       } catch {
-        publish({ kind: "open", scope });
+        publish(removeChanges ? { kind: "open", scope, removeChanges } : { kind: "open", scope });
         return;
       }
       if (result.status !== "approved") {
@@ -156,7 +222,7 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
         deps.refresh();
         return;
       }
-      poll(result.weeks, scope, 0);
+      poll(result.weeks, scope, 0, removing === 0 ? undefined : removing);
       deps.libraryChanged();
       deps.refresh();
     },
@@ -166,13 +232,14 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
       publish(APPROVE_SHEET_CLOSED);
     },
     async retry() {
-      if (state.kind !== "send-failed") return;
-      const { weeks, scope } = state;
-      poll(weeks, scope, 0);
+      if (state.kind !== "send-failed" && state.kind !== "remove-failed") return;
+      const failed = state;
+      const removing = failed.kind === "remove-failed" ? failed.removing : undefined;
+      poll(failed.weeks, failed.scope, 0, removing);
       try {
         await deps.sendAgain();
       } catch {
-        publish({ kind: "send-failed", scope, weeks });
+        publish(failed);
         return;
       }
       deps.refresh();

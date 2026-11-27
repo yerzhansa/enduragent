@@ -1,4 +1,6 @@
 import type {
+  PlanCalendarEndingWorkout,
+  PlanCalendarReplacing,
   PlanCalendarStatus,
   PlanCalendarWeek,
   PlanCalendarWorkout,
@@ -133,4 +135,26 @@ export function opensCalendarAfterActivate(
     (activated.calendar.status === "waiting-for-approve" ||
       activated.calendar.waitingForApprove === true)
   );
+}
+
+export function replacingOf(read: PlanCalendarRead): PlanCalendarReplacing | null {
+  const replacing = read.replacing;
+  if (replacing === null || replacing.removes.length + replacing.athleteChanges.length === 0) {
+    return null;
+  }
+  return replacing;
+}
+
+export function comingOff(
+  replacing: PlanCalendarReplacing,
+  removeChanges: boolean,
+): readonly PlanCalendarEndingWorkout[] {
+  return [...replacing.removes, ...(removeChanges ? replacing.athleteChanges : [])].sort(
+    (left, right) => left.dateKey - right.dateKey,
+  );
+}
+
+export function replaceWaiting(read: PlanCalendarRead): PlanCalendarReplacing | null {
+  const replacing = replacingOf(read);
+  return replacing?.cleanup === "held" && firstApproval(read) !== null ? replacing : null;
 }

@@ -224,7 +224,7 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   await expect(dialog).toContainText("Today’s calendar Workout stays. The new Plan activates now.");
   await expect(dialog).toContainText(
     connected
-      ? "The old Plan’s workouts from tomorrow on come off intervals.icu now. Nothing from the new Plan goes on until you approve. The Calendar opens next with your first two Training Weeks."
+      ? "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on."
       : "Calendar updates wait until intervals.icu is connected.",
   );
   await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
