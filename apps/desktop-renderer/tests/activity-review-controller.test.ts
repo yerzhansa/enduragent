@@ -96,6 +96,17 @@ describe("the Activity review controller", () => {
     expect(test.ready().selectedId).toBeNull();
   });
 
+  it("keeps the ride on screen selected, with its choices open, when a sync brings a newer ride", async () => {
+    const test = harness();
+    await test.opened();
+    test.controller.otherDay();
+    expect(test.ready()).toMatchObject({ selectedId: null, choices: "other-day" });
+    const refreshing = test.controller.refresh();
+    test.readReplies.at(-1)?.resolve(rides([ride("n", TODAY + 1), ASKED, EARLIER]));
+    await refreshing;
+    expect(test.ready()).toMatchObject({ selectedId: rideId("a"), choices: "other-day" });
+  });
+
   it("closes the choices when a refresh drops the selected ride", async () => {
     const test = harness();
     await test.opened();

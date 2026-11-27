@@ -115,9 +115,7 @@ export function createActivityReviewController(
       return;
     }
     const shown = selectedRide(current.read, current.selectedId)?.activityId ?? null;
-    const selectedId = reset
-      ? null
-      : (selectedRide(result, current.selectedId)?.activityId ?? null);
+    const selectedId = reset ? null : (selectedRide(result, shown)?.activityId ?? null);
     const same = selectedId === shown;
     publish({
       kind: "ready",
