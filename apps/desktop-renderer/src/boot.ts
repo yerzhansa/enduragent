@@ -92,7 +92,9 @@ export function bootRenderer(): Disposer {
   store.getState().setOnboardingStartupSettled(false);
   const onLifecycle = (event: WindowEventMap["enduragent-lifecycle"]): void => {
     document.documentElement.dataset.rpc = event.detail.status;
-    if (event.detail.status === "ready") void languageSettingsController.refresh();
+    if (event.detail.status !== "ready") return;
+    void languageSettingsController.refresh();
+    if (store.getState().onboarding.loadUnavailable) void onboarding.refresh();
   };
   window.addEventListener("enduragent-lifecycle", onLifecycle);
 
