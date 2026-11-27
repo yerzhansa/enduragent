@@ -3,6 +3,7 @@ import {
   encodeCloseChoice,
   encodeWeekDelivery,
   firstChangeSetWeeks,
+  icuFingerprintParts,
   planEndingSummary,
   readIcuCopies,
   storedIcuCopy,
@@ -174,10 +175,17 @@ export async function planDetails(
       ending: {
         removes: summary.removes.map((entry) => endingWorkout(entry, workouts)),
         staysToday: summary.staysToday.map((entry) => endingWorkout(entry, workouts)),
-        athleteChanges: summary.athleteChanges.map((entry) => ({
-          ...endingWorkout(entry, workouts),
-          tick: entry.tick,
-        })),
+        athleteChanges: summary.athleteChanges.map((entry) => {
+          const shown = icuFingerprintParts(entry.tick.fingerprint);
+          const planned = endingWorkout(entry, workouts);
+          return {
+            ...planned,
+            name: shown?.name ?? planned.name,
+            durationS: shown?.durationS ?? planned.durationS,
+            dateKey: entry.tick.dateKey,
+            tick: entry.tick,
+          };
+        }),
       },
     } as const;
   });
