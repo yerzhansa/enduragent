@@ -68,7 +68,7 @@ export function createActivityReviewController(
       publish({
         ...before,
         refresh: "refreshing",
-        ...(reset ? { choices: "closed", saving: "idle" } : {}),
+        ...(reset ? { selectedId: null, choices: "closed", saving: "idle" } : {}),
       });
     } else publish({ kind: "loading" });
     let result: PlanCalendarRpcResult | null;
@@ -86,7 +86,7 @@ export function createActivityReviewController(
       return;
     }
     const selectedId =
-      current.kind === "ready"
+      current.kind === "ready" && !reset
         ? (selectedRide(result, current.selectedId)?.activityId ?? null)
         : null;
     publish({

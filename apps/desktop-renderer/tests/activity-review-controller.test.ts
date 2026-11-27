@@ -77,7 +77,7 @@ describe("the Activity review controller", () => {
     expect(test.ready()).toMatchObject({ refresh: "failed", read: { rides: [ASKED, EARLIER] } });
   });
 
-  it("keeps the selected ride across a refresh, and falls back to the newest when it is gone", async () => {
+  it("keeps the selected ride across a refresh, falls back to the newest when it is gone, and starts from the newest on open", async () => {
     const test = harness();
     await test.opened();
     test.controller.select(rideId("b"));
@@ -89,6 +89,11 @@ describe("the Activity review controller", () => {
     test.readReplies.at(-1)?.resolve(rides([ASKED]));
     await refreshing;
     expect(test.ready().selectedId).toBe(rideId("a"));
+    test.controller.select(rideId("a"));
+    const reopening = test.controller.open();
+    test.readReplies.at(-1)?.resolve(rides([ASKED, EARLIER]));
+    await reopening;
+    expect(test.ready().selectedId).toBeNull();
   });
 
   it("keeps only the newest read when two overlap", async () => {
