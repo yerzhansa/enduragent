@@ -123,6 +123,10 @@ function dropFor(phase: RowPhase, site: RowSite, payload: unknown, error: unknow
   return { ...row, phase, reason: "unclassified", field: null, errorName: name ?? null };
 }
 
+function isRefusedSignIn(error: unknown): boolean {
+  return error instanceof IntervalsHttpError && error.status === 401;
+}
+
 export async function attempt<T>(
   phase: RowPhase,
   site: RowSite,
@@ -133,7 +137,7 @@ export async function attempt<T>(
   try {
     return { ok: true, value: await land() };
   } catch (error) {
-    if (endsCapture(error)) throw error;
+    if (endsCapture(error) || isRefusedSignIn(error)) throw error;
     return { ok: false, drop: dropFor(phase, site, payload, error) };
   }
 }
