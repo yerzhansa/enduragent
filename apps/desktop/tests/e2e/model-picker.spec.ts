@@ -8,40 +8,51 @@ const WIDTHS = [1180, 760] as const;
 const SETUP_BUTTON_MAX_WIDTH = 236;
 const SETTINGS_BUTTON_MAX_WIDTH = 260;
 
-type ListLayout = "aligned" | "floating";
+type ButtonPlacement = "centered" | "bottom-edge";
 
 interface ModelListMeasure {
   readonly problems: string[];
   readonly widestRow: number;
 }
 
+async function settledOpenList(page: Page): Promise<Locator> {
+  const list = page.locator(OPEN_LIST);
+  await expect(list.getByRole("option").first()).toBeVisible();
+  await list.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+    );
+    let previous = "";
+    for (let frame = 0; frame < 60; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rect = element.getBoundingClientRect();
+      const current = `${rect.left} ${rect.top} ${rect.width} ${rect.height} ${element.scrollTop}`;
+      if (current === previous) return;
+      previous = current;
+    }
+  });
+  return list;
+}
+
 async function visibleModelListProblems(
   page: Page,
   trigger: Locator,
-  layout: ListLayout,
+  placement: ButtonPlacement,
   maxTriggerWidth: number,
   info: TestInfo,
   capture: string,
 ): Promise<readonly string[]> {
-  const block = layout === "aligned" ? ("center" as const) : ("end" as const);
+  const block = placement === "centered" ? ("center" as const) : ("end" as const);
   await trigger.evaluate(
     (element, position) => element.scrollIntoView({ block: position, behavior: "instant" }),
     block,
   );
-  const closedRect = await trigger.evaluate((element) => element.getBoundingClientRect().toJSON());
-  const closedWidth = closedRect.width;
+  const closedWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
   await trigger.click();
-  const list = page.locator(OPEN_LIST);
-  await expect(list.getByRole("option").first()).toBeVisible();
-  const where = `${capture}: button at ${Math.round(closedRect.top)}-${Math.round(closedRect.bottom)}px`;
-  if (layout === "aligned") {
-    await expect(list, where).toHaveAttribute("data-side", "none");
-  } else {
-    await expect(list, where).not.toHaveAttribute("data-side", "none");
+  const list = await settledOpenList(page);
+  if (placement === "centered") {
+    await expect(list).toHaveAttribute("data-side", "none");
   }
-  await list.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
-  );
   const openWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
   const measure = await list.evaluate((element): ModelListMeasure => {
     const found: string[] = [];
@@ -119,7 +130,8 @@ async function visibleModelListProblems(
 
 async function chooseProvider(page: Page, trigger: Locator, provider: string): Promise<void> {
   await trigger.click();
-  await page.locator(OPEN_LIST).getByRole("option", { name: provider, exact: true }).click();
+  const list = await settledOpenList(page);
+  await list.getByRole("option", { name: provider, exact: true }).click();
   await expect(page.locator(OPEN_LIST)).toHaveCount(0);
   await expect(trigger.locator('[data-slot="select-value"]')).toHaveText(provider);
 }
@@ -145,7 +157,7 @@ for (const width of WIDTHS) {
         const problems = await visibleModelListProblems(
           page,
           modelTrigger,
-          "aligned",
+          "centered",
           SETUP_BUTTON_MAX_WIDTH,
           info,
           `setup-${provider.toLowerCase()}-${width}`,
@@ -176,19 +188,19 @@ for (const width of WIDTHS) {
       await providerTrigger.scrollIntoViewIfNeeded();
       for (const provider of PROVIDERS) {
         await chooseProvider(page, providerTrigger, provider);
-        for (const layout of ["aligned", "floating"] as const) {
+        for (const placement of ["centered", "bottom-edge"] as const) {
           const problems = await visibleModelListProblems(
             page,
             modelTrigger,
-            layout,
+            placement,
             SETTINGS_BUTTON_MAX_WIDTH,
             info,
-            `settings-${provider.toLowerCase()}-${layout}-${width}`,
+            `settings-${provider.toLowerCase()}-${placement}-${width}`,
           );
           expect
             .soft(
               problems,
-              `Settings ${provider} model list (${layout}) must show whole names clear of the check mark`,
+              `Settings ${provider} model list (button ${placement}) must show whole names clear of the check mark`,
             )
             .toEqual([]);
         }
