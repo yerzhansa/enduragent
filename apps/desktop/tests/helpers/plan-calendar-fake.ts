@@ -4,7 +4,7 @@ import type {
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
-import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
+import { icuEventType, type CalendarMirrorPort } from "@enduragent/engine/calendar";
 
 const eventContent = (structureJson: string) => {
   const content: unknown = JSON.parse(structureJson);
@@ -83,7 +83,9 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
   }
 
   private stored(durationS: number | null, description: string | null): number | null {
-    return description === null || durationS === null ? durationS : durationS + 1;
+    return description === null || durationS === null || !/^\s*-\s/m.test(description)
+      ? durationS
+      : durationS + 1;
   }
 
   async listEvents(input: { startDateKey: number; endDateKey: number }) {
@@ -112,6 +114,7 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
       dateKey: input.dateKey,
       externalId: input.externalId,
       name: input.name,
+      type: icuEventType(input.sport),
       ...content,
       durationS: this.stored(input.durationS, content.description),
       updated: this.stamp(),
@@ -134,6 +137,7 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
       ...event,
       dateKey: input.dateKey,
       name: input.name,
+      ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
       ...content,
       durationS: this.stored(input.durationS, content.description),
       updated: this.stamp(),

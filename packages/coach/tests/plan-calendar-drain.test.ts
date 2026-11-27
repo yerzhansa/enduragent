@@ -28,6 +28,7 @@ async function harness() {
   let sequence = 100;
   let today = 19980902;
   let connected = true;
+  let nowMs = 904_694_400_000;
   const calendar = createMemoryPlanCalendar();
   const logger = { warn: vi.fn() };
   const identity = {
@@ -40,7 +41,7 @@ async function harness() {
     identity,
     crypto: globalThis.crypto,
     todayDateKey: () => today,
-    now: () => 904_694_400_000,
+    now: () => nowMs,
     calendarConnected: () => connected,
   };
   const creation = createPlanCreationOperations({
@@ -252,6 +253,9 @@ async function harness() {
     advanceDay: () => {
       today = addCivilDays(today, 1);
     },
+    advanceMs: (ms: number) => {
+      nowMs += ms;
+    },
     disconnect: () => {
       connected = false;
     },
@@ -458,6 +462,66 @@ describe("Plan calendar drain", () => {
           event.externalId?.includes(replacement.planId) === true && event.dateKey === test.today(),
       ),
     ).toEqual([]);
+  });
+
+  it("keeps retrying the old Plan's cleanup after five failures, then sends the replacement", async () => {
+    const test = await harness();
+    const incumbent = await test.activate();
+    await test.approve(incumbent.planId);
+    await test.drain.kick();
+    const replacement = await test.activate();
+    expect(replacement.closedPlanId).toBe(incumbent.planId);
+    await test.approve(replacement.planId);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      test.calendar.failNextList = true;
+      test.advanceMs(1_000);
+      await test.drain.kick();
+    }
+    expect(await test.reconciliation.readLatestJob(incumbent.planId, "cleanup")).toMatchObject({
+      status: "failed",
+      failureCount: 5,
+    });
+    await test.drain.kick();
+    expect(test.onIcu(replacement.planId)).toEqual([]);
+    test.advanceMs(900_000);
+    await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(incumbent.planId, "cleanup")).toMatchObject({
+      status: "verified",
+    });
+    const sent = test.calendar.events.filter(
+      (event) => event.externalId?.includes(replacement.planId) === true,
+    );
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.every((event) => event.dateKey > test.today())).toBe(true);
+  });
+
+  it("retires an old mirror job that still has items without stopping the run", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    const workout = (await test.plans.readWorkouts(planId))[0];
+    if (workout === undefined) throw new Error("Expected a Workout");
+    const old = await test.reconciliation.createOrGetJob({
+      id: test.identity.newUlid(),
+      planId,
+      kind: "mirror",
+      windowStartDateKey: test.today(),
+      windowEndDateKey: addCivilDays(test.today(), 6),
+      createdAtMs: 904_694_400_000,
+    });
+    await test.reconciliation.prepareItem({
+      id: test.identity.newUlid(),
+      jobId: old.id,
+      planWorkoutId: workout.id,
+      operation: "create",
+      dateKey: workout.dateKey,
+      externalId: planMirrorExternalId(planId, workout.id),
+      expectedJson: "{}",
+      createdAtMs: 904_694_400_000,
+    });
+    await test.drain.kick();
+    expect(await test.reconciliation.readJob(old.id)).toMatchObject({ status: "verified" });
+    expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
   });
 
   it("does nothing when the calendar is disconnected", async () => {

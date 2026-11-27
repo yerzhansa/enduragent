@@ -21,6 +21,7 @@ export interface PlanMirrorEvent {
   readonly name?: string | null;
   readonly durationS?: number | null;
   readonly description?: string | null;
+  readonly type?: string | null;
   readonly workoutDoc?: Readonly<Record<string, unknown>> | null;
   readonly updated?: string | null;
 }
@@ -31,6 +32,7 @@ export interface PlanMirrorUpdateInput {
   readonly name: string;
   readonly durationS: number | null;
   readonly structureJson: string;
+  readonly sport?: string;
 }
 
 export interface PlanMirrorCreateInput {

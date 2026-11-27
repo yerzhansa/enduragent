@@ -64,7 +64,7 @@ export type CalendarMirrorResult =
   | {
       readonly kind: "ran";
       readonly written: number;
-      readonly failed: number;
+      readonly failures: readonly PlanIcuWriteErrorCode[];
       readonly changedInIcu: number;
     };
 
@@ -98,13 +98,32 @@ function descriptionOf(structureJson: string): string | null {
   }
 }
 
+export function icuEventType(sport: string): string {
+  const normalized = sport.toLowerCase();
+  if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("ride")) {
+    return "Ride";
+  }
+  if (normalized.includes("run")) return "Run";
+  if (normalized.includes("swim")) return "Swim";
+  return "Workout";
+}
+
+function shownText(value: string | null | undefined): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function describesSteps(description: string | null): boolean {
+  return description !== null && /^\s*-\s/m.test(description);
+}
+
 export function icuEventFingerprint(event: PlanMirrorEvent): string {
-  const description = event.description ?? null;
+  const description = shownText(event.description);
   return JSON.stringify([
     event.dateKey,
     event.name ?? null,
+    event.type ?? null,
     description,
-    description === null ? (event.durationS ?? null) : null,
+    describesSteps(description) ? null : (event.durationS ?? null),
   ]);
 }
 
@@ -119,12 +138,13 @@ export function planWorkoutFingerprint(workout: PlanWorkoutRecord): string {
 }
 
 export function expectedIcuFingerprint(workout: PlanWorkoutRecord): string {
-  const description = descriptionOf(workout.structureJson);
+  const description = shownText(descriptionOf(workout.structureJson));
   return JSON.stringify([
     workout.dateKey,
     workout.name,
+    icuEventType(workout.sport),
     description,
-    description === null ? workout.durationS : null,
+    describesSteps(description) ? null : workout.durationS,
   ]);
 }
 
@@ -202,6 +222,12 @@ function failed(copy: IcuCopy, errorCode: PlanIcuWriteErrorCode): AppliedIcuCopy
   return { copy, lastWrite: { kind: "failed", errorCode }, wrote: "no-write" };
 }
 
+function settledWrite(stored: PlanIcuCopyRecord | undefined): PlanIcuLastWrite {
+  return stored === undefined || stored.lastWrite.kind === "failed"
+    ? { kind: "none" }
+    : stored.lastWrite;
+}
+
 async function readBack(deps: CalendarMirrorDeps, reply: IcuSighting): Promise<IcuSighting> {
   if (reply.kind !== "present") return reply;
   try {
@@ -226,7 +252,6 @@ async function settle(
   result: ConditionalWriteResult<IcuSighting, IcuSighting>,
   errorCode: PlanIcuWriteErrorCode,
 ): Promise<AppliedIcuCopy> {
-  const keepWrite = target.stored?.lastWrite ?? { kind: "none" };
   switch (result.kind) {
     case "read-failed":
       return failed(copy, "calendar-read-failed");
@@ -235,7 +260,7 @@ async function settle(
     case "changed":
       return {
         copy: icuCopyOnRun(copy, target.plan, result.current).copy,
-        lastWrite: keepWrite,
+        lastWrite: settledWrite(target.stored),
         wrote: "no-write",
       };
     case "unchanged":
@@ -279,15 +304,19 @@ export async function applyIcuCopyEffect(
   copy: IcuCopy,
   effect: IcuCopyEffect,
 ): Promise<AppliedIcuCopy> {
-  const keepWrite = target.stored?.lastWrite ?? { kind: "none" };
+  const quiet: AppliedIcuCopy = {
+    copy,
+    lastWrite: settledWrite(target.stored),
+    wrote: "no-write",
+  };
   const workout = target.workout;
   switch (effect.kind) {
     case "none":
     case "adopt-into-plan":
     case "remove-from-plan":
-      return { copy, lastWrite: keepWrite, wrote: "no-write" };
+      return quiet;
     case "create": {
-      if (workout === undefined) return { copy, lastWrite: keepWrite, wrote: "no-write" };
+      if (workout === undefined) return quiet;
       let created: PlanMirrorEvent;
       try {
         created = await deps.calendar.createEvent(createInput(planId, workout));
@@ -303,7 +332,7 @@ export async function applyIcuCopyEffect(
       );
     }
     case "update": {
-      if (workout === undefined) return { copy, lastWrite: keepWrite, wrote: "no-write" };
+      if (workout === undefined) return quiet;
       const result = await writeIfUnchanged({
         read: () => readIcuSighting(deps.calendar, effect.eventId),
         alreadyWritten: (current) =>
@@ -317,6 +346,7 @@ export async function applyIcuCopyEffect(
               eventId: effect.eventId,
               dateKey: workout.dateKey,
               name: workout.name,
+              sport: workout.sport,
               durationS: workout.durationS,
               structureJson: workout.structureJson,
             }),
@@ -376,8 +406,9 @@ function targets(
   const result: IcuCopyTarget[] = [];
   const planned = new Set<string>();
   for (const workout of input.workouts) {
-    if (workout.planId !== input.plan.id || workout.origin !== "coach") continue;
+    if (workout.planId !== input.plan.id) continue;
     planned.add(workout.id);
+    if (workout.origin !== "coach") continue;
     const stored = copies.get(workout.id);
     const copy = storedIcuCopy(stored);
     if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") continue;
@@ -502,7 +533,7 @@ export async function mirrorPlanCalendar(
     return { kind: "list-failed" };
   }
   let written = 0;
-  let failures = 0;
+  const failures: PlanIcuWriteErrorCode[] = [];
   let changedInIcu = 0;
   for (const target of targets(input, delivery, setting, copies, window)) {
     const sighting = await sightingFor(deps, target, listed);
@@ -514,7 +545,7 @@ export async function mirrorPlanCalendar(
       applied = await applyIcuCopyEffect(deps, input.plan.id, target, decided.copy, decided.effect);
     }
     if (applied.wrote === "wrote") written += 1;
-    if (applied.lastWrite.kind === "failed") failures += 1;
+    if (applied.lastWrite.kind === "failed") failures.push(applied.lastWrite.errorCode);
     if (applied.copy.kind === "changed-in-icu") changedInIcu += 1;
     await saveIcuCopy(deps, {
       planId: input.plan.id,
@@ -525,7 +556,7 @@ export async function mirrorPlanCalendar(
       lastWrite: applied.lastWrite,
     });
   }
-  return { kind: "ran", written, failed: failures, changedInIcu };
+  return { kind: "ran", written, failures, changedInIcu };
 }
 
 export async function sentTrainingWeeks(

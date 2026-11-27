@@ -11,6 +11,8 @@ import {
 import {
   createPlanCalendarMirrorRepository,
   createPlanReconciliationRepository,
+  type PlanIcuWriteErrorCode,
+  type PlanReconciliationErrorCode,
   type PlanReconciliationJobRecord,
   type PlanReconciliationRepository,
 } from "@enduragent/kernel/planning";
@@ -23,6 +25,22 @@ export interface PlanCalendarDrain {
 }
 
 const MIRROR_FAILURE_BUDGET = 5;
+const CLEANUP_RETRY_MS = 900_000;
+
+function jobErrorCode(failure: PlanIcuWriteErrorCode | undefined): PlanReconciliationErrorCode {
+  if (failure === "calendar-create-failed" || failure === "calendar-delete-failed") return failure;
+  return "calendar-verification-failed";
+}
+
+async function retireJob(
+  repository: PlanReconciliationRepository,
+  jobId: string,
+  nowMs: number,
+): Promise<void> {
+  for (const item of await repository.readItems(jobId)) await repository.deleteItem(item.id);
+  await repository.beginAttempt(jobId, nowMs);
+  await repository.verifyJob(jobId, nowMs);
+}
 
 async function ledgerWindow(
   store: SqlStore & Pick<MigratorStore, "transaction">,
@@ -87,7 +105,8 @@ export function createPlanCalendarDrain(deps: {
     const jobs = await repository.listRunnable({
       nowMs: deps.now(),
       leaseMs: reclaim ? 0 : 300_000,
-      maxFailures: 5,
+      maxFailures: MIRROR_FAILURE_BUDGET,
+      cleanupRetryMs: CLEANUP_RETRY_MS,
     });
     const mirrorDeps = {
       calendar: deps.calendar.mirror,
@@ -96,25 +115,15 @@ export function createPlanCalendarDrain(deps: {
       now: deps.now,
     };
     for (const job of jobs) {
-      const chatPlan = await store.get("SELECT plan_id FROM planning_plan WHERE plan_id=?", [
-        job.planId,
-      ]);
-      if (job.kind !== "cleanup") {
-        if (chatPlan === undefined) continue;
-        const ledger = await ledgerWindow(store, job.planId, today);
-        if (
-          ledger !== null &&
-          job.windowStartDateKey === today &&
-          job.windowEndDateKey === ledger.endDateKey
-        ) {
+      try {
+        const chatPlan = await store.get("SELECT plan_id FROM planning_plan WHERE plan_id=?", [
+          job.planId,
+        ]);
+        if (job.kind === "cleanup" && chatPlan !== undefined) {
+          await cleanupPlanCalendar(job, mirrorDeps);
           continue;
         }
-        await repository.beginAttempt(job.id, deps.now());
-        await repository.verifyJob(job.id, deps.now());
-        continue;
-      }
-      try {
-        if (chatPlan === undefined) {
+        if (job.kind === "cleanup") {
           await cleanupPlanMirror(
             {
               planId: job.planId,
@@ -124,9 +133,18 @@ export function createPlanCalendarDrain(deps: {
             },
             engine,
           );
-        } else {
-          await cleanupPlanCalendar(job, mirrorDeps);
+          continue;
         }
+        if (chatPlan === undefined) continue;
+        const ledger = await ledgerWindow(store, job.planId, today);
+        if (
+          ledger !== null &&
+          job.windowStartDateKey === today &&
+          job.windowEndDateKey === ledger.endDateKey
+        ) {
+          continue;
+        }
+        await retireJob(repository, job.id, deps.now());
       } catch (error) {
         deps.logger.warn("plan_calendar_drain_failed", { jobId: job.id, kind: job.kind, error });
         const current = await repository.readJob(job.id);
@@ -180,8 +198,8 @@ WHERE kind='cleanup' AND plan_id<>? ORDER BY created_at_ms DESC, id DESC LIMIT 1
       const result = await mirrorPlanCalendar(input, mirrorDeps);
       if (result.kind === "list-failed") {
         await repository.failJob(job.id, "calendar-list-failed", deps.now());
-      } else if (result.kind === "ran" && result.failed > 0) {
-        await repository.failJob(job.id, "calendar-create-failed", deps.now());
+      } else if (result.kind === "ran" && result.failures.length > 0) {
+        await repository.failJob(job.id, jobErrorCode(result.failures[0]), deps.now());
       } else {
         await repository.verifyJob(job.id, deps.now());
       }

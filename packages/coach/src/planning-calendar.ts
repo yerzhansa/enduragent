@@ -5,7 +5,7 @@ import type {
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
-import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
+import { icuEventType, type CalendarMirrorPort } from "@enduragent/engine/calendar";
 
 function clientValue<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error("Intervals calendar request failed.", { cause: result.error });
@@ -21,15 +21,6 @@ function dateKey(value: string): number {
   const parsed = Number(value.slice(0, 10).replaceAll("-", ""));
   if (!Number.isSafeInteger(parsed)) throw new TypeError("Intervals returned an invalid date.");
   return parsed;
-}
-
-function eventType(sport: string): NonNullable<EventInput["type"]> {
-  const normalized = sport.toLowerCase();
-  if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("ride"))
-    return "Ride";
-  if (normalized.includes("run")) return "Run";
-  if (normalized.includes("swim")) return "Swim";
-  return "Workout";
 }
 
 function eventContent(structureJson: string): Pick<EventInput, "description"> {
@@ -59,6 +50,7 @@ function mappedEvent(event: {
     ...(event.name === undefined ? {} : { name: event.name }),
     ...(event.movingTime === undefined ? {} : { durationS: event.movingTime }),
     ...(event.description === undefined ? {} : { description: event.description }),
+    ...(typeof event.type === "string" ? { type: event.type } : {}),
     ...(event.workoutDoc === undefined
       ? {}
       : {
@@ -83,12 +75,20 @@ function updateBody(input: PlanMirrorUpdateInput): EventInput {
   };
 }
 
+function mirrorUpdateBody(input: PlanMirrorUpdateInput): EventInput {
+  return {
+    ...updateBody(input),
+    ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
+    description: eventContent(input.structureJson).description ?? "",
+  };
+}
+
 function createBody(input: PlanMirrorCreateInput): EventInput {
   return {
     startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
     category: "WORKOUT",
     name: input.name,
-    type: eventType(input.sport),
+    type: icuEventType(input.sport),
     externalId: input.externalId,
     ...(input.durationS === null ? {} : { movingTime: input.durationS }),
     ...eventContent(input.structureJson),
@@ -133,7 +133,7 @@ export function createCalendarMirrorAdapter(
     },
     async updateEvent(input) {
       return mappedEvent(
-        clientValue(await requiredClient().events.update(input.eventId, updateBody(input))),
+        clientValue(await requiredClient().events.update(input.eventId, mirrorUpdateBody(input))),
       );
     },
     async deleteEvent(input) {
