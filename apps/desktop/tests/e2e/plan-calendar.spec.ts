@@ -300,31 +300,35 @@ test("keeps the old Plan on intervals.icu until the Replace is approved, then ta
     await replacementDraft(scenario);
     await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
     const dialog = scenario.page.getByRole("dialog", { name: "Close and activate?", exact: true });
-    await expect(dialog).toContainText(
-      "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on.",
-    );
+    await expect
+      .soft(dialog)
+      .toContainText(
+        "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on.",
+      );
     await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
     const sheet = scenario.page.locator("[data-approve-sheet]");
     await expect(sheet).toBeVisible({ timeout: 30_000 });
-    await expect(
-      sheet.getByRole("heading", { name: "Switch intervals.icu to your new Plan?" }),
-    ).toBeVisible();
-    await expect(sheet).toContainText(
-      "Workout Change Set · your new Plan replaces Local cycling event",
-    );
-    await expect(
-      scenario.page
-        .getByRole("region", { name: "Calendar", exact: true })
-        .getByText(/^Improve fitness · Training Week \d+ of \d+$/u),
-      "the Calendar header names the new Plan",
-    ).toBeVisible();
-    await expect(sheet.locator('[data-replace-block="comes-off"]')).toContainText(
-      new RegExp(`^Comes off · .+ · ${oldLater.length} workouts`, "u"),
-    );
-    await expect(sheet.locator('[data-replace-block="comes-off"] .line-through')).toHaveCount(
-      oldLater.length,
-    );
-    await expect(sheet.getByText("Goes on · your new Plan")).toBeVisible();
+    await expect
+      .soft(sheet.getByRole("heading", { name: "Switch intervals.icu to your new Plan?" }))
+      .toBeVisible();
+    await expect
+      .soft(sheet)
+      .toContainText("Workout Change Set · your new Plan replaces Local cycling event");
+    await expect
+      .soft(
+        scenario.page
+          .getByRole("region", { name: "Calendar", exact: true })
+          .getByText(/^Improve fitness · Training Week \d+ of \d+$/u),
+        "the Calendar header names the new Plan",
+      )
+      .toBeVisible();
+    await expect
+      .soft(sheet.locator('[data-replace-block="comes-off"]'))
+      .toContainText(new RegExp(`^Comes off · .+ · ${oldLater.length} workouts`, "u"));
+    await expect
+      .soft(sheet.locator('[data-replace-block="comes-off"] .line-through'))
+      .toHaveCount(oldLater.length);
+    await expect.soft(sheet.getByText("Goes on · your new Plan")).toBeVisible();
     const shot = process.env.REPLACE_SHEET_SHOT;
     if (shot !== undefined) {
       await scenario.fixture.setViewport(1180, 1500);
