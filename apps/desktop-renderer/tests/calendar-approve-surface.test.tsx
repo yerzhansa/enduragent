@@ -319,6 +319,20 @@ describe("the Replace Approve sheet", () => {
     expect(approve.open).toHaveBeenCalledWith({ kind: "first-weeks" });
   });
 
+  it("lists only the new workouts from the first day the new Plan can go on", () => {
+    const read = replacingRead("held");
+    const planned = read.plan;
+    if (planned === null) throw new Error("plan");
+    show(
+      { ...read, plan: { ...planned, sendsFromDateKey: 19980106 } },
+      { kind: "open", scope: { kind: "first-weeks" } },
+    );
+    render(<CalendarView />);
+    const sheet = screen.getByRole("complementary");
+    expect(sheet).toHaveTextContent("Once they are gone, 3 from your new Plan are added.");
+    expect(within(sheet).getByRole("button", { name: "Approve 2 off, 3 on" })).toBeEnabled();
+  });
+
   it("is the first-two-weeks sheet when nothing comes off", () => {
     const read = replacingRead("held", []);
     show(

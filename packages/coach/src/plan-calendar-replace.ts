@@ -13,6 +13,7 @@ import {
   type TickedChange,
 } from "@enduragent/engine/calendar";
 import {
+  addCivilDays,
   createPlanCalendarMirrorRepository,
   createPlanCleanupHoldRepository,
   createPlanReconciliationRepository,
@@ -180,4 +181,20 @@ export async function readReplacing(
       .sort((left, right) => left.dateKey - right.dateKey)
       .slice(0, 500),
   };
+}
+
+export async function sendsFrom(
+  store: ReplaceStore,
+  planId: string,
+  todayDateKey: number,
+): Promise<number> {
+  const barrier = await createPlanReconciliationRepository(store).readCleanupBarrier();
+  const held = (await createPlanCleanupHoldRepository(store).readForReplacement(planId)).some(
+    (hold) => hold.releasedAtMs === null,
+  );
+  return Math.max(
+    todayDateKey,
+    barrier?.windowStartDateKey ?? todayDateKey,
+    held ? addCivilDays(todayDateKey, 1) : todayDateKey,
+  );
 }

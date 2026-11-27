@@ -13,7 +13,7 @@ function Block(props: {
 }): ReactElement {
   return (
     <div
-      className="overflow-hidden rounded-card border border-line"
+      className="shrink-0 overflow-hidden rounded-card border border-line"
       data-replace-block={props.marker}
     >
       <div className="bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-ink-2">

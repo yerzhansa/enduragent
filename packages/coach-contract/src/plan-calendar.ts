@@ -195,6 +195,7 @@ export const PlanCalendarPlanSchema = z
     totalWeeks: z.number().int().min(1).max(52),
     currentWeek: z.number().int().min(1).max(52).nullable(),
     phase: z.string().min(1).max(128).nullable(),
+    sendsFromDateKey: DateKeySchema,
     weeks: z.array(PlanCalendarWeekSchema).max(52),
     workouts: z.array(PlanCalendarWorkoutSchema).max(512),
   })

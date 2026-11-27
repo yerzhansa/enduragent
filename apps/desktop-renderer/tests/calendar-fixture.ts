@@ -85,6 +85,7 @@ export function plan(
     totalWeeks: weeks.length,
     currentWeek: null,
     phase: null,
+    sendsFromDateKey: startDateKey,
     weeks: [...weeks],
     workouts: [...workouts],
     ...extra,

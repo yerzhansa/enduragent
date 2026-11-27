@@ -26,9 +26,13 @@ export interface PendingApproval {
 
 type Included = "plan-only" | "all";
 
-function included(workout: PlanCalendarWorkout, today: number, include: Included): boolean {
+function sendsFrom(read: PlanCalendarRead): number {
+  return Math.max(read.todayDateKey, read.plan?.sendsFromDateKey ?? read.todayDateKey);
+}
+
+function included(workout: PlanCalendarWorkout, from: number, include: Included): boolean {
   return (
-    workout.dateKey >= today &&
+    workout.dateKey >= from &&
     (include === "all" || workout.copy.kind === "plan-only") &&
     workout.outcome.kind !== "removed-by-you"
   );
@@ -49,7 +53,7 @@ function approval(
         (workout) =>
           workout.dateKey >= week.startDateKey &&
           workout.dateKey <= week.endDateKey &&
-          included(workout, read.todayDateKey, include),
+          included(workout, sendsFrom(read), include),
       )
       .sort((left, right) => left.dateKey - right.dateKey),
   }));
@@ -97,7 +101,7 @@ export function sendingFailures(
   if (plan === null) return { sent: 0, failed: [], waiting: [] };
   const inWeeks = plan.workouts.filter(
     (workout) =>
-      workout.dateKey >= read.todayDateKey &&
+      workout.dateKey >= sendsFrom(read) &&
       workout.outcome.kind !== "removed-by-you" &&
       plan.weeks.some(
         (week) =>

@@ -72,7 +72,7 @@ function WeekRows(props: {
       });
   const row = SHEET_ROW;
   return (
-    <div className="overflow-hidden rounded-card border border-line">
+    <div className="shrink-0 overflow-hidden rounded-card border border-line">
       <div className="bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-ink-2">{header}</div>
       {props.detailed ? (
         entry.workouts.map((workout) => (

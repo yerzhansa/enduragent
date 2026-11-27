@@ -119,6 +119,15 @@ async function harness() {
     return result.planId;
   };
   const reconciliation = createPlanReconciliationRepository(store);
+  const read = async () => {
+    const calendar = await calendarOperations["plan.calendar"]({
+      action: "read",
+      startDateKey: today,
+      endDateKey: addCivilDays(today, 13),
+    });
+    if (calendar.status !== "calendar") throw new Error("Expected the Calendar");
+    return calendar;
+  };
   const owner = (externalId: string | null | undefined) =>
     externalId?.startsWith(PLAN_MIRROR_EXTERNAL_ID_PREFIX) === true
       ? externalId.slice(PLAN_MIRROR_EXTERNAL_ID_PREFIX.length).split(":")[0]
@@ -170,15 +179,8 @@ async function harness() {
       });
       if (closed.status !== "closed") throw new Error("Expected End");
     },
-    replacing: async () => {
-      const read = await calendarOperations["plan.calendar"]({
-        action: "read",
-        startDateKey: today,
-        endDateKey: addCivilDays(today, 13),
-      });
-      if (read.status !== "calendar") throw new Error("Expected the Calendar");
-      return read.replacing;
-    },
+    replacing: async () => (await read()).replacing,
+    sendsFrom: async () => (await read()).plan?.sendsFromDateKey,
     cleanup: (planId: string) => reconciliation.readLatestJob(planId, "cleanup"),
     retry: async () => {
       await creation["plan.list"]({ retryCalendar: true });
@@ -514,6 +516,9 @@ describe("Replace as one Change Set", () => {
     expect(replacing?.removes.map((entry) => entry.dateKey)).toEqual(
       before.filter((dateKey) => dateKey > closedOn && dateKey !== edited.dateKey),
     );
+    expect(await test.sendsFrom(), "the first day the new Plan can go on").toBe(
+      addCivilDays(closedOn, 1),
+    );
   });
 
   it("takes the old Plan's workouts off and checks them before the new Plan's weeks go on", async () => {
@@ -547,6 +552,7 @@ describe("Replace as one Change Set", () => {
     expect(Math.min(...test.writesOf(newPlan))).toBeGreaterThan(closedOn);
     expect(test.sharedDays(new Set([edited.id]))).toEqual([]);
     expect(await test.replacing()).toBeNull();
+    expect(await test.sendsFrom()).toBe(addCivilDays(closedOn, 1));
   });
 
   it("removes the old Plan from the day after the Approve when the athlete approves days later", async () => {
