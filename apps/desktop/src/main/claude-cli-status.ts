@@ -281,27 +281,29 @@ export function createClaudeCliStatus(
   const status = (): Promise<ClaudeCliStatus> =>
     activeRead?.task ?? queuedRecheck?.task ?? startRead(false);
 
+  const recheck = (): Promise<ClaudeCliStatus> => {
+    if (queuedRecheck !== undefined) return queuedRecheck.task;
+    const previous = activeRead;
+    const generation = ++recheckGeneration;
+    const task = (async () => {
+      if (previous !== undefined) await Promise.allSettled([previous.task]);
+      invalidate();
+      latestReady = null;
+      return await startRead(true);
+    })();
+    queuedRecheck = { generation, task };
+    const clear = (): void => {
+      if (queuedRecheck?.generation === generation && queuedRecheck.task === task) {
+        queuedRecheck = undefined;
+      }
+    };
+    void task.then(clear, clear);
+    return task;
+  };
+
   return {
     status,
-    recheck() {
-      if (queuedRecheck !== undefined) return queuedRecheck.task;
-      const previous = activeRead;
-      const generation = ++recheckGeneration;
-      const task = (async () => {
-        if (previous !== undefined) await Promise.allSettled([previous.task]);
-        invalidate();
-        latestReady = null;
-        return await startRead(true);
-      })();
-      queuedRecheck = { generation, task };
-      const clear = (): void => {
-        if (queuedRecheck?.generation === generation && queuedRecheck.task === task) {
-          queuedRecheck = undefined;
-        }
-      };
-      void task.then(clear, clear);
-      return task;
-    },
+    recheck,
     invalidateProbeCache: () => {
       invalidate();
       latestReady = null;
@@ -317,7 +319,8 @@ export function createClaudeCliStatus(
         latestReady !== null && Date.now() - latestReady.at <= CLAUDE_CLI_READY_REUSE_MS
           ? latestReady.status
           : null;
-      const current = reusable ?? (await status());
+      const inFlight = activeRead !== undefined || queuedRecheck !== undefined;
+      const current = reusable ?? (await (inFlight ? status() : recheck()));
       if (current.state === "disabled") {
         return { status: "refused", reason: "runtime-unavailable" };
       }

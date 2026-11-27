@@ -68,4 +68,56 @@ describe("repro onboarding G12a: Claude Code activation and an old check", () =>
       runtimeChanged: 0,
     });
   });
+  for (const [label, ageMs, freshProbes] of [
+    ["re-probes the CLI 61 s after the last check", 61_000, 1],
+    ["reuses a check from 30 s before", 30_000, 0],
+  ] as const) {
+    it(label, async () => {
+      vi.useFakeTimers({ toFake: ["Date", "performance"] });
+      const probeAccount = vi.fn(async (): Promise<ClaudeAccountProbeResult> => ({
+        verified: true,
+        accountClass: "subscription",
+        email: "athlete@synthetic.test",
+        plan: "Max",
+      }));
+      const invalidateProbeCache = vi.fn();
+      const claude = createClaudeCliStatus({
+        settings: async () => ({ enabled: true, billing: "subscription" }),
+        environment: () => ({}),
+        applyRuntimeConfig: vi.fn(async () => {}),
+        workingArea,
+        dependencies: {
+          resolveBinary: vi.fn(async () => "/opt/homebrew/bin/claude"),
+          probeVersion: vi.fn(async () => "2.9.0"),
+          probeAccount,
+          preflightMcpConfigTransform: vi.fn(),
+          invalidateProbeCache,
+        },
+      });
+      await expect(claude.status()).resolves.toMatchObject({ state: "ready" });
+      const probesBefore = probeAccount.mock.calls.length;
+      const invalidationsBefore = invalidateProbeCache.mock.calls.length;
+
+      vi.advanceTimersByTime(ageMs);
+      const result = await claude.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "claude-cli",
+          model: "sonnet",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      );
+
+      expect({
+        result,
+        freshProbes: probeAccount.mock.calls.length - probesBefore,
+        cacheCleared: invalidateProbeCache.mock.calls.length > invalidationsBefore,
+      }).toEqual({
+        result: { status: "configured", runtimeReady: true },
+        freshProbes,
+        cacheCleared: freshProbes > 0,
+      });
+    });
+  }
 });
