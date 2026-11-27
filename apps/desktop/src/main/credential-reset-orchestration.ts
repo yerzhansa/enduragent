@@ -16,6 +16,7 @@ import type {
 import {
   DESKTOP_CREDENTIAL_SLOTS,
   type CredentialRuntimeState,
+  type CredentialVault,
   type DesktopCredentialSlot,
 } from "./credential-vault.js";
 import type { KeychainKeyDeletion } from "./keychain-credential-encryption.js";
@@ -53,6 +54,7 @@ export interface CreateDesktopCredentialResetOptions {
   ) => Promise<KeychainKeyDeletion>;
   readonly credentialRuntimeState: Map<DesktopCredentialSlot, CredentialRuntimeState>;
   readonly onRuntimeStateChange: (slot: DesktopCredentialSlot) => void;
+  readonly vault: Pick<CredentialVault, "forgetStorageStateAfterReset">;
   readonly resetEncryptedCredentialStorage?: ResetEncryptedCredentialStorage;
 }
 
@@ -112,6 +114,7 @@ export function createDesktopCredentialReset(
           return { status: "refused", reason: "storage-failed" };
         }
         options.credentialRuntimeState.clear();
+        await options.vault.forgetStorageStateAfterReset();
         return reset;
       } catch {
         return { status: "refused", reason: "storage-failed" };

@@ -155,6 +155,7 @@ function harness(
     }),
     reapplyConfigured: vi.fn(async () => {}),
     retryFailed: vi.fn(async () => {}),
+    forgetStorageStateAfterReset: vi.fn(async () => {}),
   };
   const dialog = {
     showOpenDialog: vi.fn(async () => ({
