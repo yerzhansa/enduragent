@@ -18,6 +18,14 @@
       "system": "System",
       "title": "Utseende"
     },
+    "calendar": {
+      "approveEachWeek": "Godkjenn hver uke",
+      "approveEachWeekDetail": "Hver nye treningsuke venter på godkjenningen din i stedet for å bli sendt av seg selv 7 dager i forveien. En uke du ikke godkjenner, når aldri sykkelcomputeren din.",
+      "startAtLogin": "Start Enduragent ved pålogging",
+      "startAtLoginDetail": "Senere uker sendes bare mens appen kjører; et lukket vindu er greit.",
+      "title": "Kalender",
+      "unavailable": "Kalenderinnstillingene kunne ikke lastes inn."
+    },
     "language": {
       "automaticDetail": "Automatisk følger språket i {{operatingSystem}}. Treneren svarer på språket du skriver på.",
       "explicitDetail": "Appen og treneren bruker dette språket.",
@@ -1347,8 +1355,8 @@
       "successLabel": "Hva det vil si å lykkes",
       "successLabelShort": "Suksess",
       "successRequired": "Beskriv hva det vil si å lykkes.",
-      "syncToday": "Treningsøkter med dato synkroniseres fra i dag til og med {{date}}.",
-      "syncTomorrow": "Treningsøkter med dato synkroniseres fra i morgen til og med {{date}}.",
+      "syncToday": "Ingenting sendes til intervals.icu før du godkjenner. Deretter åpnes Kalender med de to første treningsukene dine.",
+      "syncTomorrow": "Den gamle planens treningsøkter fra og med i morgen fjernes fra intervals.icu nå. Ingenting fra den nye planen sendes før du godkjenner. Deretter åpnes Kalender med de to første treningsukene dine.",
       "syncWait": "Kalenderoppdateringer venter til {{service}} er tilkoblet.",
       "timeOff": "Fravær fra {{start}} til {{end}}",
       "title": "Planoppretting",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Ekstra",
         "untitled": "Tur"
+      },
+      "approve": {
+        "approve": "Godkjenn",
+        "approveCount_one": "Godkjenn {{count}} treningsøkt",
+        "approveCount_other": "Godkjenn {{count}} treningsøkter",
+        "body_one": "{{count}} treningsøkt legges til i intervals.icu-kalenderen din. Ingenting som allerede ligger der, endres eller slettes. Sykkelcomputeren din laster den ned fra intervals.icu.",
+        "body_other": "{{count}} treningsøkter legges til i intervals.icu-kalenderen din. Ingenting som allerede ligger der, endres eller slettes. Sykkelcomputeren din laster ned hver av dem fra intervals.icu.",
+        "captionFirst": "Endringssett for treningsøkter · fra den nye planen din",
+        "captionWeek": "Endringssett for treningsøkter · neste treningsuke",
+        "connect": "Koble til intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Sendt: {{sent}} av {{total}}. Mislyktes: {{days}}, fordi intervals.icu ikke svarte.",
+        "loginBody": "Senere uker sendes bare mens appen kjører; et lukket vindu er greit. Slå dette på så de sendes i tide. Det er den samme bryteren som i Innstillinger.",
+        "loginTitle": "Start Enduragent ved pålogging",
+        "notConnected": "intervals.icu er ikke tilkoblet. Planen er lagret, og disse treningsøktene venter her, merket «bare i planen».",
+        "notNow": "Ikke nå",
+        "refused": "Dette endringssettet er utdatert. Kalenderen viser nå den nyeste planen.",
+        "retry": "Prøv igjen",
+        "sending_one": "Sender {{count}} treningsøkt til intervals.icu…",
+        "sending_other": "Sender {{count}} treningsøkter til intervals.icu…",
+        "titleFirstOne": "Sende denne treningsuken til intervals.icu?",
+        "titleFirstTwo": "Sende de to første treningsukene til intervals.icu?",
+        "titleWeek": "Sende uke {{week}} til intervals.icu?",
+        "weekHeader": "Uke {{week}} · {{range}}",
+        "weekHeaderCount_one": "Uke {{week}} · {{range}} · {{count}} treningsøkt",
+        "weekHeaderCount_other": "Uke {{week}} · {{range}} · {{count}} treningsøkter"
+      },
+      "banner": {
+        "detail_one": "{{count}} treningsøkt, {{duration}}, fra {{date}}. Uken sendes når du godkjenner den.",
+        "detail_other": "{{count}} treningsøkter, {{duration}}, fra {{date}}. Uken sendes når du godkjenner den.",
+        "lead": "Uke {{week}} er klar:",
+        "review": "Se gjennom og godkjenn"
       },
       "column": {
         "trainingWeek": "Treningsuke",

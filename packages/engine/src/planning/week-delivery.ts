@@ -118,7 +118,9 @@ export function weekDeliveryStatus(
   const current = due[0];
   if (current !== undefined && input.week < current) return { kind: "passed" };
   if (due.length === 0) return { kind: "passed" };
-  if (input.state.kind !== "approved") return { kind: "waiting-for-first-approve" };
+  if (input.state.kind !== "approved" && due.includes(input.week)) {
+    return { kind: "waiting-for-first-approve" };
+  }
   if (!due.includes(input.week)) {
     const onDateKey = trainingWeek(input.plan, input.week).sendDateKey;
     return input.setting === "approve-each-week"

@@ -4,10 +4,31 @@ import {
   type PlanCalendarRpcResult,
 } from "@enduragent/coach-contract";
 import { readWeekDelivery, saveWeekDelivery, weekDeliveryStep } from "@enduragent/engine/calendar";
-import { createPlanCalendarMirrorRepository } from "@enduragent/kernel/planning";
+import {
+  createPlanCalendarMirrorRepository,
+  createPlanReconciliationRepository,
+} from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { todayInTZ } from "@enduragent/engine/sport";
 import { readPlanCalendar } from "./plan-calendar-read.js";
+
+const SEND_AGAIN_WAIT_MS = 20_000;
+
+export function dateKeyOfMsIn(timezone: () => string): (ms: number) => number {
+  return (ms) => Number(todayInTZ(timezone(), new Date(ms)).replaceAll("-", ""));
+}
+
+async function settledWithin(settled: () => Promise<void>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    settled(),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]);
+  clearTimeout(timer);
+}
 
 export interface PlanCalendarOperations {
   "plan.calendar"(request: PlanCalendarRpcParams): Promise<PlanCalendarRpcResult>;
@@ -20,6 +41,7 @@ export function createPlanCalendarOperations(deps: {
   readonly calendarConnected: () => boolean;
   readonly dateKeyOfMs: (ms: number) => number;
   readonly changed: () => void;
+  readonly settled: () => Promise<void>;
 }): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const plans = createLegacyPlanRepository(deps.store);
@@ -37,6 +59,11 @@ export function createPlanCalendarOperations(deps: {
             },
             request,
           );
+        case "send-again":
+          await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
+          deps.changed();
+          await settledWithin(deps.settled, SEND_AGAIN_WAIT_MS);
+          return { status: "sending" };
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
         case "save-settings":
@@ -68,6 +95,7 @@ export function createPlanCalendarOperations(deps: {
             if (result.state.kind !== "approved") {
               return { status: "refused", reason: "not-approved-yet" } as const;
             }
+            await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
             return {
               status: "approved",
               weeks:

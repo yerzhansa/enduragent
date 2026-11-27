@@ -18,6 +18,14 @@
       "system": "Systeem",
       "title": "Weergave"
     },
+    "calendar": {
+      "approveEachWeek": "Elke week goedkeuren",
+      "approveEachWeekDetail": "Elke nieuwe trainingsweek wacht op je goedkeuring in plaats van 7 dagen van tevoren vanzelf te worden verzonden. Een week die je niet goedkeurt, bereikt je fietscomputer nooit.",
+      "startAtLogin": "Enduragent starten bij inloggen",
+      "startAtLoginDetail": "Latere weken worden alleen verzonden terwijl de app draait; een gesloten venster is geen probleem.",
+      "title": "Kalender",
+      "unavailable": "De kalenderinstellingen konden niet worden geladen."
+    },
     "language": {
       "automaticDetail": "Automatisch volgt de taal van {{operatingSystem}}. De coach antwoordt in de taal waarin je schrijft.",
       "explicitDetail": "De app en de coach gebruiken deze taal.",
@@ -1347,8 +1355,8 @@
       "successLabel": "Wat succes betekent",
       "successLabelShort": "Succes",
       "successRequired": "Beschrijf wat succes voor je betekent.",
-      "syncToday": "Trainingen met een datum worden vanaf vandaag tot en met {{date}} gesynchroniseerd.",
-      "syncTomorrow": "Trainingen met een datum worden vanaf morgen tot en met {{date}} gesynchroniseerd.",
+      "syncToday": "Er gaat niets naar intervals.icu totdat je goedkeurt. Daarna opent de Kalender met je eerste twee trainingsweken.",
+      "syncTomorrow": "De trainingen van het oude trainingsschema vanaf morgen worden nu uit intervals.icu gehaald. Er gaat niets van het nieuwe trainingsschema naar intervals.icu totdat je goedkeurt. Daarna opent de Kalender met je eerste twee trainingsweken.",
       "syncWait": "Kalenderupdates wachten totdat {{service}} is verbonden.",
       "timeOff": "Afwezig van {{start}} tot {{end}}",
       "title": "Trainingsschema aanmaken",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Extra",
         "untitled": "Rit"
+      },
+      "approve": {
+        "approve": "Goedkeuren",
+        "approveCount_one": "{{count}} training goedkeuren",
+        "approveCount_other": "{{count}} trainingen goedkeuren",
+        "body_one": "{{count}} training wordt toegevoegd aan je intervals.icu-kalender. Wat er al staat, wordt niet gewijzigd of verwijderd. Je fietscomputer downloadt deze van intervals.icu.",
+        "body_other": "{{count}} trainingen worden toegevoegd aan je intervals.icu-kalender. Wat er al staat, wordt niet gewijzigd of verwijderd. Je fietscomputer downloadt ze allemaal van intervals.icu.",
+        "captionFirst": "Set trainingswijzigingen · uit je nieuwe trainingsschema",
+        "captionWeek": "Set trainingswijzigingen · volgende trainingsweek",
+        "connect": "intervals.icu verbinden",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Verzonden: {{sent}} van {{total}}. Mislukt: {{days}}, omdat intervals.icu niet reageerde.",
+        "loginBody": "Latere weken worden alleen verzonden terwijl de app draait; een gesloten venster is geen probleem. Zet dit aan zodat ze op tijd worden verzonden. Het is dezelfde schakelaar als in Instellingen.",
+        "loginTitle": "Enduragent starten bij inloggen",
+        "notConnected": "intervals.icu is niet verbonden. Het trainingsschema is opgeslagen en deze trainingen wachten hier, gemarkeerd als 'alleen in het trainingsschema'.",
+        "notNow": "Niet nu",
+        "refused": "Deze set wijzigingen is verouderd. De kalender toont nu het nieuwste trainingsschema.",
+        "retry": "Opnieuw proberen",
+        "sending_one": "{{count}} training naar intervals.icu verzenden…",
+        "sending_other": "{{count}} trainingen naar intervals.icu verzenden…",
+        "titleFirstOne": "Deze trainingsweek naar intervals.icu verzenden?",
+        "titleFirstTwo": "De eerste twee trainingsweken naar intervals.icu verzenden?",
+        "titleWeek": "Week {{week}} naar intervals.icu verzenden?",
+        "weekHeader": "Week {{week}} · {{range}}",
+        "weekHeaderCount_one": "Week {{week}} · {{range}} · {{count}} training",
+        "weekHeaderCount_other": "Week {{week}} · {{range}} · {{count}} trainingen"
+      },
+      "banner": {
+        "detail_one": "{{count}} training, {{duration}}, vanaf {{date}}. De week wordt verzonden zodra je goedkeurt.",
+        "detail_other": "{{count}} trainingen, {{duration}}, vanaf {{date}}. De week wordt verzonden zodra je goedkeurt.",
+        "lead": "Week {{week}} is klaar:",
+        "review": "Bekijken en goedkeuren"
       },
       "column": {
         "trainingWeek": "Trainingsweek",

@@ -172,12 +172,18 @@ export interface SeasonBar {
 export interface SeasonWeek {
   readonly week: PlanCalendarWeek;
   readonly bars: readonly SeasonBar[];
-  readonly sent: "on-intervals" | "plan-only";
+  readonly sent: "on-intervals" | "plan-only" | "waiting";
   readonly current: boolean;
 }
 
 function weekSent(plan: PlanCalendarPlan, week: PlanCalendarWeek): SeasonWeek["sent"] {
   if (week.status.kind === "on-intervals") return "on-intervals";
+  if (
+    week.status.kind === "waiting-for-first-approve" ||
+    week.status.kind === "waiting-for-week-approve"
+  ) {
+    return "waiting";
+  }
   if (week.status.kind !== "passed") return "plan-only";
   return plan.workouts.some(
     (workout) =>

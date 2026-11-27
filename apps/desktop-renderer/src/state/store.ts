@@ -11,6 +11,7 @@ import {
 } from "../theme/preferences";
 import { createArchiveSlice, type ArchiveSlice } from "./archive-slice";
 import { createCalendarSlice, type CalendarSlice } from "./calendar-slice";
+import { createCalendarApproveSlice, type CalendarApproveSlice } from "./calendar-approve-slice";
 import { createActivityAnalysisSlice, type ActivityAnalysisSlice } from "./activity-analysis-slice";
 import { createChatSlice, type ChatSlice } from "./chat-slice";
 import { createOnboardingSlice, type OnboardingSlice } from "./onboarding-slice";
@@ -26,6 +27,7 @@ export interface EnduragentState
     ChatSlice,
     ArchiveSlice,
     CalendarSlice,
+    CalendarApproveSlice,
     SettingsSlice,
     TrainingSlice,
     PlanSlice,
@@ -59,6 +61,7 @@ export const useEnduragentStore = create<EnduragentState>((set, get, api) => ({
   ...createChatSlice(set, get, api),
   ...createArchiveSlice(set, get, api),
   ...createCalendarSlice(set, get, api),
+  ...createCalendarApproveSlice(set, get, api),
   ...createSettingsSlice(set, get, api),
   ...createTrainingSlice(set, get, api),
   ...createPlanSlice(set, get, api),

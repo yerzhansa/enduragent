@@ -18,6 +18,14 @@
       "system": "System",
       "title": "Utseende"
     },
+    "calendar": {
+      "approveEachWeek": "Godkänn varje vecka",
+      "approveEachWeekDetail": "Varje ny träningsvecka väntar på ditt godkännande i stället för att skickas av sig själv 7 dagar i förväg. En vecka som du inte godkänner når aldrig din cykeldator.",
+      "startAtLogin": "Starta Enduragent vid inloggning",
+      "startAtLoginDetail": "Senare veckor skickas bara medan appen körs; ett stängt fönster går bra.",
+      "title": "Kalender",
+      "unavailable": "Kalenderinställningarna kunde inte läsas in."
+    },
     "language": {
       "automaticDetail": "Automatiskt följer språket i {{operatingSystem}}. Tränaren svarar på det språk du skriver på.",
       "explicitDetail": "Appen och tränaren använder det här språket.",
@@ -1347,8 +1355,8 @@
       "successLabel": "Vad det innebär att lyckas",
       "successLabelShort": "Framgång",
       "successRequired": "Beskriv vad det innebär att lyckas.",
-      "syncToday": "Träningspass med datum synkroniseras från idag till och med {{date}}.",
-      "syncTomorrow": "Träningspass med datum synkroniseras från imorgon till och med {{date}}.",
+      "syncToday": "Inget skickas till intervals.icu förrän du godkänner. Sedan öppnas Kalender med dina två första träningsveckor.",
+      "syncTomorrow": "Den gamla planens träningspass från och med i morgon tas bort från intervals.icu nu. Inget från den nya planen skickas förrän du godkänner. Sedan öppnas Kalender med dina två första träningsveckor.",
       "syncWait": "Kalendern uppdateras först när {{service}} är anslutet.",
       "timeOff": "Ledig {{start}} till {{end}}",
       "title": "Skapa plan",
@@ -1894,6 +1902,38 @@
       "activity": {
         "extra": "Extra",
         "untitled": "Cykeltur"
+      },
+      "approve": {
+        "approve": "Godkänn",
+        "approveCount_one": "Godkänn {{count}} träningspass",
+        "approveCount_other": "Godkänn {{count}} träningspass",
+        "body_one": "{{count}} träningspass läggs till i din intervals.icu-kalender. Inget som redan finns där ändras eller raderas. Din cykeldator hämtar det från intervals.icu.",
+        "body_other": "{{count}} träningspass läggs till i din intervals.icu-kalender. Inget som redan finns där ändras eller raderas. Din cykeldator hämtar vart och ett från intervals.icu.",
+        "captionFirst": "Ändringspaket för träningspass · från din nya plan",
+        "captionWeek": "Ändringspaket för träningspass · nästa träningsvecka",
+        "connect": "Anslut intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Skickat: {{sent}} av {{total}}. Misslyckades: {{days}}, eftersom intervals.icu inte svarade.",
+        "loginBody": "Senare veckor skickas bara medan appen körs; ett stängt fönster går bra. Slå på det här så att de skickas i tid. Det är samma reglage som i Inställningar.",
+        "loginTitle": "Starta Enduragent vid inloggning",
+        "notConnected": "intervals.icu är inte anslutet. Planen är sparad och de här träningspassen väntar här, markerade med ”bara i planen”.",
+        "notNow": "Inte nu",
+        "refused": "Det här ändringspaketet är inaktuellt. Kalendern visar nu den senaste planen.",
+        "retry": "Försök igen",
+        "sending_one": "Skickar {{count}} träningspass till intervals.icu…",
+        "sending_other": "Skickar {{count}} träningspass till intervals.icu…",
+        "titleFirstOne": "Skicka den här träningsveckan till intervals.icu?",
+        "titleFirstTwo": "Skicka de två första träningsveckorna till intervals.icu?",
+        "titleWeek": "Skicka vecka {{week}} till intervals.icu?",
+        "weekHeader": "Vecka {{week}} · {{range}}",
+        "weekHeaderCount_one": "Vecka {{week}} · {{range}} · {{count}} träningspass",
+        "weekHeaderCount_other": "Vecka {{week}} · {{range}} · {{count}} träningspass"
+      },
+      "banner": {
+        "detail_one": "{{count}} träningspass, {{duration}}, från {{date}}. Veckan skickas när du godkänner den.",
+        "detail_other": "{{count}} träningspass, {{duration}}, från {{date}}. Veckan skickas när du godkänner den.",
+        "lead": "Vecka {{week}} är klar:",
+        "review": "Granska och godkänn"
       },
       "column": {
         "trainingWeek": "Träningsvecka",

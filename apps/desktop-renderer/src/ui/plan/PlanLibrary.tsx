@@ -63,6 +63,8 @@ export function calendarStatusLabel(
       return say("chat.planChange.calendar.updating");
     case "not-connected":
       return say("chat.planChange.calendar.connect");
+    case "waiting-for-approve":
+      return say("plan.calendar.status.waitingForApprove");
     case "failed":
       return say(
         calendar.error.endsWith("Retry available.")

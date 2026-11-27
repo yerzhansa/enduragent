@@ -18,6 +18,14 @@
       "system": "Sistema",
       "title": "Apariencia"
     },
+    "calendar": {
+      "approveEachWeek": "Aprobar cada semana",
+      "approveEachWeekDetail": "Cada nueva semana de entrenamiento espera tu aprobación en lugar de enviarse sola 7 días antes. Una semana que no apruebes nunca llega a tu ciclocomputador.",
+      "startAtLogin": "Iniciar Enduragent al iniciar sesión",
+      "startAtLoginDetail": "Las semanas siguientes solo se envían mientras la aplicación está abierta; no importa si la ventana está cerrada.",
+      "title": "Calendario",
+      "unavailable": "No se pudieron cargar los ajustes del calendario."
+    },
     "language": {
       "automaticDetail": "Automático usa el idioma de {{operatingSystem}}. El entrenador responde en el idioma en el que escribes.",
       "explicitDetail": "La aplicación y el entrenador usan este idioma.",
@@ -1347,8 +1355,8 @@
       "successLabel": "Qué significa tener éxito",
       "successLabelShort": "Éxito",
       "successRequired": "Describe qué significa tener éxito.",
-      "syncToday": "Los entrenamientos con fecha se sincronizan desde hoy hasta el {{date}}.",
-      "syncTomorrow": "Los entrenamientos con fecha se sincronizan desde mañana hasta el {{date}}.",
+      "syncToday": "No se envía nada a intervals.icu hasta que lo apruebes. A continuación se abre el Calendario con tus dos primeras semanas de entrenamiento.",
+      "syncTomorrow": "Los entrenamientos del plan anterior a partir de mañana se quitan ahora de intervals.icu. No se envía nada del nuevo plan hasta que lo apruebes. A continuación se abre el Calendario con tus dos primeras semanas de entrenamiento.",
       "syncWait": "El calendario se actualizará cuando {{service}} esté conectado.",
       "timeOff": "Sin entrenar del {{start}} al {{end}}",
       "title": "Creación del plan",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Adicional",
         "untitled": "Salida"
+      },
+      "approve": {
+        "approve": "Aprobar",
+        "approveCount_one": "Aprobar {{count}} entrenamiento",
+        "approveCount_other": "Aprobar {{count}} entrenamientos",
+        "body_one": "Se añade {{count}} entrenamiento a tu calendario de intervals.icu. No se cambia ni se elimina nada de lo que ya hay. Tu ciclocomputador lo descarga desde intervals.icu.",
+        "body_other": "Se añaden {{count}} entrenamientos a tu calendario de intervals.icu. No se cambia ni se elimina nada de lo que ya hay. Tu ciclocomputador descarga cada uno desde intervals.icu.",
+        "captionFirst": "Conjunto de cambios de entrenamientos · de tu nuevo plan",
+        "captionWeek": "Conjunto de cambios de entrenamientos · próxima semana de entrenamiento",
+        "connect": "Conectar intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Enviados: {{sent}} de {{total}}. Sin enviar: {{days}}, porque intervals.icu no respondió.",
+        "loginBody": "Las semanas siguientes solo se envían mientras la aplicación está abierta; no importa si la ventana está cerrada. Actívalo para que se envíen a tiempo. Es el mismo interruptor que en Ajustes.",
+        "loginTitle": "Iniciar Enduragent al iniciar sesión",
+        "notConnected": "intervals.icu no está conectado. El plan está guardado y estos entrenamientos esperan aquí, marcados como «solo en el plan».",
+        "notNow": "Ahora no",
+        "refused": "Este conjunto de cambios está desactualizado. El calendario ya muestra el plan más reciente.",
+        "retry": "Reintentar",
+        "sending_one": "Enviando {{count}} entrenamiento a intervals.icu…",
+        "sending_other": "Enviando {{count}} entrenamientos a intervals.icu…",
+        "titleFirstOne": "¿Enviar esta semana de entrenamiento a intervals.icu?",
+        "titleFirstTwo": "¿Enviar las dos primeras semanas de entrenamiento a intervals.icu?",
+        "titleWeek": "¿Enviar la semana {{week}} a intervals.icu?",
+        "weekHeader": "Semana {{week}} · {{range}}",
+        "weekHeaderCount_one": "Semana {{week}} · {{range}} · {{count}} entrenamiento",
+        "weekHeaderCount_other": "Semana {{week}} · {{range}} · {{count}} entrenamientos"
+      },
+      "banner": {
+        "detail_one": "{{count}} entrenamiento, {{duration}}, desde el {{date}}. Se envía cuando la apruebes.",
+        "detail_other": "{{count}} entrenamientos, {{duration}}, desde el {{date}}. Se envía cuando la apruebes.",
+        "lead": "La semana {{week}} está lista:",
+        "review": "Revisar y aprobar"
       },
       "column": {
         "trainingWeek": "Semana de entrenamiento",

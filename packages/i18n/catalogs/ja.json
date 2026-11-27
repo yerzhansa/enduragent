@@ -18,6 +18,14 @@
       "system": "システム",
       "title": "外観"
     },
+    "calendar": {
+      "approveEachWeek": "毎週承認する",
+      "approveEachWeekDetail": "新しいトレーニング週は、7日前に自動で送信されず、承認されるまで待機します。承認しない週はサイクルコンピュータに届きません。",
+      "startAtLogin": "ログイン時にEnduragentを起動",
+      "startAtLoginDetail": "以降の週は、アプリの実行中にのみ送信されます。ウィンドウは閉じていてもかまいません。",
+      "title": "カレンダー",
+      "unavailable": "カレンダー設定を読み込めませんでした。"
+    },
     "language": {
       "automaticDetail": "自動は{{operatingSystem}}の言語に従います。コーチは入力された言語で返信します。",
       "explicitDetail": "アプリとコーチはこの言語を使用します。",
@@ -1336,8 +1344,8 @@
       "successLabel": "成功の基準",
       "successLabelShort": "成功",
       "successRequired": "何をもって成功とするかを記入してください。",
-      "syncToday": "今日から{{date}}までの日付指定のワークアウトを同期します。",
-      "syncTomorrow": "明日から{{date}}までの日付指定のワークアウトを同期します。",
+      "syncToday": "承認するまで、intervals.icuには何も送信されません。次に、最初の2つのトレーニング週が入ったカレンダーが開きます。",
+      "syncTomorrow": "旧プランの明日以降のワークアウトは、今すぐintervals.icuから削除されます。承認するまで、新しいプランの内容は何も送信されません。次に、最初の2つのトレーニング週が入ったカレンダーが開きます。",
       "syncWait": "{{service}}に接続するまで、カレンダーの更新は保留されます。",
       "timeOff": "{{start}}〜{{end}}は休み",
       "title": "プラン作成",
@@ -1514,6 +1522,33 @@
       "activity": {
         "extra": "追加",
         "untitled": "ライド"
+      },
+      "approve": {
+        "approve": "承認",
+        "approveCount_other": "{{count}}件のワークアウトを承認",
+        "body_other": "{{count}}件のワークアウトがintervals.icuカレンダーに追加されます。すでにある予定は変更も削除もされません。各ワークアウトはサイクルコンピュータがintervals.icuからダウンロードします。",
+        "captionFirst": "ワークアウト変更セット · 新しいプランから",
+        "captionWeek": "ワークアウト変更セット · 次のトレーニング週",
+        "connect": "intervals.icuに接続",
+        "dayRange": "{{first}}〜{{last}}",
+        "failed": "{{total}}件中{{sent}}件を送信しました。送信できなかった日: {{days}}。intervals.icuから応答がありませんでした。",
+        "loginBody": "以降の週は、アプリの実行中にのみ送信されます。ウィンドウは閉じていてもかまいません。予定どおりに送信されるよう、オンにしてください。設定と同じスイッチです。",
+        "loginTitle": "ログイン時にEnduragentを起動",
+        "notConnected": "intervals.icuに接続されていません。プランは保存済みで、これらのワークアウトは「プランのみ」としてここで待機します。",
+        "notNow": "今はしない",
+        "refused": "この変更セットは古くなっています。カレンダーには最新のプランが表示されています。",
+        "retry": "再試行",
+        "sending_other": "{{count}}件のワークアウトをintervals.icuに送信中…",
+        "titleFirstOne": "このトレーニング週をintervals.icuに送信しますか？",
+        "titleFirstTwo": "最初の2つのトレーニング週をintervals.icuに送信しますか？",
+        "titleWeek": "第{{week}}週をintervals.icuに送信しますか？",
+        "weekHeader": "第{{week}}週 · {{range}}",
+        "weekHeaderCount_other": "第{{week}}週 · {{range}} · ワークアウト{{count}}件"
+      },
+      "banner": {
+        "detail_other": "ワークアウト{{count}}件、{{duration}}、{{date}}から。承認すると送信されます。",
+        "lead": "第{{week}}週の準備ができました:",
+        "review": "確認して承認"
       },
       "column": {
         "trainingWeek": "トレーニング週",

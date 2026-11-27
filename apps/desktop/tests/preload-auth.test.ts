@@ -141,6 +141,8 @@ interface AuthBridge {
   getUpdateState(): Promise<unknown>;
   checkForUpdates(): Promise<unknown>;
   restartToUpdate(): Promise<unknown>;
+  readStartAtLogin(...args: unknown[]): Promise<unknown>;
+  setStartAtLogin(enabled: unknown, ...args: unknown[]): Promise<unknown>;
   onUpdateState(listener: (state: unknown) => void): () => void;
   submitAthleteFeedback(input: unknown): Promise<unknown>;
 }
@@ -433,6 +435,7 @@ describe("desktop preload ChatGPT auth", () => {
         "pasteChatAttachment",
         "pasteTelegramTokenFromClipboard",
         "platform",
+        "readStartAtLogin",
         "reconcileTelegram",
         "removeTelegram",
         "removeTelegramAllowedSender",
@@ -444,6 +447,7 @@ describe("desktop preload ChatGPT auth", () => {
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
+        "setStartAtLogin",
         "signInWithIntervals",
         "startOpenRouterCodeSignIn",
         "submitAthleteFeedback",
@@ -1754,6 +1758,24 @@ describe("desktop preload ChatGPT auth", () => {
       ["desktop:update:check"],
       ["desktop:update:restart"],
       ["desktop:update:get"],
+    ]);
+  });
+
+  it("reads and sets Start at login with strict arguments and copied states", async () => {
+    mocks.invoke
+      .mockResolvedValueOnce({ kind: "known", enabled: false })
+      .mockResolvedValueOnce({ kind: "known", enabled: true })
+      .mockResolvedValueOnce({ kind: "known", enabled: "yes" });
+    await expect(bridge.readStartAtLogin()).resolves.toEqual({ kind: "known", enabled: false });
+    await expect(bridge.setStartAtLogin(true)).resolves.toEqual({ kind: "known", enabled: true });
+    await expect(bridge.readStartAtLogin()).rejects.toThrow(TypeError);
+    await expect(bridge.readStartAtLogin("extra")).rejects.toThrow(TypeError);
+    await expect(bridge.setStartAtLogin("true")).rejects.toThrow(TypeError);
+    await expect(bridge.setStartAtLogin(true, "extra")).rejects.toThrow(TypeError);
+    expect(mocks.invoke.mock.calls).toEqual([
+      ["desktop:start-at-login:get"],
+      ["desktop:start-at-login:set", true],
+      ["desktop:start-at-login:get"],
     ]);
   });
 

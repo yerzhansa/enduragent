@@ -18,6 +18,14 @@
       "system": "System",
       "title": "Darstellung"
     },
+    "calendar": {
+      "approveEachWeek": "Jeder Woche einzeln zustimmen",
+      "approveEachWeekDetail": "Jede neue Trainingswoche wartet auf deine Zustimmung, statt 7 Tage vorher von selbst gesendet zu werden. Eine Woche, der du nicht zustimmst, erreicht deinen Radcomputer nie.",
+      "startAtLogin": "Enduragent bei der Anmeldung starten",
+      "startAtLoginDetail": "Spätere Wochen werden nur gesendet, während die App läuft; ein geschlossenes Fenster ist kein Problem.",
+      "title": "Kalender",
+      "unavailable": "Die Kalendereinstellungen konnten nicht geladen werden."
+    },
     "language": {
       "automaticDetail": "Automatisch übernimmt die Sprache von {{operatingSystem}}. Der Coach antwortet in der Sprache, in der du schreibst.",
       "explicitDetail": "Die App und der Coach verwenden diese Sprache.",
@@ -1347,8 +1355,8 @@
       "successLabel": "Bedeutung von Erfolg",
       "successLabelShort": "Erfolg",
       "successRequired": "Beschreibe, was Erfolg bedeutet.",
-      "syncToday": "Trainings mit Datum werden ab heute bis zum {{date}} synchronisiert.",
-      "syncTomorrow": "Trainings mit Datum werden ab morgen bis zum {{date}} synchronisiert.",
+      "syncToday": "Nichts geht an intervals.icu, bevor du zustimmst. Danach öffnet sich der Kalender mit deinen ersten zwei Trainingswochen.",
+      "syncTomorrow": "Die Trainings des alten Plans ab morgen werden jetzt aus intervals.icu entfernt. Nichts aus dem neuen Plan geht an intervals.icu, bevor du zustimmst. Danach öffnet sich der Kalender mit deinen ersten zwei Trainingswochen.",
       "syncWait": "Kalenderaktualisierungen warten, bis {{service}} verbunden ist.",
       "timeOff": "Auszeit vom {{start}} bis {{end}}",
       "title": "Planerstellung",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Zusätzlich",
         "untitled": "Fahrt"
+      },
+      "approve": {
+        "approve": "Zustimmen",
+        "approveCount_one": "{{count}} Training zustimmen",
+        "approveCount_other": "{{count}} Trainings zustimmen",
+        "body_one": "{{count}} Training wird deinem intervals.icu-Kalender hinzugefügt. Was dort schon steht, wird weder geändert noch gelöscht. Dein Radcomputer lädt es aus intervals.icu herunter.",
+        "body_other": "{{count}} Trainings werden deinem intervals.icu-Kalender hinzugefügt. Was dort schon steht, wird weder geändert noch gelöscht. Dein Radcomputer lädt jedes davon aus intervals.icu herunter.",
+        "captionFirst": "Trainings-Änderungspaket · aus deinem neuen Plan",
+        "captionWeek": "Trainings-Änderungspaket · nächste Trainingswoche",
+        "connect": "intervals.icu verbinden",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "{{sent}} von {{total}} gesendet. Fehlgeschlagen: {{days}}, weil intervals.icu nicht geantwortet hat.",
+        "loginBody": "Spätere Wochen werden nur gesendet, während die App läuft; ein geschlossenes Fenster ist kein Problem. Schalte das ein, damit sie pünktlich gesendet werden. Es ist derselbe Schalter wie in den Einstellungen.",
+        "loginTitle": "Enduragent bei der Anmeldung starten",
+        "notConnected": "intervals.icu ist nicht verbunden. Der Plan ist gespeichert, und diese Trainings warten hier mit der Markierung „nur im Plan“.",
+        "notNow": "Nicht jetzt",
+        "refused": "Dieses Änderungspaket ist veraltet. Der Kalender zeigt jetzt den neuesten Plan.",
+        "retry": "Erneut versuchen",
+        "sending_one": "{{count}} Training wird an intervals.icu gesendet…",
+        "sending_other": "{{count}} Trainings werden an intervals.icu gesendet…",
+        "titleFirstOne": "Diese Trainingswoche an intervals.icu senden?",
+        "titleFirstTwo": "Die ersten zwei Trainingswochen an intervals.icu senden?",
+        "titleWeek": "Woche {{week}} an intervals.icu senden?",
+        "weekHeader": "Woche {{week}} · {{range}}",
+        "weekHeaderCount_one": "Woche {{week}} · {{range}} · {{count}} Training",
+        "weekHeaderCount_other": "Woche {{week}} · {{range}} · {{count}} Trainings"
+      },
+      "banner": {
+        "detail_one": "{{count}} Training, {{duration}}, ab {{date}}. Die Woche wird gesendet, sobald du zustimmst.",
+        "detail_other": "{{count}} Trainings, {{duration}}, ab {{date}}. Die Woche wird gesendet, sobald du zustimmst.",
+        "lead": "Woche {{week}} ist bereit:",
+        "review": "Prüfen und zustimmen"
       },
       "column": {
         "trainingWeek": "Trainingswoche",

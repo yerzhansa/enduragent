@@ -464,8 +464,8 @@
       "successLabel": "Success meaning",
       "successLabelShort": "Success",
       "successRequired": "Describe what success means.",
-      "syncToday": "Dated Workouts sync from today through {{date}}.",
-      "syncTomorrow": "Dated Workouts sync from tomorrow through {{date}}.",
+      "syncToday": "Nothing goes to intervals.icu until you approve. The Calendar opens next with your first two Training Weeks.",
+      "syncTomorrow": "The old Plan’s workouts from tomorrow on come off intervals.icu now. Nothing from the new Plan goes on until you approve. The Calendar opens next with your first two Training Weeks.",
       "syncWait": "Calendar updates wait until {{service}} is connected.",
       "timeOff": "Off {{start}} to {{end}}",
       "title": "Plan creation",
@@ -951,6 +951,38 @@
       "activity": {
         "extra": "Extra",
         "untitled": "Ride"
+      },
+      "approve": {
+        "approve": "Approve",
+        "approveCount_one": "Approve {{count}} workout",
+        "approveCount_other": "Approve {{count}} workouts",
+        "body_one": "{{count}} workout is added to your intervals.icu calendar. Nothing already there is changed or deleted. Your head unit downloads it from intervals.icu.",
+        "body_other": "{{count}} workouts are added to your intervals.icu calendar. Nothing already there is changed or deleted. Your head unit downloads each one from intervals.icu.",
+        "captionFirst": "Workout Change Set · from your new Plan",
+        "captionWeek": "Workout Change Set · next Training Week",
+        "connect": "Connect intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "{{sent}} of {{total}} sent. {{days}} failed: intervals.icu did not answer.",
+        "loginBody": "Later weeks go out only while the app is running; a closed window is fine. Turn this on so they go out on time. It is the same switch as in Settings.",
+        "loginTitle": "Start Enduragent at login",
+        "notConnected": "intervals.icu is not connected. The Plan is saved and these workouts wait here, marked Plan only.",
+        "notNow": "Not now",
+        "refused": "This Change Set is out of date. The calendar now shows the latest Plan.",
+        "retry": "Retry",
+        "sending_one": "Sending {{count}} workout to intervals.icu…",
+        "sending_other": "Sending {{count}} workouts to intervals.icu…",
+        "titleFirstOne": "Send this Training Week to intervals.icu?",
+        "titleFirstTwo": "Send the first two Training Weeks to intervals.icu?",
+        "titleWeek": "Send Week {{week}} to intervals.icu?",
+        "weekHeader": "Week {{week}} · {{range}}",
+        "weekHeaderCount_one": "Week {{week}} · {{range}} · {{count}} workout",
+        "weekHeaderCount_other": "Week {{week}} · {{range}} · {{count}} workouts"
+      },
+      "banner": {
+        "detail_one": "{{count}} workout, {{duration}}, from {{date}}. It goes out when you approve.",
+        "detail_other": "{{count}} workouts, {{duration}}, from {{date}}. It goes out when you approve.",
+        "lead": "Week {{week}} is ready:",
+        "review": "Review and approve"
       },
       "column": {
         "trainingWeek": "Training Week",
@@ -1733,6 +1765,14 @@
         "athleteWhitespace": "Athlete IDs cannot begin or end with whitespace."
       },
       "verificationPending": "Verifying the connected training account… Training data stays paused until it completes."
+    },
+    "calendar": {
+      "approveEachWeek": "Approve each week",
+      "approveEachWeekDetail": "Each new Training Week waits for your Approve instead of going out by itself 7 days early. A week you do not approve never reaches your head unit.",
+      "startAtLogin": "Start Enduragent at login",
+      "startAtLoginDetail": "Later weeks go out only while the app is running; a closed window is fine.",
+      "title": "Calendar",
+      "unavailable": "Calendar settings could not load."
     },
     "coach": {
       "active": "Active",

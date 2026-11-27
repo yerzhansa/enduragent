@@ -18,6 +18,14 @@
       "system": "系统",
       "title": "外观"
     },
+    "calendar": {
+      "approveEachWeek": "每周批准",
+      "approveEachWeekDetail": "每个新的训练周都会等待批准，而不是提前 7 天自动发送。未批准的周不会发送到码表。",
+      "startAtLogin": "登录时启动 Enduragent",
+      "startAtLoginDetail": "后续训练周只会在应用运行时发送；关闭窗口没有关系。",
+      "title": "日历",
+      "unavailable": "日历设置无法加载。"
+    },
     "language": {
       "automaticDetail": "自动会跟随{{operatingSystem}}的语言。教练会使用您输入的语言回复。",
       "explicitDetail": "应用和教练会使用此语言。",
@@ -1336,8 +1344,8 @@
       "successLabel": "成功的标准",
       "successLabelShort": "成功",
       "successRequired": "请描述怎样算成功。",
-      "syncToday": "有日期的训练课程将从今天同步至 {{date}}。",
-      "syncTomorrow": "有日期的训练课程将从明天同步至 {{date}}。",
+      "syncToday": "批准之前，不会向 intervals.icu 发送任何内容。接下来会打开日历，显示前两个训练周。",
+      "syncTomorrow": "旧计划从明天起的训练课程现在会从 intervals.icu 中移除。批准之前，新计划的任何内容都不会发送到 intervals.icu。接下来会打开日历，显示前两个训练周。",
       "syncWait": "连接 {{service}} 后才会更新日历。",
       "timeOff": "{{start}} 至 {{end}} 休假",
       "title": "创建计划",
@@ -1514,6 +1522,33 @@
       "activity": {
         "extra": "额外",
         "untitled": "骑行"
+      },
+      "approve": {
+        "approve": "批准",
+        "approveCount_other": "批准 {{count}} 次训练课程",
+        "body_other": "将有 {{count}} 次训练课程添加到 intervals.icu 日历中。已有内容不会被更改或删除。码表会从 intervals.icu 下载每次训练课程。",
+        "captionFirst": "训练课程变更集 · 来自新计划",
+        "captionWeek": "训练课程变更集 · 下一个训练周",
+        "connect": "连接 intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "已发送 {{sent}}/{{total}}。发送失败：{{days}}，intervals.icu 没有响应。",
+        "loginBody": "后续训练周只会在应用运行时发送；关闭窗口没有关系。开启此选项，确保按时发送。它与设置中的开关相同。",
+        "loginTitle": "登录时启动 Enduragent",
+        "notConnected": "intervals.icu 未连接。计划已保存，这些训练课程会标记为“仅在计划中”并在此等待。",
+        "notNow": "暂不",
+        "refused": "此变更集已过期。日历现在显示的是最新计划。",
+        "retry": "重试",
+        "sending_other": "正在向 intervals.icu 发送 {{count}} 次训练课程…",
+        "titleFirstOne": "要将这个训练周发送到 intervals.icu 吗？",
+        "titleFirstTwo": "要将前两个训练周发送到 intervals.icu 吗？",
+        "titleWeek": "要将第 {{week}} 周发送到 intervals.icu 吗？",
+        "weekHeader": "第 {{week}} 周 · {{range}}",
+        "weekHeaderCount_other": "第 {{week}} 周 · {{range}} · {{count}} 次训练课程"
+      },
+      "banner": {
+        "detail_other": "{{count}} 次训练课程，{{duration}}，{{date}}起。批准后发送。",
+        "lead": "第 {{week}} 周已就绪：",
+        "review": "查看并批准"
       },
       "column": {
         "trainingWeek": "训练周",

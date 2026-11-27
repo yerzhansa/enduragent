@@ -3,10 +3,9 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { PlanCreationDraftSchema, type PlanCreationAnswerInput } from "@enduragent/coach-contract";
 import { planMirrorExternalId } from "@enduragent/engine";
-import { saveWeekDelivery, trainingWeek } from "@enduragent/engine/calendar";
+import { trainingWeek } from "@enduragent/engine/calendar";
 import {
   addCivilDays,
-  createPlanCalendarMirrorRepository,
   createPlanCreationRepository,
   createPlanChangeRepository,
   createPlanReconciliationRepository,
@@ -79,6 +78,7 @@ async function harness() {
     calendarConnected: () => connected,
     dateKeyOfMs: (ms) => Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
     changed,
+    settled: () => drain.idle(),
   });
   const approve = (planId: string, week?: number) =>
     calendarOperations["plan.calendar"]({
@@ -271,23 +271,21 @@ async function harness() {
 }
 
 describe("Plan calendar drain", () => {
-  it("sends this Training Week and next by itself for a Plan with no Approve record", async () => {
+  it("sends this Training Week and next by itself for a Plan activated before Approve existed", async () => {
     const test = await harness();
     const { planId } = await test.activate();
+    await test.store.run("DELETE FROM plan_week_delivery WHERE plan_id=?", [planId]);
     await test.drain.kick();
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
     expect(await test.approve(planId)).toEqual({ status: "refused", reason: "already-approved" });
   });
 
-  it("sends nothing while a Plan waits for its first Approve, then this Training Week and next", async () => {
+  it("sends nothing after activation until the first Approve, then this Training Week and next", async () => {
     const test = await harness();
     const { planId } = await test.activate();
-    await saveWeekDelivery(
-      createPlanCalendarMirrorRepository(test.store),
-      planId,
-      { kind: "waiting-for-first-approve" },
-      904_694_400_000,
-    );
+    expect(
+      await test.store.get("SELECT state_kind FROM plan_week_delivery WHERE plan_id=?", [planId]),
+    ).toEqual({ state_kind: "waiting-for-first-approve" });
     await test.drain.kick();
     expect(test.calendar.creates).toEqual([]);
     expect(test.changed).not.toHaveBeenCalled();
@@ -407,7 +405,7 @@ describe("Plan calendar drain", () => {
     expect(test.onIcu(planId)).toEqual(expect.arrayContaining(weekThree));
   });
 
-  it("records a failed create and sends it on the next run without a copy", async () => {
+  it("records a failed create, and Retry asks for the run that sends it without a copy", async () => {
     const test = await harness();
     const { planId } = await test.activate();
     await test.approve(planId);
@@ -416,7 +414,12 @@ describe("Plan calendar drain", () => {
     expect(
       await test.store.get("SELECT count(*) AS n FROM plan_icu_copy WHERE last_write='failed'"),
     ).toEqual({ n: 1 });
-    await test.drain.kick();
+    test.changed.mockReset();
+    test.changed.mockImplementation(() => void test.drain.kick());
+    await expect(
+      test.calendarOperations["plan.calendar"]({ action: "send-again" }),
+    ).resolves.toEqual({ status: "sending" });
+    expect(test.changed).toHaveBeenCalledOnce();
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
     expect(new Set(test.onIcu(planId)).size).toBe(test.onIcu(planId).length);
   });

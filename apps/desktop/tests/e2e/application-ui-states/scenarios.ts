@@ -223,7 +223,7 @@ async function prepareSettingsControl(
       const values = Array.from(page.querySelectorAll("h2")).map(
         (heading) => (heading.textContent ?? "").replace(/\\s+/gu, " ").trim(),
       );
-      return values.length === 9 ? values : false;
+      return values.length === 10 ? values : false;
     })()`,
     "the complete Settings page",
   );
@@ -231,6 +231,7 @@ async function prepareSettingsControl(
     "Setup",
     "Channels",
     "Coach",
+    "Calendar",
     "Conversation & time",
     "Spending",
     "Preferences",

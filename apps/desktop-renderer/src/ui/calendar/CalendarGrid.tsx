@@ -177,6 +177,7 @@ function useWorkoutLook(): (
 function WorkoutCard(props: {
   readonly workout: PlanCalendarWorkout;
   readonly activities: readonly PlanCalendarActivity[];
+  readonly highlighted: boolean;
   readonly text: CalendarText;
 }): ReactElement {
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
@@ -185,10 +186,12 @@ function WorkoutCard(props: {
       className={cn(
         "flex w-full flex-col gap-0.5 rounded-ctl px-1.5 py-1 text-xs",
         FRAME[look.frame],
+        props.highlighted && "border-brand",
       )}
       data-workout-id={props.workout.id}
       data-outcome={props.workout.outcome.kind}
       data-copy={props.workout.copy.kind}
+      data-highlighted={props.highlighted ? "" : undefined}
     >
       <span className={cn("font-semibold", look.frame === "ghost" ? "line-through" : "text-ink")}>
         {props.workout.name}
@@ -381,6 +384,7 @@ function RowLabelCell(props: {
 function DayCell(props: {
   readonly day: CalendarDay;
   readonly read: PlanCalendarRead;
+  readonly highlighted: ReadonlySet<string>;
   readonly text: CalendarText;
 }): ReactElement {
   const { say } = usePhrasebook();
@@ -416,7 +420,13 @@ function DayCell(props: {
         {heading}
       </span>
       {day.workouts.map((workout) => (
-        <WorkoutCard key={workout.id} workout={workout} activities={read.activities} text={text} />
+        <WorkoutCard
+          key={workout.id}
+          workout={workout}
+          activities={read.activities}
+          highlighted={props.highlighted.has(workout.id)}
+          text={text}
+        />
       ))}
       {day.activities.map((activity) => (
         <ActivityCard
@@ -440,6 +450,7 @@ export function CalendarGrid(props: {
   readonly read: PlanCalendarRead;
   readonly rows: readonly CalendarRow[];
   readonly firstDay: FirstDayOfWeek;
+  readonly highlighted: ReadonlySet<string>;
 }): ReactElement {
   const { say } = usePhrasebook();
   const text = useCalendarText();
@@ -474,7 +485,13 @@ export function CalendarGrid(props: {
               text={text}
             />
             {row.days.map((day) => (
-              <DayCell key={day.dateKey} day={day} read={props.read} text={text} />
+              <DayCell
+                key={day.dateKey}
+                day={day}
+                read={props.read}
+                highlighted={props.highlighted}
+                text={text}
+              />
             ))}
           </div>
         ))}

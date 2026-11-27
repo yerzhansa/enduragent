@@ -109,6 +109,7 @@ const PlanCalendarBaseSchema = z
     window: PlanCalendarWindowSchema,
     currentThrough: z.iso.date().nullable(),
     error: z.string().nullable(),
+    waitingForApprove: z.literal(true).optional(),
   })
   .strict();
 
@@ -116,6 +117,7 @@ export const PlanCalendarStatusSchema = z
   .discriminatedUnion("status", [
     PlanCalendarBaseSchema.extend({ status: z.literal("not-connected"), error: z.null() }),
     PlanCalendarBaseSchema.extend({ status: z.literal("pending"), error: z.null() }),
+    PlanCalendarBaseSchema.extend({ status: z.literal("waiting-for-approve"), error: z.null() }),
     PlanCalendarBaseSchema.extend({ status: z.literal("running") }),
     PlanCalendarBaseSchema.extend({ status: z.literal("verified"), currentThrough: z.iso.date() }),
     PlanCalendarBaseSchema.extend({ status: z.literal("failed"), error: z.string() }),

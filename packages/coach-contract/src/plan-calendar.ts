@@ -22,6 +22,7 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
     })
     .strict(),
   z.object({ action: z.literal("read-settings") }).strict(),
+  z.object({ action: z.literal("send-again") }).strict(),
   z
     .object({
       action: z.literal("read"),
@@ -169,6 +170,7 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
     })
     .strict(),
   z.object({ status: z.literal("refused"), reason: PlanCalendarRefusalSchema }).strict(),
+  z.object({ status: z.literal("sending") }).strict(),
   z
     .object({ status: z.literal("settings"), weekDelivery: PlanCalendarWeekDeliverySchema })
     .strict(),
