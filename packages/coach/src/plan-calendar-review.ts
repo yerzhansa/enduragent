@@ -59,6 +59,16 @@ interface Job {
 
 const REFUSED: Refusal = Object.freeze({ status: "refused", reason: "review-changed" });
 
+const LIVE_JOBS = new WeakMap<object, Map<string, number>>();
+
+function liveJobsOf(store: object): Map<string, number> {
+  const known = LIVE_JOBS.get(store);
+  if (known !== undefined) return known;
+  const jobs = new Map<string, number>();
+  LIVE_JOBS.set(store, jobs);
+  return jobs;
+}
+
 function empty(activityId: string): ActivityReviewRecord {
   return { activityId, verdict: { state: "not-written" }, replies: 0, earlier: null, note: null };
 }
@@ -243,6 +253,7 @@ function sameExpected(
 
 export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
   const reviews = createActivityReviewRepository(deps.store);
+  const live = liveJobsOf(deps.store);
 
   const failWriting = async (record: ActivityReviewRecord): Promise<ActivityReviewRecord> => {
     const verdict = record.verdict;
@@ -259,7 +270,11 @@ export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
   const settled = async (activityId: string): Promise<ActivityReviewRecord> => {
     const record = (await reviews.read(activityId)) ?? empty(activityId);
     const verdict = record.verdict;
-    if (verdict.state !== "writing" || deps.now() - verdict.startedAtMs < VERDICT_LEASE_MS) {
+    if (
+      verdict.state !== "writing" ||
+      deps.now() - verdict.startedAtMs < VERDICT_LEASE_MS ||
+      live.get(activityId) === record.replies
+    ) {
       return record;
     }
     return failWriting(record);
@@ -319,7 +334,12 @@ export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
   const start = (job: Job | null): void => {
     const model = deps.coachText;
     if (job === null || model === undefined) return;
-    run(job, model).catch(() => deps.logger?.warn("ride_verdict_not_saved"));
+    live.set(job.activityId, job.replies);
+    run(job, model)
+      .catch(() => deps.logger?.warn("ride_verdict_not_saved"))
+      .finally(() => {
+        if (live.get(job.activityId) === job.replies) live.delete(job.activityId);
+      });
   };
 
   const step = async (

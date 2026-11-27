@@ -5,7 +5,8 @@ import {
   type PlanCalendarRpcParams,
   type PlanCalendarVerdictExpected,
 } from "@enduragent/coach-contract";
-import type { CoachTextFacts } from "@enduragent/engine/coach-text-writer";
+import { createCoachTextWriter, type CoachTextFacts } from "@enduragent/engine/coach-text-writer";
+import type { GenerateResult } from "@enduragent/engine/sport";
 import {
   createPlanRepository,
   createPlanWorkoutMatchRepository,
@@ -80,6 +81,7 @@ async function harness(
     readonly plan?: boolean;
     readonly model?: boolean;
     readonly logger?: { warn(event: string): void };
+    readonly writer?: RideVerdictModel;
   } = {},
 ) {
   const store = openSqliteStorage(":memory:");
@@ -90,23 +92,41 @@ async function harness(
   let now = START_MS;
   let sequence = 500;
   const scripted = scriptedModel();
-  const operations = createPlanCalendarOperations({
-    store,
-    calendar: createMemoryPlanCalendar(),
-    identity: {
-      deviceId: async () => "review-test-device",
-      newUlid: () => String(++sequence).padStart(26, "0"),
-      hlcStamp: () => ({ physicalMs: now, counter: ++sequence }),
-    },
-    applyChange: async () => ({ status: "rejected", reason: "stale-version" }) as never,
-    todayDateKey: () => TODAY,
-    now: () => now,
-    calendarConnected: () => true,
-    dateKeyOfMs: () => TODAY,
-    changed: async () => undefined,
-    ...(options.model === false ? {} : { coachText: scripted.model }),
-    ...(options.logger === undefined ? {} : { logger: options.logger }),
-  });
+  let held: Promise<void> | null = null;
+  const process = (): typeof store =>
+    new Proxy(store, {
+      get(target, property) {
+        if (property === "transaction") {
+          return async (work: () => Promise<unknown>) => {
+            const waiting = held;
+            held = null;
+            if (waiting !== null) await waiting;
+            return target.transaction(work);
+          };
+        }
+        const value: unknown = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  const operationsOver = (processStore: typeof store) =>
+    createPlanCalendarOperations({
+      store: processStore,
+      calendar: createMemoryPlanCalendar(),
+      identity: {
+        deviceId: async () => "review-test-device",
+        newUlid: () => String(++sequence).padStart(26, "0"),
+        hlcStamp: () => ({ physicalMs: now, counter: ++sequence }),
+      },
+      applyChange: async () => ({ status: "rejected", reason: "stale-version" }) as never,
+      todayDateKey: () => TODAY,
+      now: () => now,
+      calendarConnected: () => true,
+      dateKeyOfMs: () => TODAY,
+      changed: async () => undefined,
+      ...(options.model === false ? {} : { coachText: options.writer ?? scripted.model }),
+      ...(options.logger === undefined ? {} : { logger: options.logger }),
+    });
+  let operations = operationsOver(process());
   if (options.plan !== false) {
     await createPlanRepository(store).replace(
       {
@@ -184,6 +204,16 @@ async function harness(
     saveNote: (note: string) => reviewOf({ action: "save-note", activityId: RIDE, note }),
     advance(ms: number) {
       now += ms;
+    },
+    restart() {
+      operations = operationsOver(process());
+    },
+    holdNextTransaction() {
+      let release: () => void = () => undefined;
+      held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return () => release();
     },
   };
 }
@@ -296,11 +326,12 @@ describe("the coach's verdict on Activity review", () => {
     expect(h.scripted.pending).toHaveLength(1);
   });
 
-  it("writes an interrupted verdict again on the next open, once", async () => {
+  it("writes a verdict interrupted by a restart again on the next open, once", async () => {
     const h = await harness();
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
+    h.restart();
     h.advance(VERDICT_LEASE_MS);
     expect(await h.read()).toMatchObject({
       verdict: { state: "failed", failedBy: "interrupted" },
@@ -481,17 +512,19 @@ describe("the coach's verdict on Activity review", () => {
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
+    h.restart();
     h.advance(VERDICT_LEASE_MS);
     await h.saveNote("Legs heavy.");
     await h.write("opens", { state: "failed", replies: 1 });
     expect(h.scripted.pending[1]?.facts.note).toBeNull();
   });
 
-  it("fails a write that outlived its lease and ignores the late reply", async () => {
+  it("fails a write left by an earlier process once its lease ran out, and ignores its late reply", async () => {
     const h = await harness();
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
+    h.restart();
     h.advance(VERDICT_LEASE_MS - 1);
     expect(await h.read()).toMatchObject({ verdict: { state: "writing" } });
     h.advance(1);
@@ -501,11 +534,12 @@ describe("the coach's verdict on Activity review", () => {
     expect(await h.read()).toMatchObject({ verdict: { state: "failed" }, replies: 1 });
   });
 
-  it("keeps a new attempt when the reply from an expired one arrives late", async () => {
+  it("keeps a new attempt when the reply from an earlier process arrives late", async () => {
     const h = await harness();
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
+    h.restart();
     h.advance(VERDICT_LEASE_MS);
     await h.write("opens", { state: "failed", replies: 1 });
     expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 2 });
@@ -515,6 +549,97 @@ describe("the coach's verdict on Activity review", () => {
     h.scripted.pending[1]?.resolve("The new reply.");
     expect(await h.settle("kept")).toMatchObject({
       verdict: { text: "The new reply." },
+      replies: 2,
+    });
+  });
+
+  it("never abandons a write whose job is still running, even past its lease", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    h.advance(VERDICT_LEASE_MS + 60_000);
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 1 });
+    expect(await h.write("opens", { state: "writing", replies: 1 })).toMatchObject({
+      review: { verdict: { state: "writing" }, replies: 1 },
+    });
+    h.scripted.pending[0]?.resolve("Kept after a long sleep.");
+    expect(await h.settle("kept")).toMatchObject({
+      verdict: { text: "Kept after a long sleep." },
+      replies: 1,
+    });
+    expect(h.scripted.pending).toHaveLength(1);
+  });
+
+  it("keeps a good reply when a slow transaction holds its save past the lease", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    const release = h.holdNextTransaction();
+    h.scripted.pending[0]?.resolve("Held but kept.");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    h.advance(VERDICT_LEASE_MS + 1);
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 1 });
+    release();
+    expect(await h.settle("kept")).toMatchObject({
+      verdict: { text: "Held but kept." },
+      replies: 1,
+    });
+  });
+
+  it("still abandons a write after a restart, when no job is left to finish it", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    h.restart();
+    h.advance(VERDICT_LEASE_MS - 1);
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" } });
+    h.advance(1);
+    expect(await h.read()).toMatchObject({
+      verdict: { state: "failed", failedBy: "interrupted" },
+      replies: 1,
+    });
+  });
+
+  it("ends a reply cut off at the length limit as a model failure that opening does not retry", async () => {
+    const replies: Pick<GenerateResult, "text" | "finishReason">[] = [
+      { text: "The first verdict.", finishReason: "stop" },
+      { text: "", finishReason: "length" },
+    ];
+    let calls = 0;
+    const writer = createCoachTextWriter({
+      model: {
+        generate: async () => {
+          const next = replies[calls] ?? { text: "", finishReason: "length" };
+          calls += 1;
+          return { ...next, toolCalls: [], usage: {} as GenerateResult["usage"] };
+        },
+      },
+      language: {
+        resolveFor: async () => ({ language: "en", source: "preference", locale: "en-US" }),
+      },
+    });
+    const h = await harness({ writer: { available: () => true, ...writer } });
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    await h.settle("kept");
+    await h.write("asks-again", { state: "kept", replies: 1 });
+    expect(await h.settle("failed")).toMatchObject({
+      verdict: {
+        state: "failed",
+        failedBy: "model",
+        earlier: { text: "The first verdict.", replies: 1 },
+      },
+      replies: 2,
+    });
+    await h.write("opens", { state: "failed", replies: 2 });
+    await h.write("opens", { state: "failed", replies: 2 });
+    expect(calls).toBe(2);
+    expect(await h.read()).toMatchObject({
+      verdict: { state: "failed", earlier: { text: "The first verdict." } },
       replies: 2,
     });
   });
