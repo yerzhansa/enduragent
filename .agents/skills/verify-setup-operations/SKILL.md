@@ -31,7 +31,7 @@ Run it when a change touches a file in the coverage record below, or changes whi
 Check whether the covered code changed since the sync commit:
 
 ```bash
-git log --oneline 0fac1bb6..HEAD -- apps/desktop/src/main/credential-envelope-lock.ts apps/desktop/src/main/chatgpt-auth.ts apps/desktop/src/main/daemon-lifecycle.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/intervals-ipc.ts apps/desktop/src/main/onboarding-ipc.ts apps/desktop/src/main/openrouter-ipc.ts apps/desktop/src/main/telegram-control.ts apps/desktop/src/main/index.ts apps/desktop-renderer/src/onboarding/controller.ts apps/desktop-renderer/src/onboarding/machine.ts apps/desktop-renderer/src/onboarding/openrouter-sign-in.ts apps/desktop-renderer/src/ui/onboarding/AiRow.tsx apps/desktop-renderer/src/ui/onboarding/TrainingRow.tsx apps/desktop-renderer/src/boot.ts apps/desktop-renderer/src/settings/credential-controller.ts apps/desktop-renderer/src/settings/provider-model-controller.ts apps/desktop-renderer/src/state/settings-slice.ts apps/desktop-renderer/src/state/onboarding-slice.ts
+git log --oneline 2cbc4a56..HEAD -- apps/desktop/src/main/credential-envelope-lock.ts apps/desktop/src/main/chatgpt-auth.ts apps/desktop/src/main/daemon-lifecycle.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/intervals-ipc.ts apps/desktop/src/main/intervals-sign-in-ports.ts apps/desktop/src/main/onboarding-ipc.ts apps/desktop/src/main/openrouter-ipc.ts apps/desktop/src/main/openrouter-auth.ts apps/desktop/src/main/telegram-control.ts apps/desktop/src/main/index.ts apps/desktop-renderer/src/onboarding/controller.ts apps/desktop-renderer/src/onboarding/machine.ts apps/desktop-renderer/src/onboarding/openrouter-sign-in.ts apps/desktop-renderer/src/ui/onboarding/AiRow.tsx apps/desktop-renderer/src/ui/onboarding/TrainingRow.tsx apps/desktop-renderer/src/ui/onboarding/TelegramRow.tsx apps/desktop-renderer/src/ui/settings/CoachSection.tsx apps/desktop-renderer/src/boot.ts apps/desktop-renderer/src/settings/credential-controller.ts apps/desktop-renderer/src/settings/provider-model-controller.ts apps/desktop-renderer/src/settings/telegram-controller.ts apps/desktop-renderer/src/state/settings-slice.ts apps/desktop-renderer/src/state/onboarding-slice.ts packages/coach/src/account-identity.ts packages/coach/src/composition.ts packages/core/src/agent/codex/oauth.ts
 ```
 
 Any commit listed means the model may no longer describe the code. Read the changed functions against the coverage record before you trust a result.
@@ -44,7 +44,7 @@ Needs Java 11 or newer. Set `JAVA` to its `java` binary when `java` is not on `P
 node .agents/skills/verify-setup-operations/scripts/check.ts
 ```
 
-It takes about a minute. Each rule runs once per scenario, and the script prints one row per check. It exits 0 when every rule matches its expected result. Options:
+It takes about a minute. Each rule runs once per scenario. Rules expected to hold run together; when one breaks, the rest run again without it, and the script prints one row per check. It exits 0 when every rule matches its expected result. Options:
 
 - `--rule NAME` runs one rule.
 - `--trace` prints TLC's trace for each rule that breaks.
@@ -71,7 +71,7 @@ When a change to covered code is intended:
 1. Edit the actions that name the changed functions, so each one matches the new code. One atomic step in the model is one atomic step in the code: a synchronous run between two `await`s, or one IPC handler.
 2. Run the check. Update the expected rows the change fixes or breaks, and say why in the pull request.
 3. Replay any new broken path against the real code before you call it a bug.
-4. Move the sync commit (the `0fac1bb6` in this file) to the new commit only after you have read every covered function at that commit against its action.
+4. Move the sync commit (the `2cbc4a56` in this file) to the new commit only after you have read every covered function at that commit against its action.
 
 ## Expected findings at the sync commit
 
@@ -79,8 +79,8 @@ Each path is TLC's shortest. The words are the code's.
 
 | Rule | Scenario | Finding | Path |
 |---|---|---|---|
-| `NoRestartLostBehindAPerson` | everything | #396 | `login` queues `performLogin` in `serializeCredentialMutation`. The lock goes to it, and `runLogin` waits for the browser. The coach exits. `prepareReady` (`reapplyCredentials`) queues `reapplyConfigured` behind the login. `publishSuccessor` waits `READINESS_TIMEOUT_MS` and calls `enterTerminal("unavailable")`. |
-| `NoRestartLostToSlowIntervals` | everything | #396 second trigger. The intervals.icu session owns it. | The coach exits with Intervals.icu connected. `reapplyConfigured` holds the lock while the replay awaits `assertIntervalsOwner`, which allows 20 s. The 5 s readiness limit passes. |
+| `NoRestartLostBehindAPerson` | everything | #396 | `login` queues `performLogin` in `serializeCredentialMutation`. The lock goes to it, and `runLogin` waits for the browser. The coach exits; `recoverCurrent` starts the new process, and `publishSuccessor` calls `prepareReady` (`reapplyCredentials`), whose `reapplyConfigured` queues behind the login. After `READINESS_TIMEOUT_MS`, `enterTerminal("unavailable")`. |
+| `NoRestartLostToSlowIntervals` | everything | #396 second trigger. The intervals.icu session owns it. | The coach exits with Intervals.icu connected. `reapplyConfigured` holds the lock while the replay awaits `assertIntervalsOwner`, which allows 20 s. The 5 s readiness limit passes. The same happens when the replay queues behind an Intervals.icu Disconnect, whose revoke allows 10 s inside the lock, or behind the Intervals.icu key check after a sign-in. That last path assumes the check is slow with the coach gone, which is not traced: replay it in the app before calling it a bug. |
 | `NothingWaitsBehindAPerson` | everything | #396 | The ChatGPT login holds the lock while it waits for the browser. A Coach save in Settings (`vault.applyLlmSelection`) queues behind it. Telegram's `configure` and Setup's `writeCredential` queue the same way. |
 | `ChatGptActivationHasSetupAlone` | everything | #398 | `withChatGptLoginResult` stores the sign-in. `beginChatGptActivation` runs with `busy` false (`withChatGptActivationPending`). `connectTrainingData` checks only `busy`, so an Intervals.icu sign-in starts during the activation. |
 | `IntervalsSignInHasSetupAlone`, `OpenRouterSignInHasSetupAlone` | everything | #398, widened by pull request 1188 | The OpenRouter sign-in runs outside `busy`. `connectTrainingData` and `TrainingRow`'s `controlsDisabled` do not check `openRouterSignInBusy`, so an Intervals.icu sign-in starts during it. |
@@ -93,16 +93,16 @@ Each path is TLC's shortest. The words are the code's.
 | `NeverSentToSetupWithAWorkingCoach` | everything | #419 | A Settings delete calls `onDeleted`, which calls `onboarding.refresh()`: one read with a 3 s budget. The coach answers late, so `finishUnavailableLoad` runs. `refreshOnboardingCredentials` throws, the delete's catch renders a repair credential, and `patchSettings` calls `requireCompletion()`. |
 | `NeverSentToSetupWithAWorkingCoach` | no-slow-coach | #395 | The #395 switch, then any delete. `load` does not hydrate after its first success, so `activeProviderIsReady` checks the stale Anthropic. It is not active, so `completionRequired` turns true and the gate shows. |
 
-Rules that hold at the sync commit: `TypeOK`, `BusySetupNamesItsOwner`, `ChatGptSignInHasSetupAlone` (the AI row runs one operation at a time) and `OpenRouterSignInEndsWithItsPage` (the `closed` event disposes the window's OpenRouter auth).
+Rules that hold at the sync commit: `TypeOK`, `BusySetupNamesItsOwner`, `ChatGptSignInHasSetupAlone` (the AI row runs one operation at a time) and `OpenRouterSignInEndsWithItsPage` (the `closed` event disposes the window's OpenRouter auth). Each control was seen to fail on a broken variant: without `disposeOpenRouter()` in the onboarding IPC dispose, `OpenRouterSignInEndsWithItsPage` breaks in 4 steps; without `connectTrainingData`'s `busy` check, `ChatGptSignInHasSetupAlone` breaks in 2; with `busy` left set after a key save, `BusySetupNamesItsOwner` breaks in 3.
 
 ## Coverage record
 
-Sync commit: `0fac1bb6` (`origin/main`, 2026-11-27). At that commit, every action below was read against the code it names.
+Sync commit: `2cbc4a56` (`origin/main`, 2026-11-27, after #1195). At that commit, every action below was read against the code it names.
 
 | Model part | Code |
 |---|---|
 | `lockHolder`, `lockQueue`, `LockGoesToNext` | `credential-envelope-lock.ts` `createCredentialMutationLock`, created once in `index.ts` and passed to ChatGPT, the vault, Telegram, reset and the successor vault |
-| `AthleteStartsChatGptSignIn`, `ChatGptBrowserWaitEnds`, `PersonFinishesChatGptInBrowser`, `ChatGptSignInIsStored` | `chatgpt-auth.ts` `login`, `performLogin`, `cancelLogin`. Renderer: `controller.ts` `startChatGptLogin` and its result handler, `machine.ts` `withChatGptPending`, `withChatGptLoginResult` |
+| `AthleteStartsChatGptSignIn`, `AthleteCancelsQueuedChatGptSignIn`, `ChatGptBrowserWaitEnds`, `PersonFinishesChatGptInBrowser`, `ChatGptSignInIsStored` | `chatgpt-auth.ts` `login`, `performLogin`, `cancelLogin`. Renderer: `controller.ts` `startChatGptLogin` and its result handler, `machine.ts` `withChatGptPending`, `withChatGptLoginResult` |
 | `ChatGptActivationFinishes` | `controller.ts` `beginChatGptActivation`, `scheduleChatGptActivation`, `recordActiveSelection`. `machine.ts` `withChatGptActivationPending`, `withChatGptActivationResult`. Main: `chatgpt-auth.ts` `activate` |
 | `AthleteSavesKeyInSetup`, `SetupKeyWriteFinishes` | `controller.ts` `saveModelKey`, `saveModelCredential`. Main: `credential-vault.ts` `writeCredential` |
 | Intervals.icu actions | `controller.ts` `connectTrainingData`, `cancelActiveIntervalsSignIn`. Main: `intervals-ipc.ts` `signIn`, `runCapturedCredential` (through `vault.runExclusiveMutation`), the cancel handler |
@@ -113,8 +113,9 @@ Sync commit: `0fac1bb6` (`origin/main`, 2026-11-27). At that commit, every actio
 | `AthleteSavesCoachInSettings`, `CoachSaveFinishes` | `provider-model-controller.ts` `commit`, `boot.ts` `onSaved`, `CoachSection.tsx` `controlsDisabled`. Main: `credential-vault.ts` `applyLlmSelection` |
 | `AthleteDeletesKeyInSettings`, `KeyIsDeleted`, `SetupReadAnswers`, `SetupReadTimesOut` | `credential-controller.ts` the delete operation and its `onDeleted` catch. `boot.ts` `refreshOnboardingCredentials`. `controller.ts` `refresh`, `load`, `finishUnavailableLoad`, `activeProviderIsReady`. `settings-slice.ts` `patchSettings`. Main: `credential-vault.ts` `deleteCredential` |
 | `GateShown` | `onboarding-slice.ts` `setupDisposition` |
-| Telegram actions | `TelegramRow.tsx`, `telegram-control.ts` `configure` under `serializeCredentialMutation` |
-| Coach restart actions | `daemon-lifecycle.ts` `recover`, `publishSuccessor`, `READINESS_TIMEOUT_MS`, `enterTerminal`. `index.ts` `reapplyCredentials`. `credential-vault.ts` `reapplyConfigured` |
+| Telegram actions | `TelegramRow.tsx`, `telegram-control.ts` `configure` under `serializeCredentialMutation`, `settings-slice.ts` `beginSettingsMutation` |
+| Coach restart actions | `daemon-lifecycle.ts` `recover`, `recoverCurrent`, `publishSuccessor`, `READINESS_TIMEOUT_MS`, `enterTerminal`. `index.ts` `reapplyCredentials`: `successorVault.reapplyConfigured()`, then `successorTelegramCoordinator.reconcile()`, each under the lock |
+| `WaitsForIntervals` | `account-identity.ts` owner check (20 s), `intervals-sign-in-ports.ts` revoke (10 s) through `onboarding-ipc.ts`'s delete `beforeRemove`, `credential-vault.ts` `deleteCredential` |
 | `PageCrashes`, `AthleteClosesWindow`, `MainHandles*Cancel`, `WindowIsClosed`, `AthleteOpensWindow` | `index.ts` the window's `closed` and `render-process-gone` handlers. `boot.ts` `pagehide`, then `controller.ts` `dispose`. `onboarding-ipc.ts` `registerOnboardingIpc` and its dispose |
 
 Ghost variables, which the code does not keep: the page that started each sign-in or lock entry (`page` in `login`, `signIn`, `openRouter` and each entry), `coach.lost` and `steps`.
@@ -137,7 +138,8 @@ Simplifications:
 - The Intervals.icu token exchange is part of the approval step.
 - A page crash and main's `render-process-gone` handler are one step.
 - The OpenRouter copied-code path is left out.
+- A Setup key save frees `busy` in the same step its key is written. In the code, `saveModelKey` then refreshes statuses and may take the lock once more for `applyLlmSelection`.
 
-Not covered: Setup's first-launch load and its retries (what is left of issue 290), the language screen (#399), the Claude Code check (#401), an expired ChatGPT sign-in (#402), model list revisions (#397), Setup's draft (the model-revert half of #395), the 12 s activation transport timeout, ride imports, credential reset, the page reload after an app-supervised restart, Windows, where close only hides the window, and the two frames between a stored ChatGPT sign-in and its activation.
+Not covered: Setup's first-launch load and its retries (what is left of issue 290), the language screen (#399), the Claude Code check (#401), an expired ChatGPT sign-in (#402), model list revisions (#397), Setup's draft (the model-revert half of #395), the 12 s activation transport timeout, ride imports, credential reset, the page reload after an app-supervised restart, Windows, where close only hides the window, the two frames between a stored ChatGPT sign-in and its activation, and a Setup screen that appears during a restart and stays after the coach recovers (`NeverSentToSetupWithAWorkingCoach` checks only the step that shows the screen).
 
 A pass says nothing outside these bounds.

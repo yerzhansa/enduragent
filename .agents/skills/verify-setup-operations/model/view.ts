@@ -45,6 +45,7 @@ const OPERATIONS: Record<string, string> = {
   "intervals-store": "the Intervals.icu key check",
   "openrouter-write": "the OpenRouter key save",
   reapply: "the restart's key replay",
+  "telegram-reconcile": "the restart's Telegram check",
 };
 
 function coachLabel(v: Vars): string {
@@ -93,6 +94,8 @@ export const step = (action: string, from: Vars, to: Vars): string => {
       return "you click Sign in with ChatGPT";
     case "ChatGptBrowserWaitEnds":
       return "the ChatGPT sign-in is cancelled or times out";
+    case "AthleteCancelsQueuedChatGptSignIn":
+      return "you cancel the ChatGPT sign-in before its tab opens";
     case "PersonFinishesChatGptInBrowser":
       return "you finish the ChatGPT sign-in in the browser";
     case "ChatGptSignInIsStored":
@@ -141,8 +144,12 @@ export const step = (action: string, from: Vars, to: Vars): string => {
       return "Telegram connects";
     case "CoachProcessExits":
       return "the coach process exits and the app restarts it";
+    case "SuccessorStarts":
+      return "the new coach process starts";
     case "ReapplyFinishes":
       return "the restarted coach gets its keys back";
+    case "ReconcileFinishes":
+      return "the restarted coach is ready";
     case "ReadinessLimitPasses":
       return to.coach.lost === "behind-a-person"
         ? "5 seconds pass [while the replay waits behind the sign-in]"

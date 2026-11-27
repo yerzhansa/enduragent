@@ -23,14 +23,15 @@ NoOne == "none"
 Entry(op, arg, pg) == [op |-> op, arg |-> arg, page |-> pg]
 NoEntry == Entry(NoOne, NoOne, 0)
 Idle == [phase |-> "idle", page |-> 0]
+LoginIdle == [phase |-> "idle", page |-> 0, aborted |-> FALSE]
 
 VARIABLES
     lockHolder,     \* the entry that holds the lock, or NoEntry
     lockQueue,      \* entries waiting for the lock, in order
-    login,          \* chatgpt-auth.ts activeLogin: idle | queued | awaiting-browser | storing
+    login,          \* chatgpt-auth.ts activeLogin: idle | queued | awaiting-browser | storing, and whether it was aborted
     signIn,         \* intervals-ipc.ts activeSignIn: idle | awaiting-browser | storing
     openRouter,     \* openrouter auth session in main: idle | awaiting-browser | storing
-    coach,          \* daemon-lifecycle.ts state, the coach's active provider, and why a restart was lost
+    coach,          \* daemon-lifecycle.ts state and restart step, the coach's active provider, and why a restart was lost
     stored,         \* credentials on disk
     page,           \* the window's page: its generation and whether it is alive
     onboardingIpc,  \* onboarding-ipc.ts handlers for this window: registered | disposed
@@ -77,21 +78,25 @@ Without(op) == SelectSeq(lockQueue, LAMBDA e : e.op # op)
 \* (packages/core/src/agent/codex/oauth.ts authorization timeout).
 WaitsForPerson(e) == e.op = "chatgpt-login" /\ login.phase = "awaiting-browser"
 
-\* The holder waits on intervals.icu: the owner check allows 20 s
-\* (packages/coach/src/account-identity.ts), more than the 5 s readiness limit.
+\* The holder waits on intervals.icu, longer than the 5 s readiness limit: the
+\* owner check allows 20 s (packages/coach/src/account-identity.ts), and a
+\* Disconnect's revoke allows 10 s (intervals-sign-in-ports.ts), both inside the lock.
 WaitsForIntervals(e) ==
     /\ On("slow-intervals")
     /\ \/ e.op = "intervals-store"
        \/ e.op = "reapply" /\ IntervalsSlot \in stored
+       \/ e.op = "key-delete" /\ e.arg = IntervalsSlot
 
 \* Setup's mutation guards: setupStatusBlocksMutations(), state.busy and
-\* credentialMutationsBlocked() (a non-Telegram Settings mutation).
+\* credentialMutationsBlocked(), which is credentialChangesBlocked: a non-Telegram
+\* Settings mutation or a repair credential. Its open delete confirmation is not modeled.
 SetupMayMutate ==
     /\ page.alive
     /\ ~setup.loading
     /\ ~setup.unavailable
     /\ ~setup.busy
     /\ settings.op = "idle"
+    /\ ~settings.repair
 
 \* AiRow.tsx shows one panel at a time. Its Change menu is disabled while ChatGPT
 \* activates or OpenRouter signs in, and leaving the OpenRouter panel dismisses
@@ -133,11 +138,12 @@ Quiet ==
     /\ lockQueue = <<>>
 
 \* Work that finishes on its own in well under 5 s is done, or it is stuck
-\* behind a wait for the person.
+\* behind a wait for the person or for intervals.icu.
 BoundedWorkDone ==
     /\ pendingCancel = {}
     /\ \/ lockHolder = NoEntry /\ lockQueue = <<>>
        \/ WaitsForPerson(lockHolder)
+       \/ WaitsForIntervals(lockHolder)
 
 Athlete == steps < MaxAthleteSteps /\ steps' = steps + 1
 
@@ -147,10 +153,11 @@ Athlete == steps < MaxAthleteSteps /\ steps' = steps + 1
 Init ==
     /\ lockHolder = NoEntry
     /\ lockQueue = <<>>
-    /\ login = Idle
+    /\ login = LoginIdle
     /\ signIn = Idle
     /\ openRouter = Idle
-    /\ coach = [status |-> "ready", active |-> "anthropic", lost |-> NoOne, exited |-> FALSE]
+    /\ coach = [status |-> "ready", restart |-> "none", active |-> "anthropic", lost |-> NoOne,
+                 exited |-> FALSE]
     /\ stored \in {{"anthropic", "openrouter"}, {"anthropic", "openrouter", IntervalsSlot}}
     /\ page = [id |-> 1, alive |-> TRUE]
     /\ onboardingIpc = "registered"
@@ -164,16 +171,24 @@ Init ==
 (* The lock *)
 
 \* createCredentialMutationLock: the next queued operation starts.
-\* For a ChatGPT login that is performLogin, which opens the browser.
+\* For a ChatGPT login that is performLogin, which opens the browser. A login
+\* aborted while queued gets "cancelled" from runLogin at once and frees the lock.
 LockGoesToNext ==
     /\ lockHolder = NoEntry
     /\ lockQueue # <<>>
-    /\ lockHolder' = Head(lockQueue)
     /\ lockQueue' = Tail(lockQueue)
-    /\ login' = IF Head(lockQueue).op = "chatgpt-login"
-                THEN [login EXCEPT !.phase = "awaiting-browser"]
-                ELSE login
-    /\ UNCHANGED <<signIn, openRouter, coach, stored, windowVars, rendererVars, steps>>
+    /\ IF Head(lockQueue).op = "chatgpt-login" /\ login.aborted
+       THEN /\ lockHolder' = NoEntry
+            /\ login' = LoginIdle
+            /\ setup' = IF Owns(login.page) /\ setup.chatgpt = "signing-in"
+                        THEN [setup EXCEPT !.chatgpt = "idle", !.busy = FALSE]
+                        ELSE setup
+       ELSE /\ lockHolder' = Head(lockQueue)
+            /\ login' = IF Head(lockQueue).op = "chatgpt-login"
+                        THEN [login EXCEPT !.phase = "awaiting-browser"]
+                        ELSE login
+            /\ UNCHANGED setup
+    /\ UNCHANGED <<signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
 
 -----------------------------------------------------------------------------
 (* ChatGPT sign-in: controller.ts startChatGptLogin, chatgpt-auth.ts login *)
@@ -185,7 +200,7 @@ AthleteStartsChatGptSignIn ==
     /\ AiRowIdle
     /\ ChatGpt \notin stored
     /\ IF login.phase = "idle"
-       THEN /\ login' = [phase |-> "queued", page |-> page.id]
+       THEN /\ login' = [phase |-> "queued", page |-> page.id, aborted |-> FALSE]
             /\ lockQueue' = Append(lockQueue, Entry("chatgpt-login", ChatGpt, page.id))
             /\ setup' = [setup EXCEPT !.chatgpt = "signing-in", !.busy = TRUE]
        ELSE UNCHANGED <<login, lockQueue, setup>>
@@ -193,18 +208,22 @@ AthleteStartsChatGptSignIn ==
 
 \* Cancel sign-in (cancelLogin aborts the controller) or the 5-minute limit.
 ChatGptBrowserWaitEnds ==
-    /\ \/ /\ login.phase = "awaiting-browser"
-          /\ lockHolder' = NoEntry
-          /\ UNCHANGED lockQueue
-       \/ /\ login.phase = "queued"
-          /\ Owns(login.page) /\ setup.chatgpt = "signing-in"
-          /\ lockQueue' = Without("chatgpt-login")
-          /\ UNCHANGED lockHolder
-    /\ login' = Idle
+    /\ login.phase = "awaiting-browser"
+    /\ lockHolder' = NoEntry
+    /\ login' = LoginIdle
     /\ setup' = IF Owns(login.page) /\ setup.chatgpt = "signing-in"
                 THEN [setup EXCEPT !.chatgpt = "idle", !.busy = FALSE]
                 ELSE setup
-    /\ UNCHANGED <<signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
+    /\ UNCHANGED <<lockQueue, signIn, openRouter, coach, stored, windowVars, settings, telegramRow, steps>>
+
+\* Cancel sign-in while the login still waits for the lock: cancelLogin only aborts.
+\* activeLogin and Setup's busy stay until the lock reaches the login.
+AthleteCancelsQueuedChatGptSignIn ==
+    /\ login.phase = "queued"
+    /\ ~login.aborted
+    /\ Owns(login.page) /\ setup.chatgpt = "signing-in"
+    /\ login' = [login EXCEPT !.aborted = TRUE]
+    /\ UNCHANGED <<lockHolder, lockQueue, signIn, openRouter, coach, stored, windowVars, rendererVars, steps>>
 
 PersonFinishesChatGptInBrowser ==
     /\ login.phase = "awaiting-browser"
@@ -218,7 +237,7 @@ ChatGptSignInIsStored ==
     /\ login.phase = "storing"
     /\ lockHolder.op = "chatgpt-login"
     /\ stored' = stored \cup {ChatGpt}
-    /\ login' = Idle
+    /\ login' = LoginIdle
     /\ lockHolder' = NoEntry
     /\ IF Owns(login.page) /\ setup.chatgpt = "signing-in"
        THEN IF ~setup.loading /\ ~setup.unavailable /\ settings.op = "idle"
@@ -352,6 +371,7 @@ AthleteSavesCoachInSettings(p) ==
     /\ Athlete
     /\ page.alive
     /\ settings.op = "idle"
+    /\ telegramRow = "idle"
     /\ p \in stored \cap (KeyProviders \cup {ChatGpt})
     /\ p # coach.active
     /\ settings' = [settings EXCEPT !.op = "coach-save", !.arg = p]
@@ -372,6 +392,7 @@ AthleteDeletesKeyInSettings(p) ==
     /\ Athlete
     /\ page.alive
     /\ settings.op = "idle"
+    /\ telegramRow = "idle"
     /\ ~OnboardingCredentialMutationActive
     /\ p \in stored \cap (KeyProviders \cup {IntervalsSlot})
     /\ settings' = [settings EXCEPT !.op = "deleting", !.arg = p]
@@ -418,13 +439,15 @@ SetupReadTimesOut ==
     /\ UNCHANGED <<mainVars, windowVars, telegramRow, steps>>
 
 -----------------------------------------------------------------------------
-(* Telegram: Use copied token. The row is not gated by Setup. *)
+(* Telegram: Use copied token. The row is not gated by Setup, but
+   beginSettingsMutation lets only one Settings mutation run at a time. *)
 
 AthletePastesTelegramToken ==
     /\ On("telegram")
     /\ Athlete
     /\ page.alive
     /\ telegramRow = "idle"
+    /\ settings.op = "idle"
     /\ telegramRow' = "connecting"
     /\ lockQueue' = Append(lockQueue, Entry("telegram-configure", NoOne, page.id))
     /\ UNCHANGED <<lockHolder, login, signIn, openRouter, coach, stored, windowVars, setup, settings>>
@@ -438,26 +461,43 @@ TelegramConfigureFinishes ==
 -----------------------------------------------------------------------------
 (* Coach restart: daemon-lifecycle.ts recover, publishSuccessor *)
 
-\* prepareReady is reapplyCredentials, which awaits successorVault.reapplyConfigured()
-\* under the same lock.
+\* recoverCurrent closes the old process and waits out the restart backoff.
 CoachProcessExits ==
     /\ On("coach-exit")
     /\ CoachReady
     /\ ~coach.exited
-    /\ coach' = [coach EXCEPT !.status = "recovering", !.exited = TRUE]
+    /\ coach' = [coach EXCEPT !.status = "recovering", !.restart = "spawning", !.exited = TRUE]
+    /\ UNCHANGED <<lockHolder, lockQueue, login, signIn, openRouter, stored, windowVars, rendererVars, steps>>
+
+\* publishSuccessor starts the 5 s readiness timer and calls prepareReady, which
+\* is reapplyCredentials: successorVault.reapplyConfigured() under the lock.
+SuccessorStarts ==
+    /\ coach.restart = "spawning"
+    /\ coach' = [coach EXCEPT !.restart = "replaying"]
     /\ lockQueue' = Append(lockQueue, Entry("reapply", NoOne, 0))
     /\ UNCHANGED <<lockHolder, login, signIn, openRouter, stored, windowVars, rendererVars, steps>>
 
+\* Then, for an app-supervised coach, successorTelegramCoordinator.reconcile()
+\* takes the lock again through runMutation.
 ReapplyFinishes ==
     /\ lockHolder.op = "reapply"
     /\ lockHolder' = NoEntry
-    /\ coach' = IF coach.status = "recovering" THEN [coach EXCEPT !.status = "ready"] ELSE coach
+    /\ lockQueue' = Append(lockQueue, Entry("telegram-reconcile", NoOne, 0))
+    /\ UNCHANGED <<coach, login, signIn, openRouter, stored, windowVars, rendererVars, steps>>
+
+ReconcileFinishes ==
+    /\ lockHolder.op = "telegram-reconcile"
+    /\ lockHolder' = NoEntry
+    /\ coach' = IF coach.status = "recovering"
+                THEN [coach EXCEPT !.status = "ready", !.restart = "none"]
+                ELSE [coach EXCEPT !.restart = "none"]
     /\ UNCHANGED <<lockQueue, login, signIn, openRouter, stored, windowVars, rendererVars, steps>>
 
-\* READINESS_TIMEOUT_MS: 5 s, then enterTerminal("unavailable"). Only a wait
-\* for the person or for intervals.icu outlasts it (see SKILL.md, Bounds).
+\* READINESS_TIMEOUT_MS: 5 s after publishSuccessor, then enterTerminal("unavailable").
+\* Only a wait for the person or for intervals.icu outlasts it (see SKILL.md, Bounds).
 ReadinessLimitPasses ==
     /\ coach.status = "recovering"
+    /\ coach.restart = "replaying"
     /\ \/ /\ WaitsForPerson(lockHolder)
           /\ coach' = [coach EXCEPT !.status = "terminal", !.lost = "behind-a-person"]
        \/ /\ WaitsForIntervals(lockHolder)
@@ -492,15 +532,13 @@ MainHandlesChatGptCancel ==
     /\ onboardingIpc = "registered"
     /\ pendingCancel' = pendingCancel \ {"chatgpt"}
     /\ IF login.phase = "awaiting-browser" \/ login.phase = "storing"
-       THEN /\ login' = Idle
+       THEN /\ login' = LoginIdle
             /\ lockHolder' = NoEntry
-            /\ UNCHANGED lockQueue
        ELSE IF login.phase = "queued"
-            THEN /\ login' = Idle
-                 /\ lockQueue' = Without("chatgpt-login")
+            THEN /\ login' = [login EXCEPT !.aborted = TRUE]
                  /\ UNCHANGED lockHolder
-            ELSE UNCHANGED <<login, lockHolder, lockQueue>>
-    /\ UNCHANGED <<signIn, openRouter, coach, stored, page, onboardingIpc, rendererVars, steps>>
+            ELSE UNCHANGED <<login, lockHolder>>
+    /\ UNCHANGED <<lockQueue, signIn, openRouter, coach, stored, page, onboardingIpc, rendererVars, steps>>
 
 \* intervals-ipc.ts is installed once per app, so this cancel always lands.
 \* An approved sign-in refuses the cancel.
@@ -543,6 +581,7 @@ Next ==
     \/ LockGoesToNext
     \/ AthleteStartsChatGptSignIn
     \/ ChatGptBrowserWaitEnds
+    \/ AthleteCancelsQueuedChatGptSignIn
     \/ PersonFinishesChatGptInBrowser
     \/ ChatGptSignInIsStored
     \/ ChatGptActivationFinishes
@@ -565,7 +604,9 @@ Next ==
     \/ AthletePastesTelegramToken
     \/ TelegramConfigureFinishes
     \/ CoachProcessExits
+    \/ SuccessorStarts
     \/ ReapplyFinishes
+    \/ ReconcileFinishes
     \/ ReadinessLimitPasses
     \/ PageCrashes
     \/ AthleteClosesWindow
@@ -582,9 +623,11 @@ Spec == Init /\ [][Next]_vars
 
 TypeOK ==
     /\ login.phase \in {"idle", "queued", "awaiting-browser", "storing"}
+    /\ login.aborted \in BOOLEAN
     /\ signIn.phase \in {"idle", "awaiting-browser", "storing"}
     /\ openRouter.phase \in {"idle", "awaiting-browser", "storing"}
     /\ coach.status \in {"ready", "recovering", "terminal"}
+    /\ coach.restart \in {"none", "spawning", "replaying"}
     /\ steps \in 0..MaxAthleteSteps
 
 \* 1. A coach restart always reaches ready.

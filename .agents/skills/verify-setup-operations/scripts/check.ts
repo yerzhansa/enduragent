@@ -197,13 +197,17 @@ async function main(): Promise<void> {
   };
 
   for (const scenario of Object.keys(SCENARIOS)) {
-    const holding = selected.filter((check) => check.scenario === scenario && check.expect === "holds");
-    if (holding.length > 0) {
-      const run = runTlc(java, jar, workDir, `${scenario}-holds`, holding);
-      for (const check of holding) record(check, run.broken === check.rule ? "breaks" : "holds", run.states);
-      if (run.broken !== null) {
-        process.stdout.write(`\n${run.broken} broke in ${scenario}:\n${traceOf(run.output)}\n`);
+    let holding = selected.filter((check) => check.scenario === scenario && check.expect === "holds");
+    for (let attempt = 1; holding.length > 0; attempt += 1) {
+      const run = runTlc(java, jar, workDir, `${scenario}-holds-${attempt}`, holding);
+      const broken = holding.find((check) => check.rule === run.broken);
+      if (broken === undefined) {
+        for (const check of holding) record(check, "holds", run.states);
+        break;
       }
+      record(broken, "breaks", run.states);
+      process.stdout.write(`\n${broken.rule} broke in ${scenario}:\n${traceOf(run.output)}\n`);
+      holding = holding.filter((check) => check !== broken);
     }
     for (const check of selected.filter((entry) => entry.scenario === scenario && entry.expect === "breaks")) {
       const run = runTlc(java, jar, workDir, `${scenario}-${check.rule}`, [check]);
