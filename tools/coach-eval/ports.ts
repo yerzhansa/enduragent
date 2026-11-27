@@ -8,6 +8,7 @@ import type {
   EngineHostPorts,
   MemoryStorePort,
   ModelTransportDecorator,
+  PlanningReadPort,
   PlatformCalendarMutationsPort,
   ToolConfirmationPort,
   UsageLedgerLine,
@@ -18,22 +19,42 @@ import { createEngineHostAdapter } from "../../packages/core/src/agent/engine-ho
 import { bundledAcceptedCatalog } from "../../packages/core/src/model-catalog.js";
 import { legacyStateReader } from "../../packages/core/src/agent/legacy-athlete-state-reader.js";
 import { createNpmCoachLanguage } from "../../packages/core/src/language-preference.js";
-import { createStoreAthleteDataReader } from "../../packages/core/src/athlete-data.js";
+import {
+  createPlatformAthleteDataReader,
+  createPlatformCalendarMutations,
+  createStoreAthleteDataReader,
+} from "../../packages/core/src/athlete-data.js";
 import {
   ConfirmationGate,
   createProposalSummarizers,
   createToolConfirmationPort,
 } from "../../packages/core/src/agent/confirmation-gate.js";
-import { UNPARSED_TOOL, type ExecutedWrite, type Proposal, type ToolAttempt, type TurnObservation } from "./checks.js";
-import type { StoreFixture } from "./fixture.js";
+import {
+  UNPARSED_TOOL,
+  type ExecutedWrite,
+  type Proposal,
+  type ToolAttempt,
+  type ToolResult,
+  type TurnObservation,
+} from "./checks.js";
+import type { EvalCase } from "./cases.js";
+import { buildStoreFixture, dateKey, type StoreFixture } from "./fixture.js";
+import { buildIntervalsFixture, type IntervalsFixture } from "./fixture-intervals.js";
 import type { SpendMeter } from "./spend.js";
 
-export type Channel = "desktop" | "telegram";
+export type Channel = "desktop" | "telegram" | "cli";
 
 export const CHAT_IDS: Readonly<Record<Channel, string>> = {
   desktop: "desktop",
   telegram: "4242",
+  cli: "cli",
 };
+
+export type EvalData =
+  | { readonly kind: "store"; readonly fixture: StoreFixture }
+  | { readonly kind: "intervals"; readonly fixture: IntervalsFixture }
+  | { readonly kind: "reads-failing" }
+  | { readonly kind: "not-connected" };
 
 const RECORDED_MEMORY_WRITES: ReadonlySet<string> = new Set([
   "writeSection",
@@ -46,11 +67,13 @@ const RECORDED_MEMORY_WRITES: ReadonlySet<string> = new Set([
 
 export class CaseRecorder {
   readonly attempts: ToolAttempt[] = [];
+  readonly results: ToolResult[] = [];
   readonly proposals: Proposal[] = [];
   readonly writes: ExecutedWrite[] = [];
   readonly usage: UsageLedgerLine[] = [];
+  private readonly approvalCodes = new Set<string>();
   private offered = new Set<string>();
-  private mark = { attempts: 0, proposals: 0, writes: 0 };
+  private mark = { attempts: 0, results: 0, proposals: 0, writes: 0 };
 
   offer(names: readonly string[]): void {
     for (const name of names) this.offered.add(name);
@@ -60,18 +83,22 @@ export class CaseRecorder {
     this.offered = new Set();
     this.mark = {
       attempts: this.attempts.length,
+      results: this.results.length,
       proposals: this.proposals.length,
       writes: this.writes.length,
     };
   }
 
-  finishTurn(reply: string, pendingProposal: boolean): TurnObservation {
+  finishTurn(reply: string, pending: { readonly nonce: string } | undefined): TurnObservation {
+    if (pending !== undefined) this.approvalCodes.add(pending.nonce);
     return {
       reply,
       offeredTools: Array.from(this.offered),
       attempts: this.attempts.slice(this.mark.attempts),
+      results: this.results.slice(this.mark.results),
       proposals: this.proposals.slice(this.mark.proposals),
-      pendingProposal,
+      pendingProposal: pending !== undefined,
+      approvalCodes: Array.from(this.approvalCodes),
       writes: this.writes.slice(this.mark.writes),
     };
   }
@@ -79,7 +106,7 @@ export class CaseRecorder {
 
 const KEY_REJECTED_STATUS: ReadonlySet<number> = new Set([401, 402, 403]);
 
-function keyRejection(error: unknown): string | undefined {
+export function keyRejection(error: unknown): string | undefined {
   if (!APICallError.isInstance(error) || error.statusCode === undefined) return undefined;
   if (!KEY_REJECTED_STATUS.has(error.statusCode)) return undefined;
   return `the model provider refused the key in OPENROUTER_API_KEY (HTTP ${error.statusCode}: ${error.message})`;
@@ -94,10 +121,22 @@ interface CallLog {
   readonly unknownNames: Set<string>;
 }
 
+function recordResults(name: string, tool: Tool, recorder: CaseRecorder): Tool["execute"] {
+  const execute = tool.execute;
+  if (execute === undefined) return undefined;
+  return async (input, options) => {
+    const output: unknown = await execute(input, options);
+    recorder.results.push({ tool: name, output });
+    return output;
+  };
+}
+
 function recordAttempts(name: string, tool: Tool, recorder: CaseRecorder, log: CallLog): Tool {
   const schema = asSchema(tool.inputSchema);
+  const execute = recordResults(name, tool, recorder);
   return {
     ...tool,
+    ...(execute === undefined ? {} : { execute }),
     inputSchema: jsonSchema(() => schema.jsonSchema, {
       validate: async (value: unknown) => {
         const result =
@@ -181,17 +220,41 @@ export function recordingDecorator(
   });
 }
 
-export function createFixtureReader(fixture: StoreFixture | "failing"): AthleteDataReaderPort {
-  return fixture === "failing"
-    ? createStoreAthleteDataReader({ snapshot: () => undefined })
-    : createStoreAthleteDataReader({
-        snapshot: () => fixture.snapshot,
-        canonicalActivities: fixture.activities,
-      });
+export function evalDataFor(evalCase: EvalCase, today: Date): EvalData {
+  switch (evalCase.data) {
+    case "not-connected":
+      return { kind: "not-connected" };
+    case "reads-failing":
+      return { kind: "reads-failing" };
+    case "intervals":
+    case "intervals-close-rides":
+      return { kind: "intervals", fixture: buildIntervalsFixture(evalCase.data, today, evalCase.injection) };
+    default:
+      return { kind: "store", fixture: buildStoreFixture(evalCase.data, today) };
+  }
 }
 
-export function recordingCalendar(recorder: CaseRecorder): PlatformCalendarMutationsPort {
-  let nextEventId = 7_001;
+export function createFixtureReader(data: EvalData): AthleteDataReaderPort | undefined {
+  switch (data.kind) {
+    case "store":
+      return createStoreAthleteDataReader({
+        snapshot: () => data.fixture.snapshot,
+        canonicalActivities: data.fixture.activities,
+      });
+    case "intervals":
+      return createPlatformAthleteDataReader(data.fixture.client);
+    case "reads-failing":
+      return createStoreAthleteDataReader({ snapshot: () => undefined });
+    case "not-connected":
+      return undefined;
+  }
+}
+
+export function recordingCalendar(
+  recorder: CaseRecorder,
+  client?: IntervalsClient,
+): PlatformCalendarMutationsPort {
+  let nextEventId = 8_001;
   const write = (operation: string, input: unknown): void => {
     recorder.writes.push({ target: "calendar", operation, input });
   };
@@ -201,7 +264,8 @@ export function recordingCalendar(recorder: CaseRecorder): PlatformCalendarMutat
       return { id: nextEventId++, ...input };
     },
     readEventForDelete: async ({ eventId }) => {
-      throw new Error(`The eval calendar holds no event ${eventId}.`);
+      if (client === undefined) throw new Error(`The eval calendar holds no event ${eventId}.`);
+      return createPlatformCalendarMutations(client).readEventForDelete({ eventId });
     },
     updateEvent: async (input) => {
       write("updateEvent", input);
@@ -235,20 +299,25 @@ async function refuseNetwork(): Promise<Response> {
   throw new Error("The coach eval has no intervals.icu connection.");
 }
 
+export function desktopRequiresConfirmation({ chatId }: { readonly chatId: string }): boolean {
+  return chatId !== "desktop" && chatId !== "cli" && !chatId.startsWith("cli:");
+}
+
 function confirmationPort(
   gate: ConfirmationGate,
   recorder: CaseRecorder,
   language: ReturnType<typeof createNpmCoachLanguage>,
+  data: EvalData,
 ): ToolConfirmationPort {
+  const intervals =
+    data.kind === "intervals"
+      ? data.fixture.client
+      : new IntervalsClient({ apiKey: "coach-eval", athleteId: "0", fetch: refuseNetwork });
   const port = createToolConfirmationPort({
     gate,
     language,
-    summarizers: createProposalSummarizers({
-      intervals: new IntervalsClient({ apiKey: "coach-eval", athleteId: "0", fetch: refuseNetwork }),
-      tz: "UTC",
-    }),
-    requiresConfirmation: ({ chatId }) =>
-      chatId !== "desktop" && chatId !== "cli" && !chatId.startsWith("cli:"),
+    summarizers: createProposalSummarizers({ intervals, tz: "UTC" }),
+    requiresConfirmation: data.kind === "intervals" ? () => true : desktopRequiresConfirmation,
   });
   return {
     ...port,
@@ -262,9 +331,33 @@ function confirmationPort(
 export interface EvalPortsInput {
   readonly model: string;
   readonly apiKey: string;
-  readonly fixture: StoreFixture | "failing" | undefined;
+  readonly data: EvalData;
+  readonly today: Date;
   readonly recorder: CaseRecorder;
   readonly meter: SpendMeter;
+}
+
+function platformPorts(input: EvalPortsInput, base: EngineHostPorts): EngineHostPorts["platform"] {
+  const reader = createFixtureReader(input.data);
+  if (input.data.kind !== "intervals") {
+    return { ...base.platform, ...(reader === undefined ? {} : { athleteData: reader }) };
+  }
+  return {
+    legacyClient: input.data.fixture.client,
+    athleteData: reader,
+    calendarMutations: recordingCalendar(input.recorder, input.data.fixture.client),
+  };
+}
+
+function noPlanReadModel(today: Date): PlanningReadPort {
+  return {
+    getPlanningReadModel: async () => ({
+      schemaVersion: 1,
+      status: "no-plan",
+      asOfDateKey: Number(dateKey(today, 0).replaceAll("-", "")),
+      plan: null,
+    }),
+  };
 }
 
 export interface EvalPorts {
@@ -276,7 +369,7 @@ export interface EvalPorts {
 export function createEvalPorts(input: EvalPortsInput): EvalPorts {
   const dataDir = mkdtempSync(join(tmpdir(), "coach-eval-"));
   const config: Config = {
-    dataSource: input.fixture === undefined ? "platform" : "store",
+    dataSource: input.data.kind === "store" || input.data.kind === "reads-failing" ? "store" : "platform",
     llm: { provider: "openrouter", model: input.model, apiKey: input.apiKey },
     intervals: { apiKey: "", athleteId: "0" },
     telegram: { botToken: "" },
@@ -297,14 +390,16 @@ export function createEvalPorts(input: EvalPortsInput): EvalPorts {
     stateReader: legacyStateReader,
     overrides: {
       language,
-      ...(input.fixture === undefined ? {} : { athleteData: createFixtureReader(input.fixture) }),
       calendarMutations: recordingCalendar(input.recorder),
     },
   });
   const gate = new ConfirmationGate();
   const base = adapted.ports;
+  const desktopApp = input.data.kind === "store" || input.data.kind === "reads-failing";
   const ports: EngineHostPorts = {
     ...base,
+    platform: platformPorts(input, base),
+    ...(desktopApp ? { planningRead: noPlanReadModel(input.today) } : {}),
     memory: recordingMemory(base.memory, input.recorder),
     usage: {
       append: (line) => {
@@ -313,7 +408,7 @@ export function createEvalPorts(input: EvalPortsInput): EvalPorts {
         base.usage.append(line);
       },
     },
-    toolConfirmations: confirmationPort(gate, input.recorder, language),
+    toolConfirmations: confirmationPort(gate, input.recorder, language, input.data),
     modelTransportDecorator: recordingDecorator(input.recorder, input.meter),
   };
   return {

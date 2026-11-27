@@ -1,48 +1,67 @@
 export const DEFAULT_MAX_USD = 10;
+export const DEFAULT_JUDGE_MODEL = "anthropic/claude-sonnet-5";
 
-export interface RunOptions {
+export interface LiveRunOptions {
+  readonly mode: "live";
   readonly model: string;
+  readonly judgeModel: string;
   readonly maxUsd: number;
   readonly caseIds: readonly string[];
 }
+
+export interface RecheckOptions {
+  readonly mode: "recheck";
+  readonly reportPath: string;
+}
+
+export type RunOptions = LiveRunOptions | RecheckOptions;
 
 export type ParsedRunOptions =
   | { readonly ok: true; readonly options: RunOptions }
   | { readonly ok: false; readonly message: string };
 
 export const USAGE =
-  "usage: pnpm eval:coach --model <openrouter model id> [--max-usd <dollars, at most 10>] [--case <case id>]...";
+  "usage: pnpm eval:coach --model <openrouter model id> [--judge-model <openrouter model id>] " +
+  "[--max-usd <dollars, at most 10>] [--case <case id>]...\n" +
+  "       pnpm eval:coach --recheck <report.json>";
+
+const FLAGS: ReadonlySet<string> = new Set(["--model", "--judge-model", "--max-usd", "--case", "--recheck"]);
+
+function parseMaxUsd(value: string): number | string {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > DEFAULT_MAX_USD) {
+    return `--max-usd must be above 0 and at most ${DEFAULT_MAX_USD}, got ${value}`;
+  }
+  return parsed;
+}
 
 export function parseRunArgs(argv: readonly string[]): ParsedRunOptions {
-  let model: string | undefined;
-  let maxUsd = DEFAULT_MAX_USD;
+  const values = new Map<string, string>();
   const caseIds: string[] = [];
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
     const value = argv[index + 1];
     if (flag === "--") continue;
-    if (flag !== "--model" && flag !== "--max-usd" && flag !== "--case") {
-      return { ok: false, message: `unknown argument ${flag}` };
-    }
-    if (value === undefined || value.startsWith("--")) {
-      return { ok: false, message: `${flag} needs a value` };
-    }
+    if (!FLAGS.has(flag)) return { ok: false, message: `unknown argument ${flag}` };
+    if (value === undefined || value.startsWith("--")) return { ok: false, message: `${flag} needs a value` };
     index++;
-    if (flag === "--model") model = value;
     if (flag === "--case") caseIds.push(value);
-    if (flag === "--max-usd") {
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > DEFAULT_MAX_USD) {
-        return {
-          ok: false,
-          message: `--max-usd must be above 0 and at most ${DEFAULT_MAX_USD}, got ${value}`,
-        };
-      }
-      maxUsd = parsed;
-    }
+    else values.set(flag, value);
   }
+  const reportPath = values.get("--recheck");
+  if (reportPath !== undefined) {
+    if (values.size > 1 || caseIds.length > 0) {
+      return { ok: false, message: "--recheck takes no other flags" };
+    }
+    return { ok: true, options: { mode: "recheck", reportPath } };
+  }
+  const model = values.get("--model");
   if (model === undefined || model.trim() === "") return { ok: false, message: "--model is required" };
-  return { ok: true, options: { model, maxUsd, caseIds } };
+  const maxUsd = parseMaxUsd(values.get("--max-usd") ?? String(DEFAULT_MAX_USD));
+  if (typeof maxUsd === "string") return { ok: false, message: maxUsd };
+  const judgeModel = values.get("--judge-model") ?? DEFAULT_JUDGE_MODEL;
+  if (judgeModel.trim() === "") return { ok: false, message: "--judge-model needs a value" };
+  return { ok: true, options: { mode: "live", model, judgeModel, maxUsd, caseIds } };
 }
 
 export interface UsageCostFigures {
