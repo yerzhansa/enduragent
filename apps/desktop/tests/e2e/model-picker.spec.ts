@@ -7,6 +7,8 @@ const PROVIDERS = ["Anthropic", "OpenRouter"] as const;
 const WIDTHS = [1180, 760] as const;
 const SETUP_BUTTON_MAX_WIDTH = 236;
 const SETTINGS_BUTTON_MAX_WIDTH = 260;
+const WINDOW_HEIGHT = 820;
+const MIN_WINDOW_HEIGHT = 600;
 
 type ButtonPlacement = "centered" | "bottom-edge";
 
@@ -31,6 +33,7 @@ async function settledOpenList(page: Page): Promise<Locator> {
       if (current === previous) return;
       previous = current;
     }
+    throw new Error("the open list kept moving for 60 frames");
   });
   return list;
 }
@@ -58,10 +61,16 @@ async function visibleModelListProblems(
     };
   });
   const closedWidth = closed.width;
+  const position = `${closed.top}-${closed.bottom}px of ${closed.viewport}px`;
   if (placement === "centered") {
     expect(
       closed.top >= 20 && closed.bottom <= closed.viewport - 40,
-      `${capture}: the button must sit clear of the window's edges, but it is at ${closed.top}-${closed.bottom}px of ${closed.viewport}px`,
+      `${capture}: the button must sit clear of the window's edges, but it is at ${position}`,
+    ).toBe(true);
+  } else {
+    expect(
+      closed.bottom > closed.viewport - 40,
+      `${capture}: the button must sit at the window's bottom edge, but it is at ${position}`,
     ).toBe(true);
   }
   await trigger.click({ scroll: "none" });
@@ -157,7 +166,7 @@ for (const width of WIDTHS) {
     `Setup model picker shows whole model names at ${width}px`,
     async ({ firstRunDesktop }, info) => {
       const { page } = firstRunDesktop;
-      await page.setViewportSize({ width, height: 820 });
+      await page.setViewportSize({ width, height: WINDOW_HEIGHT });
       await page.locator('[data-setup-trigger="ai"]').click();
       await page.locator('[data-setup-menu="ai"] [data-lane="api-key"]').click();
       const panel = page.locator('[data-setup-panel="api-key"]');
@@ -194,7 +203,7 @@ for (const width of WIDTHS) {
     `Settings model picker shows whole model names at ${width}px`,
     async ({ chatDesktop }, info) => {
       const { page } = chatDesktop;
-      await page.setViewportSize({ width, height: 820 });
+      await page.setViewportSize({ width, height: WINDOW_HEIGHT });
       await page
         .getByRole("navigation", { name: "Main navigation" })
         .getByRole("button", { name: "Settings", exact: true })
@@ -205,6 +214,10 @@ for (const width of WIDTHS) {
       for (const provider of PROVIDERS) {
         await chooseProvider(page, providerTrigger, provider);
         for (const placement of ["centered", "bottom-edge"] as const) {
+          await page.setViewportSize({
+            width,
+            height: placement === "centered" ? WINDOW_HEIGHT : MIN_WINDOW_HEIGHT,
+          });
           const problems = await visibleModelListProblems(
             page,
             modelTrigger,
