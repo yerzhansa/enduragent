@@ -202,13 +202,15 @@ describe("StoreRuntime store lane wait signal", () => {
     const { runtime, clock, laneWaits } = await laneRuntime();
     const holder = gate();
     const held = runtime.runExclusive(() => holder.opened);
+    const asked = gate();
     let later: Promise<string> | undefined;
     await withRpcMethod("configureRuntime", async () => {
-      later = new Promise((resolve) => setTimeout(resolve, 0)).then(() =>
-        runtime.runExclusive(async () => "later"),
-      );
+      setTimeout(() => {
+        later = runtime.runExclusive(async () => "later");
+        asked.open();
+      }, 0);
     });
-    await settle();
+    await asked.opened;
 
     clock.ms = 6_000;
     holder.open();
