@@ -96,6 +96,46 @@ describe("the Activity review controller", () => {
     expect(test.ready().selectedId).toBeNull();
   });
 
+  it("closes the choices when a refresh drops the selected ride", async () => {
+    const test = harness();
+    await test.opened();
+    test.controller.select(rideId("b"));
+    test.controller.change();
+    expect(test.ready().choices).toBe("open");
+    const refreshing = test.controller.refresh();
+    test.readReplies.at(-1)?.resolve(rides([ASKED]));
+    await refreshing;
+    expect(test.ready()).toMatchObject({ selectedId: rideId("a"), choices: "closed" });
+  });
+
+  it("sends one answer at a time, even when the page is left and opened again meanwhile", async () => {
+    const test = harness();
+    await test.opened();
+    test.controller.select(rideId("a"));
+    const deciding = test.controller.decide({ kind: "extra" });
+    const reopening = test.controller.open();
+    test.readReplies.at(-1)?.resolve(rides([ASKED, EARLIER]));
+    await reopening;
+    expect(test.ready()).toMatchObject({ selectedId: rideId("a"), saving: "saving" });
+    test.controller.select(rideId("b"));
+    test.controller.change();
+    await test.controller.decide({ kind: "extra" });
+    expect(test.decisions).toEqual([
+      {
+        planId: PLAN_ID,
+        activityId: rideId("a"),
+        expected: { kind: "suggested", planWorkoutId: ENDURANCE.planWorkoutId },
+        decision: { kind: "extra" },
+      },
+    ]);
+    test.decideReplies[0]?.resolve({ status: "ride", ride: ride("a", TODAY) });
+    await Promise.resolve();
+    await Promise.resolve();
+    test.readReplies.at(-1)?.resolve(rides([ride("a", TODAY), EARLIER]));
+    await deciding;
+    expect(test.ready()).toMatchObject({ selectedId: rideId("a"), saving: "idle" });
+  });
+
   it("keeps only the newest read when two overlap", async () => {
     const test = harness();
     const first = test.controller.open();
@@ -124,6 +164,7 @@ describe("the Activity review controller", () => {
       {
         planId: PLAN_ID,
         activityId: rideId("a"),
+        expected: { kind: "suggested", planWorkoutId: ENDURANCE.planWorkoutId },
         decision: { kind: "confirm", planWorkoutId: ENDURANCE.planWorkoutId },
       },
     ]);

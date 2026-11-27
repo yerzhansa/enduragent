@@ -7,7 +7,7 @@ import type { ActivityReviewRead } from "../src/activity-review/rides";
 import type { ActivityReviewActions } from "../src/state/activity-review-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { ActivityReviewView } from "../src/ui/activity-review/ActivityReviewView";
-import { TODAY, planWorkout, ride, rideId, rides } from "./activity-review-fixture";
+import { TODAY, planWorkout, ride, rideId, rides, workoutId } from "./activity-review-fixture";
 
 const EASY = planWorkout(1, TODAY, "Easy endurance");
 const THRESHOLD = planWorkout(2, 19980819, "Threshold 4×8", 4_800);
@@ -187,6 +187,57 @@ describe("the Activity review page", () => {
       screen.getByText("No Plan, so there is nothing planned to compare."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
+  });
+
+  it("lets the athlete match an Extra ride to a nearby Plan Workout through Change", async () => {
+    const user = userEvent.setup();
+    const bound = show(withPlan(), { selectedId: rideId("d") });
+    const view = render(<ActivityReviewView />);
+    expect(
+      screen.getByText("No Plan Workout is matched to this ride, so it counts as Extra."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Plan Workout match" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Change" }));
+    expect(bound.otherDay).toHaveBeenCalledOnce();
+    const extra = rides([
+      ride("d", 19980814, {
+        name: "Café ride",
+        durationS: 3_300,
+        otherWorkouts: [planWorkout(5, 19980815, "Long endurance", 8_100)],
+      }),
+    ]);
+    show(extra, { selectedId: rideId("d"), choices: "other-day" }, bound);
+    view.rerender(<ActivityReviewView />);
+    const picker = screen.getByRole("region", { name: "Plan Workout match" });
+    expect(within(picker).getByText("Which Plan Workout was it?")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
+    await user.click(within(picker).getByRole("button", { name: /^Sat 15 · Long endurance/u }));
+    expect(bound.rematch).toHaveBeenCalledWith(workoutId(5));
+    await user.click(within(picker).getByRole("button", { name: "Cancel" }));
+    expect(bound.closeChoices).toHaveBeenCalledOnce();
+    show(rides([ride("d", 19980814)]), { selectedId: rideId("d"), choices: "other-day" }, bound);
+    view.rerender(<ActivityReviewView />);
+    expect(
+      screen.getByText("No other Plan Workout within three days of this ride is free."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the ride's local start on its local day when it began the evening before in UTC", () => {
+    show(
+      rides([
+        ride("a", TODAY, {
+          startEpochSeconds: Date.parse("1998-08-19T23:30:00Z") / 1000,
+          timezoneOffsetSeconds: 3_600,
+        }),
+      ]),
+    );
+    render(<ActivityReviewView />);
+    expect(
+      screen.getByText("Thu 20 Aug, 12:30 AM · Road ride · from intervals.icu"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Activities" })).toHaveTextContent(
+      "Thu 20 · Today",
+    );
   });
 
   it("offers Retry when the rides cannot be read", async () => {

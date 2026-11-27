@@ -1,7 +1,7 @@
-import { startActivityReview } from "../activity-review/wiring";
-import type { DesktopCoachClientProvider } from "../coach-client";
-import type { useEnduragentStore } from "../state/store";
-import { startCalendar } from "./wiring";
+import { startActivityReview } from "./activity-review/wiring";
+import type { DesktopCoachClientProvider } from "./coach-client";
+import type { useEnduragentStore } from "./state/store";
+import { startCalendar } from "./calendar/wiring";
 
 export function startCalendarPages(
   store: typeof useEnduragentStore,

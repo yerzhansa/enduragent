@@ -1,7 +1,7 @@
 import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
-import { refreshOpenCalendarPage, startCalendarPages } from "./calendar/pages";
+import { refreshOpenCalendarPage, startCalendarPages } from "./page-wiring";
 import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
 import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";

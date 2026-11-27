@@ -1,4 +1,9 @@
-import type { PlanCalendarRideDecision, PlanCalendarRpcResult } from "@enduragent/coach-contract";
+import type {
+  PlanCalendarRideDecision,
+  PlanCalendarRideExpected,
+  PlanCalendarRideMatch,
+  PlanCalendarRpcResult,
+} from "@enduragent/coach-contract";
 import { reviewRange, selectedRide, type ActivityReviewRead } from "./rides";
 
 export type ReviewChoices = "closed" | "open" | "other-day";
@@ -37,10 +42,17 @@ export interface ActivityReviewControllerDeps {
   decide(request: {
     readonly planId: string;
     readonly activityId: string;
+    readonly expected: PlanCalendarRideExpected;
     readonly decision: PlanCalendarRideDecision;
   }): Promise<PlanCalendarRpcResult>;
   localTodayDateKey(): number;
   publish(state: ActivityReviewState): void;
+}
+
+function expectedOf(match: PlanCalendarRideMatch): PlanCalendarRideExpected {
+  return match.kind === "none"
+    ? { kind: "none" }
+    : { kind: match.kind, planWorkoutId: match.planWorkoutId };
 }
 
 export function createActivityReviewController(
@@ -48,6 +60,7 @@ export function createActivityReviewController(
 ): ActivityReviewController {
   let state: ActivityReviewState = ACTIVITY_REVIEW_START;
   let generation = 0;
+  let deciding = false;
 
   const publish = (next: ActivityReviewState): void => {
     state = next;
@@ -60,10 +73,15 @@ export function createActivityReviewController(
     if (state.kind === "ready") publish({ ...state, ...patch });
   };
 
-  const load = async (reset: boolean): Promise<void> => {
+  const choose = (choices: ReviewChoices): void => {
+    if (!deciding) update({ choices, saving: "idle" });
+  };
+
+  const load = async (open: boolean): Promise<void> => {
     generation += 1;
     const mine = generation;
     const before = state;
+    const reset = open && !deciding;
     if (before.kind === "ready") {
       publish({
         ...before,
@@ -85,17 +103,29 @@ export function createActivityReviewController(
       );
       return;
     }
-    const selectedId =
-      current.kind === "ready" && !reset
-        ? (selectedRide(result, current.selectedId)?.activityId ?? null)
-        : null;
+    if (current.kind !== "ready") {
+      publish({
+        kind: "ready",
+        read: result,
+        selectedId: null,
+        refresh: "idle",
+        choices: "closed",
+        saving: "idle",
+      });
+      return;
+    }
+    const shown = selectedRide(current.read, current.selectedId)?.activityId ?? null;
+    const selectedId = reset
+      ? null
+      : (selectedRide(result, current.selectedId)?.activityId ?? null);
+    const same = selectedId === shown;
     publish({
       kind: "ready",
       read: result,
       selectedId,
       refresh: "idle",
-      choices: current.kind === "ready" ? current.choices : "closed",
-      saving: current.kind === "ready" ? current.saving : "idle",
+      choices: same ? current.choices : "closed",
+      saving: same || deciding ? current.saving : "idle",
     });
   };
 
@@ -103,14 +133,14 @@ export function createActivityReviewController(
     open: () => load(true),
     refresh: () => load(false),
     select(activityId) {
-      if (state.kind !== "ready" || state.saving === "saving") return;
+      if (state.kind !== "ready" || deciding) return;
       publish({ ...state, selectedId: activityId, choices: "closed", saving: "idle" });
     },
-    change: () => update({ choices: "open", saving: "idle" }),
-    otherDay: () => update({ choices: "other-day", saving: "idle" }),
-    closeChoices: () => update({ choices: "closed", saving: "idle" }),
+    change: () => choose("open"),
+    otherDay: () => choose("other-day"),
+    closeChoices: () => choose("closed"),
     async decide(decision) {
-      if (state.kind !== "ready" || state.saving === "saving") return;
+      if (state.kind !== "ready" || deciding) return;
       const ride = selectedRide(state.read, state.selectedId);
       const planId = state.read.plan?.planId;
       if (ride === null || planId === undefined) return;
@@ -123,13 +153,21 @@ export function createActivityReviewController(
         return;
       }
       publish({ ...state, selectedId: ride.activityId, saving: "saving" });
+      deciding = true;
       let result: PlanCalendarRpcResult;
       try {
-        result = await deps.decide({ planId, activityId: ride.activityId, decision });
+        result = await deps.decide({
+          planId,
+          activityId: ride.activityId,
+          expected: expectedOf(ride.match),
+          decision,
+        });
       } catch {
+        deciding = false;
         update({ saving: "failed" });
         return;
       }
+      deciding = false;
       if (result.status === "ride") {
         const current = state;
         if (current.kind === "ready") {
