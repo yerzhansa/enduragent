@@ -186,6 +186,35 @@ describe("Plan workout drift", () => {
     expect(repository.current()).toMatchObject({ id: DRIFT_ID, observedAtMs: 12 });
   });
 
+  it("ignores intervals.icu's own steps and duration count for a described workout", async () => {
+    const described: PlanWorkoutRecord = {
+      ...workout,
+      durationS: 3_725,
+      structureJson: JSON.stringify({
+        description: "Plan workout",
+        workoutDoc: { name: "Threshold 4×8", steps: [] },
+      }),
+    };
+    await expect(
+      refreshPlanWorkoutDrifts(
+        {
+          plan,
+          workouts: [described],
+          events: [
+            {
+              ...event(3_726),
+              description: "Plan workout",
+              workoutDoc: { duration: 3_726, steps: [{ duration: 600, warmup: true }] },
+            },
+          ],
+          todayDateKey: 20260826,
+          windowEndDateKey: 20260901,
+        },
+        { repository: driftRepository(), identity, now: () => 10 },
+      ),
+    ).resolves.toEqual([]);
+  });
+
   it("adopts the current Intervals workout without writing to the provider", async () => {
     const repository = driftRepository(openDrift());
     const updateEvent = vi.fn();
@@ -209,7 +238,11 @@ describe("Plan workout drift", () => {
     expect(repository.adopt).toHaveBeenCalledWith(
       expect.objectContaining({
         expectedWorkout: workout,
-        workout: expect.objectContaining({ durationS: 3_300, name: "Threshold 4×8" }),
+        workout: expect.objectContaining({
+          durationS: 3_300,
+          name: "Threshold 4×8",
+          structureJson: canonicalJson({ description: "Intervals edit" }),
+        }),
         ledger: expect.objectContaining({
           kind: "drift-adopted",
           weekLoadBefore: null,
