@@ -108,7 +108,6 @@ export async function prepareDesktopCredentialEncryption(
   let currentEncryption = selection.encryption;
   let keyCleanupDebt: KeyCleanupDebt =
     selection.status === "refused" ? selection.keyCleanupDebt : "none";
-  let refreshBeforeWrite = keyCleanupDebt !== "none";
   const encryption: CredentialEncryptionPort = {
     isEncryptionAvailable: () => currentEncryption.isEncryptionAvailable(),
     encryptString: (value) => currentEncryption.encryptString(value),
@@ -129,7 +128,6 @@ export async function prepareDesktopCredentialEncryption(
     };
     currentEncryption = selection.encryption;
     keyCleanupDebt = cleanupDebt;
-    refreshBeforeWrite = cleanupDebt !== "none";
   };
   const refreshSelection = async (
     proof: CredentialEnvelopeLockProof,
@@ -150,7 +148,6 @@ export async function prepareDesktopCredentialEncryption(
       selection = next;
       currentEncryption = next.encryption;
       keyCleanupDebt = next.status === "refused" ? next.keyCleanupDebt : "none";
-      refreshBeforeWrite = keyCleanupDebt !== "none";
     } catch {
       selection = {
         status: "refused",
@@ -161,7 +158,6 @@ export async function prepareDesktopCredentialEncryption(
         keyCleanupPending: keyCleanupDebt !== "none",
       };
       currentEncryption = selection.encryption;
-      refreshBeforeWrite = keyCleanupDebt !== "none";
     }
     return selection;
   };
@@ -172,7 +168,10 @@ export async function prepareDesktopCredentialEncryption(
     },
     service,
     async prepareEnvelopeWrite(proof: CredentialEnvelopeLockProof): Promise<void> {
-      if (selection.status !== "keychain" && refreshBeforeWrite) {
+      if (
+        selection.status !== "keychain" &&
+        (options.location.platform === "darwin" || keyCleanupDebt !== "none")
+      ) {
         await refreshSelection(proof);
       }
       if (selection.status !== "keychain") return;
@@ -259,7 +258,6 @@ export async function prepareDesktopCredentialEncryption(
         return deleted;
       }
       keyCleanupDebt = "none";
-      refreshBeforeWrite = false;
       await refreshSelection(proof);
       return deleted;
     },
