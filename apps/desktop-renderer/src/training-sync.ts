@@ -57,6 +57,8 @@ export interface TrainingSyncCoordinator {
 const REASK_WAITS_MS = [0, 5_000, 30_000, 120_000];
 const REASK_EVERY_MS = 300_000;
 
+const ADMISSION_CLOSED_CODE = -32_005;
+
 function isIndeterminateFailure(error: unknown): boolean {
   return (
     error instanceof CoachClientDisconnectedError ||
@@ -232,7 +234,7 @@ export function createTrainingSyncCoordinator(input: {
       terminalValid =
         !protocolFault &&
         envelope.jsonrpc === "2.0" &&
-        ((errorTerminal && progress === 0) ||
+        (("error" in envelope && progress === 0 && envelope.error.code === ADMISSION_CLOSED_CODE) ||
           (envelope.id === requestId &&
             ((successTerminal && progress === 2) || (errorTerminal && progress === 1))));
       if (!terminalValid) failProtocol();

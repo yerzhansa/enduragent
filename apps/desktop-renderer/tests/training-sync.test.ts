@@ -1159,6 +1159,30 @@ describe("training sync coordinator when re-asks keep getting interrupted", () =
     });
   });
 
+  it("keeps an error before the sync starts a protocol fault unless the coach closed admission", async () => {
+    const client = clientWith(async (options) => {
+      options.onTerminalEnvelope?.({
+        jsonrpc: "2.0",
+        id: 1,
+        error: { code: -32_603, message: "Internal error" },
+      });
+      throw new CoachRpcRemoteError(-32_603, "Internal error");
+    });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: providerWith(client),
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+
+    await coordinator.request();
+
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: 1,
+      kind: "protocol",
+      retryable: false,
+    });
+  });
+
   it("drops a waiting re-ask once disposed", async () => {
     const { coordinator, provider, syncs } = interruptedSyncs();
     await coordinator.request();
