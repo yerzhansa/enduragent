@@ -706,7 +706,7 @@
       "endpointInvalid": "Gib einen gültigen HTTPS-Endpunkt oder einen HTTP-Endpunkt mit Loopback-Adresse ein.",
       "intervalsOwnerUnavailable": "{{product}} konnte nicht bestätigen, dass dieses {{intervals}}-Konto zu den Trainingsdaten auf {{computer}} gehört. Versuche es erneut, wenn Trainingsdaten verfügbar sind.",
       "intervalsRuntimeUnavailable": "Die {{intervals}}-Anmeldung konnte nicht aktiviert werden. Melde dich erneut an.",
-      "intervalsRuntimeUncertain": "{{product}} konnte nicht bestätigen, ob die Anmeldung aktiv ist. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
+      "intervalsSavedNotActive": "Deine {{intervals}}-Anmeldung ist gespeichert, aber der Coach konnte sie nicht verwenden. Wähle „Gespeicherte Schlüssel erneut versuchen“, um es noch einmal zu versuchen.",
       "intervalsSignInDenied": "Auf {{intervals}} wurde der Zugriff nicht erlaubt. Melde dich erneut an, wenn du bereit bist.",
       "intervalsSignInFailed": "Die Anmeldung mit {{intervals}} wurde nicht abgeschlossen. Melde dich erneut an.",
       "intervalsSignInRejected": "{{intervals}} hat die Anmeldung nicht akzeptiert. Melde dich erneut an.",

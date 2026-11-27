@@ -706,7 +706,7 @@
       "endpointInvalid": "Introduce una dirección de servicio HTTPS válida o una dirección HTTP de bucle local.",
       "intervalsOwnerUnavailable": "{{product}} no ha podido confirmar que esta cuenta de {{intervals}} corresponda a los datos de entrenamiento de {{computer}}. Inténtalo de nuevo cuando los datos de entrenamiento estén disponibles.",
       "intervalsRuntimeUnavailable": "No se ha podido activar el inicio de sesión de {{intervals}}. Vuelve a iniciar sesión.",
-      "intervalsRuntimeUncertain": "{{product}} no ha podido confirmar si el inicio de sesión está activo. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
+      "intervalsSavedNotActive": "Tu inicio de sesión de {{intervals}} está guardado, pero el entrenador no ha podido empezar a usarlo. Elige Reintentar claves guardadas para volver a intentarlo.",
       "intervalsSignInDenied": "No se ha permitido el acceso en {{intervals}}. Vuelve a iniciar sesión cuando quieras.",
       "intervalsSignInFailed": "El inicio de sesión con {{intervals}} no se ha completado. Vuelve a iniciar sesión.",
       "intervalsSignInRejected": "{{intervals}} no ha aceptado el inicio de sesión. Vuelve a iniciar sesión.",

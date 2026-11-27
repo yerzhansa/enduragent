@@ -142,11 +142,9 @@ export function createDesktopIntervalsCredentialVerifier(input: {
 
 type DesktopIntervalsMutationCore =
   | Readonly<{ outcome: "applied" }>
+  | Readonly<{ outcome: "saved-not-active" }>
   | Readonly<{ outcome: "refused"; reason: DesktopIntervalsMutationRefusalReason }>
-  | Readonly<{
-      outcome: "uncertain";
-      reason: "storage-uncertain" | "runtime-uncertain";
-    }>;
+  | Readonly<{ outcome: "uncertain"; reason: "storage-uncertain" }>;
 
 type DesktopIntervalsMutationResult = DesktopIntervalsMutationCore &
   Readonly<{ current: DesktopIntervalsCredentialStatus }>;
@@ -225,6 +223,9 @@ function copyMutation(value: unknown): DesktopIntervalsMutationCore {
   if (value.outcome === "applied" && exactKeys(value, ["outcome"])) {
     return { outcome: "applied" };
   }
+  if (value.outcome === "saved-not-active" && exactKeys(value, ["outcome"])) {
+    return { outcome: "saved-not-active" };
+  }
   if (
     value.outcome === "refused" &&
     typeof value.reason === "string" &&
@@ -238,10 +239,10 @@ function copyMutation(value: unknown): DesktopIntervalsMutationCore {
   }
   if (
     value.outcome === "uncertain" &&
-    (value.reason === "storage-uncertain" || value.reason === "runtime-uncertain") &&
+    value.reason === "storage-uncertain" &&
     exactKeys(value, ["outcome", "reason"])
   ) {
-    return { outcome: "uncertain", reason: value.reason };
+    return { outcome: "uncertain", reason: "storage-uncertain" };
   }
   throw new TypeError();
 }
@@ -255,9 +256,7 @@ function mutationFromWrite(value: unknown): DesktopIntervalsMutationCore {
     typeof value.runtimeReady === "boolean" &&
     exactKeys(value, ["runtimeReady", "slot", "status"])
   ) {
-    return value.runtimeReady
-      ? { outcome: "applied" }
-      : { outcome: "uncertain", reason: "runtime-uncertain" };
+    return value.runtimeReady ? { outcome: "applied" } : { outcome: "saved-not-active" };
   }
   if (
     value.status === "uncertain" &&

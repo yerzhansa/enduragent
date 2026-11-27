@@ -706,7 +706,7 @@
       "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
       "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että tämä {{intervals}}-tili vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
       "intervalsRuntimeUnavailable": "{{intervals}}-kirjautumista ei voitu ottaa käyttöön. Kirjaudu uudelleen.",
-      "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kirjautuminen käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsSavedNotActive": "{{intervals}}-kirjautumisesi on tallennettu, mutta valmentaja ei voinut alkaa käyttää sitä. Yritä uudelleen valitsemalla Yritä tallennettuja avaimia uudelleen.",
       "intervalsSignInDenied": "Käyttöoikeutta ei myönnetty palvelussa {{intervals}}. Kirjaudu uudelleen, kun olet valmis.",
       "intervalsSignInFailed": "Kirjautuminen palvelulla {{intervals}} jäi kesken. Kirjaudu uudelleen.",
       "intervalsSignInRejected": "{{intervals}} ei hyväksynyt kirjautumista. Kirjaudu uudelleen.",

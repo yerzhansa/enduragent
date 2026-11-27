@@ -1885,7 +1885,7 @@ export type CatalogKey =
   | "setup.error.endpointInvalid"
   | "setup.error.intervalsOwnerUnavailable"
   | "setup.error.intervalsRuntimeUnavailable"
-  | "setup.error.intervalsRuntimeUncertain"
+  | "setup.error.intervalsSavedNotActive"
   | "setup.error.intervalsSignInDenied"
   | "setup.error.intervalsSignInFailed"
   | "setup.error.intervalsSignInRejected"

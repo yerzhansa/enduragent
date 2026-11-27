@@ -706,7 +706,7 @@
       "endpointInvalid": "Voer een geldig HTTPS-eindpunt of een HTTP-loopbackeindpunt in.",
       "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat dit {{intervals}}-account bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
       "intervalsRuntimeUnavailable": "De aanmelding bij {{intervals}} kon niet worden geactiveerd. Meld je opnieuw aan.",
-      "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de aanmelding actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsSavedNotActive": "Je aanmelding bij {{intervals}} is opgeslagen, maar de coach kon deze niet gaan gebruiken. Kies Opgeslagen sleutels opnieuw proberen om het nog eens te proberen.",
       "intervalsSignInDenied": "Toegang is niet toegestaan op {{intervals}}. Meld je opnieuw aan wanneer je zover bent.",
       "intervalsSignInFailed": "Het aanmelden met {{intervals}} is niet voltooid. Meld je opnieuw aan.",
       "intervalsSignInRejected": "{{intervals}} heeft de aanmelding niet geaccepteerd. Meld je opnieuw aan.",

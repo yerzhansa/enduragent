@@ -706,7 +706,7 @@
       "endpointInvalid": "Insira um endpoint HTTPS válido ou um endpoint HTTP de loopback.",
       "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar se esta conta de {{intervals}} corresponde aos dados de treinamento em {{computer}}. Tente novamente quando os dados de treinamento estiverem disponíveis.",
       "intervalsRuntimeUnavailable": "Não foi possível ativar a entrada com {{intervals}}. Entre novamente.",
-      "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se a entrada está ativa. Recarregue o status das credenciais antes de tentar novamente.",
+      "intervalsSavedNotActive": "Sua entrada com {{intervals}} está salva, mas o treinador não conseguiu começar a usá-la. Selecione Tentar chaves salvas novamente para tentar de novo.",
       "intervalsSignInDenied": "O acesso não foi permitido em {{intervals}}. Entre novamente quando quiser.",
       "intervalsSignInFailed": "A entrada com {{intervals}} não foi concluída. Entre novamente.",
       "intervalsSignInRejected": "{{intervals}} não aceitou a entrada. Entre novamente.",

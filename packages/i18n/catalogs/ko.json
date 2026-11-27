@@ -704,7 +704,7 @@
       "endpointInvalid": "유효한 HTTPS 엔드포인트 또는 루프백 HTTP 엔드포인트를 입력하세요.",
       "intervalsOwnerUnavailable": "{{product}}에서 이 {{intervals}} 계정이 {{computer}}의 훈련 데이터와 일치하는지 확인하지 못했습니다. 훈련 데이터를 사용할 수 있을 때 다시 시도하세요.",
       "intervalsRuntimeUnavailable": "{{intervals}} 로그인을 활성화하지 못했습니다. 다시 로그인하세요.",
-      "intervalsRuntimeUncertain": "{{product}}에서 로그인이 활성 상태인지 확인하지 못했습니다. 인증 정보 상태를 새로고침한 후 다시 시도하세요.",
+      "intervalsSavedNotActive": "{{intervals}} 로그인은 저장되었지만 코치가 사용을 시작하지 못했습니다. 저장된 키 다시 시도를 선택하여 다시 시도하세요.",
       "intervalsSignInDenied": "{{intervals}}에서 액세스가 허용되지 않았습니다. 준비되면 다시 로그인하세요.",
       "intervalsSignInFailed": "{{intervals}}(으)로 로그인을 완료하지 못했습니다. 다시 로그인하세요.",
       "intervalsSignInRejected": "{{intervals}}에서 로그인을 수락하지 않았습니다. 다시 로그인하세요.",

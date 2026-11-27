@@ -30,6 +30,7 @@ const COMPLETING_HINT = "Approved. Saving the connection on this Mac…";
 
 const MISSING = { slot: "intervals-icu", state: "missing", runtimeState: null } as const;
 const ACTIVE = { slot: "intervals-icu", state: "configured", runtimeState: "active" } as const;
+const FAILED = { slot: "intervals-icu", state: "configured", runtimeState: "failed" } as const;
 
 interface PendingSignIn {
   readonly promise: Promise<IntervalsCredentialMutationResult>;
@@ -522,6 +523,51 @@ describe("Intervals.icu sign-in panel", () => {
         expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
         expect(trainingRowActions()).toEqual(["Disconnect Intervals.icu", SIGN_IN_AGAIN]);
         expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
+        wizard.controller.dispose();
+      },
+    );
+
+    it.each([
+      ["was already rejected", true],
+      ["is rejected again on the next coach refresh", false],
+    ] as const)(
+      "never names a hidden Retry saved keys when the sign-in %s",
+      async (_case, rejectedBeforeSignIn) => {
+        const user = userEvent.setup();
+        const { bridge, signIn } = rejectedBridge();
+        const wizard = mountWizard({ bridge, placement: "settings" });
+        await wizard.open();
+        if (rejectedBeforeSignIn) {
+          act(() => {
+            useEnduragentStore.getState().setIntervalsSignInRejected(true);
+          });
+          await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+        } else {
+          act(() => {
+            useEnduragentStore.getState().onboardingActions?.connectTrainingData();
+          });
+        }
+        signIn.resolve({ outcome: "saved-not-active", current: FAILED });
+        await waitFor(() => {
+          expect(useEnduragentStore.getState().onboarding.wizard.busy).toBe(false);
+        });
+        if (!rejectedBeforeSignIn) {
+          expect(errorText()).toContain("Choose Retry saved keys to try again.");
+          act(() => {
+            useEnduragentStore.getState().setIntervalsSignInRejected(true);
+          });
+        }
+
+        expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+        expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
+        expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeEnabled();
+        expect(
+          errorText(),
+          "with Retry saved keys hidden, the message should point at Sign in again",
+        ).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+        expect(document.querySelector(".onboarding-error-announcer")).toHaveTextContent(
+          "The Intervals.icu sign-in couldn’t be activated. Sign in again.",
+        );
         wizard.controller.dispose();
       },
     );

@@ -203,7 +203,7 @@ describe("setup lanes", () => {
       "intervals-owner-unavailable": { provider: "training", training: "training" },
       "intervals-storage-uncertain": { provider: "training", training: "training" },
       "intervals-runtime-unavailable": { provider: "training", training: "training" },
-      "intervals-runtime-uncertain": { provider: "training", training: "training" },
+      "intervals-saved-not-active": { provider: "training", training: "training" },
       "training-data-required": { provider: "training", training: "training" },
       "credential-save-failed": { provider: "provider", training: "training" },
       "invalid-input": { provider: "provider", training: "training" },
