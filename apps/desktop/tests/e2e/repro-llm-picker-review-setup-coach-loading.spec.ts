@@ -1,11 +1,3 @@
-// Repro for llm-picker bug 6 (audit pass 2), end to end in the built app with the
-// window hidden: in Settings -> Coach, after the athlete picks a provider with no saved
-// key and clicks "Review setup", the Coach section switches to "Not configured" and
-// "Loading coach settings..." with no controls, while the coach still runs.
-//
-// Real: the Electron main process and the whole renderer. Stubbed: the coach process,
-// a scripted RPC backend that remembers the last `configureRuntime` LLM. No model
-// provider or intervals.icu request leaves the machine. Synthetic data only.
 import { writeFile } from "node:fs/promises";
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import {
@@ -19,8 +11,6 @@ import { homedir } from "node:os";
 import { join as joinScreencastPath } from "node:path";
 import type { BrowserContext } from "@playwright/test";
 
-// A video of the hidden window: CDP screencast frames, re-timed to 10 fps and encoded
-// with the ffmpeg build Playwright installs. Skipped if ffmpeg is missing.
 async function recordScreencast(context: BrowserContext, page: Page) {
   const session = await context.newCDPSession(page);
   const frames: { readonly data: Buffer; readonly at: number }[] = [];
@@ -158,7 +148,6 @@ class ScriptedCoach {
         throw new Error(`Unexpected streamed Coach request: ${request.method}`);
       }
       this.hasSession = true;
-      // A long reply (plan work): it starts streaming and keeps going.
       emitFrame(JSON.stringify({ type: "turn-start", turnId: TURN_ID, chatId: "desktop" }));
       emitFrame(
         JSON.stringify({ type: "text_delta", turnId: TURN_ID, delta: "Here is your plan for" }),
@@ -259,8 +248,6 @@ class ScriptedCoach {
       this.llmRequests.push(llm);
       if (llm.clear_credential === true) {
         if (this.replyStreaming) {
-          // The real coach drains the streaming reply before it swaps runtimes and
-          // ignores its own deadline while it waits (runtime-bundle.ts:137-139).
           await new Promise<void>((resolve) => {
             this.releaseClear = resolve;
           });
@@ -418,7 +405,6 @@ test("Review setup keeps the Coach section showing the active coach", async ({
   const coach = page.locator('section[aria-label="Coach"]');
   await expect(page.locator("#coach-provider-label")).toContainText("Anthropic");
 
-  // Step 1: pick a provider with no saved key.
   await page.locator("#coach-provider").click();
   await page.getByRole("option", { name: "OpenRouter", exact: true }).click();
   await expect(
@@ -427,9 +413,7 @@ test("Review setup keeps the Coach section showing the active coach", async ({
     ),
   ).toBeVisible();
 
-  // Step 2: Review setup.
   await coach.getByRole("button", { name: "Review setup", exact: true }).click();
-  // Give any reload plenty of time; the athlete stays on Settings.
   await page.waitForTimeout(5_000);
   await page.screenshot({ path: testInfo.outputPath("coach-after-review-setup.png") });
 
