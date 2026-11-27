@@ -1,0 +1,114 @@
+name: Coach eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: OpenRouter model id the coach runs on
+        required: true
+        default: deepseek/deepseek-v4-flash
+        type: string
+      max_usd:
+        description: Hard spend limit for this run in US dollars, judge included (at most 10)
+        required: true
+        default: "4"
+        type: string
+      judge_model:
+        description: OpenRouter model id of the judge
+        required: true
+        default: anthropic/claude-sonnet-5
+        type: string
+      cases:
+        description: Case ids to run, separated by spaces; leave empty to run every case
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coach-eval
+  cancel-in-progress: false
+
+jobs:
+  coach-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: coach-eval
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: pnpm install --frozen-lockfile
+      - name: Build the packages the eval imports
+        run: pnpm --filter "@enduragent/core..." --filter "@enduragent/sport-cycling..." build
+      - name: Check run inputs
+        env:
+          MODEL: ${{ inputs.model }}
+          JUDGE_MODEL: ${{ inputs.judge_model }}
+          MAX_USD: ${{ inputs.max_usd }}
+          CASES: ${{ inputs.cases }}
+        run: |
+          set -euo pipefail
+          model_id='^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'
+          if ! [[ "$MODEL" =~ $model_id ]]; then
+            echo "::error::model must be an OpenRouter id such as deepseek/deepseek-v4-flash"
+            exit 1
+          fi
+          if ! [[ "$JUDGE_MODEL" =~ $model_id ]]; then
+            echo "::error::judge_model must be an OpenRouter id such as anthropic/claude-sonnet-5"
+            exit 1
+          fi
+          if ! [[ "$MAX_USD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::max_usd must be a dollar amount such as 4"
+            exit 1
+          fi
+          case_ids='^[[:space:]]*([a-z][a-z0-9-]*([[:space:]]+[a-z][a-z0-9-]*)*)?[[:space:]]*$'
+          if ! [[ "$CASES" =~ $case_ids ]]; then
+            echo "::error::cases must be case ids separated by spaces"
+            exit 1
+          fi
+      - id: eval
+        name: Run the coach eval
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          JUDGE_MODEL: ${{ inputs.judge_model }}
+          MAX_USD: ${{ inputs.max_usd }}
+          CASES: ${{ inputs.cases }}
+        run: |
+          set -euo pipefail
+          args=(--model "$MODEL" --judge-model "$JUDGE_MODEL" --max-usd "$MAX_USD")
+          for id in $CASES; do
+            args+=(--case "$id")
+          done
+          pnpm eval:coach "${args[@]}"
+      - name: Write the results summary
+        if: always() && steps.eval.outcome != 'skipped'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          reports=(.tests/runs/*-coach-eval/report.json)
+          if [ "${#reports[@]}" -eq 0 ]; then
+            echo "The eval wrote no report." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pnpm eval:coach:table --stdout "${reports[@]}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Attach the report
+        if: always() && steps.eval.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coach-eval-report
+          path: .tests/runs/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
