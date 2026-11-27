@@ -95,6 +95,7 @@ export function createPlanCalendarOperations(deps: {
             if (result.state.kind !== "approved") {
               return { status: "refused", reason: "not-approved-yet" } as const;
             }
+            await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
             return {
               status: "approved",
               weeks:

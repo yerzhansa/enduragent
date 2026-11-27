@@ -360,6 +360,19 @@ describe("Plan calendar cleanup barrier", () => {
     expect(test.writesOf(planId).length).toBeGreaterThan(0);
   });
 
+  it("runs a cleanup that failed five times again when the athlete approves", async () => {
+    const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
+    for (let run = 0; run < 6; run += 1) {
+      test.advanceMs(1_000);
+      await test.drain.kick();
+    }
+    test.calendar.refuseDeletes = false;
+    await test.approve(newPlan);
+    await test.drain.kick();
+    await test.drain.kick();
+    expect(test.writesOf(newPlan).length).toBeGreaterThan(0);
+  });
+
   it("runs a cleanup that failed five times again when the Calendar's Retry sends again", async () => {
     const { test, newPlan } = await mirroredPlanReplacedWhileDeletesFail(false);
     for (let run = 0; run < 6; run += 1) {
@@ -367,6 +380,7 @@ describe("Plan calendar cleanup barrier", () => {
       await test.drain.kick();
     }
     await test.approve(newPlan);
+    await test.drain.kick();
     test.calendar.refuseDeletes = false;
     await test.drain.kick();
     expect(test.writesOf(newPlan), "before Retry").toEqual([]);

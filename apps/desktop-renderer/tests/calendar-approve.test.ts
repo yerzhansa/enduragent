@@ -162,9 +162,9 @@ describe("opening the Calendar after Activate", () => {
     ...calendar,
   });
   it.each([
-    ["the new Plan waits for Approve", status({ status: "waiting-for-approve" }), true],
+    ["when the new Plan waits for Approve", status({ status: "waiting-for-approve" }), true],
     [
-      "an old Plan's cleanup failed while the new Plan waits",
+      "when an old Plan's cleanup failed while the new Plan waits",
       status({
         status: "failed",
         error: "Calendar cleanup failed. Retry available.",
@@ -172,8 +172,8 @@ describe("opening the Calendar after Activate", () => {
       }),
       true,
     ],
-    ["the new Plan was already approved", status({ status: "pending" }), false],
-  ] as const)("opens it when %s", (_name, calendar, opens) => {
+    ["not when the new Plan was already approved", status({ status: "pending" }), false],
+  ] as const)("opens it %s", (_name, calendar, opens) => {
     expect(
       opensCalendarAfterActivate(
         { planId: "0".repeat(25) + "A" },
