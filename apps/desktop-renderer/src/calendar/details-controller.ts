@@ -8,11 +8,17 @@ export type PlanDetails = Extract<PlanCalendarRpcResult, { status: "plan-details
 
 export type EndConfirm =
   | { readonly kind: "idle"; readonly removeChanges: boolean; readonly commandId: string }
-  | { readonly kind: "ending"; readonly removeChanges: boolean; readonly commandId: string }
+  | {
+      readonly kind: "ending";
+      readonly removeChanges: boolean;
+      readonly commandId: string;
+      readonly ticked: readonly PlanCalendarTick[];
+    }
   | {
       readonly kind: "failed";
       readonly removeChanges: boolean;
       readonly commandId: string;
+      readonly ticked: readonly PlanCalendarTick[];
       readonly reason: "changed" | "unconfirmed";
     };
 
@@ -55,6 +61,7 @@ interface PendingEnd {
   readonly planId: string;
   readonly commandId: string;
   readonly removeChanges: boolean;
+  readonly ticked: readonly PlanCalendarTick[];
 }
 
 export function createDetailsController(deps: {
@@ -90,15 +97,14 @@ export function createDetailsController(deps: {
   const end = async (
     details: PlanDetails,
     commandId: string,
-    removeChanges: boolean,
+    ticked: readonly PlanCalendarTick[],
   ): Promise<EndOutcome> => {
-    const ticked = removeChanges ? details.ending.athleteChanges.map((entry) => entry.tick) : [];
     try {
       const saved = await deps.call({
         action: "save-end-choice",
         planId: details.planId,
         commandId,
-        ticked,
+        ticked: [...ticked],
       });
       const mayHaveEnded = saved.status === "refused" && saved.reason === "no-active-plan";
       if (saved.status !== "end-choice-saved" && !mayHaveEnded) return "unconfirmed";
@@ -147,6 +153,7 @@ export function createDetailsController(deps: {
           reason: "unconfirmed",
           removeChanges: pending.removeChanges,
           commandId: pending.commandId,
+          ticked: pending.ticked,
         });
         return;
       }
@@ -164,16 +171,24 @@ export function createDetailsController(deps: {
       if (state.kind !== "open" || state.end === null || state.end.kind === "ending") return;
       const { details } = state;
       const { removeChanges, commandId } = state.end;
-      withEnd({ kind: "ending", removeChanges, commandId });
-      const outcome = await end(details, commandId, removeChanges);
+      const ticked =
+        state.end.kind === "failed" && state.end.reason === "unconfirmed"
+          ? state.end.ticked
+          : removeChanges
+            ? details.ending.athleteChanges.map((entry) => entry.tick)
+            : [];
+      withEnd({ kind: "ending", removeChanges, commandId, ticked });
+      const outcome = await end(details, commandId, ticked);
       pending =
-        outcome === "unconfirmed" ? { planId: details.planId, commandId, removeChanges } : null;
+        outcome === "unconfirmed"
+          ? { planId: details.planId, commandId, removeChanges, ticked }
+          : null;
       if (outcome === "closed") {
         publish(DETAILS_SHEET_CLOSED);
         deps.ended();
         return;
       }
-      withEnd({ kind: "failed", removeChanges, commandId, reason: outcome });
+      withEnd({ kind: "failed", removeChanges, commandId, ticked, reason: outcome });
     },
   };
 }

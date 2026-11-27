@@ -183,7 +183,13 @@ describe("the Plan details sheet", () => {
     show({
       kind: "open",
       details: DETAILS,
-      end: { kind: "failed", reason, removeChanges: true, commandId: "end-1" },
+      end: {
+        kind: "failed",
+        reason,
+        removeChanges: true,
+        commandId: "end-1",
+        ticked: DETAILS.ending.athleteChanges.map((entry) => entry.tick),
+      },
     });
     render(<CalendarView />);
     expect(screen.getByRole("alert")).toHaveTextContent(message);
@@ -192,11 +198,44 @@ describe("the Plan details sheet", () => {
     else expect(box).toBeEnabled();
   });
 
+  it("shows which of the athlete's changes a restored End removes and which stay", () => {
+    const kept = {
+      planWorkoutId: workoutId(7),
+      name: "Own tempo",
+      dateKey: 19980118,
+      durationS: 1_800,
+      tick: { planWorkoutId: workoutId(7), eventId: 10, dateKey: 19980118, fingerprint: "new" },
+    };
+    const ticked = DETAILS.ending.athleteChanges.map((entry) => entry.tick);
+    show({
+      kind: "open",
+      details: {
+        ...DETAILS,
+        ending: { ...DETAILS.ending, athleteChanges: [...DETAILS.ending.athleteChanges, kept] },
+      },
+      end: {
+        kind: "failed",
+        reason: "unconfirmed",
+        removeChanges: true,
+        commandId: "end-1",
+        ticked,
+      },
+    });
+    render(<CalendarView />);
+    const confirm = screen.getByRole("region", { name: "End the Plan?" });
+    expect(confirm).toHaveTextContent(
+      "1 you changed in intervals.icu stays, as your own:Sun 18 · Own tempo · 30mSat 17 · Long ride · 45mRemove that one too",
+    );
+    const box = within(confirm).getByRole("checkbox", { name: "Remove that one too" });
+    expect(box).toBeChecked();
+    expect(box).toBeDisabled();
+  });
+
   it("locks Replace, Close and the header button while the Plan is ending", () => {
     show({
       kind: "open",
       details: DETAILS,
-      end: { kind: "ending", removeChanges: false, commandId: "end-1" },
+      end: { kind: "ending", removeChanges: false, commandId: "end-1", ticked: [] },
     });
     render(<CalendarView />);
     const sheet = screen.getByRole("complementary", { name: "Plan details" });

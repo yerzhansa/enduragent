@@ -44,8 +44,10 @@ function harness(
   options: {
     readonly close?: readonly Reply<PlanCloseResult>[];
     readonly save?: readonly Reply<PlanCalendarRpcResult>[];
+    readonly reads?: readonly PlanDetails[];
   } = {},
 ) {
+  const reads = [...(options.reads ?? [])];
   const states: DetailsSheetState[] = [];
   const closes = [...(options.close ?? [])];
   const saves = [...(options.save ?? [])];
@@ -57,7 +59,7 @@ function harness(
   const call = vi.fn(
     async (request: { readonly action: string }): Promise<PlanCalendarRpcResult> =>
       request.action === "plan-details"
-        ? DETAILS
+        ? (reads.shift() ?? DETAILS)
         : answer<PlanCalendarRpcResult>(saves, { status: "end-choice-saved" }),
   );
   const closePlan = vi.fn(async (_request: { readonly commandId: string }) =>
@@ -200,6 +202,41 @@ describe("the Plan details controller", () => {
     ]);
     expect(test.last()).toEqual({ kind: "closed" });
     expect(test.ended).toHaveBeenCalledOnce();
+  });
+
+  it("resends exactly the ticks the athlete chose when a restored End meets a changed list", async () => {
+    const later = "0".repeat(24) + "13";
+    const grown: PlanDetails = {
+      ...DETAILS,
+      ending: {
+        ...DETAILS.ending,
+        athleteChanges: [
+          ...DETAILS.ending.athleteChanges,
+          {
+            planWorkoutId: later,
+            name: "Own tempo",
+            dateKey: 19980118,
+            durationS: 2_700,
+            tick: { planWorkoutId: later, eventId: 8, dateKey: 19980118, fingerprint: "new" },
+          },
+        ],
+      },
+    };
+    const test = harness({ close: [new Error("reply lost")], reads: [DETAILS, grown] });
+    await test.controller.open(PLAN);
+    test.controller.startEnd();
+    test.controller.setRemoveChanges(true);
+    await test.controller.confirmEnd();
+    test.controller.cancelEnd();
+    test.controller.close();
+    await test.controller.open(PLAN);
+    test.controller.startEnd();
+    expect(test.last()).toMatchObject({ end: { ticked: [TICK] } });
+    await test.controller.confirmEnd();
+    expect(saves(test.call).map(([request]) => request)).toEqual([
+      { action: "save-end-choice", planId: PLAN, commandId: "end-command-1", ticked: [TICK] },
+      { action: "save-end-choice", planId: PLAN, commandId: "end-command-1", ticked: [TICK] },
+    ]);
   });
 
   it("starts a fresh End once the last one was answered", async () => {

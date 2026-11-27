@@ -1,4 +1,4 @@
-import type { PlanCalendarHistoryEntry } from "@enduragent/coach-contract";
+import type { PlanCalendarHistoryEntry, PlanCalendarTick } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { useEffect, useRef, type ReactElement } from "react";
@@ -84,6 +84,39 @@ function progress(read: PlanCalendarRead) {
   };
 }
 
+type AthleteChange = PlanDetails["ending"]["athleteChanges"][number];
+
+function sameTick(left: PlanCalendarTick, right: PlanCalendarTick): boolean {
+  return (
+    left.planWorkoutId === right.planWorkoutId &&
+    left.eventId === right.eventId &&
+    left.dateKey === right.dateKey &&
+    left.fingerprint === right.fingerprint
+  );
+}
+
+function ChangeList(props: {
+  readonly changes: readonly AthleteChange[];
+  readonly text: CalendarText;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  return (
+    <ul className="m-0 flex list-none flex-col gap-0.5 p-0 text-xs text-ink">
+      {props.changes.map((entry) => (
+        <li key={entry.planWorkoutId}>
+          {[
+            props.text.weekdayDay(entry.dateKey),
+            entry.name,
+            entry.durationS === null ? null : props.text.duration(entry.durationS),
+          ]
+            .filter((part): part is string => part !== null && part.length > 0)
+            .join(say("plan.calendar.separator"))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function EndConfirmView(props: {
   readonly details: PlanDetails;
   readonly end: NonNullable<Extract<DetailsSheetState, { kind: "open" }>["end"]>;
@@ -96,8 +129,27 @@ function EndConfirmView(props: {
   const { details, end, text } = props;
   const busy = end.kind === "ending";
   const removes = details.ending.removes.length;
-  const changes = details.ending.athleteChanges.length;
+  const changes = details.ending.athleteChanges;
   const today = details.ending.staysToday[0];
+  const sent = end.kind !== "idle" && endChoiceLocked(end) && end.removeChanges ? end.ticked : null;
+  const removing =
+    sent === null
+      ? changes
+      : changes.filter((entry) => sent.some((tick) => sameTick(tick, entry.tick)));
+  const staying = changes.filter((entry) => !removing.includes(entry));
+  const split = sent !== null && removing.length !== changes.length;
+  const box = (count: number) => (
+    <label className="flex items-start gap-2 text-sm">
+      <input
+        type="checkbox"
+        className="mt-0.5 size-4 accent-danger"
+        checked={end.removeChanges}
+        disabled={endChoiceLocked(end)}
+        onChange={(event) => props.onRemoveChanges(event.currentTarget.checked)}
+      />
+      {say("plan.calendar.details.endRemoveChanges", { count })}
+    </label>
+  );
   return (
     <section
       className="flex flex-col gap-2 rounded-card border border-danger px-3 py-2.5"
@@ -113,34 +165,30 @@ function EndConfirmView(props: {
           ? null
           : ` ${say("plan.calendar.details.endToday", { name: today.name })}`}
       </p>
-      {changes === 0 ? null : (
+      {split ? (
+        <>
+          {staying.length === 0 ? null : (
+            <>
+              <p className="m-0 text-xs text-ink-2">
+                {say("plan.calendar.details.endChanges", { count: staying.length })}
+              </p>
+              <ChangeList changes={staying} text={text} />
+            </>
+          )}
+          {removing.length === 0 ? null : (
+            <>
+              <ChangeList changes={removing} text={text} />
+              {box(removing.length)}
+            </>
+          )}
+        </>
+      ) : changes.length === 0 ? null : (
         <>
           <p className="m-0 text-xs text-ink-2">
-            {say("plan.calendar.details.endChanges", { count: changes })}
+            {say("plan.calendar.details.endChanges", { count: changes.length })}
           </p>
-          <ul className="m-0 flex list-none flex-col gap-0.5 p-0 text-xs text-ink">
-            {details.ending.athleteChanges.map((entry) => (
-              <li key={entry.planWorkoutId}>
-                {[
-                  text.weekdayDay(entry.dateKey),
-                  entry.name,
-                  entry.durationS === null ? null : text.duration(entry.durationS),
-                ]
-                  .filter((part): part is string => part !== null && part.length > 0)
-                  .join(say("plan.calendar.separator"))}
-              </li>
-            ))}
-          </ul>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5 size-4 accent-danger"
-              checked={end.removeChanges}
-              disabled={endChoiceLocked(end)}
-              onChange={(event) => props.onRemoveChanges(event.currentTarget.checked)}
-            />
-            {say("plan.calendar.details.endRemoveChanges", { count: changes })}
-          </label>
+          <ChangeList changes={changes} text={text} />
+          {box(changes.length)}
         </>
       )}
       {end.kind === "failed" ? (
