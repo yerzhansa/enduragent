@@ -32,6 +32,7 @@ const workflowSchema = z.object({
     })),
   })),
   permissions: z.record(z.string(), z.string()),
+  defaults: z.object({ run: z.object({ shell: z.string() }) }),
   concurrency: z.object({ group: z.string(), "cancel-in-progress": z.boolean() }),
   jobs: z.record(z.string(), z.object({
     "runs-on": z.string(),
@@ -113,6 +114,7 @@ describe("coach eval workflow", () => {
   it("starts only by hand, reads nothing it does not need and never overlaps a paid run", () => {
     expect(Object.keys(workflow.on)).toEqual(["workflow_dispatch"]);
     expect(workflow.permissions).toEqual({ contents: "read" });
+    expect(workflow.defaults.run.shell).toBe("bash");
     expect(workflow.concurrency).toEqual({ group: "coach-eval", "cancel-in-progress": false });
     expect(Object.keys(workflow.jobs)).toEqual(["coach-eval"]);
     expect(job?.environment).toBe("coach-eval");
@@ -141,12 +143,12 @@ describe("coach eval workflow", () => {
     expect(text.match(/secrets\./gu)).toHaveLength(1);
   });
 
-  it("builds the packages the runner imports before it checks inputs and runs", () => {
+  it("checks inputs before installing, and builds the packages the runner imports before it runs", () => {
     const names = steps.map((candidate) => candidate.name);
     const build = names.indexOf("Build the packages the eval imports");
+    expect(names[0]).toBe("Check run inputs");
     expect(build).toBeGreaterThan(names.indexOf("Install workspace"));
-    expect(build).toBeLessThan(names.indexOf("Check run inputs"));
-    expect(names.indexOf("Check run inputs")).toBeLessThan(names.indexOf("Run the coach eval"));
+    expect(build).toBeLessThan(names.indexOf("Run the coach eval"));
     expect(script("Build the packages the eval imports")).toContain('--filter "@enduragent/core..."');
     expect(script("Build the packages the eval imports")).toContain('--filter "@enduragent/sport-cycling..."');
     expect(script("Install workspace")).toContain("pnpm install --frozen-lockfile");
@@ -184,6 +186,7 @@ describe("coach eval workflow scripts", () => {
     ["CASES", "goal-change;id"],
     ["CASES", "--model x/y"],
     ["CASES", "goal-change --max-usd 9"],
+    ["CASES", "goal-change\rstale-data"],
     ["CASES", "*"],
   ])("rejects %s = %j", (key, value) => {
     expect(runScript("Check run inputs", { ...validInputs, [key]: value }).status).toBe(1);
@@ -227,7 +230,7 @@ describe("coach eval workflow scripts", () => {
     );
     expect(table.status).toBe(0);
     expect(table.pnpmArgs).toEqual([
-      "eval:coach:table", "--stdout", ".tests/runs/2026-01-02T10-00-00.000Z-coach-eval/report.json",
+      "--silent", "eval:coach:table", "--stdout", ".tests/runs/2026-01-02T10-00-00.000Z-coach-eval/report.json",
     ]);
     expect(readFileSync(summary, "utf8")).toBe("TABLE");
   });
@@ -252,14 +255,18 @@ describe("results table on stdout", () => {
     };
     const reportPath = join(scratch(), "report.json");
     writeFileSync(reportPath, JSON.stringify(report));
-    const result = spawnSync(
-      process.execPath,
-      ["--import", "tsx", join(here, "table.ts"), "--stdout", reportPath],
-      { cwd: repositoryRoot, encoding: "utf8" },
-    );
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("# Coach eval results");
-    expect(result.stdout).toContain("| `deepseek/deepseek-v4-flash` |");
-    expect(readFileSync(resultsPath, "utf8")).toBe(before);
+    try {
+      const result = spawnSync(
+        process.execPath,
+        ["--import", "tsx", join(here, "table.ts"), "--stdout", reportPath],
+        { cwd: repositoryRoot, encoding: "utf8" },
+      );
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("# Coach eval results");
+      expect(result.stdout).toContain("| `deepseek/deepseek-v4-flash` |");
+      expect(readFileSync(resultsPath, "utf8")).toBe(before);
+    } finally {
+      writeFileSync(resultsPath, before);
+    }
   });
 });

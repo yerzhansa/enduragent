@@ -27,6 +27,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: coach-eval
   cancel-in-progress: false
@@ -37,20 +41,6 @@ jobs:
     timeout-minutes: 45
     environment: coach-eval
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install workspace
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-        run: pnpm install --frozen-lockfile
-      - name: Build the packages the eval imports
-        run: pnpm --filter "@enduragent/core..." --filter "@enduragent/sport-cycling..." build
       - name: Check run inputs
         env:
           MODEL: ${{ inputs.model }}
@@ -72,11 +62,25 @@ jobs:
             echo "::error::max_usd must be a dollar amount such as 4"
             exit 1
           fi
-          case_ids='^[[:space:]]*([a-z][a-z0-9-]*([[:space:]]+[a-z][a-z0-9-]*)*)?[[:space:]]*$'
+          case_ids='^[[:blank:]]*([a-z][a-z0-9-]*([[:blank:]]+[a-z][a-z0-9-]*)*)?[[:blank:]]*$'
           if ! [[ "$CASES" =~ $case_ids ]]; then
             echo "::error::cases must be case ids separated by spaces"
             exit 1
           fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: pnpm install --frozen-lockfile
+      - name: Build the packages the eval imports
+        run: pnpm --filter "@enduragent/core..." --filter "@enduragent/sport-cycling..." build
       - id: eval
         name: Run the coach eval
         env:
@@ -102,7 +106,7 @@ jobs:
             echo "The eval wrote no report." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          pnpm eval:coach:table --stdout "${reports[@]}" >> "$GITHUB_STEP_SUMMARY"
+          pnpm --silent eval:coach:table --stdout "${reports[@]}" >> "$GITHUB_STEP_SUMMARY"
       - name: Attach the report
         if: always() && steps.eval.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
