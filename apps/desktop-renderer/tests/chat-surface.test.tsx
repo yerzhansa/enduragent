@@ -31,6 +31,7 @@ import { EMPTY_TRAINING_SURFACE } from "../src/state/training-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { SLASH_COMMANDS } from "../src/chat/commands";
 import { ChatView } from "../src/ui/chat/ChatView";
+import { CoachDecisionPanel } from "../src/ui/chat/CoachDecisionPanel";
 import { PlanCreationSummary } from "../src/ui/chat/PlanCreationSummary";
 import { planCreationDraft } from "./plan-creation-draft-fixtures";
 import { planReadModel } from "./plan-fixtures";
@@ -705,6 +706,61 @@ describe("chat surface", () => {
       expect(actions.skipDecision).toHaveBeenCalledWith("decision-1");
     });
 
+    it("ignores Escape and number shortcuts while ChatView is hidden behind another view", async () => {
+      const user = userEvent.setup();
+      setChat({
+        decision: unansweredDecision(),
+        sendDisabled: true,
+        inputDisabled: false,
+      });
+      render(<Shell onReady={() => {}} />);
+
+      await user.click(screen.getByRole("button", { name: "Training" }));
+      expect(useEnduragentStore.getState().activeView).toBe("training");
+
+      await user.keyboard("1");
+      await user.keyboard("{Escape}");
+      expect(actions.answerDecision).not.toHaveBeenCalled();
+      expect(actions.skipDecision).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Chat" }));
+      expect(useEnduragentStore.getState().activeView).toBe("chat");
+
+      await user.keyboard("1");
+      expect(actions.answerDecision).toHaveBeenCalledWith("decision-1", {
+        kind: "option",
+        optionId: "recovery",
+      });
+      await user.keyboard("{Escape}");
+      expect(actions.skipDecision).toHaveBeenCalledWith("decision-1");
+    });
+
+    it("keeps surface-backed CoachDecisionPanel shortcuts active on the Plan view", async () => {
+      const user = userEvent.setup();
+      const surface = {
+        decision: unansweredDecision(),
+        phase: "idle" as const,
+        answerLabel: null,
+        error: null,
+        loadError: null,
+        answer: vi.fn(),
+        skip: vi.fn(),
+        retry: vi.fn(),
+      };
+      act(() => {
+        useEnduragentStore.getState().setActiveView("plan");
+      });
+      render(<CoachDecisionPanel onCustomOpenChange={vi.fn()} surface={surface} />);
+
+      await user.keyboard("1");
+      expect(surface.answer).toHaveBeenCalledWith("decision-1", {
+        kind: "option",
+        optionId: "recovery",
+      });
+      await user.keyboard("{Escape}");
+      expect(surface.skip).toHaveBeenCalledWith("decision-1");
+    });
+
     it("replaces all options with one custom editor and preserves the normal draft", async () => {
       const user = userEvent.setup();
       render(<Harness />);
@@ -1195,6 +1251,41 @@ describe("chat surface", () => {
 
       expect(composer()).toHaveValue("/review ");
       expect(actions.submit).not.toHaveBeenCalled();
+    });
+
+    it("updates draft memory and persists an accepted slash command across remount", async () => {
+      const user = userEvent.setup();
+      setChat({ decision: unansweredDecision(), sendDisabled: true, inputDisabled: false });
+      render(<Harness />);
+
+      await user.click(composer());
+      await user.keyboard("/rev");
+      await user.click(screen.getByRole("option", { name: /\/review/u }));
+      expect(composer()).toHaveValue("/review ");
+
+      await user.click(screen.getByRole("button", { name: /Something else/u }));
+      expect(actions.saveAttachmentDraftText).toHaveBeenCalledWith("/review ");
+
+      await user.click(screen.getByRole("button", { name: "Back" }));
+      expect(composer()).toHaveValue("/review ");
+    });
+
+    it("flushes a pending debounced draft when Composer unmounts before the timer fires", () => {
+      vi.useFakeTimers();
+      try {
+        const view = render(<Harness />);
+        fireEvent.change(composer(), { target: { value: "Unsaved draft before unmount" } });
+        expect(actions.saveAttachmentDraftText).not.toHaveBeenCalled();
+
+        view.unmount();
+
+        expect(actions.saveAttachmentDraftText).toHaveBeenCalledWith(
+          "Unsaved draft before unmount",
+        );
+      } finally {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
     });
 
     it("closes on Escape and keeps the draft", async () => {
@@ -1933,6 +2024,26 @@ describe("chat surface", () => {
       expect(screen.getByText("This file type isn’t supported")).toBeVisible();
       expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
       expect(actions.submit).not.toHaveBeenCalled();
+    });
+
+    it("lets the athlete dismiss an attachment admission failure while attachmentBusy is true", async () => {
+      const user = userEvent.setup();
+      setChat({
+        attachmentBusy: true,
+        attachmentAdmissions: [
+          {
+            selectionId: "selection-busy-dismiss",
+            displayName: "broken.xyz",
+            status: "rejected",
+            reason: "format_unsupported",
+          },
+        ],
+      });
+      render(<Harness />);
+
+      await user.click(screen.getByRole("button", { name: "Dismiss" }));
+      expect(actions.receiveAttachmentAdmissions).toHaveBeenCalledTimes(1);
+      expect(actions.receiveAttachmentAdmissions).toHaveBeenCalledWith([]);
     });
 
     it("shows a truthful draft-save failure with no attachments", () => {

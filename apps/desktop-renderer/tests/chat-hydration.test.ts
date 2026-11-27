@@ -549,4 +549,92 @@ describe("chat transcript hydration", () => {
       turns: [{ turnId: "turn-1" }],
     });
   });
+
+  it("keeps v2 entry-only history ready on beginReset and retries the earlier cursor after reset failure", async () => {
+    const decision = {
+      decisionId: "decision-v2",
+      chatId: "desktop",
+      messageId: "message-v2",
+      question: "Choose tomorrow’s focus.",
+      status: "unanswered" as const,
+      options: [
+        {
+          id: "easy",
+          label: "Easy spin",
+          description: "Keep it light.",
+          recommended: true,
+          consequence: "Tomorrow becomes an easy spin.",
+        },
+      ],
+    };
+    const earlierPending = deferred<TranscriptPage>();
+    const readPage = vi
+      .fn()
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        status: "page",
+        turns: [],
+        entries: [
+          {
+            kind: "decision-requested",
+            recordedAt: "1998-03-04T08:00:00.000Z",
+            athleteText: "How should I ride tomorrow?",
+            decision,
+          },
+          {
+            kind: "decision-answered",
+            recordedAt: "1998-03-04T08:01:00.000Z",
+            decisionId: "decision-v2",
+            answer: { kind: "option", optionId: "easy" },
+            consequence: "Tomorrow becomes an easy spin.",
+            continuationId: "continuation-v2",
+          },
+          {
+            kind: "decision-continuation-completed",
+            recordedAt: "1998-03-04T08:02:00.000Z",
+            completedAt: "1998-03-04T08:02:00.000Z",
+            decisionId: "decision-v2",
+            continuationId: "continuation-v2",
+            turnId: "turn-v2",
+            coachText: "Keep tomorrow easy.",
+          },
+        ],
+        nextCursor: "older-v2",
+      } satisfies TranscriptPage)
+      .mockImplementationOnce(() => earlierPending.promise)
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        status: "page",
+        turns: [turn("turn-older")],
+        entries: [
+          {
+            kind: "turn",
+            ...turn("turn-older"),
+            completedAt: "1998-03-03T08:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+      } satisfies TranscriptPage);
+    const { hydrator, snapshots } = subject(readPage);
+
+    await hydrator.start();
+    const loadingEarlier = hydrator.loadEarlier();
+    hydrator.beginReset();
+
+    expect(snapshots.at(-1)?.status).toBe("ready");
+
+    hydrator.resetFailed();
+    expect(snapshots.at(-1)?.status).toBe("failed");
+
+    await hydrator.retry();
+    earlierPending.resolve(page([], null));
+    await loadingEarlier;
+
+    expect(readPage).toHaveBeenCalledTimes(3);
+    expect(readPage.mock.calls[2]?.[0]).toEqual({
+      cursor: "older-v2",
+      limit: TRANSCRIPT_HYDRATION_PAGE_LIMIT,
+    });
+    expect(snapshots.at(-1)?.entries).toHaveLength(4);
+  });
 });

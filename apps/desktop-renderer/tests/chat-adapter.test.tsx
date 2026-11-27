@@ -12,7 +12,13 @@ import {
 import { mergeHydratedMessages } from "../src/chat/hydration";
 import { createChatViewAdapter } from "../src/state/adapters/chat";
 import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "../src/state/chat-slice";
-import { createChatScrollAnchor, resetChatStream } from "../src/state/chat-stream";
+import {
+  chatStreamBuffer,
+  createChatScrollAnchor,
+  createChatStreamBuffer,
+  resetChatStream,
+} from "../src/state/chat-stream";
+import { StreamingMessage } from "../src/ui/chat/StreamingMessage";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { useEnduragentStore } from "../src/state/store";
 import {
@@ -1292,6 +1298,79 @@ describe("chat view adapter", () => {
     ]);
   });
 
+  it("filters live turns out of reloaded hydrated entries without dropping older historical turns", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    let live = submitted("Current live question");
+    live = reduceChatState(live, { type: "bind-turn", requestKey: 1, turnId: "turn-live" });
+    live = reduceChatState(live, {
+      type: "event",
+      requestKey: 1,
+      event: { type: "final-text", turnId: "turn-live", text: "Current live reply" },
+    });
+    live = reduceChatState(live, { type: "complete", requestKey: 1 });
+    const entries = [
+      {
+        kind: "turn" as const,
+        turnId: "turn-old",
+        completedAt: "1998-03-04T08:00:00.000Z",
+        athleteText: "Earlier question",
+        coachText: "Earlier reply",
+      },
+      {
+        kind: "turn" as const,
+        turnId: "turn-live",
+        completedAt: "1998-03-04T08:05:00.000Z",
+        athleteText: "Current live question",
+        coachText: "Current live reply",
+      },
+      {
+        kind: "decision-continuation-completed" as const,
+        recordedAt: "1998-03-04T08:06:00.000Z",
+        completedAt: "1998-03-04T08:06:00.000Z",
+        decisionId: "decision-other",
+        continuationId: "continuation-live",
+        turnId: "turn-live",
+        coachText: "Current live reply",
+      },
+    ];
+    const mergedState: ChatState = {
+      ...live,
+      messages: mergeHydratedMessages([], live.messages, entries),
+    };
+
+    adapter.view.render(
+      mergedState,
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 2,
+          change: "initial",
+          entries,
+        },
+      }),
+    );
+
+    const timelineMessages =
+      published
+        .at(-1)
+        ?.timeline.flatMap((item) => (item.kind === "message" ? [item.message] : [])) ?? [];
+    expect(
+      timelineMessages.map(({ turnId, role, text, historical }) => ({
+        turnId,
+        role,
+        text,
+        historical,
+      })),
+    ).toEqual([
+      { turnId: "turn-old", role: "athlete", text: "Earlier question", historical: true },
+      { turnId: "turn-old", role: "coach", text: "Earlier reply", historical: true },
+      { turnId: "turn-live", role: "athlete", text: "Current live question", historical: false },
+      { turnId: "turn-live", role: "coach", text: "Current live reply", historical: false },
+    ]);
+  });
+
   it("derives the controls the port leaves optional", () => {
     const published: ChatSurfaceState[] = [];
     const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
@@ -2076,6 +2155,40 @@ describe("streaming fast path", () => {
 
     expect(document.querySelector(".chat-message--coach")).toBe(row);
     expect(coachText()).toBe("Easy spin.");
+  });
+
+  it("preserves buffered streaming text across host detach and remount until retained out", () => {
+    const buffer = createChatStreamBuffer();
+    const firstHost = document.createElement("div");
+    const secondHost = document.createElement("div");
+
+    buffer.set("m2", "Partial ");
+    buffer.attach("m2", firstHost);
+    expect(firstHost.textContent).toBe("Partial ");
+
+    buffer.attach("m2", null);
+    expect(buffer.read("m2")).toBe("Partial ");
+
+    buffer.append("m2", "reply.");
+    expect(buffer.read("m2")).toBe("Partial reply.");
+
+    buffer.attach("m2", secondHost);
+    expect(secondHost.textContent).toBe("Partial reply.");
+
+    buffer.retain(new Set());
+    expect(buffer.read("m2")).toBe("");
+  });
+
+  it("re-paints buffered streaming text immediately when StreamingMessage remounts", () => {
+    chatStreamBuffer.set("m2", "Already streamed");
+    const firstMount = render(<StreamingMessage messageId="m2" />);
+    expect(firstMount.container.textContent).toBe("Already streamed");
+
+    firstMount.unmount();
+    expect(chatStreamBuffer.read("m2")).toBe("Already streamed");
+
+    const secondMount = render(<StreamingMessage messageId="m2" />);
+    expect(secondMount.container.textContent).toBe("Already streamed");
   });
 });
 
