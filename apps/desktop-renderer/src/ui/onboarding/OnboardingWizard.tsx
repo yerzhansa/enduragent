@@ -33,6 +33,7 @@ import {
 } from "../../state/settings-slice";
 import { SetupCard } from "./SetupCard";
 import { SetupError } from "./SetupRow";
+import { useIntervalsRecovery } from "./intervals-recovery";
 import { TelegramRow } from "./TelegramRow";
 import { TrainingRow } from "./TrainingRow";
 import { settingsStyles } from "../settings/styles";
@@ -63,6 +64,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   });
   const panel = useRef<HTMLElement>(null);
   const focused = useRef(-1);
+  const shownError = useIntervalsRecovery(surface).error;
 
   useEffect(() => {
     if (props.placement === "settings") actions?.openRouter.checkCredits();
@@ -220,7 +222,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
         {importCopy}
       </p>
       <p className="onboarding-error-announcer sr-only" role="status" aria-live="polite">
-        {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
+        {shownError === null ? "" : say(ERROR_COPY[shownError])}
       </p>
     </section>
   );

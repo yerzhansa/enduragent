@@ -67,6 +67,10 @@ function buttonNames(): readonly string[] {
   return Array.from(trainingPanel().querySelectorAll("button"), (entry) => entry.textContent ?? "");
 }
 
+function announcedError(): string {
+  return document.querySelector(".onboarding-error-announcer")?.textContent ?? "";
+}
+
 function signInPhase(): string {
   return useEnduragentStore.getState().onboarding.intervalsSignIn.phase;
 }
@@ -507,6 +511,7 @@ describe("Intervals.icu sign-in panel", () => {
         expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
         expect(errorText()).toBe(NOT_WORKING_ERROR);
         expect(errorText()).not.toContain("Reload credential status");
+        expect(announcedError()).toBe(NOT_WORKING_ERROR);
         const recovery = panel("training-recovery");
         expect(recovery?.contains(document.querySelector("#onboarding-error"))).toBe(true);
         expect(screen.getByRole("button", { name: RETRY })).toBeEnabled();
@@ -666,6 +671,7 @@ describe("Intervals.icu sign-in panel", () => {
         expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
         expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeEnabled();
         expect(errorText()).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
+        expect(announcedError()).toBe(errorText());
         expect(document.querySelectorAll("#onboarding-error")).toHaveLength(1);
         await waitFor(() => {
           expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toHaveFocus();
