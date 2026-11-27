@@ -1,6 +1,6 @@
 import type { ConfirmationGate, ConversationStorePort, Memory } from "@enduragent/core";
 import type { IntentTranslationPort } from "@enduragent/engine";
-import type { CoachTextWriterPort } from "@enduragent/engine/calendar";
+import type { CoachTextWriterPort } from "@enduragent/engine/coach-text-writer";
 import type {
   CoachEngine,
   GetArchivedTranscriptPageRpcParams,

@@ -1,4 +1,5 @@
 import type {
+  PlanCalendarEarlierVerdict,
   PlanCalendarRide,
   PlanCalendarRideReview,
   PlanCalendarRpcResult,
@@ -7,20 +8,24 @@ import type {
   PlanCalendarVerdictMarker,
 } from "@enduragent/coach-contract";
 import {
-  COACH_TEXT_DEADLINE_MS,
   COACH_TEXT_NOT_WRITTEN,
   coachTextMarker,
   coachTextStep,
   type CoachText,
   type CoachTextBasis,
   type CoachTextEvent,
-  type CoachTextFacts,
   type CoachTextMatch,
-  type CoachTextWriterPort,
 } from "@enduragent/engine/calendar";
 import {
+  COACH_TEXT_DEADLINE_MS,
+  type CoachTextFacts,
+  type CoachTextMatched,
+  type CoachTextWriterPort,
+} from "@enduragent/engine/coach-text-writer";
+import {
   createActivityReviewRepository,
-  type ActivityReviewAttempt,
+  type ActivityReviewEarlier,
+  type ActivityReviewMatch,
   type ActivityReviewRecord,
   type ActivityReviewTrigger,
 } from "@enduragent/kernel/planning";
@@ -28,7 +33,8 @@ import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { isoOf } from "./plan-calendar-read.js";
 import { readRideInPlan, type RideInPlan } from "./plan-calendar-rides.js";
 
-export const VERDICT_LEASE_MS = COACH_TEXT_DEADLINE_MS + 30_000;
+export const VERDICT_JOB_MS = COACH_TEXT_DEADLINE_MS + 15_000;
+export const VERDICT_LEASE_MS = VERDICT_JOB_MS + 15_000;
 
 export interface RideVerdictModel extends CoachTextWriterPort {
   available(): boolean;
@@ -54,7 +60,7 @@ interface Job {
 const REFUSED: Refusal = Object.freeze({ status: "refused", reason: "review-changed" });
 
 function empty(activityId: string): ActivityReviewRecord {
-  return { activityId, verdict: { state: "not-written" }, replies: 0, note: null };
+  return { activityId, verdict: { state: "not-written" }, replies: 0, earlier: null, note: null };
 }
 
 function textOf(record: ActivityReviewRecord): CoachText {
@@ -65,7 +71,7 @@ function textOf(record: ActivityReviewRecord): CoachText {
     case "writing":
       return { kind: "writing", startedFor: verdict.for };
     case "failed":
-      return { kind: "failed", startedFor: verdict.for };
+      return { kind: "failed", startedFor: verdict.for, failedBy: verdict.failedBy };
     case "kept":
       return { kind: "kept", writtenFor: verdict.for };
   }
@@ -99,8 +105,8 @@ function blockedOf(read: RideInPlan, model: RideVerdictModel | undefined): Block
   return read.ride.match.kind === "suggested" ? "waiting-for-match" : "none";
 }
 
-function markerOf(record: ActivityReviewRecord, read: RideInPlan): PlanCalendarVerdictMarker {
-  const marker = coachTextMarker(textOf(record), basisOf(read.ride));
+function markerOf(writtenFor: ActivityReviewMatch, read: RideInPlan): PlanCalendarVerdictMarker {
+  const marker = coachTextMarker({ kind: "kept", writtenFor }, basisOf(read.ride));
   if (marker.kind === "current") return marker;
   switch (read.ride.match.kind) {
     case "confirmed":
@@ -112,18 +118,72 @@ function markerOf(record: ActivityReviewRecord, read: RideInPlan): PlanCalendarV
   }
 }
 
+function earlierView(
+  earlier: ActivityReviewEarlier | null,
+  read: RideInPlan,
+): PlanCalendarEarlierVerdict | null {
+  if (earlier === null) return null;
+  return {
+    text: earlier.text,
+    writtenAtMs: earlier.writtenAtMs,
+    trigger: earlier.trigger,
+    usedPlan: earlier.usedPlan,
+    usedNote: earlier.usedNote,
+    marker: markerOf(earlier.for, read),
+    replies: earlier.replies,
+  };
+}
+
 function verdictView(record: ActivityReviewRecord, read: RideInPlan): PlanCalendarVerdict {
   const verdict = record.verdict;
-  if (verdict.state !== "kept") return { state: verdict.state };
+  switch (verdict.state) {
+    case "not-written":
+    case "writing":
+      return { state: verdict.state };
+    case "failed":
+      return {
+        state: "failed",
+        failedBy: verdict.failedBy,
+        earlier: earlierView(record.earlier, read),
+      };
+    case "kept":
+      return {
+        state: "kept",
+        text: verdict.text,
+        writtenAtMs: verdict.writtenAtMs,
+        trigger: verdict.trigger,
+        usedPlan: verdict.usedPlan,
+        usedNote: verdict.usedNote,
+        marker: markerOf(verdict.for, read),
+      };
+  }
+}
+
+function earlierOf(record: ActivityReviewRecord): ActivityReviewEarlier | null {
+  const verdict = record.verdict;
+  if (verdict.state !== "kept") return record.earlier;
   return {
-    state: "kept",
     text: verdict.text,
     writtenAtMs: verdict.writtenAtMs,
+    for: verdict.for,
     trigger: verdict.trigger,
     usedPlan: verdict.usedPlan,
     usedNote: verdict.usedNote,
-    marker: markerOf(record, read),
+    replies: record.replies,
   };
+}
+
+function matchedOf(read: RideInPlan, hasWeek: boolean): CoachTextMatched {
+  const match = read.ride.match;
+  if (match.kind === "confirmed") {
+    return {
+      kind: "workout",
+      workout: { date: isoOf(match.dateKey), name: match.name, durationS: match.durationS },
+      outcome: match.outcome,
+    };
+  }
+  if (hasWeek) return { kind: "extra" };
+  return read.planned ? { kind: "outside-plan" } : { kind: "no-plan" };
 }
 
 function reviewView(
@@ -168,20 +228,7 @@ function factsOf(read: RideInPlan, note: string | null): CoachTextFacts {
       averageHeartRateBpm: ride.averageHeartRateBpm,
       perceivedExertion: ride.perceivedExertion,
     },
-    matched:
-      ride.match.kind === "confirmed"
-        ? {
-            kind: "workout",
-            workout: {
-              date: isoOf(ride.match.dateKey),
-              name: ride.match.name,
-              durationS: ride.match.durationS,
-            },
-            outcome: ride.match.outcome,
-          }
-        : week === null
-          ? { kind: "no-plan" }
-          : { kind: "extra" },
+    matched: matchedOf(read, week !== null),
     week,
     note,
   };
@@ -201,7 +248,10 @@ export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
     const verdict = record.verdict;
     const step = coachTextStep(textOf(record), { type: "writing-abandoned" });
     if (verdict.state !== "writing" || step.text.kind !== "failed") return record;
-    const failed: ActivityReviewRecord = { ...record, verdict: { ...verdict, state: "failed" } };
+    const failed: ActivityReviewRecord = {
+      ...record,
+      verdict: { ...verdict, state: "failed", failedBy: step.text.failedBy },
+    };
     await reviews.save(failed, deps.now());
     return failed;
   };
@@ -225,27 +275,43 @@ export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
       const event: CoachTextEvent =
         text === null ? { type: "writing-failed" } : { type: "writing-finished" };
       const step = coachTextStep(textOf(record), event);
-      const attempt: ActivityReviewAttempt = verdict;
-      const now = Math.max(deps.now(), attempt.startedAtMs);
+      const now = Math.max(deps.now(), verdict.startedAtMs);
       await reviews.save(
-        {
-          ...record,
-          verdict:
-            step.text.kind === "kept" && text !== null
-              ? { ...attempt, state: "kept", text, writtenAtMs: now }
-              : { ...attempt, state: "failed" },
-        },
+        step.text.kind === "kept" && text !== null
+          ? {
+              ...record,
+              verdict: { ...verdict, state: "kept", text, writtenAtMs: now },
+              earlier: null,
+            }
+          : {
+              ...record,
+              verdict: {
+                ...verdict,
+                state: "failed",
+                failedBy: step.text.kind === "failed" ? step.text.failedBy : "model",
+              },
+            },
         now,
       );
     });
   };
 
   const run = async (job: Job, model: RideVerdictModel): Promise<void> => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<null>((resolve) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        resolve(null);
+      }, VERDICT_JOB_MS);
+    });
     let text: string | null;
     try {
-      text = await model.writeCoachText(job.facts, new AbortController().signal);
+      text = await Promise.race([model.writeCoachText(job.facts, controller.signal), expired]);
     } catch {
       text = null;
+    } finally {
+      clearTimeout(timer);
     }
     await finish(job, text);
   };
@@ -283,11 +349,12 @@ export function createPlanCalendarReview(deps: PlanCalendarReviewDeps) {
           state: "writing",
           for: writtenFor,
           trigger,
-          usedPlan: facts.matched.kind !== "no-plan",
+          usedPlan: facts.matched.kind === "workout" || facts.matched.kind === "extra",
           usedNote: note !== null,
           startedAtMs: deps.now(),
         },
         replies: record.replies + 1,
+        earlier: earlierOf(record),
       };
       await reviews.save(writing, deps.now());
       job = { activityId, replies: writing.replies, facts };

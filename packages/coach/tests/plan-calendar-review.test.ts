@@ -5,7 +5,7 @@ import {
   type PlanCalendarRpcParams,
   type PlanCalendarVerdictExpected,
 } from "@enduragent/coach-contract";
-import type { CoachTextFacts } from "@enduragent/engine/calendar";
+import type { CoachTextFacts } from "@enduragent/engine/coach-text-writer";
 import {
   createPlanRepository,
   createPlanWorkoutMatchRepository,
@@ -16,7 +16,11 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createMemoryPlanCalendar } from "../../../apps/desktop/tests/helpers/plan-calendar-fake.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
-import { VERDICT_LEASE_MS, type RideVerdictModel } from "../src/plan-calendar-review.js";
+import {
+  VERDICT_JOB_MS,
+  VERDICT_LEASE_MS,
+  type RideVerdictModel,
+} from "../src/plan-calendar-review.js";
 import { seedReviewRide, type ReviewRideFacts } from "./helpers/review-ride.js";
 
 const MONDAY = 19980105;
@@ -47,6 +51,7 @@ function planWorkout(index: number, dateKey: number): PlanWorkoutRecord {
 
 interface Pending {
   readonly facts: CoachTextFacts;
+  readonly signal: AbortSignal;
   resolve(text: string): void;
   reject(error: Error): void;
 }
@@ -56,9 +61,9 @@ function scriptedModel() {
   let available = true;
   const model: RideVerdictModel = {
     available: () => available,
-    writeCoachText: (facts) =>
+    writeCoachText: (facts, signal) =>
       new Promise<string>((resolve, reject) => {
-        pending.push({ facts, resolve, reject });
+        pending.push({ facts, signal, resolve, reject });
       }),
   };
   return {
@@ -70,7 +75,13 @@ function scriptedModel() {
   };
 }
 
-async function harness(options: { readonly plan?: boolean; readonly model?: boolean } = {}) {
+async function harness(
+  options: {
+    readonly plan?: boolean;
+    readonly model?: boolean;
+    readonly logger?: { warn(event: string): void };
+  } = {},
+) {
   const store = openSqliteStorage(":memory:");
   await runMigrations(store, MIGRATIONS);
   onTestFinished(async () => {
@@ -94,6 +105,7 @@ async function harness(options: { readonly plan?: boolean; readonly model?: bool
     dateKeyOfMs: () => TODAY,
     changed: async () => undefined,
     ...(options.model === false ? {} : { coachText: scripted.model }),
+    ...(options.logger === undefined ? {} : { logger: options.logger }),
   });
   if (options.plan !== false) {
     await createPlanRepository(store).replace(
@@ -257,7 +269,10 @@ describe("the coach's verdict on Activity review", () => {
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
     h.scripted.pending[0]?.reject(new Error("provider down"));
-    expect(await h.settle("failed")).toMatchObject({ verdict: { state: "failed" }, replies: 1 });
+    expect(await h.settle("failed")).toMatchObject({
+      verdict: { state: "failed", failedBy: "model", earlier: null },
+      replies: 1,
+    });
     await h.write("asks-again", { state: "failed", replies: 1 });
     h.scripted.pending[1]?.resolve("Heart rate only, and steady.");
     expect(await h.settle("kept")).toMatchObject({
@@ -266,17 +281,81 @@ describe("the coach's verdict on Activity review", () => {
     });
   });
 
-  it("writes a failed verdict again when the athlete next opens the ride", async () => {
+  it("spends nothing when the athlete opens a ride whose verdict the model failed", async () => {
     const h = await harness();
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
     h.scripted.pending[0]?.reject(new Error("provider down"));
     await h.settle("failed");
+    for (let open = 0; open < 2; open += 1) {
+      expect(await h.write("opens", { state: "failed", replies: 1 })).toMatchObject({
+        review: { verdict: { state: "failed", failedBy: "model" }, replies: 1 },
+      });
+    }
+    expect(h.scripted.pending).toHaveLength(1);
+  });
+
+  it("writes an interrupted verdict again on the next open, once", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    h.advance(VERDICT_LEASE_MS);
+    expect(await h.read()).toMatchObject({
+      verdict: { state: "failed", failedBy: "interrupted" },
+      replies: 1,
+    });
     await h.write("opens", { state: "failed", replies: 1 });
     expect(h.scripted.pending).toHaveLength(2);
-    h.scripted.pending[1]?.resolve("Written on the second open.");
+    expect(await h.write("opens", { state: "writing", replies: 2 })).toMatchObject({
+      review: { verdict: { state: "writing" }, replies: 2 },
+    });
+    expect(h.scripted.pending).toHaveLength(2);
+    h.scripted.pending[1]?.resolve("Written after the app came back.");
     expect(await h.settle("kept")).toMatchObject({ verdict: { trigger: "opened" }, replies: 2 });
+  });
+
+  it("keeps the earlier verdict when Write again fails, with what its meta line needs", async () => {
+    const h = await harness();
+    await keptOnFirstOpen(h, "The first verdict.");
+    await h.call({
+      action: "decide-ride",
+      planId: PLAN_ID,
+      activityId: RIDE,
+      expected: { kind: "confirmed", planWorkoutId: workoutId(1) },
+      decision: { kind: "extra" },
+    });
+    await h.write("asks-again", { state: "kept", replies: 1 });
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 2 });
+    h.scripted.pending[1]?.reject(new Error("provider down"));
+    expect(await h.settle("failed")).toEqual({
+      activityId: RIDE,
+      verdict: {
+        state: "failed",
+        failedBy: "model",
+        earlier: {
+          text: "The first verdict.",
+          writtenAtMs: START_MS,
+          trigger: "opened",
+          usedPlan: true,
+          usedNote: false,
+          marker: { kind: "matched-extra" },
+          replies: 1,
+        },
+      },
+      replies: 2,
+      blocked: "none",
+      note: null,
+    });
+    await h.write("asks-again", { state: "failed", replies: 2 });
+    h.scripted.pending[2]?.resolve("The second verdict.");
+    expect(await h.settle("kept")).toMatchObject({
+      verdict: { text: "The second verdict.", marker: { kind: "current" } },
+      replies: 3,
+    });
+    const row = await h.store.get("SELECT earlier_text FROM activity_review");
+    expect(row).toEqual({ earlier_text: null });
   });
 
   it("writes after the athlete answers the match and marks a kept verdict when the match changes", async () => {
@@ -402,8 +481,7 @@ describe("the coach's verdict on Activity review", () => {
     await h.ride(RIDE, MONDAY, { watts: 181 });
     await h.match(1, "confirmed");
     await h.write("opens", { state: "not-written", replies: 0 });
-    h.scripted.pending[0]?.reject(new Error("provider down"));
-    await h.settle("failed");
+    h.advance(VERDICT_LEASE_MS);
     await h.saveNote("Legs heavy.");
     await h.write("opens", { state: "failed", replies: 1 });
     expect(h.scripted.pending[1]?.facts.note).toBeNull();
@@ -421,6 +499,80 @@ describe("the coach's verdict on Activity review", () => {
     h.scripted.pending[0]?.resolve("Too late.");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(await h.read()).toMatchObject({ verdict: { state: "failed" }, replies: 1 });
+  });
+
+  it("keeps a new attempt when the reply from an expired one arrives late", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    await h.write("opens", { state: "not-written", replies: 0 });
+    h.advance(VERDICT_LEASE_MS);
+    await h.write("opens", { state: "failed", replies: 1 });
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 2 });
+    h.scripted.pending[0]?.resolve("The late reply.");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await h.read()).toMatchObject({ verdict: { state: "writing" }, replies: 2 });
+    h.scripted.pending[1]?.resolve("The new reply.");
+    expect(await h.settle("kept")).toMatchObject({
+      verdict: { text: "The new reply." },
+      replies: 2,
+    });
+  });
+
+  it("aborts the call and fails the verdict before its lease runs out", async () => {
+    const h = await harness();
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "confirmed");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await h.write("opens", { state: "not-written", replies: 0 });
+      expect(h.scripted.pending[0]?.signal.aborted).toBe(false);
+      vi.advanceTimersByTime(VERDICT_JOB_MS - 1);
+      expect(h.scripted.pending[0]?.signal.aborted).toBe(false);
+      vi.advanceTimersByTime(1);
+      expect(h.scripted.pending[0]?.signal.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(VERDICT_JOB_MS).toBeLessThan(VERDICT_LEASE_MS);
+    expect(await h.settle("failed")).toMatchObject({
+      verdict: { state: "failed", failedBy: "model" },
+      replies: 1,
+    });
+  });
+
+  it("keeps the saved match when the verdict cannot start", async () => {
+    const warn = vi.fn();
+    const h = await harness({ logger: { warn } });
+    await h.ride(RIDE, MONDAY, { watts: 181 });
+    await h.match(1, "suggested");
+    await h.read();
+    const available = vi.spyOn(h.scripted.model, "available").mockImplementation(() => {
+      throw new Error("model lookup failed");
+    });
+    expect(
+      await h.call({
+        action: "decide-ride",
+        planId: PLAN_ID,
+        activityId: RIDE,
+        expected: { kind: "suggested", planWorkoutId: workoutId(1) },
+        decision: { kind: "confirm", planWorkoutId: workoutId(1) },
+      }),
+    ).toMatchObject({ status: "ride", ride: { match: { kind: "confirmed" } } });
+    expect(warn).toHaveBeenCalledWith("ride_verdict_not_started");
+    available.mockRestore();
+  });
+
+  it("writes from the ride's own facts when it falls outside the Plan's weeks", async () => {
+    const h = await harness();
+    await h.ride(RIDE, 19971229, { watts: 176 });
+    await h.write("opens", { state: "not-written", replies: 0 });
+    expect(h.scripted.pending[0]?.facts).toMatchObject({
+      matched: { kind: "outside-plan" },
+      week: null,
+    });
+    h.scripted.pending[0]?.resolve("An easy ride before the Plan began.");
+    expect(await h.settle("kept")).toMatchObject({ verdict: { usedPlan: false } });
   });
 
   it("writes from the ride alone when there is no Plan", async () => {

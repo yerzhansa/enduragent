@@ -402,19 +402,30 @@ export const PlanCalendarVerdictMarkerSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCalendarVerdictMarker = z.infer<typeof PlanCalendarVerdictMarkerSchema>;
 
+const PlanCalendarKeptVerdictShape = {
+  text: z.string().min(1).max(3_000),
+  writtenAtMs: z.number().int().nonnegative(),
+  trigger: z.enum(["opened", "matched", "asked"]),
+  usedPlan: z.boolean(),
+  usedNote: z.boolean(),
+  marker: PlanCalendarVerdictMarkerSchema,
+};
+
+export const PlanCalendarEarlierVerdictSchema = z
+  .object({ ...PlanCalendarKeptVerdictShape, replies: z.number().int().min(1).max(1_000_000) })
+  .strict();
+export type PlanCalendarEarlierVerdict = z.infer<typeof PlanCalendarEarlierVerdictSchema>;
+
 export const PlanCalendarVerdictSchema = z.discriminatedUnion("state", [
-  z.object({ state: z.enum(["not-written", "writing", "failed"]) }).strict(),
+  z.object({ state: z.enum(["not-written", "writing"]) }).strict(),
   z
     .object({
-      state: z.literal("kept"),
-      text: z.string().min(1).max(3_000),
-      writtenAtMs: z.number().int().nonnegative(),
-      trigger: z.enum(["opened", "matched", "asked"]),
-      usedPlan: z.boolean(),
-      usedNote: z.boolean(),
-      marker: PlanCalendarVerdictMarkerSchema,
+      state: z.literal("failed"),
+      failedBy: z.enum(["model", "interrupted"]),
+      earlier: PlanCalendarEarlierVerdictSchema.nullable(),
     })
     .strict(),
+  z.object({ state: z.literal("kept"), ...PlanCalendarKeptVerdictShape }).strict(),
 ]);
 export type PlanCalendarVerdict = z.infer<typeof PlanCalendarVerdictSchema>;
 

@@ -83,7 +83,12 @@ export function createPlanCalendarOperations(
           );
         case "decide-ride": {
           const decided = await decideRide(deps, request);
-          if (decided.status === "ride") await review.matchDecided(request.activityId);
+          if (decided.status !== "ride") return decided;
+          try {
+            await review.matchDecided(request.activityId);
+          } catch {
+            deps.logger?.warn("ride_verdict_not_started");
+          }
           return decided;
         }
         case "read-review":

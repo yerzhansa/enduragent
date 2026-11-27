@@ -1,5 +1,5 @@
 import type { EngineHostPorts, IntentTranslationPort } from "@enduragent/engine";
-import { createCoachTextModelWriter } from "@enduragent/engine/calendar";
+import { createCoachTextModelWriter } from "@enduragent/engine/coach-text-writer";
 import type { RuntimeBundle } from "./runtime-bundle.js";
 
 export function modelWriters(

@@ -44,7 +44,7 @@ import {
 import { createPlanChangeOperations } from "../../../../packages/coach/src/plan-change-operations.js";
 import { createPlanChangeEventSourceReader } from "../../../../packages/coach/src/plan-change-event-source-reader.js";
 import type { RideVerdictModel } from "../../../../packages/coach/src/plan-calendar-review.js";
-import type { CoachTextFacts } from "@enduragent/engine/calendar";
+import type { CoachTextFacts } from "@enduragent/engine/coach-text-writer";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import type { DesktopFixtureScript } from "./desktop-fixture.js";
 import { createPlanQaFixtureScript } from "./plan-qa-live.js";
