@@ -36,6 +36,21 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       weekDelivery: PlanCalendarWeekDeliverySchema,
     })
     .strict(),
+  z
+    .object({
+      action: z.literal("change-detail"),
+      planId: UlidSchema,
+      planWorkoutId: UlidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      action: z.enum(["keep-change", "put-back"]),
+      planId: UlidSchema,
+      planWorkoutId: UlidSchema,
+      basis: z.string().min(1).max(128),
+    })
+    .strict(),
 ]);
 export type PlanCalendarRpcParams = z.infer<typeof PlanCalendarRpcParamsSchema>;
 
@@ -44,6 +59,8 @@ export const PlanCalendarRefusalSchema = z.enum([
   "already-approved",
   "not-approved-yet",
   "week-not-due",
+  "intervals-unavailable",
+  "plan-change-refused",
 ]);
 export type PlanCalendarRefusal = z.infer<typeof PlanCalendarRefusalSchema>;
 
@@ -56,6 +73,8 @@ export const PlanCalendarCopySchema = z.discriminatedUnion("kind", [
       kind: z.literal("changed-in-intervals"),
       change: z.enum(["edited", "moved", "deleted"]),
       toDateKey: DateKeySchema.nullable(),
+      name: z.string().max(512).nullable(),
+      durationS: SecondsSchema.nullable(),
     })
     .strict(),
   z.object({ kind: z.literal("removed-by-you") }).strict(),
@@ -162,6 +181,16 @@ export const PlanCalendarActivitySchema = z
   .strict();
 export type PlanCalendarActivity = z.infer<typeof PlanCalendarActivitySchema>;
 
+export const PlanCalendarWorkoutVersionSchema = z
+  .object({
+    dateKey: DateKeySchema,
+    name: z.string().min(1).max(512),
+    durationS: SecondsSchema.nullable(),
+    description: z.string().max(20_000).nullable(),
+  })
+  .strict();
+export type PlanCalendarWorkoutVersion = z.infer<typeof PlanCalendarWorkoutVersionSchema>;
+
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z
     .object({
@@ -173,6 +202,23 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("sending") }).strict(),
   z
     .object({ status: z.literal("settings"), weekDelivery: PlanCalendarWeekDeliverySchema })
+    .strict(),
+  z
+    .object({
+      status: z.literal("change-detail"),
+      planWorkoutId: UlidSchema,
+      basis: z.string().min(1).max(128),
+      change: z.enum(["edited", "moved", "deleted"]),
+      plan: PlanCalendarWorkoutVersionSchema,
+      intervals: PlanCalendarWorkoutVersionSchema.nullable(),
+      editedAt: z.string().min(1).max(64).nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("change-resolved"),
+      outcome: z.enum(["kept", "put-back", "refreshed", "no-card"]),
+    })
     .strict(),
   z
     .object({

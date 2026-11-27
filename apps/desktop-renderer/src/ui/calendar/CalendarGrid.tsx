@@ -22,9 +22,10 @@ import { useCalendarText, type CalendarText } from "./calendar-text";
 type Tone = "ok" | "warn" | "danger" | "brand" | "muted";
 
 interface WorkoutLook {
-  readonly frame: "sent" | "plan-only" | "missed" | "ask" | "changed" | "ghost";
+  readonly frame: "sent" | "plan-only" | "missed" | "ask" | "changed" | "ghost" | "ghost-alert";
   readonly detail: string | null;
   readonly status: { readonly tone: Tone; readonly text: string } | null;
+  readonly opens: boolean;
 }
 
 const FRAME: Record<WorkoutLook["frame"], string> = {
@@ -34,6 +35,7 @@ const FRAME: Record<WorkoutLook["frame"], string> = {
   ask: "border border-dashed border-brand bg-surface",
   changed: "border border-warn bg-warn/10 outline-2 outline-offset-1 outline-warn",
   ghost: "border border-dashed border-line-2 bg-transparent text-ink-2",
+  "ghost-alert": "border border-dashed border-warn bg-warn/10 text-warn",
 };
 
 const TONE: Record<Tone, string> = {
@@ -63,21 +65,34 @@ function changedLook(
   if (copy.kind !== "changed-in-intervals") return null;
   if (copy.change === "deleted") {
     return {
-      frame: "ghost",
+      frame: "ghost-alert",
       detail: planned,
       status: { tone: "warn", text: say("plan.calendar.copy.deleted") },
+      opens: true,
+    };
+  }
+  if (copy.change === "moved" && copy.toDateKey !== null) {
+    return {
+      frame: "ghost",
+      detail: null,
+      status: {
+        tone: "muted",
+        text: say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) }),
+      },
+      opens: false,
     };
   }
   return {
     frame: "changed",
-    detail: planned,
-    status: {
-      tone: "warn",
-      text:
-        copy.change === "moved" && copy.toDateKey !== null
-          ? say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) })
-          : say("plan.calendar.copy.changed"),
-    },
+    detail:
+      planned === null || copy.durationS === null || copy.durationS === workout.durationS
+        ? planned
+        : say("plan.calendar.copy.editedLength", {
+            intervals: text.duration(copy.durationS),
+            plan: planned,
+          }),
+    status: { tone: "warn", text: say("plan.calendar.copy.changed") },
+    opens: true,
   };
 }
 
@@ -88,8 +103,9 @@ function plannedLook(workout: PlanCalendarWorkout, planned: string | null, say: 
         frame,
         detail: planned,
         status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
+        opens: false,
       }
-    : { frame, detail: planned, status: null };
+    : { frame, detail: planned, status: null, opens: false };
 }
 
 function useWorkoutLook(): (
@@ -120,6 +136,7 @@ function useWorkoutLook(): (
             outcome.kind === "done-as-planned"
               ? { tone: "ok", text: say("plan.calendar.outcome.doneAsPlanned") }
               : { tone: "warn", text: say("plan.calendar.outcome.doneDifferently") },
+          opens: false,
         };
       case "missed":
         return (
@@ -130,6 +147,7 @@ function useWorkoutLook(): (
                 ? say("plan.calendar.outcome.noActivity")
                 : say("plan.calendar.outcome.missedDetail", { planned }),
             status: { tone: "danger", text: say("plan.calendar.outcome.missed") },
+            opens: false,
           }
         );
       case "is-this-it": {
@@ -141,6 +159,7 @@ function useWorkoutLook(): (
               ? say("plan.calendar.outcome.rideSynced")
               : say("plan.calendar.outcome.rideSyncedLength", { duration: text.duration(seconds) }),
           status: { tone: "brand", text: say("plan.calendar.outcome.isThisIt") },
+          opens: false,
         };
       }
       case "not-synced-yet":
@@ -149,6 +168,7 @@ function useWorkoutLook(): (
             frame: "sent",
             detail: planned,
             status: { tone: "muted", text: say("plan.calendar.outcome.notSyncedYet") },
+            opens: false,
           }
         );
       case "moved":
@@ -161,12 +181,14 @@ function useWorkoutLook(): (
               date: text.weekdayDayMonth(outcome.toDateKey),
             }),
           },
+          opens: false,
         };
       case "removed-by-you":
         return {
           frame: "ghost",
           detail: planned,
           status: { tone: "muted", text: say("plan.calendar.outcome.removedByYou") },
+          opens: false,
         };
       case "planned":
         return changed ?? plannedLook(workout, planned, say);
@@ -174,33 +196,89 @@ function useWorkoutLook(): (
   };
 }
 
+const CARD = "flex w-full flex-col gap-0.5 rounded-ctl px-1.5 py-1 text-left text-xs";
+const OPENS = "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand";
+
+function CardBody(props: { readonly name: string; readonly look: WorkoutLook }): ReactElement {
+  const { look } = props;
+  const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
+  return (
+    <>
+      <span className={cn("font-semibold", ghost ? "line-through" : "text-ink")}>{props.name}</span>
+      {look.detail === null ? null : (
+        <span className={look.frame === "ghost-alert" ? undefined : "text-ink-2"}>
+          {look.detail}
+        </span>
+      )}
+      {look.status === null ? null : (
+        <span className={cn(ghost ? undefined : "font-semibold", TONE[look.status.tone])}>
+          {look.status.text}
+        </span>
+      )}
+    </>
+  );
+}
+
 function WorkoutCard(props: {
   readonly workout: PlanCalendarWorkout;
   readonly activities: readonly PlanCalendarActivity[];
   readonly highlighted: boolean;
   readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
 }): ReactElement {
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
+  const shared = {
+    className: cn(
+      CARD,
+      FRAME[look.frame],
+      look.opens && OPENS,
+      props.highlighted && "border-brand",
+    ),
+    "data-workout-id": props.workout.id,
+    "data-outcome": props.workout.outcome.kind,
+    "data-copy": props.workout.copy.kind,
+    "data-highlighted": props.highlighted ? "" : undefined,
+  };
+  const body = <CardBody name={props.workout.name} look={look} />;
+  return look.opens ? (
+    <button type="button" {...shared} onClick={() => props.onOpen(props.workout.id)}>
+      {body}
+    </button>
+  ) : (
+    <div {...shared}>{body}</div>
+  );
+}
+
+function MovedInCard(props: {
+  readonly workout: PlanCalendarWorkout;
+  readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  const { workout, text } = props;
+  const copy = workout.copy;
+  const seconds =
+    copy.kind === "changed-in-intervals" ? (copy.durationS ?? workout.durationS) : null;
+  const from = say("plan.calendar.copy.movedFrom", { date: text.weekdayDay(workout.dateKey) });
+  const look: WorkoutLook = {
+    frame: "changed",
+    detail:
+      seconds === null ? from : `${text.duration(seconds)}${say("plan.calendar.separator")}${from}`,
+    status: { tone: "warn", text: say("plan.calendar.copy.movedIn") },
+    opens: true,
+  };
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col gap-0.5 rounded-ctl px-1.5 py-1 text-xs",
-        FRAME[look.frame],
-        props.highlighted && "border-brand",
-      )}
-      data-workout-id={props.workout.id}
-      data-outcome={props.workout.outcome.kind}
-      data-copy={props.workout.copy.kind}
-      data-highlighted={props.highlighted ? "" : undefined}
+    <button
+      type="button"
+      className={cn(CARD, FRAME.changed, OPENS)}
+      data-moved-in={workout.id}
+      onClick={() => props.onOpen(workout.id)}
     >
-      <span className={cn("font-semibold", look.frame === "ghost" ? "line-through" : "text-ink")}>
-        {props.workout.name}
-      </span>
-      {look.detail === null ? null : <span className="text-ink-2">{look.detail}</span>}
-      {look.status === null ? null : (
-        <span className={cn("font-semibold", TONE[look.status.tone])}>{look.status.text}</span>
-      )}
-    </div>
+      <CardBody
+        name={copy.kind === "changed-in-intervals" && copy.name !== null ? copy.name : workout.name}
+        look={look}
+      />
+    </button>
   );
 }
 
@@ -386,6 +464,7 @@ function DayCell(props: {
   readonly read: PlanCalendarRead;
   readonly highlighted: ReadonlySet<string>;
   readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
 }): ReactElement {
   const { say } = usePhrasebook();
   const { day, read, text } = props;
@@ -396,7 +475,8 @@ function DayCell(props: {
       : day.weekStarts !== null
         ? say("plan.calendar.day.weekStarts", { day: number, week: day.weekStarts.index })
         : number;
-  const empty = day.workouts.length === 0 && day.activities.length === 0;
+  const empty =
+    day.workouts.length === 0 && day.movedIn.length === 0 && day.activities.length === 0;
   return (
     <div
       className={cn(
@@ -426,7 +506,11 @@ function DayCell(props: {
           activities={read.activities}
           highlighted={props.highlighted.has(workout.id)}
           text={text}
+          onOpen={props.onOpen}
         />
+      ))}
+      {day.movedIn.map((workout) => (
+        <MovedInCard key={`in-${workout.id}`} workout={workout} text={text} onOpen={props.onOpen} />
       ))}
       {day.activities.map((activity) => (
         <ActivityCard
@@ -451,6 +535,7 @@ export function CalendarGrid(props: {
   readonly rows: readonly CalendarRow[];
   readonly firstDay: FirstDayOfWeek;
   readonly highlighted: ReadonlySet<string>;
+  readonly onOpen: (planWorkoutId: string) => void;
 }): ReactElement {
   const { say } = usePhrasebook();
   const text = useCalendarText();
@@ -491,6 +576,7 @@ export function CalendarGrid(props: {
                 read={props.read}
                 highlighted={props.highlighted}
                 text={text}
+                onOpen={props.onOpen}
               />
             ))}
           </div>

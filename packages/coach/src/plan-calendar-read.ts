@@ -7,6 +7,7 @@ import type {
   PlanCalendarWorkout,
 } from "@enduragent/coach-contract";
 import {
+  icuFingerprintParts,
   outcomeCount,
   readIcuCopies,
   readWeekDelivery,
@@ -51,13 +52,27 @@ function copyView(copy: IcuCopy): PlanCalendarCopy {
       return { kind: "on-intervals", owner: copy.baseline.owner };
     case "moving-by-you":
       return { kind: "moving-by-you" };
-    case "changed-in-icu":
+    case "changed-in-icu": {
       if (copy.shown.kind === "absent") {
-        return { kind: "changed-in-intervals", change: "deleted", toDateKey: null };
+        return {
+          kind: "changed-in-intervals",
+          change: "deleted",
+          toDateKey: null,
+          name: null,
+          durationS: null,
+        };
       }
+      const parts = icuFingerprintParts(copy.shown.version.fingerprint);
+      const shown = { name: parts?.name ?? null, durationS: parts?.durationS ?? null };
       return copy.shown.dateKey === copy.baseline.dateKey
-        ? { kind: "changed-in-intervals", change: "edited", toDateKey: null }
-        : { kind: "changed-in-intervals", change: "moved", toDateKey: copy.shown.dateKey };
+        ? { kind: "changed-in-intervals", change: "edited", toDateKey: null, ...shown }
+        : {
+            kind: "changed-in-intervals",
+            change: "moved",
+            toDateKey: copy.shown.dateKey,
+            ...shown,
+          };
+    }
     case "removed-by-you":
       return { kind: "removed-by-you" };
     case "kept-as-yours":

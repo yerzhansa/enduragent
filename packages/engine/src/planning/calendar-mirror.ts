@@ -134,6 +134,24 @@ export function icuEventFingerprint(event: PlanMirrorEvent): string {
   ]);
 }
 
+export function icuFingerprintParts(
+  fingerprint: string,
+): { readonly name: string | null; readonly durationS: number | null } | null {
+  if (!currentFingerprintFormat(fingerprint)) return null;
+  try {
+    const parts: unknown = JSON.parse(fingerprint);
+    if (!Array.isArray(parts)) return null;
+    const name: unknown = parts[2];
+    const duration: unknown = parts[5];
+    return {
+      name: typeof name === "string" ? name : null,
+      durationS: typeof duration === "number" ? duration : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function planWorkoutFingerprint(workout: PlanWorkoutRecord): string {
   return JSON.stringify([
     workout.dateKey,

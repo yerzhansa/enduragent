@@ -39,7 +39,10 @@ export function rideKey(index: number): string {
 
 export async function launch(
   playwright: Playwright,
-  prepare: (backend: PlanCreationBackend) => Promise<string>,
+  prepare: (
+    backend: PlanCreationBackend,
+    calendar: ReturnType<typeof createMemoryPlanCalendar>,
+  ) => Promise<string>,
   colorScheme: "light" | "dark" = "light",
   options: { readonly waitForApprove?: boolean } = {},
 ): Promise<Scenario> {
@@ -54,7 +57,7 @@ export async function launch(
   try {
     backend.setCivilDate(seedDay);
     await backend.open();
-    const today = await prepare(backend);
+    const today = await prepare(backend, calendar);
     fixture = await launchDesktopFixture({
       script: backend.script,
       token,

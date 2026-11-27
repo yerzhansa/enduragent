@@ -32,6 +32,7 @@ import {
 import { createChatPlanOutboxRepository, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { createCalendarMirrorAdapter } from "../src/planning-calendar.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
@@ -66,8 +67,16 @@ async function approveFirstWeeks(
     now: () => 904_737_600_000,
     calendarConnected: () => true,
     dateKeyOfMs: () => dateKey,
-    changed: () => undefined,
-    settled: async () => undefined,
+    changed: async () => undefined,
+    calendar: { mirror: createCalendarMirrorAdapter(() => null) },
+    identity: {
+      deviceId: async () => "approve-test-device",
+      newUlid: () => id("990"),
+      hlcStamp: () => ({ physicalMs: 904_737_600_000, counter: 0 }),
+    },
+    applyChange: async () => {
+      throw new TypeError("Plan Change operations are not used here");
+    },
   })["plan.calendar"]({ action: "approve-weeks", planId, scope: { kind: "first-weeks" } });
   if (result.status !== "approved") throw new Error(`Approve refused: ${JSON.stringify(result)}`);
 }

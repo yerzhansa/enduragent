@@ -1,3 +1,7 @@
+import {
+  PlanCalendarRpcParamsSchema,
+  PlanCalendarRpcResultSchema,
+} from "@enduragent/coach-contract";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import { createHash } from "node:crypto";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -70,15 +74,17 @@ async function harness() {
   });
   const reconciliation = createPlanReconciliationRepository(store);
   const plans = createPlanRepository(store);
-  const changed = vi.fn();
+  const changed = vi.fn(async (): Promise<void> => undefined);
   const calendarOperations = createPlanCalendarOperations({
     store,
+    calendar,
+    identity,
+    applyChange: (request) => changes["plan_change.apply"](request),
     todayDateKey: () => today,
     now: () => nowMs,
     calendarConnected: () => connected,
     dateKeyOfMs: (ms) => Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
     changed,
-    settled: () => drain.idle(),
   });
   const approve = (planId: string, week?: number) =>
     calendarOperations["plan.calendar"]({
@@ -270,6 +276,24 @@ async function harness() {
   };
 }
 
+async function choose(
+  test: Awaited<ReturnType<typeof harness>>,
+  action: "keep-change" | "put-back",
+  card: { readonly planId: string; readonly planWorkoutId: string },
+  basis?: string,
+) {
+  const seen =
+    basis ??
+    (await (async () => {
+      const detail = await test.calendarOperations["plan.calendar"]({
+        action: "change-detail",
+        ...card,
+      });
+      return detail.status === "change-detail" ? detail.basis : "absent";
+    })());
+  return test.calendarOperations["plan.calendar"]({ action, ...card, basis: seen });
+}
+
 describe("Plan calendar drain", () => {
   it("sends this Training Week and next by itself for a Plan activated before Approve existed", async () => {
     const test = await harness();
@@ -415,7 +439,7 @@ describe("Plan calendar drain", () => {
       await test.store.get("SELECT count(*) AS n FROM plan_icu_copy WHERE last_write='failed'"),
     ).toEqual({ n: 1 });
     test.changed.mockReset();
-    test.changed.mockImplementation(() => void test.drain.kick());
+    test.changed.mockImplementation(() => test.drain.kick().then(() => test.drain.idle()));
     await expect(
       test.calendarOperations["plan.calendar"]({ action: "send-again" }),
     ).resolves.toEqual({ status: "sending" });
@@ -532,6 +556,299 @@ describe("Plan calendar drain", () => {
     await test.drain.kick();
     expect(await test.reconciliation.readJob(old.id)).toMatchObject({ status: "verified" });
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
+  });
+
+  it("puts the Plan's version back over an edit made in intervals.icu", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const plannedName = event.name;
+    test.calendar.editByAthlete(event.id, { name: "Mine now" });
+    await test.drain.kick();
+    const workoutId = event.externalId?.split(":").at(-1) ?? "";
+    const card = { planId, planWorkoutId: workoutId };
+    expect(
+      await test.calendarOperations["plan.calendar"]({ action: "change-detail", ...card }),
+    ).toMatchObject({
+      status: "change-detail",
+      change: "edited",
+      plan: { name: plannedName },
+      intervals: { name: "Mine now" },
+    });
+    expect(await choose(test, "put-back", card)).toEqual({
+      status: "change-resolved",
+      outcome: "put-back",
+    });
+    expect(test.calendar.events.find((entry) => entry.id === event.id)?.name).toBe(plannedName);
+    expect(await choose(test, "put-back", card)).toEqual({
+      status: "change-resolved",
+      outcome: "no-card",
+    });
+    const writes = test.calendar.updates.length;
+    await test.drain.kick();
+    expect(test.calendar.updates).toHaveLength(writes);
+  });
+
+  it("keeps a delete made in intervals.icu as Removed by you", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    test.calendar.deleteByAthlete(event.id);
+    await test.drain.kick();
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    expect(await choose(test, "keep-change", { planId, planWorkoutId })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    await test.drain.kick();
+    expect(test.calendar.events.some((entry) => entry.id === event.id)).toBe(false);
+    expect(
+      await test.store.get("SELECT state_kind FROM plan_icu_copy WHERE plan_workout_id=?", [
+        planWorkoutId,
+      ]),
+    ).toEqual({ state_kind: "removed-by-you" });
+  });
+
+  it("keeps a moved and shortened workout by changing the Plan, and sends nothing over it", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find(
+      (entry) => entry.dateKey > addCivilDays(test.today(), 1),
+    );
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    const before = (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId);
+    if (before === undefined) throw new Error("Expected the Plan workout");
+    const moved = addCivilDays(event.dateKey, 1);
+    test.calendar.editByAthlete(event.id, { dateKey: moved, durationS: 1_800 });
+    await test.drain.kick();
+    expect(await choose(test, "keep-change", { planId, planWorkoutId })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    const after = (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId);
+    expect(after).toMatchObject({ dateKey: moved, durationS: 1_800 });
+    const writes = test.calendar.updates.length + test.calendar.creates.length;
+    await test.drain.kick();
+    expect(test.calendar.updates.length + test.calendar.creates.length).toBe(writes);
+    expect(
+      await test.store.get("SELECT state_kind FROM plan_icu_copy WHERE plan_workout_id=?", [
+        planWorkoutId,
+      ]),
+    ).toEqual({ state_kind: "on-icu" });
+  });
+
+  it("shows the newest edit first when the athlete changes a workout again before choosing", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { name: "First edit" });
+    await test.drain.kick();
+    const card = { planId, planWorkoutId };
+    const seen = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      ...card,
+    });
+    if (seen.status !== "change-detail") throw new Error("Expected the card");
+    expect(seen.intervals?.name).toBe("First edit");
+    test.calendar.editByAthlete(event.id, { name: "Second edit" });
+    await test.drain.kick();
+    expect(await choose(test, "put-back", card, seen.basis)).toEqual({
+      status: "change-resolved",
+      outcome: "refreshed",
+    });
+    expect(test.calendar.events.find((entry) => entry.id === event.id)?.name).toBe("Second edit");
+    expect(await choose(test, "keep-change", card)).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId)?.name,
+    ).toBe("Second edit");
+  });
+
+  it("closes the card when the athlete changes the workout back to the Plan's version", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    const name = event.name;
+    test.calendar.editByAthlete(event.id, { name: "Briefly mine" });
+    await test.drain.kick();
+    test.calendar.editByAthlete(event.id, { name });
+    expect(
+      await test.calendarOperations["plan.calendar"]({
+        action: "change-detail",
+        planId,
+        planWorkoutId,
+      }),
+    ).toEqual({ status: "change-resolved", outcome: "no-card" });
+    const read = await test.calendarOperations["plan.calendar"]({
+      action: "read",
+      startDateKey: test.today(),
+      endDateKey: addCivilDays(test.today(), 27),
+    });
+    if (read.status !== "calendar") throw new Error("Expected the calendar");
+    expect(read.plan?.workouts.find((workout) => workout.id === planWorkoutId)?.copy.kind).toBe(
+      "on-intervals",
+    );
+  });
+
+  it("keeps the length the sheet showed when the athlete adds steps and shortens the ride", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, {
+      description: "- 20m 60%\n- 10m 90%",
+      durationS: 1_800,
+    });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    expect(detail.intervals?.durationS).toBe(1_800);
+    expect(await choose(test, "keep-change", { planId, planWorkoutId }, detail.basis)).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId)?.durationS,
+    ).toBe(1_800);
+  });
+
+  it("opens and resolves a card whose intervals.icu description is very long", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { description: "Ride by feel. ".repeat(700) });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    expect(PlanCalendarRpcResultSchema.safeParse(detail).success).toBe(true);
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    const request = {
+      action: "put-back" as const,
+      planId,
+      planWorkoutId,
+      basis: detail.basis,
+    };
+    expect(PlanCalendarRpcParamsSchema.safeParse(request).success).toBe(true);
+    expect(await test.calendarOperations["plan.calendar"](request)).toEqual({
+      status: "change-resolved",
+      outcome: "put-back",
+    });
+  });
+
+  it("says refreshed when the athlete edits again between the read and the Put back write", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { name: "First edit" });
+    await test.drain.kick();
+    const card = { planId, planWorkoutId };
+    const seen = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      ...card,
+    });
+    if (seen.status !== "change-detail") throw new Error("Expected the card");
+    const read = test.calendar.mirror.readEvent;
+    let reads = 0;
+    vi.spyOn(test.calendar.mirror, "readEvent").mockImplementation(async (input) => {
+      reads += 1;
+      if (reads === 2) test.calendar.editByAthlete(event.id, { name: "Late edit" });
+      return read(input);
+    });
+    expect(await choose(test, "put-back", card, seen.basis)).toEqual({
+      status: "change-resolved",
+      outcome: "refreshed",
+    });
+    expect(test.calendar.events.find((entry) => entry.id === event.id)?.name).toBe("Late edit");
+  });
+
+  it("keeps a steps-only edit without changing the Plan, and Keep again changes nothing", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { description: "Ride by feel" });
+    await test.drain.kick();
+    const changes = async () =>
+      test.store.get("SELECT count(*) AS n FROM plan_change WHERE plan_id=? AND status='applied'", [
+        planId,
+      ]);
+    const before = await changes();
+    expect(await choose(test, "keep-change", { planId, planWorkoutId })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    expect(await changes()).toEqual(before);
+  });
+
+  it("lists the Plan and refuses Undo after the athlete keeps a change", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { durationS: 1_800 });
+    await test.drain.kick();
+    expect(await choose(test, "keep-change", { planId, planWorkoutId })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    const listed = await test.creation["plan.list"]({});
+    const kept = listed.changes.find((change) => change.intent.kind === "keep-intervals-change");
+    expect(kept).toMatchObject({
+      status: "applied",
+      undo: { eligible: false, reason: "athlete-change" },
+    });
+    if (kept === undefined) throw new Error("Expected the kept change");
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "undo-kept",
+        planId,
+        expectedVersion: kept.baseRevisionNumber + 1,
+        intent: { kind: "inverse", changeId: kept.changeId },
+      }),
+    ).toMatchObject({ status: "rejected" });
   });
 
   it("does nothing when the calendar is disconnected", async () => {

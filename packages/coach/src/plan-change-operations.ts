@@ -16,6 +16,7 @@ import {
   PlanChangePreviewResultSchema,
   PlanCreationDraftSchema,
   type PlanChangeIntent,
+  isAthletePlanChangeIntent,
   type PlanChangeRequest,
   type PlanChangeEventSource,
   type PlanCreationDraft,
@@ -27,6 +28,7 @@ import {
   type PlanChangeModel,
   type PlanChangesPaused,
 } from "@enduragent/coach-contract";
+import { readAppliedIntent } from "./plan-change-applied-intent.js";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   createPlanChangeRepository,
@@ -202,20 +204,6 @@ function civilDate(todayDateKey: number): string {
   return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
 }
 
-async function readAppliedIntent(
-  store: SqlStore,
-  planId: string,
-  changeId: string,
-): Promise<PlanChangeIntent | null> {
-  const original = await store.get(
-    "SELECT diff_json FROM plan_change WHERE id=? AND plan_id=? AND status='applied'",
-    [changeId, planId],
-  );
-  if (original === undefined) return null;
-  const envelope = PlanChangeEnvelopeSchema.parse(JSON.parse(z.string().parse(original.diff_json)));
-  return PlanChangeModelSchema.shape.intent.parse(envelope.intent);
-}
-
 async function eventNeedsSource(
   store: SqlStore,
   planId: string,
@@ -256,6 +244,8 @@ export async function projectPlanChanges(input: {
         undo = { eligible: false, reason: "not-newest" };
       else if (PlanChangeModelSchema.shape.intent.parse(change.intent).kind === "inverse")
         undo = { eligible: false, reason: "inverse" };
+      else if (isAthletePlanChangeIntent(PlanChangeModelSchema.shape.intent.parse(change.intent)))
+        undo = { eligible: false, reason: "athlete-change" };
       else if (
         change.resultRevisionNumber !== context.currentRevisionNumber ||
         context.previousSnapshotJson === null
@@ -463,7 +453,10 @@ export function createPlanChangeOperations(input: {
           (newestApplied?.changeId !== intent.changeId ||
             newestApplied.resultRevisionNumber !== currentRevisionNumber ||
             previousSnapshotJson === null ||
-            PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse")
+            PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse" ||
+            isAthletePlanChangeIntent(
+              PlanChangeModelSchema.shape.intent.parse(newestApplied.intent),
+            ))
         )
           return { status: "rejected", reason: "invalid-intent" };
         if (intent.kind === "choose-workout") {

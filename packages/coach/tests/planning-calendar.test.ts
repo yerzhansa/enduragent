@@ -15,7 +15,10 @@ import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCalendarDrain } from "../src/plan-calendar-drain.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
-import { createPlanMirrorCalendarAdapter } from "../src/planning-calendar.js";
+import {
+  createCalendarMirrorAdapter,
+  createPlanMirrorCalendarAdapter,
+} from "../src/planning-calendar.js";
 
 async function activateSyntheticPlan() {
   const store = openSqliteStorage(":memory:");
@@ -348,8 +351,16 @@ describe("Plan Intervals calendar adapter", () => {
       now,
       calendarConnected: () => true,
       dateKeyOfMs: () => today,
-      changed: () => undefined,
-      settled: async () => undefined,
+      changed: async () => undefined,
+      calendar: { mirror: createCalendarMirrorAdapter(() => null) },
+      identity: {
+        deviceId: async () => "calendar-test-device",
+        newUlid: () => "0".repeat(25) + "9",
+        hlcStamp: () => ({ physicalMs: 1, counter: 0 }),
+      },
+      applyChange: async () => {
+        throw new TypeError("Plan Change operations are not used here");
+      },
     })["plan.calendar"]({
       action: "approve-weeks",
       planId: plan.id,

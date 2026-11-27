@@ -2,7 +2,12 @@ import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button, Page } from "@enduragent/ui";
 import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import { useEffect, type ReactElement } from "react";
-import { calendarRows, currentWeek, type PlanCalendarRead } from "../../calendar/grid";
+import {
+  calendarRows,
+  currentWeek,
+  intervalsChanges,
+  type PlanCalendarRead,
+} from "../../calendar/grid";
 import { rendererPlatformProjection } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
 import {
@@ -15,6 +20,7 @@ import {
 import type { ApproveSheetState } from "../../calendar/approve-controller";
 import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
+import { ChangeSheet } from "./ChangeSheet";
 import { WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
@@ -147,6 +153,54 @@ function ApprovalLayer(props: { readonly read: PlanCalendarRead }): ReactElement
   );
 }
 
+function ChangesBanner(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const { say } = usePhrasebook();
+  const text = useCalendarText();
+  const counts = intervalsChanges(props.read);
+  const total = counts.edited + counts.moved + counts.deleted;
+  if (total === 0) return null;
+  const parts = [
+    counts.edited === 0 ? null : say("plan.calendar.changes.edited", { count: counts.edited }),
+    counts.moved === 0 ? null : say("plan.calendar.changes.moved", { count: counts.moved }),
+    counts.deleted === 0 ? null : say("plan.calendar.changes.deleted", { count: counts.deleted }),
+  ].filter((part): part is string => part !== null);
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2.5 rounded-card border border-warn bg-warn/10 px-3.5 py-2.5 text-sm"
+      role="status"
+      data-intervals-changes={total}
+    >
+      <TriangleAlert className="size-4 text-warn" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <strong>
+          {parts.length > 1
+            ? say("plan.calendar.changes.leadSplit", { count: total })
+            : say("plan.calendar.changes.lead", { count: total })}
+        </strong>{" "}
+        {parts.length > 1
+          ? `${say("plan.calendar.changes.parts", { parts: text.names(parts) })} `
+          : null}
+        {say("plan.calendar.changes.body")}
+      </span>
+    </div>
+  );
+}
+
+function ChangeLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const sheet = useEnduragentStore((store) => store.calendarChange);
+  const actions = useEnduragentStore((store) => store.calendarChangeActions);
+  if (sheet.kind === "closed") return null;
+  return (
+    <ChangeSheet
+      state={sheet}
+      read={props.read}
+      onKeep={() => actions?.keep()}
+      onPutBack={() => actions?.putBack()}
+      onClose={() => actions?.close()}
+    />
+  );
+}
+
 function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | null {
   const sheet = useEnduragentStore((store) => store.calendarApproval);
   const actions = useEnduragentStore((store) => store.calendarApproveActions);
@@ -160,6 +214,8 @@ export function CalendarView(): ReactElement {
   const state = useEnduragentStore((store) => store.calendar);
   const actions = useEnduragentStore((store) => store.calendarActions);
   const approval = useEnduragentStore((store) => store.calendarApproval);
+  const change = useEnduragentStore((store) => store.calendarChange);
+  const changeActions = useEnduragentStore((store) => store.calendarChangeActions);
   const read = state.kind === "ready" ? state.read : null;
   const subtitle = useSubtitle(read);
   const firstDay = rendererPlatformProjection().firstDayOfWeek;
@@ -211,6 +267,7 @@ export function CalendarView(): ReactElement {
             {state.refresh === "failed" ? (
               <RefreshFailed onRetry={() => actions?.refresh()} />
             ) : null}
+            <ChangesBanner read={state.read} />
             <WeekReady read={state.read} />
             {state.read.plan === null ? (
               <NoPlanCard />
@@ -225,11 +282,18 @@ export function CalendarView(): ReactElement {
               rows={calendarRows(state.read, state.range)}
               firstDay={firstDay}
               highlighted={beingApproved(state.read, approval)}
+              onOpen={(planWorkoutId) => {
+                const planId = state.read.plan?.planId;
+                if (planId !== undefined) changeActions?.open(planId, planWorkoutId);
+              }}
             />
           </div>
         ) : null}
       </div>
-      {state.kind === "ready" ? <ApprovalLayer read={state.read} /> : null}
+      {state.kind === "ready" && change.kind === "closed" ? (
+        <ApprovalLayer read={state.read} />
+      ) : null}
+      {state.kind === "ready" ? <ChangeLayer read={state.read} /> : null}
     </Page>
   );
 }

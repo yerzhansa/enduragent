@@ -53,7 +53,11 @@ async function harness() {
     calendarConnected: () => connected,
     dateKeyOfMs: () => today,
     changed: async () => undefined,
-    settled: async () => undefined,
+    calendar,
+    identity,
+    applyChange: async () => {
+      throw new TypeError("Plan Change operations are not used here");
+    },
   });
   onTestFinished(async () => {
     await drain.idle();

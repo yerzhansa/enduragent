@@ -34,9 +34,11 @@ export function useCalendarText(): CalendarText {
     duration(seconds) {
       const minutes = Math.round(seconds / 60);
       const hours = Math.floor(minutes / 60);
-      return hours === 0
-        ? say("plan.calendar.duration.minutes", { minutes })
-        : say("plan.calendar.duration.hoursMinutes", { hours, minutes: minutes % 60 });
+      const text =
+        hours === 0
+          ? say("plan.calendar.duration.minutes", { minutes })
+          : say("plan.calendar.duration.hoursMinutes", { hours, minutes: minutes % 60 });
+      return text.replaceAll(" ", "\u00a0");
     },
     dayMonth,
     weekdayDayMonth: (dateKey) =>

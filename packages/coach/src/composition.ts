@@ -1999,11 +1999,11 @@ export async function createLocalCoachComposition(
       todayDateKey: planningDateKey,
       now,
       dateKeyOfMs: dateKeyOfMsIn(() => planningTimezone),
+      applyChange: planChangeOperations["plan_change.apply"],
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
-      changed: () => closing || void drain.kick(),
-      settled: () => drain.idle(),
+      changed: () => (closing ? Promise.resolve() : drain.kick().then(() => drain.idle())),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
     const kickAfter =
