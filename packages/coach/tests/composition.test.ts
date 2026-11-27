@@ -2235,7 +2235,7 @@ describe("local coach composition", () => {
       { kind: "mirror", status: "failed", failure_count: 1 },
     ]);
     await expect(fixture.listPlans()).resolves.toMatchObject({
-      active: { calendar: { status: "failed", error: "Calendar sync failed. Retry available." } },
+      active: { calendar: { status: "not-connected", error: null } },
     });
 
     await expect(fixture.apply(accepted)).resolves.toMatchObject({ status: "applied" });
