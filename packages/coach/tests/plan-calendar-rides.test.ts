@@ -31,7 +31,7 @@ function workoutId(index: number): string {
 function planWorkout(
   index: number,
   dateKey: number,
-  durationS = 3_600,
+  durationS: number | null = 3_600,
   structureJson = "{}",
 ): PlanWorkoutRecord {
   return {
@@ -55,6 +55,7 @@ interface Facts {
   readonly watts?: number;
   readonly heartRate?: number;
   readonly rpe?: number;
+  readonly pairedEventId?: number;
 }
 
 async function harness(
@@ -195,6 +196,7 @@ async function harness(
             ...(facts.watts === undefined ? {} : { average_watts: facts.watts }),
             ...(facts.heartRate === undefined ? {} : { average_heartrate: facts.heartRate }),
             ...(facts.rpe === undefined ? {} : { icu_rpe: facts.rpe }),
+            ...(facts.pairedEventId === undefined ? {} : { paired_event_id: facts.pairedEventId }),
             start_date_local: `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T07:40:00`,
             type: "Ride",
           },
@@ -249,6 +251,35 @@ async function harness(
   };
   const decide = (activityId: string, expected: Expected, decision: Decision) =>
     call({ action: "decide-ride", planId: PLAN_ID, activityId, expected, decision });
+  const onIntervals = (planWorkout: number, dateKey: number, eventId: number) =>
+    createPlanCalendarMirrorRepository(store).writeCopy({
+      planId: PLAN_ID,
+      planWorkoutId: workoutId(planWorkout),
+      dateKey,
+      stateKind: "on-icu",
+      stateJson: encodeIcuCopy({
+        kind: "on-icu",
+        baseline: {
+          eventId,
+          dateKey,
+          planFingerprint: "synthetic",
+          readBack: { fingerprint: "synthetic", updated: "1998-01-01T00:00:00Z" },
+          owner: "plan",
+        },
+      }),
+      lastWrite: { kind: "ok" },
+      updatedAtMs: 1,
+    });
+  const removed = (planWorkout: number, dateKey: number) =>
+    createPlanCalendarMirrorRepository(store).writeCopy({
+      planId: PLAN_ID,
+      planWorkoutId: workoutId(planWorkout),
+      dateKey,
+      stateKind: "removed-by-you",
+      stateJson: encodeIcuCopy({ kind: "removed-by-you" }),
+      lastWrite: { kind: "none" },
+      updatedAtMs: 1,
+    });
   const interleave = (hook: () => Promise<void>) => {
     beforeSessionRead = hook;
   };
@@ -264,6 +295,8 @@ async function harness(
     decide,
     call,
     interleave,
+    onIntervals,
+    removed,
   };
 }
 
@@ -717,5 +750,123 @@ describe("deciding a ride", () => {
       ]),
     ).toEqual([[workoutId(2), B, "confirmed"]]);
     expect(test.changed).not.toHaveBeenCalled();
+  });
+  it("reads a zero-length ride, on a day with a Plan Workout of no length or paired in intervals.icu", async () => {
+    const test = await harness({
+      plan: true,
+      extra: [planWorkout(9, MONDAY + 1, null)],
+    });
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(A, MONDAY + 1, 0, { name: "Manual entry", load: 0 });
+    await test.ride(B, MONDAY, 0, { name: "Paired entry", load: 0, pairedEventId: 777 });
+    const read = await test.rides();
+    expect(read.rides.map((ride) => [ride.activityId, ride.match])).toEqual([
+      [
+        A,
+        {
+          kind: "suggested",
+          planWorkoutId: workoutId(9),
+          name: "Endurance 9",
+          dateKey: MONDAY + 1,
+          durationS: null,
+        },
+      ],
+      [
+        B,
+        expect.objectContaining({
+          kind: "confirmed",
+          planWorkoutId: workoutId(1),
+          by: "intervals",
+        }),
+      ],
+    ]);
+    expect((await test.matches.readForPlan(PLAN_ID)).map((row) => row.activityDurationS)).toEqual([
+      null,
+      null,
+    ]);
+  });
+
+  it("turns down a ride's suggestion when intervals.icu pairs another ride with that workout", async () => {
+    const test = await harness();
+    await test.onIntervals(4, MONDAY + 7, 777);
+    await test.ride(E, MONDAY + 7, 3_400, { name: "Same-day spin", load: 30 });
+    await test.ride(B, MONDAY + 6, 3_600, { name: "Day-early ride", load: 50, pairedEventId: 777 });
+    await test.match(4, E, MONDAY + 7, 3_400, "suggested");
+    const read = await test.rides();
+    expect(read.rides.find((ride) => ride.activityId === E)?.match).toEqual({ kind: "none" });
+    expect(read.rides.find((ride) => ride.activityId === B)?.match).toMatchObject({
+      kind: "confirmed",
+      planWorkoutId: workoutId(4),
+      by: "intervals",
+    });
+    expect(
+      (await test.matches.readForWorkout(workoutId(4))).map((row) => [
+        row.activityId,
+        row.decision,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [E, "rejected"],
+        [B, "confirmed"],
+      ]),
+    );
+    expect(await test.calendarOutcome(4)).toBe("moved");
+  });
+
+  it("moves a pairing intervals.icu moved to another ride, and frees the old ride", async () => {
+    const test = await harness();
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(B, MONDAY, 3_600, { name: "First ride", load: 50 });
+    await test.ride(A, MONDAY, 3_500, { name: "Second ride", load: 45, pairedEventId: 777 });
+    await test.match(1, B, MONDAY, 3_600, "confirmed", "platform");
+    const read = await test.rides();
+    expect(read.rides.find((ride) => ride.activityId === A)?.match).toMatchObject({
+      kind: "confirmed",
+      planWorkoutId: workoutId(1),
+      by: "intervals",
+    });
+    expect(read.rides.find((ride) => ride.activityId === B)?.match).toEqual({ kind: "none" });
+    expect(
+      (await test.matches.readForWorkout(workoutId(1)))
+        .map((row) => [row.activityId, row.source, row.decision])
+        .sort(),
+    ).toEqual([
+      [A, "platform", "confirmed"],
+      [B, "platform", "unpaired"],
+    ]);
+  });
+
+  it("keeps a No on a hand-made match when intervals.icu pairs the ride elsewhere", async () => {
+    const test = await harness({ plan: true, extra: [planWorkout(6, MONDAY)] });
+    await test.onIntervals(1, MONDAY, 777);
+    await test.ride(A, MONDAY, 3_600, { name: "Ride", load: 50, pairedEventId: 777 });
+    await test.match(6, A, MONDAY, 3_600, "confirmed");
+    expect((await test.rides()).rides[0]?.match).toMatchObject({
+      kind: "confirmed",
+      planWorkoutId: workoutId(6),
+      by: "you",
+    });
+    expect(await test.decide(A, confirmed(6), { kind: "extra" })).toMatchObject({
+      status: "ride",
+      ride: { match: { kind: "none" } },
+    });
+    expect((await test.rides()).rides[0]?.match).toEqual({ kind: "none" });
+    expect(
+      (await test.matches.readForWorkout(workoutId(1))).map((row) => [row.source, row.decision]),
+    ).toEqual([["platform", "unpaired"]]);
+    expect(await test.calendarOutcome(1)).toBe("missed");
+  });
+
+  it("never suggests or confirms a workout the athlete removed", async () => {
+    const test = await harness();
+    await test.removed(1, MONDAY);
+    await test.ride(A, MONDAY, 3_600, { name: "Ride on a removed day", load: 50 });
+    expect((await test.rides()).rides[0]?.match).toEqual({ kind: "none" });
+    await test.match(1, A, MONDAY, 3_600, "suggested");
+    expect((await test.rides()).rides[0]?.match).toEqual({ kind: "none" });
+    expect(
+      await test.decide(A, suggested(1), { kind: "confirm", planWorkoutId: workoutId(1) }),
+    ).toEqual({ status: "refused", reason: "match-changed" });
+    expect(await test.calendarOutcome(1)).toBe("removed-by-you");
   });
 });

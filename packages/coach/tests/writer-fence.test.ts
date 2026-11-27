@@ -872,4 +872,58 @@ describe("legacy writer fence", () => {
       { id: matchId, decision: "confirmed" },
     ]);
   });
+  it("answers a Yes on a suggestion another ride took meanwhile as unavailable, and reads again", async () => {
+    const test = await fixture("active");
+    if (test.planId === null) throw new Error("Expected active Plan");
+    const [workout] = await createPlanRepository(test.store).readWorkouts(test.planId);
+    if (workout === undefined) throw new Error("Expected Workout");
+    const matches = createPlanWorkoutMatchRepository(test.store);
+    const suggest = (id: string, activityId: string) =>
+      matches.observe({
+        id,
+        planId: test.planId ?? "",
+        planWorkoutId: workout.id,
+        activityId,
+        providerActivityId: null,
+        providerEventId: null,
+        source: "heuristic",
+        decision: "suggested",
+        activityDateKey: workout.dateKey,
+        activitySport: workout.sport,
+        activityDurationS: workout.durationS,
+        observedAtMs: 100,
+        decidedAtMs: null,
+        deviceId: "fence-test-device",
+        hlcPhysicalMs: 100,
+        hlcCounter: 0,
+      });
+    await suggest("00000000000000000000000003", "a".repeat(64));
+    await suggest("00000000000000000000000004", "b".repeat(64));
+    await matches.decide({
+      id: "00000000000000000000000003",
+      decision: "confirmed",
+      decidedAtMs: 101,
+      deviceId: "fence-test-device",
+      hlcPhysicalMs: 101,
+      hlcCounter: 0,
+    });
+    await expect(
+      test.operations.executePlanTransition?.({
+        transitionId: "PL-T14",
+        commandId: "confirm-taken-match",
+        planId: test.planId,
+        workoutId: workout.id,
+        activityId: "b".repeat(64),
+        decision: "confirm",
+      }),
+    ).resolves.toMatchObject({ status: "rejected", error: { code: "unavailable" } });
+    expect(
+      (await matches.readForWorkout(workout.id)).map((row) => [row.activityId, row.decision]),
+    ).toEqual(
+      expect.arrayContaining([
+        ["a".repeat(64), "confirmed"],
+        ["b".repeat(64), "rejected"],
+      ]),
+    );
+  });
 });

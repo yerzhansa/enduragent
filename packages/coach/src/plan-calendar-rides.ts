@@ -133,9 +133,13 @@ async function refreshSuggestions(
     addCivilDays(plan.startDateKey, plan.totalWeeks * 7 - 1),
   );
   if (endDateKey < startDateKey) return;
+  const copies = await readIcuCopies(createPlanCalendarMirrorRepository(store), plan.id);
+  const workouts = await createLegacyPlanRepository(store).readWorkouts(plan.id);
   await refreshPlanWorkoutMatches({
     planId: plan.id,
-    workouts: await createLegacyPlanRepository(store).readWorkouts(plan.id),
+    workouts: workouts.filter(
+      (workout) => storedIcuCopy(copies.get(workout.id)).kind !== "removed-by-you",
+    ),
     startDateKey,
     endDateKey,
     repository: createPlanWorkoutMatchRepository(store),
@@ -200,6 +204,7 @@ function rideMatch(
     (record) =>
       record.decision === "suggested" &&
       context.workouts.has(record.planWorkoutId) &&
+      !context.removed.has(record.planWorkoutId) &&
       freeFor(context, record.planWorkoutId, activityId),
   );
   const suggestedWorkout =
@@ -368,7 +373,11 @@ function decisionFits(
     case "extra":
       return true;
     case "confirm":
-      return current.kind !== "none" && current.planWorkoutId === decision.planWorkoutId;
+      return (
+        current.kind !== "none" &&
+        current.planWorkoutId === decision.planWorkoutId &&
+        (current.kind === "confirmed" || !context.removed.has(current.planWorkoutId))
+      );
     case "rematch":
       return target !== null && eligible(target, ride, context);
   }
@@ -426,32 +435,26 @@ export async function decideRide(
           hlcCounter: stamp.counter,
         });
       };
-      for (const record of mine) {
-        if (record.planWorkoutId === target?.id) continue;
-        const release = releaseDecision(record);
-        if (release !== null) await decide(record, release);
-      }
-      if (target === null) return null;
-      for (const record of context.records) {
-        if (
-          record.planWorkoutId === target.id &&
-          record.activityId !== request.activityId &&
-          record.decision === "suggested"
-        ) {
-          await decide(record, "rejected");
-        }
-      }
-      if (current === undefined) {
+      const record = (
+        planWorkoutId: string,
+        kind:
+          | { readonly source: "heuristic"; readonly decision: "confirmed" }
+          | {
+              readonly source: "platform";
+              readonly decision: "unpaired";
+              readonly providerActivityId: string;
+              readonly providerEventId: number;
+            },
+      ): PlanWorkoutMatchRecord => {
         const stamp = deps.identity.hlcStamp();
-        const stored = await matches.observe({
+        return {
           id: deps.identity.newUlid(),
           planId: context.plan.id,
-          planWorkoutId: target.id,
+          planWorkoutId,
           activityId: request.activityId,
           providerActivityId: observation.providerActivityId,
           providerEventId: null,
-          source: "heuristic",
-          decision: "confirmed",
+          ...kind,
           activityDateKey: observation.dateKey,
           activitySport: observation.sport,
           activityDurationS:
@@ -463,7 +466,40 @@ export async function decideRide(
           deviceId,
           hlcPhysicalMs: stamp.physicalMs,
           hlcCounter: stamp.counter,
-        });
+        };
+      };
+      for (const row of mine) {
+        if (row.planWorkoutId === target?.id) continue;
+        const release = releaseDecision(row);
+        if (release !== null) await decide(row, release);
+      }
+      const pairedEventId = observation.pairedEventId;
+      const paired =
+        pairedEventId === null
+          ? undefined
+          : (await matches.readProviderIdentities(context.plan.id)).find(
+              (identity) => identity.providerEventId === pairedEventId,
+            );
+      if (
+        pairedEventId !== null &&
+        paired !== undefined &&
+        paired.planWorkoutId !== target?.id &&
+        observation.providerActivityId !== null
+      ) {
+        await matches.observe(
+          record(paired.planWorkoutId, {
+            source: "platform",
+            decision: "unpaired",
+            providerActivityId: observation.providerActivityId,
+            providerEventId: pairedEventId,
+          }),
+        );
+      }
+      if (target === null) return null;
+      if (current === undefined) {
+        const stored = await matches.observe(
+          record(target.id, { source: "heuristic", decision: "confirmed" }),
+        );
         if (stored === null) throw new PlanWorkoutMatchValidationError("already-confirmed");
       } else if (current.decision !== "confirmed") {
         await decide(current, "confirmed");
