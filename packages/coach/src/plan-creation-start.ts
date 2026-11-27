@@ -75,14 +75,23 @@ export function startTimingDetail(
   return `Starts ${formatCivilDate(start)}`;
 }
 
+interface Sequenced {
+  readonly answer: PlanCreationAnswer;
+  readonly record: { readonly sequence: number };
+}
+
 export function startsAfterEvent(
-  answer: PlanCreationAnswer,
-  valid: ReadonlyMap<string, { readonly answer: PlanCreationAnswer }>,
+  start: Sequenced,
+  valid: ReadonlyMap<string, Sequenced>,
   seed: { readonly eventCandidates: readonly GoalEventCandidate[] } | null | undefined,
 ): boolean {
+  const goal = valid.get("goal");
+  const answer = start.answer;
   if (answer.kind !== "start-timing" || answer.timing.kind !== "earliest") return false;
-  const goal = valid.get("goal")?.answer;
+  if (goal === undefined || goal.record.sequence < start.record.sequence) return false;
   const eventDate =
-    goal?.kind === "goal" ? goalEventDate(goal.goal, seed?.eventCandidates ?? []) : null;
+    goal.answer.kind === "goal"
+      ? goalEventDate(goal.answer.goal, seed?.eventCandidates ?? [])
+      : null;
   return eventDate !== null && answer.timing.date > eventDate;
 }

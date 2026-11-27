@@ -712,6 +712,24 @@ describe("Plan Creation operations", () => {
     );
   });
 
+  it("keeps a start given after an event that has already passed", () => {
+    const pastEvent: PlanCreationAnswerInput = {
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date: "1998-08-30" },
+    };
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, pastEvent),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: today } }),
+      ]),
+      { today },
+    );
+    expect(card.openQuestion?.kind).toBe("commitments-question");
+    expect(card.answeredSummaries.map((summary) => summary.answerKey)).toContain("start-timing");
+  });
+
   it("states the start the Draft will use when the first picked week has no day to train", () => {
     const card = projectPlanCreationCard(
       snapshot(

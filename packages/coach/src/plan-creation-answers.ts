@@ -328,7 +328,7 @@ export function resolvePlanCreationAnswerFlow(
       (goalRun?.family !== "fitness" || stored.record.sequence <= goalRun.sequence)
     )
       continue;
-    if (key === "start-timing" && startsAfterEvent(stored.answer, valid, snapshot.seed)) continue;
+    if (key === "start-timing" && startsAfterEvent(stored, valid, snapshot.seed)) continue;
     if (key === "availability") {
       if (
         stored.answer.kind !== "availability" ||
