@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b7381e47",
+  "syncCommit": "a422ada9",
   "fingerprints": {
     "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
     "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
@@ -10,11 +10,11 @@
     "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
     "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "4a7e06e4386d",
     "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "31cc380d4186",
-    "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "931b76f8bbfd",
+    "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "8ee69d264ee5",
     "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7397fbac5c44",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void => #2": "2882b3304fa7",
-    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: follow(coordinator, focusTarget) {": "a0d0dafa37cc",
+    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: follow(coordinator, focusTarget) {": "655c0d0068a1",
     "apps/desktop-renderer/src/intervals-sign-in-health.ts :: const refresh = async (): Promise<void> =>": "baa6d6209480",
     "apps/desktop-renderer/src/training-context/manual-sync.ts :: export function toManualSyncViewState(": "8efb88e44aa0",
     "apps/desktop-renderer/src/training-context/controller.ts :: const fetchState = (): Promise<void> =>": "3ada0a7093a3",
