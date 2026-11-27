@@ -1,5 +1,5 @@
 {
-  "syncCommit": "0fac1bb6",
+  "syncCommit": "2cbc4a56",
   "fingerprints": {
     "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
     "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
@@ -9,10 +9,17 @@
     "packages/coach-client/src/call-timeouts.ts :: getActivityAnalysis:": "8d0063591c78",
     "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
     "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "924ab5a57b8a",
-    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "a9e747946b7c",
+    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "2ca585ecef6d",
     "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "931b76f8bbfd",
-    "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7bf526a88db1",
+    "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "cdde6a8fef43",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
+    "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void => #2": "2882b3304fa7",
+    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: follow(coordinator, focusTarget) {": "002ea5bb8417",
+    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: const refresh = async (): Promise<void> =>": "baa6d6209480",
+    "apps/desktop-renderer/src/training-context/manual-sync.ts :: export function toManualSyncViewState(": "24dd2203dd35",
+    "apps/desktop-renderer/src/training-context/controller.ts :: const fetchState = (): Promise<void> =>": "3ada0a7093a3",
+    "packages/coach/src/operations.ts :: const CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS =": "c2fa4dfec5f0",
+    "packages/coach/src/operations.ts :: const MARGIN_BEFORE_CALLER_DETACHES_MS =": "2892c404dbb6",
     "packages/coach/src/store-runtime.ts :: runWindowAfter(": "1536c39ee5a7",
     "packages/coach/src/store-runtime.ts :: runOutsideWindow<T>(": "6628c524e16b",
     "packages/coach/src/store-runtime.ts :: private admit<T>(": "55088fc79519",
@@ -20,7 +27,7 @@
     "packages/coach/src/store-runtime.ts :: private leave(": "a6b8ed7af4be",
     "packages/coach/src/store-runtime.ts :: private async runScheduledWindow()": "bd0021ebc2f3",
     "packages/coach/src/operations.ts :: sync(request: SyncRpcParams, onEvent)": "4105b109942b",
-    "packages/coach/src/operations.ts :: ): Promise<ConfigureRuntimeRpcResult> {": "dd0599fe647a",
+    "packages/coach/src/operations.ts :: ): Promise<ConfigureRuntimeRpcResult> {": "4dacce5f47e5",
     "packages/coach/src/daemon/rpc-server.ts :: case \"sync\":": "2286ad38789b",
     "packages/coach/src/composition.ts :: pendingOwnerClaim = await assertIntervalsOwner(": "180b55112bf0",
     "apps/desktop/src/main/credential-runtime.ts :: reapplyStoredCredential(slot, value, storedCredentialSlots) {": "2e8ac15b7400",
@@ -28,6 +35,7 @@
     "apps/desktop/src/main/credential-vault.ts :: const reapplyConfigured = async": "c9f90385d551",
     "apps/desktop/src/main/credential-vault.ts :: const retryFailed = async": "b97c38e65c8f",
     "apps/desktop/src/main/credential-vault.ts :: if (shouldClearRuntime) {": "54a20674c22e",
-    "apps/desktop/src/main/index.ts :: await vault.reapplyConfigured();": "272aa6176faf"
+    "apps/desktop/src/main/index.ts :: await vault.reapplyConfigured();": "272aa6176faf",
+    "apps/desktop/src/main/index.ts :: reapplyCredential(slot, value, storedCredentialSlots) {": "ce0e04564169"
   }
 }
