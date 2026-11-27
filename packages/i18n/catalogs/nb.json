@@ -817,6 +817,7 @@
         "connected": "Tilkoblet · der turene dine kommer fra",
         "connectedAs": "Tilkoblet som {{name}} · der turene dine kommer fra",
         "missing": "Koble til eller importer turfiler.",
+        "notWorking": "Pålogget, men fungerer ikke ennå",
         "rejected": "{{intervals}} godtar ikke lenger påloggingen. Logg på igjen for å fortsette synkroniseringen.",
         "savedRides": "Turer lagret på {{computer}} · koble til for å synkronisere nye"
       },

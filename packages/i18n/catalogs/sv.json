@@ -817,6 +817,7 @@
         "connected": "Ansluten · källan till dina cykelturer",
         "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
         "missing": "Anslut eller importera filer från cykelturer.",
+        "notWorking": "Inloggad, men fungerar inte än",
         "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera.",
         "savedRides": "Cykelturer sparade på {{computer}} · anslut för att synkronisera nya"
       },

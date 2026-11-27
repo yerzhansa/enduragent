@@ -823,6 +823,7 @@
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów.",
+        "notWorking": "Zalogowano, ale jeszcze nie działa",
         "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować.",
         "savedRides": "Przejazdy zapisane na {{computer}} · połącz, aby synchronizować nowe"
       },

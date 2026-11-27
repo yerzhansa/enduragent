@@ -817,6 +817,7 @@
         "connected": "Conectado · de donde vienen tus salidas",
         "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas.",
+        "notWorking": "Sesión iniciada, pero aún no funciona",
         "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando.",
         "savedRides": "Salidas guardadas en {{computer}} · conecta para sincronizar las nuevas"
       },

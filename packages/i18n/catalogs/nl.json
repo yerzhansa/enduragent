@@ -817,6 +817,7 @@
         "connected": "Verbonden · de bron van je ritten",
         "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
         "missing": "Verbind of importeer ritbestanden.",
+        "notWorking": "Aangemeld, maar werkt nog niet",
         "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren.",
         "savedRides": "Ritten opgeslagen op {{computer}} · verbind om nieuwe te synchroniseren"
       },

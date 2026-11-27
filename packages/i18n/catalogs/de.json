@@ -817,6 +817,7 @@
         "connected": "Verbunden · Quelle deiner Fahrten",
         "connectedAs": "Verbunden als {{name}} · Quelle deiner Fahrten",
         "missing": "Verbinden oder Fahrtdateien importieren.",
+        "notWorking": "Angemeldet, funktioniert aber noch nicht",
         "rejected": "{{intervals}} akzeptiert die Anmeldung nicht mehr. Melde dich erneut an, damit weiter synchronisiert wird.",
         "savedRides": "Fahrten auf {{computer}} gespeichert · verbinde, um neue zu synchronisieren"
       },

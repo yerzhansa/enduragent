@@ -817,6 +817,7 @@
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja.",
+        "notWorking": "Kirjautunut, mutta ei vielä toimi",
         "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu.",
         "savedRides": "Lenkit tallennettu tietokoneelle {{computer}} · yhdistä, niin uudet synkronoidaan"
       },

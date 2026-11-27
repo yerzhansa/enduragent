@@ -814,6 +814,7 @@
         "connected": "已连接 · 骑行数据来源",
         "connectedAs": "已以 {{name}} 身份连接 · 骑行数据来源",
         "missing": "请连接或导入骑行文件。",
+        "notWorking": "已登录，但尚未生效",
         "rejected": "{{intervals}} 不再接受此登录。请重新登录以继续同步。",
         "savedRides": "骑行已保存在 {{computer}} 上 · 连接后可同步新的骑行"
       },
