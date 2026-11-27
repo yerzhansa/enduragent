@@ -42,9 +42,7 @@ const ChangeRowSchema = z.object({
 const EnvelopeSchema = z.object({
   title: z.string(),
   intent: z.unknown(),
-  diff: z.array(
-    z.object({ workoutId: z.string(), before: z.unknown(), after: z.unknown() }),
-  ),
+  diff: z.array(z.object({ workoutId: z.string(), before: z.unknown(), after: z.unknown() })),
 });
 
 const KeepIntentSchema = z.object({
