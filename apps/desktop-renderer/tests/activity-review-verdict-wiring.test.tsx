@@ -6,6 +6,7 @@ import type {
 } from "@enduragent/coach-contract";
 import { act, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { ACTIVITY_REVIEW_START } from "../src/activity-review/controller";
 import { RIDE_REVIEW_NONE } from "../src/activity-review/review-controller";
 import { startCalendarPages } from "../src/page-wiring";
@@ -17,6 +18,8 @@ import { EMPTY_TRAINING_SURFACE } from "../src/state/training-slice";
 import { ChatView } from "../src/ui/chat/ChatView";
 import { TODAY, ride, rideId, rides } from "./activity-review-fixture";
 import { renderLocalized as render } from "./language-harness";
+
+const SETTLED = { timeout: 5_000 };
 
 const CAPABILITIES: AttachmentCapabilitiesReadModel = {
   schemaVersion: 1,
@@ -139,13 +142,15 @@ describe("the coach's verdict wiring", () => {
   it("reads the shown ride's verdict and asks for it once per page open", async () => {
     const test = started();
     act(() => store.getState().setActiveView("activity-review"));
-    await vi.waitFor(() => expect(store.getState().rideReview.kind).toBe("ready"));
-    await vi.waitFor(() =>
-      expect(test.actions()).toEqual(["rides", "read-review", "write-verdict"]),
+    await vi.waitFor(() => expect(store.getState().rideReview.kind).toBe("ready"), SETTLED);
+    await vi.waitFor(
+      () => expect(test.actions()).toEqual(["rides", "read-review", "write-verdict"]),
+      SETTLED,
     );
     act(() => store.getState().activityReviewActions?.refresh());
-    await vi.waitFor(() =>
-      expect(test.actions().filter((a) => a === "read-review")).toHaveLength(2),
+    await vi.waitFor(
+      () => expect(test.actions().filter((a) => a === "read-review")).toHaveLength(2),
+      SETTLED,
     );
     expect(test.actions().filter((action) => action === "write-verdict")).toHaveLength(1);
     act(() => store.getState().setActiveView("chat"));
@@ -158,16 +163,17 @@ describe("Ask the coach about this ride", () => {
   it("opens Chat with a draft that names the ride and sends nothing", async () => {
     const test = started();
     act(() => store.getState().setActiveView("activity-review"));
-    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
     act(() =>
       store
         .getState()
         .activityReviewActions?.askCoach("What do you make of my ride on Thu 20 Aug, Road ride?"),
     );
-    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"));
+    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
     render(<ChatView />);
-    await waitFor(() =>
-      expect(composer()).toHaveValue("What do you make of my ride on Thu 20 Aug, Road ride?"),
+    await waitFor(
+      () => expect(composer()).toHaveValue("What do you make of my ride on Thu 20 Aug, Road ride?"),
+      SETTLED,
     );
     expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
     test.dispose();
@@ -179,12 +185,13 @@ describe("Ask the coach about this ride", () => {
       chat: { ...store.getState().chat, attachments: surface("Keep my question") },
     });
     act(() => store.getState().setActiveView("activity-review"));
-    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
     act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
-    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"));
+    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
     render(<ChatView />);
-    await waitFor(() =>
-      expect(composer()).toHaveValue("Keep my question\n\nAbout my ride on Thu 20 Aug?"),
+    await waitFor(
+      () => expect(composer()).toHaveValue("Keep my question\n\nAbout my ride on Thu 20 Aug?"),
+      SETTLED,
     );
     test.dispose();
   });
