@@ -994,7 +994,7 @@ describe("chat surface", () => {
         await user.click(trigger);
         const dialog = screen.getByRole("dialog", { name: "Training context" });
 
-        expect(dialog.contains(document.activeElement)).toBe(true);
+        await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
         await user.tab();
         await user.tab();
         await user.tab({ shift: true });
@@ -1004,7 +1004,7 @@ describe("chat surface", () => {
         await user.keyboard("{Escape}");
 
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-        expect(trigger).toHaveFocus();
+        await waitFor(() => expect(trigger).toHaveFocus());
         expect(actions.skipDecision).not.toHaveBeenCalled();
       } finally {
         vi.unstubAllGlobals();
