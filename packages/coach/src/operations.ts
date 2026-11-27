@@ -369,6 +369,7 @@ export function createCoachOperations(
             offeredIntervalsCredential = parsedRequest.intervals.api_key;
           }
           const refusal = await input.applyRuntimeConfig(parsedRequest, signal);
+          releaseWindow?.();
           if (refusal === undefined && parsedRequest.intervals?.clear_credential === true) {
             offeredIntervalsCredential = "";
           }
