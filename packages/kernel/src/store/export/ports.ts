@@ -117,6 +117,7 @@ export const PURE_AUTHORED_TABLES = [
   "planning_request",
   "planning_request_terminal_result",
   "planning_request_tombstone",
+  "activity_review",
 ] as const;
 
 export const MIXED_AUTHORED_TABLES = [
