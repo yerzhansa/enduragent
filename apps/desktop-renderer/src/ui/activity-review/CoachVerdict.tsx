@@ -1,12 +1,10 @@
-import type { PlanCalendarVerdict } from "@enduragent/coach-contract";
+import type { PlanCalendarEarlierVerdict } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button, cn } from "@enduragent/ui";
 import type { ReactElement, ReactNode } from "react";
 import type { RideReviewState } from "../../activity-review/review-controller";
 import type { ActivityReviewActions } from "../../state/activity-review-slice";
-import { useReviewText } from "./review-text";
-
-type Kept = Extract<PlanCalendarVerdict, { state: "kept" }>;
+import { useVerdictMeta, type VerdictDays, type VerdictMetaFacts } from "./verdict-meta";
 
 function Frame(props: { readonly children: ReactNode }): ReactElement {
   const { say } = usePhrasebook();
@@ -22,46 +20,6 @@ function Frame(props: { readonly children: ReactNode }): ReactElement {
       {props.children}
     </section>
   );
-}
-
-function useMeta(): (verdict: Kept, replies: number) => string {
-  const { say } = usePhrasebook();
-  const text = useReviewText();
-  const written = (verdict: Kept, replies: number, time: string): string => {
-    switch (verdict.marker.kind) {
-      case "matched-to":
-        return say("activity.review.verdict.before.workout", { name: verdict.marker.name });
-      case "matched-extra":
-        return say("activity.review.verdict.before.extra");
-      case "match-pending":
-        return say("activity.review.verdict.before.pending");
-      case "current":
-        break;
-    }
-    switch (verdict.trigger) {
-      case "matched":
-        return say("activity.review.verdict.written.matched", { time });
-      case "opened":
-        return replies <= 1
-          ? say("activity.review.verdict.written.firstOpen", { time })
-          : say("activity.review.verdict.written.opened", { time });
-      case "asked":
-        return verdict.usedNote
-          ? say("activity.review.verdict.written.askedNote", { time })
-          : say("activity.review.verdict.written.asked", { time });
-    }
-  };
-  return (verdict, replies) => {
-    const time = text.clock(verdict.writtenAtMs);
-    const count = say("activity.review.verdict.replies", { count: replies });
-    if (!verdict.usedPlan && verdict.marker.kind === "current") {
-      return say("activity.review.verdict.metaNoPlan", { time, replies: count });
-    }
-    return say("activity.review.verdict.meta", {
-      written: written(verdict, replies, time),
-      replies: count,
-    });
-  };
 }
 
 function WriteAgain(props: {
@@ -81,6 +39,38 @@ function WriteAgain(props: {
   );
 }
 
+function Meta(props: {
+  readonly verdict: VerdictMetaFacts;
+  readonly replies: number;
+  readonly days: VerdictDays;
+}): ReactElement {
+  const meta = useVerdictMeta();
+  return (
+    <span
+      className={cn(
+        "min-w-60 flex-1 text-xs",
+        props.verdict.marker.kind === "current" ? "text-ink-2" : "text-warn",
+      )}
+    >
+      {meta(props.verdict, props.replies, props.days)}
+    </span>
+  );
+}
+
+function Earlier(props: {
+  readonly earlier: PlanCalendarEarlierVerdict;
+  readonly days: VerdictDays;
+}): ReactElement {
+  return (
+    <div className="flex flex-col gap-2 border-t border-line pt-2.5" data-earlier-verdict="">
+      <p className="m-0 text-lg leading-relaxed whitespace-pre-line">{props.earlier.text}</p>
+      <div className="flex">
+        <Meta verdict={props.earlier} replies={props.earlier.replies} days={props.days} />
+      </div>
+    </div>
+  );
+}
+
 function AskFailed(props: { readonly failed: boolean }): ReactElement | null {
   const { say } = usePhrasebook();
   if (!props.failed) return null;
@@ -93,10 +83,10 @@ function AskFailed(props: { readonly failed: boolean }): ReactElement | null {
 
 export function CoachVerdict(props: {
   readonly state: RideReviewState;
+  readonly days: VerdictDays;
   readonly actions: ActivityReviewActions | null;
 }): ReactElement | null {
   const { say } = usePhrasebook();
-  const meta = useMeta();
   const state = props.state;
   if (state.kind === "none" || state.kind === "loading") return null;
   if (state.kind === "unavailable") {
@@ -122,14 +112,7 @@ export function CoachVerdict(props: {
       <Frame>
         <p className="m-0 text-lg leading-relaxed whitespace-pre-line">{verdict.text}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={cn(
-              "min-w-60 flex-1 text-xs",
-              verdict.marker.kind === "current" ? "text-ink-2" : "text-warn",
-            )}
-          >
-            {meta(verdict, review.replies)}
-          </span>
+          <Meta verdict={verdict} replies={review.replies} days={props.days} />
           {canWrite ? <WriteAgain busy={busy} actions={props.actions} /> : null}
         </div>
         <AskFailed failed={state.asking === "failed"} />
@@ -157,6 +140,7 @@ export function CoachVerdict(props: {
           </div>
         ) : null}
         <AskFailed failed={state.asking === "failed"} />
+        {verdict.earlier === null ? null : <Earlier earlier={verdict.earlier} days={props.days} />}
       </Frame>
     );
   }

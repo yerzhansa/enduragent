@@ -136,7 +136,7 @@ describe("the coach's verdict on Activity review", () => {
   it("keeps the meta line short for a ride with no Plan", () => {
     show(
       reviewed({ verdict: kept({ usedPlan: false }) }),
-      rides([ride("b", 19980822, { name: "Café ride" })], null),
+      rides([ride("b", 19980819, { name: "Café ride" })], null),
     );
     render(<ActivityReviewView />);
     expect(verdict()).toHaveTextContent("Written at 7:58 AM · 1 coach reply");
@@ -157,13 +157,87 @@ describe("the coach's verdict on Activity review", () => {
     const view = render(<ActivityReviewView />);
     expect(within(verdict()).getByRole("status")).toHaveTextContent("Writing the coach’s verdict…");
     expect(within(verdict()).queryByRole("button")).toBeNull();
-    show(reviewed({ verdict: { state: "failed" } }), matched(), bound);
+    show(
+      reviewed({ verdict: { state: "failed", failedBy: "model", earlier: null } }),
+      matched(),
+      bound,
+    );
     view.rerender(<ActivityReviewView />);
     expect(within(verdict()).getByRole("alert")).toHaveTextContent(
       "The coach could not write its verdict this time, so nothing was kept.",
     );
     await user.click(within(verdict()).getByRole("button", { name: "Write again · 1 reply" }));
     expect(bound.writeAgain).toHaveBeenCalledOnce();
+  });
+
+  it("dates the meta line when it was written on another day, with the year only when it differs", () => {
+    show(reviewed({ verdict: kept({ writtenAtMs: new Date(1998, 7, 26, 10, 22).getTime() }) }));
+    const view = render(<ActivityReviewView />);
+    expect(verdict()).toHaveTextContent(
+      "Written on Wed 26 Aug at 10:22 AM, when you first opened this ride, from its file and your Plan · 1 coach reply · kept",
+    );
+    show(
+      reviewed({
+        verdict: kept({
+          writtenAtMs: new Date(1998, 7, 26, 10, 22).getTime(),
+          trigger: "asked",
+          usedNote: true,
+        }),
+        replies: 2,
+      }),
+      rides(matched().rides, { weeks: 4 }, 19990110),
+    );
+    view.rerender(<ActivityReviewView />);
+    expect(verdict()).toHaveTextContent(
+      "Written on Wed 26 Aug 1998 at 10:22 AM, when you asked again, from its file, your Plan and your note · 2 coach replies · kept",
+    );
+  });
+
+  it("keeps the earlier verdict under the failure line when Write again fails", async () => {
+    const user = userEvent.setup();
+    const earlier = {
+      text: "Three reps on target and the fourth stopped at 6 minutes.",
+      writtenAtMs: WRITTEN_AT,
+      trigger: "opened" as const,
+      usedPlan: true,
+      usedNote: false,
+      marker: { kind: "current" as const },
+      replies: 1,
+    };
+    const bound = show(
+      reviewed({ verdict: { state: "failed", failedBy: "model", earlier }, replies: 2 }),
+    );
+    const view = render(<ActivityReviewView />);
+    const section = verdict();
+    expect(section).toHaveTextContent(
+      "The coach could not write its verdict this time, so nothing was kept.",
+    );
+    const kept = section.querySelector("[data-earlier-verdict]");
+    expect(kept).toHaveTextContent("Three reps on target and the fourth stopped at 6 minutes.");
+    expect(kept).toHaveTextContent(
+      "Written at 7:58 AM, when you first opened this ride, from its file and your Plan · 1 coach reply · kept",
+    );
+    expect(section.textContent?.indexOf("could not write")).toBeLessThan(
+      section.textContent?.indexOf("Three reps") ?? 0,
+    );
+    await user.click(within(section).getByRole("button", { name: "Write again · 1 reply" }));
+    expect(bound.writeAgain).toHaveBeenCalledOnce();
+    show(
+      reviewed({
+        verdict: {
+          state: "failed",
+          failedBy: "model",
+          earlier: { ...earlier, marker: { kind: "matched-to", name: "Easy endurance" } },
+        },
+        replies: 2,
+      }),
+      matched(),
+      bound,
+    );
+    view.rerender(<ActivityReviewView />);
+    expect(verdict().querySelector("[data-earlier-verdict]")).toHaveTextContent(
+      "Written before you matched this ride to Easy endurance · 1 coach reply · kept",
+    );
   });
 
   it("says why there is no verdict when no model is set up or the ride has no file", () => {
@@ -223,6 +297,45 @@ describe("the coach's verdict on Activity review", () => {
     expect(screen.getByRole("textbox", { name: "Your note" })).toHaveValue(
       "Legs heavy after Tuesday.",
     );
+  });
+
+  it("clears Note saved as soon as the athlete edits the note again", async () => {
+    const user = userEvent.setup();
+    show(
+      reviewed(
+        { note: { text: "Legs heavy after Tuesday.", savedAtMs: WRITTEN_AT } },
+        { note: "saved" },
+      ),
+    );
+    render(<ActivityReviewView />);
+    expect(screen.getByText("Note saved.")).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Your note" }), " And tired.");
+    expect(screen.queryByText("Note saved.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Save note" })).toBeEnabled();
+  });
+
+  it("picks up a note saved elsewhere unless the athlete has unsaved edits", async () => {
+    const user = userEvent.setup();
+    const bound = show(reviewed({ note: { text: "First note.", savedAtMs: WRITTEN_AT } }));
+    const view = render(<ActivityReviewView />);
+    const note = () => screen.getByRole("textbox", { name: "Your note" });
+    expect(note()).toHaveValue("First note.");
+    show(
+      reviewed({ note: { text: "Saved in another window.", savedAtMs: WRITTEN_AT + 1 } }),
+      matched(),
+      bound,
+    );
+    view.rerender(<ActivityReviewView />);
+    expect(note()).toHaveValue("Saved in another window.");
+    await user.clear(note());
+    await user.type(note(), "My unsaved edit.");
+    show(
+      reviewed({ note: { text: "Saved again elsewhere.", savedAtMs: WRITTEN_AT + 2 } }),
+      matched(),
+      bound,
+    );
+    view.rerender(<ActivityReviewView />);
+    expect(note()).toHaveValue("My unsaved edit.");
   });
 
   it("asks the coach about the ride with a draft that names it", async () => {

@@ -115,7 +115,10 @@ describe("the coach's verdict controller", () => {
     const test = harness({
       read: () => answer(state),
       write: () => {
-        state = review({ verdict: { state: "failed" }, replies: 1 });
+        state = review({
+          verdict: { state: "failed", failedBy: "model", earlier: null },
+          replies: 1,
+        });
         return answer(state);
       },
     });
@@ -126,10 +129,26 @@ describe("the coach's verdict controller", () => {
     expect(test.last()).toMatchObject({ review: { verdict: { state: "failed" } } });
   });
 
-  it("writes a failed verdict again when the athlete opens the ride again", async () => {
-    const failed = review({ verdict: { state: "failed" }, replies: 1 });
+  it("sends no write on open after a model failure, and shows the failure", async () => {
+    const failed = review({
+      verdict: { state: "failed", failedBy: "model", earlier: null },
+      replies: 1,
+    });
+    const test = harness({ read: () => answer(failed) });
+    await test.controller.show(RIDE);
+    await test.controller.show(OTHER);
+    await test.controller.show(RIDE);
+    expect(test.calls).toEqual(["read:a", "read:b", "read:a"]);
+    expect(test.last()).toMatchObject({ kind: "ready", review: failed });
+  });
+
+  it("writes an interrupted verdict again when the athlete opens the ride again", async () => {
+    const interrupted = review({
+      verdict: { state: "failed", failedBy: "interrupted", earlier: null },
+      replies: 1,
+    });
     const test = harness({
-      read: () => answer(failed),
+      read: () => answer(interrupted),
       write: () => answer(review({ verdict: { state: "writing" }, replies: 2 })),
     });
     await test.controller.show(RIDE);

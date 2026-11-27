@@ -56,9 +56,11 @@ function expectedOf(review: PlanCalendarRideReview): PlanCalendarVerdictExpected
 }
 
 function opensWrite(review: PlanCalendarRideReview): boolean {
+  const verdict = review.verdict;
   return (
     review.blocked === "none" &&
-    (review.verdict.state === "not-written" || review.verdict.state === "failed")
+    (verdict.state === "not-written" ||
+      (verdict.state === "failed" && verdict.failedBy === "interrupted"))
   );
 }
 

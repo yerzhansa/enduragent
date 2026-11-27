@@ -313,7 +313,11 @@ export function RideDetail(props: {
         <h2 className="m-0 text-xl font-semibold">{text.rideName(props.ride)}</h2>
       </header>
       <MatchSection {...props} />
-      <CoachVerdict state={props.review} actions={props.actions} />
+      <CoachVerdict
+        state={props.review}
+        days={{ rideDateKey: props.ride.dateKey, todayDateKey: props.read.todayDateKey }}
+        actions={props.actions}
+      />
       <Stats ride={props.ride} />
       <RideNote state={props.review} actions={props.actions} />
     </article>

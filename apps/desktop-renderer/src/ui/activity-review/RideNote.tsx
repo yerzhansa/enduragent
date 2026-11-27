@@ -40,8 +40,14 @@ function NoteField(props: {
   const { say } = usePhrasebook();
   const id = useId();
   const saved = props.state.review.note?.text ?? "";
+  const [base, setBase] = useState(saved);
   const [draft, setDraft] = useState(saved);
+  if (saved !== base) {
+    setBase(saved);
+    if (draft === base) setDraft(saved);
+  }
   const unchanged = draft.trim() === saved;
+  const status = props.state.note === "saved" && !unchanged ? "idle" : props.state.note;
   return (
     <div className="flex flex-col gap-1.5" data-ride-note="">
       <label htmlFor={id} className="text-sm font-semibold">
@@ -70,7 +76,7 @@ function NoteField(props: {
         >
           {say("activity.review.note.save")}
         </Button>
-        <NoteStatus note={props.state.note} />
+        <NoteStatus note={status} />
       </div>
     </div>
   );

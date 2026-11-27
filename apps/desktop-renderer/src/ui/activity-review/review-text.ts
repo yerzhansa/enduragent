@@ -1,6 +1,7 @@
 import type { PlanCalendarRide } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useCalendarText, type CalendarText } from "../calendar/calendar-text";
+import { usePlanDate } from "../plan/plan-date";
 
 export interface ReviewText extends CalendarText {
   rideName(ride: PlanCalendarRide): string;
@@ -13,11 +14,13 @@ export interface ReviewText extends CalendarText {
   exertion(value: number | null): string;
   load(value: number): string;
   clock(ms: number): string;
+  writtenDay(dateKey: number, withYear: boolean): string;
 }
 
 export function useReviewText(): ReviewText {
   const { say, format } = usePhrasebook();
   const text = useCalendarText();
+  const planDate = usePlanDate();
   const rideKind = (ride: PlanCalendarRide): string => {
     switch (ride.kind) {
       case "road":
@@ -87,5 +90,14 @@ export function useReviewText(): ReviewText {
           }),
     load: (value) => format.number(value, { maximumFractionDigits: 0 }),
     clock: (ms) => format.date(new Date(ms), { hour: "numeric", minute: "2-digit" }),
+    writtenDay: (dateKey, withYear) => {
+      const day = String(dateKey).padStart(8, "0");
+      return planDate(`${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        ...(withYear ? { year: "numeric" } : {}),
+      });
+    },
   };
 }
