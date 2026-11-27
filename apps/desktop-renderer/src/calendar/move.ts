@@ -79,10 +79,10 @@ export function movePreview(
   const swapped =
     swap && canSwap ? clash.reduce((total, entry) => total + (entry.durationS ?? 0), 0) : 0;
   const sent = workout.copy.kind === "on-intervals" || workout.copy.kind === "moving-by-you";
-  const targetSent =
-    to !== undefined && (to.status.kind === "on-intervals" || to.status.kind === "due");
+  const out = to !== undefined && (to.status.kind === "on-intervals" || to.status.kind === "due");
+  const inWindow = out || to?.status.kind === "waiting-for-week-approve";
   const where =
-    read.calendarConnected && targetSent
+    (sent && inWindow) || (read.calendarConnected && out)
       ? ({ kind: "goes" } as const)
       : sent && to !== undefined
         ? ({ kind: "leaves", week: to.index } as const)

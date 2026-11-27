@@ -35,10 +35,13 @@ function failure(
   say: Say,
 ): string {
   switch (state.reason) {
-    case "card-open":
-      return say("plan.calendar.move.cardOpen", {
-        day: text.weekdayDayMonth(preview.toDateKey),
-      });
+    case "card-open": {
+      const opened =
+        [preview.workout, ...preview.clash].find(
+          (entry) => entry.copy.kind === "changed-in-intervals",
+        ) ?? preview.workout;
+      return say("plan.calendar.move.cardOpen", { day: text.weekdayDayMonth(opened.dateKey) });
+    }
     case "refused":
       return say("plan.calendar.move.refused");
     case "not-movable":

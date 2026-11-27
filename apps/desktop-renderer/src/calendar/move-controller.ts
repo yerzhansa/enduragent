@@ -20,7 +20,7 @@ export const MOVE_DIALOG_CLOSED: MoveDialogState = Object.freeze({ kind: "closed
 export interface MoveController {
   request(planId: string, workoutId: string, toDateKey: number, swap: boolean): void;
   setSwap(swap: boolean): void;
-  confirm(): Promise<void>;
+  confirm(canSwap: boolean): Promise<void>;
   cancel(): void;
 }
 
@@ -70,13 +70,13 @@ export function createMoveController(deps: {
         swap,
       });
     },
-    async confirm() {
+    async confirm(canSwap) {
       if (state.kind !== "open" && state.kind !== "failed") return;
       const target: MoveTarget = {
         planId: state.planId,
         workoutId: state.workoutId,
         toDateKey: state.toDateKey,
-        swap: state.swap,
+        swap: state.swap && canSwap,
       };
       publish({ kind: "moving", ...target });
       let result: PlanCalendarRpcResult;

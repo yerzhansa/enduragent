@@ -219,7 +219,7 @@ function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | n
       state={state}
       preview={preview}
       onSwap={(swap) => actions?.setSwap(swap)}
-      onMove={() => actions?.confirm()}
+      onMove={() => actions?.confirm(preview.canSwap)}
       onCancel={() => actions?.cancel()}
     />
   );

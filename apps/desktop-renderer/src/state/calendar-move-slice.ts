@@ -5,7 +5,7 @@ import type { EnduragentState } from "./store";
 export interface CalendarMoveActions {
   request(planId: string, workoutId: string, toDateKey: number, swap: boolean): void;
   setSwap(swap: boolean): void;
-  confirm(): void;
+  confirm(canSwap: boolean): void;
   cancel(): void;
 }
 

@@ -1,4 +1,4 @@
-import type { PlanCalendarRpcResult } from "@enduragent/coach-contract";
+import type { PlanCalendarRpcResult, PlanCalendarWeekStatus } from "@enduragent/coach-contract";
 import { describe, expect, it, vi } from "vitest";
 import { canDropOn, movePreview } from "../src/calendar/move";
 import { createMoveController, type MoveDialogState } from "../src/calendar/move-controller";
@@ -97,6 +97,72 @@ function harness(reply: PlanCalendarRpcResult | Error) {
   return { controller, states, refresh, call, last: () => states.at(-1) };
 }
 
+describe("what the move dialog says happens on intervals.icu", () => {
+  function withWeek2(status: PlanCalendarWeekStatus, calendarConnected = true) {
+    const read = moving();
+    const planned = read.plan;
+    if (planned === null) throw new Error("fixture");
+    return {
+      ...read,
+      calendarConnected,
+      plan: {
+        ...planned,
+        weeks: planned.weeks.map((entry) => (entry.index === 2 ? { ...entry, status } : entry)),
+      },
+    };
+  }
+
+  it.each([
+    [
+      "a sent workout into a week waiting for its Approve",
+      { kind: "waiting-for-week-approve" },
+      true,
+      1,
+      { kind: "goes" },
+    ],
+    [
+      "a sent workout while intervals.icu is not connected",
+      { kind: "on-intervals" },
+      false,
+      1,
+      { kind: "goes" },
+    ],
+    [
+      "a sent workout into a week that has not gone out",
+      { kind: "goes-out", onDateKey: 19980119 },
+      true,
+      1,
+      { kind: "leaves", week: 2 },
+    ],
+    [
+      "a sent workout into a week that waits to be approved later",
+      { kind: "approve-from", onDateKey: 19980119 },
+      true,
+      1,
+      { kind: "leaves", week: 2 },
+    ],
+    [
+      "a Plan only workout into a week waiting for its Approve",
+      { kind: "waiting-for-week-approve" },
+      true,
+      4,
+      { kind: "plan-only" },
+    ],
+    ["a Plan only workout into a sent week", { kind: "on-intervals" }, true, 4, { kind: "goes" }],
+    [
+      "a Plan only workout while intervals.icu is not connected",
+      { kind: "on-intervals" },
+      false,
+      4,
+      { kind: "plan-only" },
+    ],
+  ] as const)("says it right for %s", (_name, status, connected, index, where) => {
+    expect(
+      movePreview(withWeek2(status, connected), workoutId(index), 19980122, false)?.where,
+    ).toEqual(where);
+  });
+});
+
 describe("the move dialog controller", () => {
   it("opens with Swap chosen, sends the move, then closes and refreshes", async () => {
     const test = harness({ status: "moved" });
@@ -109,7 +175,7 @@ describe("the move dialog controller", () => {
       swap: true,
     });
     test.controller.setSwap(false);
-    await test.controller.confirm();
+    await test.controller.confirm(true);
     expect(test.call).toHaveBeenCalledWith({
       action: "move-workout",
       planId: PLAN_ID,
@@ -132,11 +198,20 @@ describe("the move dialog controller", () => {
     async (reply, reason) => {
       const test = harness(reply);
       test.controller.request(PLAN_ID, workoutId(1), 19980117, true);
-      await test.controller.confirm();
+      await test.controller.confirm(true);
       expect(test.last()).toMatchObject({ kind: "failed", reason, workoutId: workoutId(1) });
       expect(test.refresh).toHaveBeenCalledOnce();
     },
   );
+
+  it("sends Keep both when Swap is no longer possible, even after a failure", async () => {
+    const test = harness({ status: "refused", reason: "workout-not-movable" });
+    test.controller.request(PLAN_ID, workoutId(1), 19980117, true);
+    await test.controller.confirm(true);
+    expect(test.last()).toMatchObject({ kind: "failed", swap: true });
+    await test.controller.confirm(false);
+    expect(test.call).toHaveBeenLastCalledWith(expect.objectContaining({ swap: false }));
+  });
 
   it("ignores Cancel and a new drop while the move is being saved", async () => {
     let answer: (value: PlanCalendarRpcResult) => void = () => undefined;
@@ -150,7 +225,7 @@ describe("the move dialog controller", () => {
       publish: (state) => states.push(state),
     });
     controller.request(PLAN_ID, workoutId(1), 19980117, true);
-    const saving = controller.confirm();
+    const saving = controller.confirm(true);
     controller.cancel();
     controller.request(PLAN_ID, workoutId(2), 19980118, true);
     expect(states.at(-1)).toMatchObject({ kind: "moving", workoutId: workoutId(1) });

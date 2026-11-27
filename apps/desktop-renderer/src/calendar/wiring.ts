@@ -81,7 +81,7 @@ export function startCalendar(
     request: (planId, workoutId, toDateKey, swap) =>
       move.request(planId, workoutId, toDateKey, swap),
     setSwap: (swap) => move.setSwap(swap),
-    confirm: () => void move.confirm(),
+    confirm: (canSwap) => void move.confirm(canSwap),
     cancel: () => move.cancel(),
   });
   store.getState().bindCalendarSettingsActions({

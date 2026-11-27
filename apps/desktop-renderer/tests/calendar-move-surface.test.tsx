@@ -1,4 +1,5 @@
 import { renderLocalized as render } from "./language-harness";
+import type { PlanCalendarWorkout } from "@enduragent/coach-contract";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +13,7 @@ import { calendarRead, PLAN_ID, plan, week, workout, workoutId } from "./calenda
 const MONDAY = 19980112;
 const TODAY = 19980113;
 
-function read() {
+function read(recovery: Partial<PlanCalendarWorkout> = {}) {
   return calendarRead(
     TODAY,
     plan(
@@ -20,7 +21,12 @@ function read() {
       [week(1, MONDAY, { plannedS: 9_900 }), week(2, 19980119, { plannedS: 3_600 })],
       [
         workout(1, 19980114, { name: "Long endurance", movable: true, durationS: 5_400 }),
-        workout(2, 19980117, { name: "Recovery spin", movable: true, durationS: 2_700 }),
+        workout(2, 19980117, {
+          name: "Recovery spin",
+          movable: true,
+          durationS: 2_700,
+          ...recovery,
+        }),
         workout(3, 19980112, { name: "Done ride", movable: false }),
         workout(4, 19980120, {
           name: "Endurance",
@@ -31,7 +37,7 @@ function read() {
   );
 }
 
-function show(move: MoveDialogState = MOVE_DIALOG_CLOSED) {
+function show(move: MoveDialogState = MOVE_DIALOG_CLOSED, calendar = read()) {
   const actions: CalendarMoveActions = {
     request: vi.fn(),
     setSwap: vi.fn(),
@@ -42,7 +48,7 @@ function show(move: MoveDialogState = MOVE_DIALOG_CLOSED) {
     useEnduragentStore.setState({
       calendar: {
         kind: "ready",
-        read: read(),
+        read: calendar,
         range: { firstRowStart: MONDAY, rowCount: 2 },
         refresh: "idle",
       },
@@ -150,7 +156,7 @@ describe("moving a workout on the Calendar", () => {
   });
 
   it.each([
-    ["card-open", "Fri 16 Jan was changed in intervals.icu. Keep or Put back first, then move it."],
+    ["card-open", "Wed 14 Jan was changed in intervals.icu. Keep or Put back first, then move it."],
     ["refused", "The Plan could not take this move, so nothing moved."],
     ["not-movable", "This workout can’t move to that day, so nothing moved."],
     ["unavailable", "The app did not answer, so nothing moved. Try again."],
@@ -167,6 +173,32 @@ describe("moving a workout on the Calendar", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("alert")).toHaveTextContent(message);
     expect(within(dialog).getByRole("button", { name: "Move" })).toBeEnabled();
+  });
+
+  it("names the day whose card opened when a swap partner was changed in intervals.icu", () => {
+    show(
+      {
+        kind: "failed",
+        reason: "card-open",
+        planId: PLAN_ID,
+        workoutId: workoutId(1),
+        toDateKey: 19980117,
+        swap: true,
+      },
+      read({
+        copy: {
+          kind: "changed-in-intervals",
+          change: "edited",
+          toDateKey: null,
+          name: null,
+          durationS: 1_800,
+        },
+      }),
+    );
+    render(<CalendarView />);
+    expect(within(screen.getByRole("dialog")).getByRole("alert")).toHaveTextContent(
+      "Sat 17 Jan was changed in intervals.icu. Keep or Put back first, then move it.",
+    );
   });
 
   it("locks the dialog while the move is saved", () => {
