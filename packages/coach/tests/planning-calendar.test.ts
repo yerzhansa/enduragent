@@ -2,6 +2,7 @@ import { IntervalsClient, type Event, type EventInput } from "intervals-icu-api"
 import { describe, expect, it, vi, onTestFinished } from "vitest";
 import type { PlanCreationAnswerInput } from "@enduragent/coach-contract";
 import { reconcileActivePlanWindow } from "@enduragent/engine";
+import { trainingWeek } from "@enduragent/engine/calendar";
 import {
   createPlanCreationRepository,
   createPlanRepository,
@@ -13,6 +14,7 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCalendarDrain } from "../src/plan-calendar-drain.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
+import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanMirrorCalendarAdapter } from "../src/planning-calendar.js";
 
 async function activateSyntheticPlan() {
@@ -180,6 +182,15 @@ function intervalsCalendarAsMeasured() {
     events.push(event);
     return { ok: true, value: event };
   });
+  vi.spyOn(client.events, "get").mockImplementation(async (id) => {
+    const event = events.find((row) => row.id === id);
+    return event === undefined
+      ? {
+          ok: false as const,
+          error: { kind: "NotFound" as const, status: 404 as const, body: null },
+        }
+      : { ok: true as const, value: event };
+  });
   const update = vi.spyOn(client.events, "update").mockImplementation(async (id, body) => {
     const index = events.findIndex((event) => event.id === id);
     const current = events[index];
@@ -331,6 +342,11 @@ describe("Plan Intervals calendar adapter", () => {
       now,
       logger: { warn: vi.fn() },
     });
+    await createPlanCalendarOperations({ store, todayDateKey: () => today, now })["plan.calendar"]({
+      action: "approve-weeks",
+      planId: plan.id,
+      scope: { kind: "first-weeks" },
+    });
 
     const appStart = () => drain.kick();
     const scheduledRefresh = () => drain.kick();
@@ -341,28 +357,18 @@ describe("Plan Intervals calendar adapter", () => {
     today = 19980903;
     await scheduledRefresh();
 
-    const inBothWindows = await store.get(
-      "SELECT COUNT(*) AS count FROM plan_workout WHERE plan_id=? AND origin='coach' AND date_key BETWEEN 19980902 AND 19980909",
-      [plan.id],
+    const weekTwoEnd = trainingWeek(plan, 2).endDateKey;
+    const inTheTwoWeeks = await store.get(
+      "SELECT COUNT(*) AS count FROM plan_workout WHERE plan_id=? AND origin='coach' AND date_key BETWEEN 19980902 AND ?",
+      [plan.id, weekTwoEnd],
     );
-    const workouts = Number(inBothWindows?.count);
+    const workouts = Number(inTheTwoWeeks?.count);
     expect(workouts).toBeGreaterThan(0);
     expect({
       creates: intervals.create.mock.calls.length,
       events: intervals.events.length,
       updates: intervals.update.mock.calls.length,
-      jobs: await store.all(
-        "SELECT window_start_date_key AS day, status FROM plan_reconciliation_job WHERE kind='mirror' ORDER BY window_start_date_key",
-      ),
-    }).toEqual({
-      creates: workouts,
-      events: workouts,
-      updates: 0,
-      jobs: [
-        { day: 19980902, status: "verified" },
-        { day: 19980903, status: "verified" },
-      ],
-    });
+    }).toEqual({ creates: workouts, events: workouts, updates: 0 });
     for (const [body] of intervals.create.mock.calls) {
       expect(body).not.toHaveProperty("uid");
       expect(body).not.toHaveProperty("workoutDoc");

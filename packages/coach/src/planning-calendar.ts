@@ -1,9 +1,11 @@
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type {
   PlanMirrorCalendarPort,
+  PlanMirrorCreateInput,
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
+import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
 
 function clientValue<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error("Intervals calendar request failed.", { cause: result.error });
@@ -81,15 +83,80 @@ function updateBody(input: PlanMirrorUpdateInput): EventInput {
   };
 }
 
-export function createPlanMirrorCalendarAdapter(
+function createBody(input: PlanMirrorCreateInput): EventInput {
+  return {
+    startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
+    category: "WORKOUT",
+    name: input.name,
+    type: eventType(input.sport),
+    externalId: input.externalId,
+    ...(input.durationS === null ? {} : { movingTime: input.durationS }),
+    ...eventContent(input.structureJson),
+  };
+}
+
+function missing(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "kind" in error &&
+    (error.kind === "NotFound" || ("status" in error && error.status === 404))
+  );
+}
+
+export function createCalendarMirrorAdapter(
   readClient: () => IntervalsClient | null,
-): PlanMirrorCalendarPort {
+): CalendarMirrorPort {
   const requiredClient = (): IntervalsClient => {
     const client = readClient();
     if (client === null) throw new Error("Intervals credentials are required.");
     return client;
   };
-  const adapter: PlanMirrorCalendarPort = {
+  const adapter: CalendarMirrorPort = {
+    async listEvents(input) {
+      const events = clientValue(
+        await requiredClient().events.list({
+          oldest: dateText(input.startDateKey),
+          newest: dateText(input.endDateKey),
+          category: ["WORKOUT"],
+        }),
+      );
+      return events.map((event) => mappedEvent(event));
+    },
+    async readEvent(input) {
+      const result = await requiredClient().events.get(input.eventId);
+      if (!result.ok && missing(result.error)) return null;
+      return mappedEvent(clientValue(result));
+    },
+    async createEvent(input) {
+      return mappedEvent(clientValue(await requiredClient().events.create(createBody(input))));
+    },
+    async updateEvent(input) {
+      return mappedEvent(
+        clientValue(await requiredClient().events.update(input.eventId, updateBody(input))),
+      );
+    },
+    async deleteEvent(input) {
+      clientValue(await requiredClient().events.delete(input.eventId));
+    },
+  };
+  return Object.freeze(adapter);
+}
+
+export interface PlanMirrorCalendarAdapter extends PlanMirrorCalendarPort {
+  readonly mirror: CalendarMirrorPort;
+}
+
+export function createPlanMirrorCalendarAdapter(
+  readClient: () => IntervalsClient | null,
+): PlanMirrorCalendarAdapter {
+  const requiredClient = (): IntervalsClient => {
+    const client = readClient();
+    if (client === null) throw new Error("Intervals credentials are required.");
+    return client;
+  };
+  const adapter: PlanMirrorCalendarAdapter = {
+    mirror: createCalendarMirrorAdapter(readClient),
     async listEvents(input) {
       const events = clientValue(
         await requiredClient().events.list({
@@ -101,17 +168,7 @@ export function createPlanMirrorCalendarAdapter(
       return events.map((event) => mappedEvent(event));
     },
     async createEvent(input) {
-      return clientValue(
-        await requiredClient().events.create({
-          startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
-          category: "WORKOUT",
-          name: input.name,
-          type: eventType(input.sport),
-          externalId: input.externalId,
-          ...(input.durationS === null ? {} : { movingTime: input.durationS }),
-          ...eventContent(input.structureJson),
-        }),
-      );
+      return clientValue(await requiredClient().events.create(createBody(input)));
     },
     async deleteEvent(input) {
       return clientValue(await requiredClient().events.delete(input.eventId));
