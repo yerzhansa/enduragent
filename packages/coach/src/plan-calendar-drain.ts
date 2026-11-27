@@ -60,12 +60,15 @@ export function createPlanCalendarDrain(deps: {
         });
       }
     }
-    const jobs = await repository.listRunnable({
+    const runnable = await repository.listRunnable({
       nowMs: deps.now(),
       leaseMs: reclaim ? 0 : 300_000,
       maxFailures: 5,
     });
-    for (const job of jobs) {
+    for (const job of [
+      ...runnable.filter((job) => job.kind === "cleanup"),
+      ...runnable.filter((job) => job.kind === "mirror"),
+    ]) {
       try {
         if (job.kind === "cleanup") {
           await cleanupPlanMirror(
@@ -95,17 +98,14 @@ export function createPlanCalendarDrain(deps: {
         }
         const plan = await plans.read(job.planId);
         if (plan === undefined || plan.status !== "active") continue;
-        const tomorrow = addCivilDays(today, 1);
-        const cleanup = await store.get(
-          "SELECT id FROM plan_reconciliation_job WHERE kind='cleanup' AND plan_id<>? AND window_start_date_key=? LIMIT 1",
-          [job.planId, tomorrow],
-        );
+        const barrier = await repository.readCleanupBarrier();
+        if (barrier !== undefined && barrier.status !== "verified") continue;
         await reconcileActivePlanWindow(
           {
             plan,
             workouts: await plans.readWorkouts(job.planId),
             todayDateKey: today,
-            firstEligibleDateKey: cleanup === undefined ? today : tomorrow,
+            firstEligibleDateKey: Math.max(today, barrier?.windowStartDateKey ?? today),
           },
           engine,
         );

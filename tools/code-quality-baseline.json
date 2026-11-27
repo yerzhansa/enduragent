@@ -574,7 +574,6 @@
   "no-empty-function": {
     "apps/desktop-renderer/src/chat/controller.ts": 18,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
-    "apps/desktop-renderer/src/plan/library-refresh.ts": 1,
     "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/state/adapters/settings.ts": 1,
     "apps/desktop-renderer/src/training-context/controller.ts": 1,
@@ -618,7 +617,6 @@
     "apps/desktop-renderer/src/chat/controller.ts": 20,
     "apps/desktop-renderer/src/coach-client.ts": 2,
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
-    "apps/desktop-renderer/src/plan/library-refresh.ts": 1,
     "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 1,
     "apps/desktop-renderer/src/spend-meter/controller.ts": 3,

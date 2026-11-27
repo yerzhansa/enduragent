@@ -11,12 +11,7 @@ import { createArchiveViewAdapter } from "./state/adapters/archive";
 import { createChatViewAdapter } from "./state/adapters/chat";
 import { createFirstSyncViewAdapter } from "./state/adapters/first-sync";
 import { createOnboardingViewAdapter } from "./state/adapters/onboarding";
-import {
-  closePlan,
-  createPlanViewAdapter,
-  listPlans,
-  readPlanHistory,
-} from "./state/adapters/plan";
+import { closePlan, createPlanViewAdapter, readPlanHistory } from "./state/adapters/plan";
 import { createRideImportAdapter } from "./state/adapters/ride-import";
 import {
   createAthleteSettingsAdapter,
@@ -62,7 +57,7 @@ import { createRideImportController, subscribeToDroppedRideImports } from "./rid
 import { createTrainingExportController } from "./training-export/controller";
 import { settleInitialSetupStatus } from "./initial-setup-status";
 import { createPlanController } from "./plan/controller";
-import { subscribePlanLibraryRefresh } from "./plan/library-refresh";
+import { subscribePlanLibraryRefresh, takePlanCalendarRetry } from "./plan/library-refresh";
 
 export type Disposer = () => void;
 
@@ -145,7 +140,7 @@ export function bootRenderer(): Disposer {
     view: { render: (language) => store.getState().patchSettings({ language }) },
   });
   const planController = createPlanController({
-    listPlans: () => listPlans(clients),
+    listPlans: async () => (await clients.getClient()).call("plan.list", takePlanCalendarRetry()),
     renderLibrary: (next) => {
       const previous = store.getState().planLibrary;
       store.getState().setPlanLibrary(next);

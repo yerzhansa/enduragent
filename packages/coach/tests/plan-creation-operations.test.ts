@@ -1701,7 +1701,7 @@ describe("Plan Creation activation", () => {
   });
 
   it.each(["mirror", "cleanup"] as const)(
-    "offers retry only below the failure budget for %s work in the library",
+    "offers retry for failed %s work in the library, past the failure budget only for cleanup",
     async (kind) => {
       const test = await review();
       test.setConnected(true);
@@ -1728,7 +1728,7 @@ describe("Plan Creation activation", () => {
         const calendar = kind === "mirror" ? library.active?.calendar : library.closed[0]?.calendar;
         expect(calendar).toMatchObject({
           status: "failed",
-          error: failureCount >= 5 ? error : `${error} Retry available.`,
+          error: kind === "mirror" && failureCount >= 5 ? error : `${error} Retry available.`,
         });
       }
     },
