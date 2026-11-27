@@ -929,6 +929,7 @@
       "subtitle": "Lendo as conexões já salvas neste computador. Isso pode levar um momento logo após a abertura."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} não conseguiu concluir a verificação do {{claudeCode}} em {{computer}}.",
       "configurationUnavailable": "As opções do treinador não estão disponíveis agora. Verifique a área de configuração novamente.",
       "credentialReenterRequired": "Não foi possível usar essa chave salva. Insira-a novamente para continuar.",
       "credentialRequired": "Entre com {{chatgpt}} ou adicione pelo menos uma chave de modelo para continuar.",

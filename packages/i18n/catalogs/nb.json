@@ -929,6 +929,7 @@
       "subtitle": "Leser tilkoblingene som allerede er lagret på denne datamaskinen. Dette kan ta litt tid rett etter oppstart."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} kunne ikke fullføre sjekken av {{claudeCode}} på {{computer}}.",
       "configurationUnavailable": "Trenervalg er utilgjengelige akkurat nå. Sjekk oppsettområdet igjen.",
       "credentialReenterRequired": "Den lagrede nøkkelen kunne ikke brukes. Skriv den inn på nytt for å fortsette.",
       "credentialRequired": "Logg på med {{chatgpt}} eller legg til minst én modellnøkkel for å fortsette.",

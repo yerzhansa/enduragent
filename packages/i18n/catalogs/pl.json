@@ -939,6 +939,7 @@
       "subtitle": "Odczytywanie połączeń zapisanych już na tym komputerze. Tuż po uruchomieniu może to chwilę potrwać."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} nie mógł dokończyć sprawdzania {{claudeCode}} na {{computer}}.",
       "configurationUnavailable": "Opcje trenera są teraz niedostępne. Sprawdź ponownie sekcję konfiguracji.",
       "credentialReenterRequired": "Nie udało się użyć tego zapisanego klucza. Wpisz go ponownie, aby kontynuować.",
       "credentialRequired": "Zaloguj się przez {{chatgpt}} lub dodaj co najmniej jeden klucz modelu, aby kontynuować.",

@@ -924,6 +924,7 @@
       "subtitle": "正在讀取此電腦上已儲存的連線。剛啟動時可能需要稍候。"
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} 無法完成對 {{computer}} 上 {{claudeCode}} 的檢查。",
       "configurationUnavailable": "目前無法使用教練選項。請再次檢查初始設定區。",
       "credentialReenterRequired": "無法使用此已儲存的金鑰。請重新輸入以繼續。",
       "credentialRequired": "請使用 {{chatgpt}} 登入，或至少新增一組模型金鑰以繼續。",

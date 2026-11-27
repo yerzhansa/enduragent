@@ -122,6 +122,7 @@ const ERROR_SECTIONS: Readonly<Record<OnboardingErrorCode, SectionRule>> = {
   "model-selection-required": "provider",
   "endpoint-invalid": "provider",
   "model-runtime-unavailable": "provider",
+  "claude-cli-check-failed": "provider",
   "training-account-mismatch": "training",
   "intervals-sign-in-denied": "training",
   "intervals-sign-in-timed-out": "training",

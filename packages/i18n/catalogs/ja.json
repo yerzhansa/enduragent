@@ -924,6 +924,7 @@
       "subtitle": "このコンピュータに保存済みの接続情報を読み取っています。起動直後は少し時間がかかる場合があります。"
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}}は、{{computer}}で{{claudeCode}}の確認を完了できませんでした。",
       "configurationUnavailable": "現在、コーチの選択肢を利用できません。セットアップ欄をもう一度確認してください。",
       "credentialReenterRequired": "保存済みのキーを使用できませんでした。続けるには再入力してください。",
       "credentialRequired": "続けるには、{{chatgpt}}でサインインするか、モデルのキーを1つ以上追加してください。",

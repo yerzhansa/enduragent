@@ -90,6 +90,7 @@ export type OnboardingErrorCode =
   | "model-selection-required"
   | "endpoint-invalid"
   | "model-runtime-unavailable"
+  | "claude-cli-check-failed"
   | "training-account-mismatch"
   | "intervals-sign-in-denied"
   | "intervals-sign-in-timed-out"

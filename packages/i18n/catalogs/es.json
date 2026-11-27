@@ -929,6 +929,7 @@
       "subtitle": "Leyendo las conexiones ya guardadas en este ordenador. Puede tardar un momento justo después del inicio."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} no ha podido terminar de comprobar {{claudeCode}} en {{computer}}.",
       "configurationUnavailable": "Las opciones del entrenador no están disponibles ahora. Comprueba de nuevo el área de configuración.",
       "credentialReenterRequired": "No se ha podido usar esa clave guardada. Vuelve a introducirla para continuar.",
       "credentialRequired": "Inicia sesión con {{chatgpt}} o añade al menos una clave de modelo para continuar.",

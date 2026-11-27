@@ -924,6 +924,7 @@
       "subtitle": "正在读取此电脑上已保存的连接。刚启动时可能需要稍等。"
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} 无法完成对 {{computer}} 上 {{claudeCode}} 的检查。",
       "configurationUnavailable": "教练选项暂时不可用。请重新查看初始设置区域。",
       "credentialReenterRequired": "无法使用该已保存的密钥。请重新输入以继续。",
       "credentialRequired": "请使用 {{chatgpt}} 登录，或添加至少一个模型密钥以继续。",

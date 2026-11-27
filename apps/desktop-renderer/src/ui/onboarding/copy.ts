@@ -26,6 +26,11 @@ export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "model-selection-required": msg("setup.error.modelSelectionRequired"),
   "endpoint-invalid": msg("setup.error.endpointInvalid"),
   "model-runtime-unavailable": msg("setup.error.modelRuntimeUnavailable"),
+  "claude-cli-check-failed": msg("setup.error.claudeCliCheckFailed", {
+    product: "Enduragent",
+    claudeCode: "Claude Code",
+    computer: PLATFORM_COPY.computer,
+  }),
   "training-account-mismatch": msg("setup.error.trainingAccountMismatch", {
     intervalsLower: "intervals.icu",
     computer: PLATFORM_COPY.computer,

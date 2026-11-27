@@ -2754,6 +2754,7 @@
       "subtitle": "Reading the connections already saved on this computer. This can take a moment right after launch."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} couldn’t finish checking {{claudeCode}} on {{computer}}.",
       "configurationUnavailable": "Coach choices are unavailable right now. Check the setup area again.",
       "credentialReenterRequired": "That saved key could not be used. Enter it again to continue.",
       "credentialRequired": "Sign in with {{chatgpt}} or add at least one model key to continue.",
