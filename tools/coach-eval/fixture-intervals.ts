@@ -80,6 +80,7 @@ function activityRow(ride: RideSeed, today: Date, injection: Injection | undefin
     distance: ride.distanceMeters,
     icu_training_load: ride.load,
     icu_average_watts: ride.watts,
+    average_watts: ride.watts,
     average_heartrate: ride.heartRate,
   };
 }

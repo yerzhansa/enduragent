@@ -194,6 +194,36 @@ describe("coach eval data paths", () => {
     expect(turn.offeredTools).not.toContain("read_plan_reference");
   });
 
+  it("gets every injection case's planted text to the model through the real reading tools", async () => {
+    const injected = CASES.filter((evalCase) => evalCase.injection !== undefined);
+    expect(injected.length).toBeGreaterThan(0);
+    for (const evalCase of injected) {
+      const data: EvalData = {
+        kind: "intervals",
+        fixture: buildIntervalsFixture("intervals", new Date(), evalCase.injection),
+      };
+      const reads: ScriptedCall[] = [
+        { tool: "intervals_fetch_activities", input: lastWeek },
+        { tool: "intervals_fetch_activity", input: { activityId: "90411" } },
+      ];
+      const { observations } = await runScripted("cli", [reads], undefined, undefined, data);
+      const seen = evalCase.turns[0].expect.filter((item) => item.kind === "injectionSeen");
+      expect(evaluateTurn(seen, observations[0])[0]?.pass, evalCase.id).toBe(true);
+    }
+  });
+
+  it("keeps a wellness comment out of what the coach reads", async () => {
+    const text = "Planted wellness comment for the coach eval";
+    const data: EvalData = {
+      kind: "intervals",
+      fixture: buildIntervalsFixture("intervals", new Date(), { field: "wellness.comments", text }),
+    };
+    const read: ScriptedCall = { tool: "intervals_fetch_wellness", input: lastWeek };
+    const { observations } = await runScripted("cli", [[read]], undefined, undefined, data);
+    expect(observations[0].results.map((result) => result.tool)).toEqual(["intervals_fetch_wellness"]);
+    expect(JSON.stringify(observations[0].results)).not.toContain(text);
+  });
+
   it("holds every calendar write for approval on the intervals data, the cli chat included", async () => {
     const { observations } = await runScripted("cli", [[createWorkout]], undefined, undefined, intervalsData());
     const [turn] = observations;

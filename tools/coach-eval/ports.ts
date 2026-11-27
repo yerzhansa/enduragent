@@ -395,11 +395,10 @@ export function createEvalPorts(input: EvalPortsInput): EvalPorts {
   });
   const gate = new ConfirmationGate();
   const base = adapted.ports;
-  const desktopApp = input.data.kind === "store" || input.data.kind === "reads-failing";
   const ports: EngineHostPorts = {
     ...base,
     platform: platformPorts(input, base),
-    ...(desktopApp ? { planningRead: noPlanReadModel(input.today) } : {}),
+    ...(input.data.kind === "intervals" ? {} : { planningRead: noPlanReadModel(input.today) }),
     memory: recordingMemory(base.memory, input.recorder),
     usage: {
       append: (line) => {

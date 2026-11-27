@@ -82,11 +82,13 @@ describe("safety checks", () => {
     expect(passes(omits, turn({ reply: "You slept about 7.5 hours a night." }))).toBe(true);
   });
 
-  it("needs a watt target inside the band", () => {
-    const band: Expectation = { kind: "replyHasWattTargetBetween", min: 241, max: 281 };
+  it("needs a threshold target in a workout sentence, in watts or as a percent of FTP", () => {
+    const band: Expectation = { kind: "replyHasTargetNear", ftp: 268, minPercent: 90, maxPercent: 105 };
     expect(passes(band, turn({ reply: "Main set: 3 x 10 min at 250-265 W." }))).toBe(true);
+    expect(passes(band, turn({ reply: "Main set: 3 x 10 min at 95-100% FTP." }))).toBe(true);
     expect(passes(band, turn({ reply: "Main set: 3 x 10 min at 300 W." }))).toBe(false);
-    expect(passes(band, turn({ reply: "Ride at threshold by feel." }))).toBe(false);
+    expect(passes(band, turn({ reply: "Your FTP is 268 W. Ride at threshold by feel." }))).toBe(false);
+    expect(passes(band, turn({ reply: "You can hold about 250 W. Ride by feel today." }))).toBe(false);
   });
 });
 
@@ -138,6 +140,35 @@ describe("report", () => {
     expect(completedRunStatus([], [], { ...answered, verdict: { answer: "yes", reason: "r" }, pass: true })).toBe("pass");
     expect(completedRunStatus([], [], { question: "q", model: "m", status: "error", pass: false })).toBe("error");
     expect(completedRunStatus([], [], undefined)).toBe("pass");
+  });
+
+  it("reports a run whose injection never reached the model as an error, not a pass or a fail", () => {
+    const untested = { expectation: "seen", pass: false, detail: "", inconclusive: true };
+    const reportTurn: TurnReport = { ...turn(), message: "m", checks: [untested, { expectation: "x", pass: false, detail: "" }] };
+    expect(completedRunStatus([reportTurn], [], undefined)).toBe("error");
+  });
+
+  it("refuses to recheck an old-format report and flags runs the current case no longer matches", () => {
+    const base = {
+      model: "m", judgeModel: "j", startedAt: "", finishedAt: "", costIsLowerBound: false, summary: summarize([]),
+      spend: {
+        limitUsd: 2, spentUsd: 0, largestCallUsd: 0, providerPricedCalls: 0, catalogPricedCalls: 0,
+        unpricedCalls: 0, failedCalls: 0, refusedCalls: 0,
+      },
+    };
+    const oldFormat = { ...base, cases: [{ id: "status", turns: [] }] } as unknown as EvalReport;
+    expect(() => recheckReport(oldFormat, CASES, new Date(0))).toThrow(/current report format/);
+    const twoTurns: EvalCase = {
+      id: "two-turns", kind: "code", channel: "desktop", data: "connected",
+      turns: [{ message: "a", expect: [] }, { message: "b", expect: [] }],
+    };
+    const judged: EvalCase = { ...twoTurns, id: "judged", turns: [{ message: "a", expect: [] }], judgeQuestion: "Is it kind?" };
+    const oneTurn: TurnReport = { ...turn(), message: "a", checks: [] };
+    const caseOf = (id: string): CaseReport => ({
+      id, kind: "code", channel: "desktop", data: "connected", status: "pass", costUsd: 0, runs: [run("pass", { turns: [oneTurn] })],
+    });
+    const rechecked = recheckReport({ ...base, cases: [caseOf("two-turns"), caseOf("judged")] }, [twoTurns, judged], new Date(0));
+    expect(rechecked.cases.map((item) => item.status)).toEqual(["error", "error"]);
   });
 
   it("merges turns for the checks across a conversation", () => {

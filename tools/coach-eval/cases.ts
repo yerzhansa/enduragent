@@ -46,16 +46,25 @@ const INFERENCE_WORDS = [
   "inference",
   "appear to be",
   "appears to be",
-  "looks like",
-  "look like",
-  "likely",
-  "probably",
+  "looks like one",
+  "looks like the same",
+  "look like one",
+  "look like the same",
+  "look like parts",
+  "likely one",
+  "likely the same",
+  "likely part of",
+  "probably one",
+  "probably the same",
+  "probably part of",
   "assume",
   "assuming",
   "assumed",
   "seem to be",
   "seems to be",
 ];
+
+const STALE_AGE_WORDS = [`${STALE_DAYS} days`, `${STALE_DAYS}-day`, "ten days", "ten-day"];
 
 const FITNESS_WORDS: readonly Expectation[] = [
   { kind: "replyStatesMetric", label: "Fitness", value: LATEST.fitness },
@@ -266,7 +275,7 @@ export const CODE_CASES: readonly EvalCase[] = [
     turns: [
       {
         message: "My goal has changed: I'm now training for a 160 km gran fondo 12 weeks from now.",
-        expect: [],
+        expect: [{ kind: "writeAttempted", tool: "memory_write" }],
       },
       {
         message: "What should my key workout be this week?",
@@ -283,11 +292,7 @@ export const CODE_CASES: readonly EvalCase[] = [
       {
         message: "Give me a 45-minute threshold session for today with power targets.",
         expect: [
-          {
-            kind: "replyHasWattTargetBetween",
-            min: Math.round(FTP_WATTS * 0.9),
-            max: Math.round(FTP_WATTS * 1.05),
-          },
+          { kind: "replyHasTargetNear", ftp: FTP_WATTS, minPercent: 90, maxPercent: 105 },
           { kind: "replyMentions", anyOf: WARM_UP },
         ],
       },
@@ -333,7 +338,7 @@ export const CODE_CASES: readonly EvalCase[] = [
     turns: [
       {
         message: "What's my current status?",
-        expect: [{ kind: "replyMentions", anyOf: [`${STALE_DAYS} days`, "ten days"] }],
+        expect: [{ kind: "replyMentions", anyOf: STALE_AGE_WORDS }],
       },
     ],
   },
@@ -359,7 +364,9 @@ export const CODE_CASES: readonly EvalCase[] = [
     data: "connected",
     turns: [
       {
-        message: "My 160 km gran fondo is 12 weeks from today. Can you sketch out a training plan for it?",
+        message:
+          "I'm an intermediate rider with about 8 hours a week to train. My 160 km gran fondo is 12 weeks " +
+          "from today. Can you sketch out a training plan for it?",
         expect: [
           { kind: "called", tool: "build_plan_skeleton" },
           { kind: "notCalled", tools: ["plan_save"] },

@@ -95,6 +95,8 @@ export function completedRunStatus(
   acrossTurns: readonly CheckResult[],
   judge: JudgeReport | undefined,
 ): RunStatus {
+  const checks = [...turns.flatMap((turn) => turn.checks), ...acrossTurns];
+  if (checks.some((check) => !check.pass && check.inconclusive === true)) return "error";
   if (judge?.status === "error") return "error";
   if (!checksPass(turns, acrossTurns)) return "fail";
   return judge === undefined || judge.pass ? "pass" : "fail";
@@ -195,21 +197,44 @@ function observationOf(turn: TurnReport): TurnObservation {
   };
 }
 
+function notAsked(question: string, detail: string): JudgeReport {
+  return { question, model: "none", status: "error", pass: false, detail };
+}
+
 function recheckRun(run: RunReport, evalCase: EvalCase): RunReport {
   if (run.status !== "pass" && run.status !== "fail") return run;
+  if (run.turns.length !== evalCase.turns.length) {
+    return {
+      ...run,
+      status: "error",
+      error: `the case now has ${evalCase.turns.length} turn(s), the recorded run has ${run.turns.length}`,
+    };
+  }
   const turns = run.turns.map((turn, index) => ({
     ...turn,
     checks: evaluateTurn(evalCase.turns[index]?.expect ?? [], observationOf(turn)),
   }));
   const acrossTurns = evaluateTurn(evalCase.expectAcrossTurns ?? [], mergeTurns(turns.map(observationOf)));
-  const judge: JudgeReport | undefined =
-    run.judge?.status === "skipped" && checksPass(turns, acrossTurns)
-      ? { ...run.judge, status: "error", pass: false, detail: "not asked: the code checks failed when the run was recorded" }
-      : run.judge;
+  const question = evalCase.judgeQuestion;
+  const codePasses = checksPass(turns, acrossTurns);
+  let judge = run.judge;
+  if (question !== undefined && judge === undefined && codePasses) {
+    judge = notAsked(question, "not asked: the case had no judge question when the run was recorded");
+  } else if (judge?.status === "skipped" && codePasses) {
+    judge = { ...judge, status: "error", pass: false, detail: "not asked: the code checks failed when the run was recorded" };
+  }
   return { ...run, turns, acrossTurns, judge, status: completedRunStatus(turns, acrossTurns, judge) };
 }
 
+function assertReportShape(report: EvalReport): void {
+  const cases: unknown = report.cases;
+  if (!Array.isArray(cases) || !cases.every((item) => Array.isArray((item as { runs?: unknown }).runs))) {
+    throw new Error("this report.json is not in the current report format (cases with runs), so it cannot be rechecked");
+  }
+}
+
 export function recheckReport(report: EvalReport, cases: readonly EvalCase[], now: Date): EvalReport {
+  assertReportShape(report);
   const rechecked = report.cases.map((caseReport) => {
     const evalCase = cases.find((candidate) => candidate.id === caseReport.id);
     if (evalCase === undefined) throw new Error(`report case ${caseReport.id} is not in the case list`);

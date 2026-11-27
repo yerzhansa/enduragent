@@ -4,12 +4,11 @@ import { createCoachEngine } from "@enduragent/engine";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { CASES, RUNS_PER_KIND, type EvalCase } from "./cases.js";
 import { evaluateTurn, type CheckResult } from "./checks.js";
-import { createJudge, type Judge } from "./judge.js";
+import { createJudge, judgeRun, type Judge } from "./judge.js";
 import { CHAT_IDS, CaseRecorder, createEvalPorts, evalDataFor } from "./ports.js";
 import {
   caseStatus,
   completedRunStatus,
-  checksPass,
   mergeTurns,
   newRunDir,
   printCase,
@@ -24,7 +23,6 @@ import {
   type TurnReport,
 } from "./report.js";
 import {
-  RunStoppedError,
   SpendMeter,
   USAGE,
   lineCost,
@@ -85,31 +83,6 @@ async function runTurns(
   }
 }
 
-async function askJudge(
-  evalCase: EvalCase,
-  context: RunContext,
-  turns: readonly TurnReport[],
-  acrossTurns: readonly CheckResult[],
-): Promise<JudgeReport | undefined> {
-  const question = evalCase.judgeQuestion;
-  if (question === undefined) return undefined;
-  const model = context.judge?.model ?? context.options.judgeModel;
-  if (!checksPass(turns, acrossTurns)) {
-    return { question, model, status: "skipped", pass: false, detail: "code checks failed" };
-  }
-  if (context.judge === undefined) {
-    return { question, model, status: "error", pass: false, detail: "no judge configured" };
-  }
-  const judged = turns.map((turn) => ({ message: turn.message, observation: turn }));
-  try {
-    const answer = await context.judge.ask(question, judged);
-    return { question, model, status: "answered", pass: answer.verdict.answer === "yes", verdict: answer.verdict };
-  } catch (error) {
-    if (error instanceof RunStoppedError) throw error;
-    return { question, model, status: "error", pass: false, detail: errorText(error) };
-  }
-}
-
 function judgeCost(judge: Judge | undefined, from: number): number {
   return (judge?.usage ?? [])
     .slice(from)
@@ -128,7 +101,14 @@ async function runOnce(evalCase: EvalCase, context: RunContext): Promise<RunRepo
   try {
     await runTurns(evalCase, context, recorder, turns);
     acrossTurns = evaluateTurn(evalCase.expectAcrossTurns ?? [], mergeTurns(turns));
-    judge = await askJudge(evalCase, context, turns, acrossTurns);
+    judge = await judgeRun({
+      question: evalCase.judgeQuestion,
+      injection: evalCase.injection,
+      judge: context.judge,
+      judgeModel: context.options.judgeModel,
+      turns: turns.map((turn) => ({ message: turn.message, observation: turn })),
+      checks: [...turns.flatMap((turn) => turn.checks), ...acrossTurns],
+    });
   } catch (caught) {
     error = errorText(caught);
   }
