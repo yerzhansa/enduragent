@@ -177,8 +177,11 @@ describe("Plan calendar cleanup barrier", () => {
   });
 
   it("holds the new Plan behind an older failed cleanup after a later replacement's cleanup verifies", async () => {
-    const { test, oldPlan: firstPlan, newPlan: secondPlan } =
-      await mirroredPlanReplacedWhileDeletesFail();
+    const {
+      test,
+      oldPlan: firstPlan,
+      newPlan: secondPlan,
+    } = await mirroredPlanReplacedWhileDeletesFail();
     await test.drain.kick();
     expect(await test.cleanup(firstPlan)).toMatchObject({ status: "failed" });
     expect(test.writesOf(secondPlan)).toEqual([]);

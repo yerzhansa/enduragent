@@ -6,7 +6,7 @@
 "@enduragent/desktop": patch
 ---
 
-User-facing: When you replace a Plan, the new Plan's workouts now reach your intervals.icu calendar only after the old Plan's workouts are removed, so the two Plans never share a day.
-User-facing: If removing the old Plan's workouts fails, the active Plan shows "Calendar sync failed. Retry available." and Retry calendar keeps working even after repeated failures.
+User-facing: When the old Plan's workouts cannot be removed from your intervals.icu calendar, the new Plan's workouts now wait even if you replace the Plan again, and the active Plan shows "Calendar sync failed. Retry available." instead of "Up to date".
+User-facing: Retry calendar now stays available after repeated failures and removes the old Plan's workouts at once.
 
-The calendar drain runs cleanup jobs before mirror jobs and holds the active Plan's mirror while the latest cleanup of another Plan is not verified. Once it is verified, the mirror starts from that cleanup's first day, so today's old Workout stays and the new Plan starts tomorrow. The Plan library shows a failed cleanup on the active card. A cleanup failure now always offers Retry. Retry sends `retryCalendar` on the next `plan.list`, which reopens failed cleanup jobs so the drain runs them once past the five-failure budget; automatic retries still stop at five. An athlete whose older cleanup already used its budget will see the active Plan's calendar wait with Retry after updating.
+The calendar drain and the Plan library read one barrier from `readCleanupBarrier`: the active Plan's mirror waits while any cleanup of another Plan is not verified, not only the newest one, and the active card shows that cleanup. A failed cleanup always offers Retry. Retry sends `retryCalendar` on the next `plan.list`, which reopens failed cleanups. Automatic cleanup retries keep the 15-minute wait after five failures, and mirror jobs keep their five-failure budget.

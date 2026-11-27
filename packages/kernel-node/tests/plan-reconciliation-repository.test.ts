@@ -323,16 +323,21 @@ describe("Plan reconciliation repository", () => {
         windowStartDateKey: 19980825 + createdAtMs / 10,
         createdAtMs,
       });
+    let clock = 100;
     const settle = async (id: string, outcome: "verified" | "failed") => {
-      await repository.beginAttempt(id, 100);
-      if (outcome === "verified") await repository.verifyJob(id, 101);
-      else await repository.failJob(id, "calendar-delete-failed", 101);
+      await repository.beginAttempt(id, (clock += 1));
+      if (outcome === "verified") await repository.verifyJob(id, (clock += 1));
+      else await repository.failJob(id, "calendar-delete-failed", (clock += 1));
     };
     expect(await repository.readCleanupBarrier()).toBeUndefined();
     await cleanup("01K00000000000000000000020", first, 10);
     await cleanup("01K00000000000000000000021", second, 20);
     await cleanup("01K00000000000000000000022", third, 30);
-    await repository.createOrGetJob({ ...job(), id: "01K00000000000000000000023", kind: "cleanup" });
+    await repository.createOrGetJob({
+      ...job(),
+      id: "01K00000000000000000000023",
+      kind: "cleanup",
+    });
     const barrier = async () => (await repository.readCleanupBarrier())?.id;
 
     expect(await barrier()).toBe("01K00000000000000000000022");
@@ -374,7 +379,12 @@ describe("Plan reconciliation repository", () => {
     expect(await repository.readJob(mirror.id)).toEqual(failedMirror);
     expect(
       (
-        await repository.listRunnable({ nowMs: 31, leaseMs: 50, maxFailures: 5, cleanupRetryMs: 1_000 })
+        await repository.listRunnable({
+          nowMs: 31,
+          leaseMs: 50,
+          maxFailures: 5,
+          cleanupRetryMs: 1_000,
+        })
       ).map(({ id }) => id),
     ).toEqual([exhausted.id]);
     await expect(repository.reopenFailedCleanups(-1)).rejects.toEqual(

@@ -394,12 +394,12 @@ export function createPlanCreationOperations(input: {
           ]),
         );
         const barrier = await reconciliation.readCleanupBarrier();
+        const holding = calendarConnected() && barrier?.status !== "verified" ? barrier : undefined;
         const summaries = records.map((plan) => ({
           ...summarizePlan(plan),
           calendar: summarizeCalendar(
-            plan.status === "active" && barrier?.status === "failed"
-              ? barrier
-              : jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
+            (plan.status === "active" ? holding : undefined) ??
+              jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;

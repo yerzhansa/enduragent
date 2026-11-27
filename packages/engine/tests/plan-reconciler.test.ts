@@ -194,7 +194,11 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
     return [...this.jobs.values()]
       .filter((job) => job.kind === "cleanup")
       .sort(
-        (left, right) => right.createdAtMs - left.createdAtMs || right.id.localeCompare(left.id),
+        (left, right) =>
+          Number(right.status === "failed") - Number(left.status === "failed") ||
+          Number(right.status !== "verified") - Number(left.status !== "verified") ||
+          right.createdAtMs - left.createdAtMs ||
+          right.id.localeCompare(left.id),
       )[0];
   }
 

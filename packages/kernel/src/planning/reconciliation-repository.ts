@@ -483,7 +483,7 @@ export function createPlanReconciliationRepository(
         `SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job
          WHERE kind='cleanup' AND plan_id NOT IN (
            SELECT plan_id FROM planning_plan WHERE status='active'
-         ) ORDER BY created_at_ms DESC,id DESC LIMIT 1`,
+         ) ORDER BY status='failed' DESC,status<>'verified' DESC,created_at_ms DESC,id DESC LIMIT 1`,
       );
       return row === undefined ? undefined : jobFromRow(row);
     },
