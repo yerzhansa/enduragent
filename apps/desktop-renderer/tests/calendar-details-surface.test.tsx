@@ -76,7 +76,7 @@ const DETAILS: PlanDetails = {
   },
 };
 
-function show(details: DetailsSheetState = DETAILS_SHEET_CLOSED) {
+function show(details: DetailsSheetState = DETAILS_SHEET_CLOSED, calendar = read()) {
   const actions: CalendarDetailsActions = {
     open: vi.fn(),
     close: vi.fn(),
@@ -90,7 +90,7 @@ function show(details: DetailsSheetState = DETAILS_SHEET_CLOSED) {
     useEnduragentStore.setState({
       calendar: {
         kind: "ready",
-        read: read(),
+        read: calendar,
         range: { firstRowStart: MONDAY, rowCount: 3 },
         refresh: "idle",
       },
@@ -174,6 +174,36 @@ describe("the Plan details sheet", () => {
     await user.click(within(confirm).getByRole("button", { name: "Cancel" }));
     expect(actions.confirmEnd).toHaveBeenCalledOnce();
     expect(actions.cancelEnd).toHaveBeenCalledOnce();
+  });
+
+  it("lists the replaced Plan's held workouts that End removes while the Plan still waits for Approve", () => {
+    const end = { kind: "idle", removeChanges: false, commandId: "end-1" } as const;
+    const plain = show({ kind: "open", details: DETAILS, end });
+    const first = render(<CalendarView />);
+    expect(screen.getByRole("region", { name: "End the Plan?" })).not.toHaveTextContent(
+      "Fri 16 · Endurance 4 · 1h 0m",
+    );
+    expect(plain.confirmEnd).not.toHaveBeenCalled();
+    first.unmount();
+    show(
+      { kind: "open", details: DETAILS, end },
+      {
+        ...read(),
+        replacing: {
+          planName: "Old base",
+          cleanup: "held",
+          removes: DETAILS.ending.removes,
+          staysToday: DETAILS.ending.staysToday,
+          athleteChanges: DETAILS.ending.athleteChanges,
+        },
+      },
+    );
+    render(<CalendarView />);
+    const confirm = screen.getByRole("region", { name: "End the Plan?" });
+    expect(confirm).toHaveTextContent("Removes 1 workout from tomorrow on.");
+    expect(confirm).toHaveTextContent("Fri 16 · Endurance 4 · 1h 0m");
+    expect(confirm).toHaveTextContent("1 you changed in intervals.icu stays, as your own:");
+    expect(within(confirm).getByRole("checkbox", { name: "Remove that one too" })).toBeEnabled();
   });
 
   it.each([

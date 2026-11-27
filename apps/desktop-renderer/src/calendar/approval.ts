@@ -160,5 +160,9 @@ export function comingOff(
 
 export function replaceWaiting(read: PlanCalendarRead): PlanCalendarReplacing | null {
   const replacing = replacingOf(read);
-  return replacing?.cleanup === "held" && firstApproval(read) !== null ? replacing : null;
+  return replacing?.cleanup === "held" &&
+    replacing.removes.length > 0 &&
+    firstApproval(read) !== null
+    ? replacing
+    : null;
 }

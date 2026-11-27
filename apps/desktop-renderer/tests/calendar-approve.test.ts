@@ -277,14 +277,22 @@ describe("the Replace Approve", () => {
     expect(test.last()).toMatchObject({ kind: "sending", removing: 2, polls: 0 });
   });
 
-  it("says the removal failed when it is still not done after every poll", async () => {
+  it("keeps saying Removing, and never that intervals.icu did not answer, while the cleanup is still running", async () => {
     const test = approveHarness({ status: "approved", weeks: [1, 2] });
     test.controller.observe(replacingRead("held"), "idle");
     await test.controller.approve();
-    for (let poll = 0; poll <= SENDING_POLLS; poll += 1) {
-      test.controller.observe(replacingRead("pending"), "idle");
+    for (let poll = 0; poll <= SENDING_POLLS + 5; poll += 1) {
+      test.controller.observe(replacingRead("running"), "idle");
     }
-    expect(test.last()).toMatchObject({ kind: "remove-failed", removing: 2 });
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 2 });
+    expect(test.states.some((state) => state.kind === "remove-failed")).toBe(false);
+    test.controller.observe({ ...sentRead("none"), replacing: null }, "idle");
+    expect(test.last(), "the new weeks get their own polls once the removal is done").toMatchObject(
+      {
+        kind: "sending",
+        polls: 1,
+      },
+    );
   });
 });
 

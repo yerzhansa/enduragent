@@ -218,9 +218,14 @@ describe("the Replace Approve sheet", () => {
       name: "Switch intervals.icu to your new Plan?",
     });
     expect(sheet).toHaveTextContent("Workout Change Set · your new Plan replaces Old base");
-    expect(sheet).toHaveTextContent(
-      "2 workouts from Old base come off, from tomorrow on. Once they are gone, 4 from your new Plan are added. Your head unit downloads each new one from intervals.icu.",
-    );
+    expect(
+      within(sheet).getByText("2 workouts from Old base come off, from tomorrow on."),
+    ).toBeVisible();
+    expect(
+      within(sheet).getByText(
+        "Once they are gone, 4 from your new Plan are added. Your head unit downloads each new one from intervals.icu.",
+      ),
+    ).toBeVisible();
     const off = within(sheet).getByText("Comes off · Old base · 2 workouts").parentElement;
     if (off === null) throw new Error("Comes off block");
     expect(within(off).getByText("Old ride 1")).toHaveClass("line-through");
@@ -330,7 +335,36 @@ describe("the Replace Approve sheet", () => {
     render(<CalendarView />);
     const sheet = screen.getByRole("complementary");
     expect(sheet).toHaveTextContent("Once they are gone, 3 from your new Plan are added.");
+    expect(sheet).toHaveTextContent("2 workouts from Old base come off, from tomorrow on.");
     expect(within(sheet).getByRole("button", { name: "Approve 2 off, 3 on" })).toBeEnabled();
+  });
+
+  it("offers only the tick box, with no zero counts or banner, when every later old workout is the athlete's own", async () => {
+    const user = userEvent.setup();
+    const read = replacingRead("held", []);
+    const { approve } = show(read, { kind: "open", scope: { kind: "first-weeks" } });
+    const view = render(<CalendarView />);
+    const sheet = screen.getByRole("complementary", {
+      name: "Send the first two Training Weeks to intervals.icu?",
+    });
+    expect(sheet).toHaveTextContent("Nothing already there is changed or deleted.");
+    expect(sheet).not.toHaveTextContent(/\b0 workouts|0 off/u);
+    expect(within(sheet).queryByText(/^Comes off/u)).toBeNull();
+    expect(sheet).toHaveTextContent("My own ride · changed by you in intervals.icu");
+    await user.click(
+      within(sheet).getByRole("checkbox", { name: "Remove the one you changed too" }),
+    );
+    expect(approve.setRemoveChanges).toHaveBeenCalledWith(true);
+    expect(within(sheet).getByRole("button", { name: "Approve 4 workouts" })).toBeEnabled();
+    view.unmount();
+    show(read, { kind: "open", scope: { kind: "first-weeks" }, removeChanges: true });
+    const ticked = render(<CalendarView />);
+    expect(screen.getByRole("button", { name: "Approve 1 off, 4 on" })).toBeEnabled();
+    expect(screen.getByText("Comes off · Old base · 1 workout")).toBeVisible();
+    ticked.unmount();
+    show(read, APPROVE_SHEET_CLOSED);
+    render(<CalendarView />);
+    expect(document.querySelector("[data-replace-waiting]")).toBeNull();
   });
 
   it("is the first-two-weeks sheet when nothing comes off", () => {

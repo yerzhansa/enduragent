@@ -109,12 +109,7 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
       return;
     }
     if (current.removing !== undefined && (latest?.replacing ?? null) !== null) {
-      publish({
-        kind: "remove-failed",
-        scope: current.scope,
-        weeks: current.weeks,
-        removing: current.removing,
-      });
+      poll(current.weeks, current.scope, current.polls, current.removing);
       return;
     }
     publish({ kind: "send-failed", scope: current.scope, weeks: current.weeks });
@@ -139,7 +134,11 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
     }
     const progress = sendingFailures(read, current.weeks);
     if (progress.waiting.length > 0) {
-      nextPoll(current);
+      nextPoll(
+        current.removing === undefined
+          ? current
+          : { kind: "sending", scope: current.scope, weeks: current.weeks, polls: 0 },
+      );
       return;
     }
     if (progress.failed.length > 0) {

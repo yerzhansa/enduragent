@@ -129,8 +129,9 @@ export function ApproveSheet(props: {
   const firstSet = pending.scope.kind === "first-weeks";
   const replace = firstSet ? props.replace : null;
   const off = replace === null ? null : removal(replace, phase);
+  const removing = replace !== null && off !== null && off.count > 0 ? { replace, off } : null;
   const heading =
-    replace !== null
+    removing !== null
       ? say("plan.calendar.approve.replace.title")
       : firstSet
         ? pending.weeks.length > 1
@@ -140,22 +141,13 @@ export function ApproveSheet(props: {
             week: pending.scope.kind === "week" ? pending.scope.week : 0,
           });
   const caption =
-    replace !== null
-      ? say("plan.calendar.approve.replace.caption", { old: replace.replacing.planName })
+    removing !== null
+      ? say("plan.calendar.approve.replace.caption", {
+          old: removing.replace.replacing.planName,
+        })
       : firstSet
         ? say("plan.calendar.approve.captionFirst")
         : say("plan.calendar.approve.captionWeek");
-  const body =
-    replace === null || off === null
-      ? say("plan.calendar.approve.body", { count: pending.count })
-      : `${say("plan.calendar.approve.replace.bodyOff", {
-          count: off.count,
-          old: replace.replacing.planName,
-        })} ${
-          off.count === 1
-            ? say("plan.calendar.approve.replace.bodyOnAfterOne", { count: pending.count })
-            : say("plan.calendar.approve.replace.bodyOn", { count: pending.count })
-        }`;
   return (
     <aside
       className="absolute top-13 right-0 bottom-0 z-10 flex w-100 max-w-full flex-col gap-3 overflow-auto border-l border-line bg-surface px-5 py-4.5 shadow-elev-3"
@@ -167,7 +159,25 @@ export function ApproveSheet(props: {
       <h2 ref={title} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
         {heading}
       </h2>
-      <p className="m-0 text-xs text-ink-2">{body}</p>
+      {removing === null ? (
+        <p className="m-0 text-xs text-ink-2">
+          {say("plan.calendar.approve.body", { count: pending.count })}
+        </p>
+      ) : (
+        <p className="m-0 flex flex-col text-xs text-ink-2">
+          <span>
+            {say("plan.calendar.approve.replace.bodyOff", {
+              count: removing.off.count,
+              old: removing.replace.replacing.planName,
+            })}
+          </span>
+          <span>
+            {removing.off.count === 1
+              ? say("plan.calendar.approve.replace.bodyOnAfterOne", { count: pending.count })
+              : say("plan.calendar.approve.replace.bodyOn", { count: pending.count })}
+          </span>
+        </p>
+      )}
       {replace === null || off === null ? null : (
         <>
           <ComesOff planName={replace.replacing.planName} workouts={off.left} text={text} />
@@ -264,8 +274,11 @@ export function ApproveSheet(props: {
             disabled={phase.kind !== "open"}
             onClick={props.onApprove}
           >
-            {off !== null
-              ? say("plan.calendar.approve.replace.approve", { off: off.count, on: pending.count })
+            {removing !== null
+              ? say("plan.calendar.approve.replace.approve", {
+                  off: removing.off.count,
+                  on: pending.count,
+                })
               : pending.count === 0
                 ? say("plan.calendar.approve.approve")
                 : say("plan.calendar.approve.approveCount", { count: pending.count })}

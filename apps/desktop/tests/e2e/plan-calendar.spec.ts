@@ -66,6 +66,7 @@ async function launch(
     readonly delayMs?: number;
     readonly calendarConnected?: boolean;
     readonly waitForApprove?: boolean;
+    readonly seedGoal?: "fitness" | "event";
   } = {},
 ): Promise<Scenario> {
   const scratch = await mkdtemp(join(tmpdir(), "plan-calendar-"));
@@ -80,7 +81,7 @@ async function launch(
   try {
     backend.setCivilDate(today);
     await backend.open();
-    const seed = await backend.seedActiveTraining();
+    const seed = await backend.seedActiveTraining({ goal: options.seedGoal ?? "fitness" });
     if (calendar.delayMs === 0) await backend.calendarIdle();
     fixture = await launchDesktopFixture({
       script: backend.script,
@@ -280,7 +281,7 @@ test("keeps the old Plan on intervals.icu until the Replace is approved, then ta
   playwright,
 }) => {
   test.setTimeout(180_000);
-  const scenario = await launch(playwright, { waitForApprove: true });
+  const scenario = await launch(playwright, { waitForApprove: true, seedGoal: "event" });
   try {
     const oldPlanId = scenario.seed.planId;
     if (oldPlanId === null) throw new TypeError("The first Plan was not activated");
@@ -307,6 +308,15 @@ test("keeps the old Plan on intervals.icu until the Replace is approved, then ta
     await expect(sheet).toBeVisible({ timeout: 30_000 });
     await expect(
       sheet.getByRole("heading", { name: "Switch intervals.icu to your new Plan?" }),
+    ).toBeVisible();
+    await expect(sheet).toContainText(
+      "Workout Change Set · your new Plan replaces Local cycling event",
+    );
+    await expect(
+      scenario.page
+        .getByRole("region", { name: "Calendar", exact: true })
+        .getByText(/^Improve fitness · Training Week \d+ of \d+$/u),
+      "the Calendar header names the new Plan",
     ).toBeVisible();
     await expect(sheet.locator('[data-replace-block="comes-off"]')).toContainText(
       new RegExp(`^Comes off · .+ · ${oldLater.length} workouts`, "u"),

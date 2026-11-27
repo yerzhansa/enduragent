@@ -1,4 +1,8 @@
-import type { PlanCalendarHistoryEntry, PlanCalendarTick } from "@enduragent/coach-contract";
+import type {
+  PlanCalendarEndingWorkout,
+  PlanCalendarHistoryEntry,
+  PlanCalendarTick,
+} from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { useEffect, useRef, type ReactElement } from "react";
@@ -84,8 +88,6 @@ function progress(read: PlanCalendarRead) {
   };
 }
 
-type AthleteChange = PlanDetails["ending"]["athleteChanges"][number];
-
 function sameTick(left: PlanCalendarTick, right: PlanCalendarTick): boolean {
   return (
     left.planWorkoutId === right.planWorkoutId &&
@@ -96,7 +98,7 @@ function sameTick(left: PlanCalendarTick, right: PlanCalendarTick): boolean {
 }
 
 function ChangeList(props: {
-  readonly changes: readonly AthleteChange[];
+  readonly changes: readonly PlanCalendarEndingWorkout[];
   readonly text: CalendarText;
 }): ReactElement {
   const { say } = usePhrasebook();
@@ -120,6 +122,7 @@ function ChangeList(props: {
 function EndConfirmView(props: {
   readonly details: PlanDetails;
   readonly end: NonNullable<Extract<DetailsSheetState, { kind: "open" }>["end"]>;
+  readonly listRemoves: boolean;
   readonly text: CalendarText;
   readonly onRemoveChanges: (remove: boolean) => void;
   readonly onConfirm: () => void;
@@ -165,6 +168,9 @@ function EndConfirmView(props: {
           ? null
           : ` ${say("plan.calendar.details.endToday", { name: today.name })}`}
       </p>
+      {props.listRemoves && removes > 0 ? (
+        <ChangeList changes={details.ending.removes} text={text} />
+      ) : null}
       {split ? (
         <>
           {staying.length === 0 ? null : (
@@ -349,6 +355,7 @@ export function PlanDetailsSheet(props: {
         <EndConfirmView
           details={state.details}
           end={state.end}
+          listRemoves={read.replacing?.cleanup === "held"}
           text={text}
           onRemoveChanges={props.onRemoveChanges}
           onConfirm={props.onConfirmEnd}
