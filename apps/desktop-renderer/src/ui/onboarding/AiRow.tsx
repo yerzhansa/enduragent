@@ -12,8 +12,7 @@ import { Menu } from "@base-ui/react/menu";
 import { isKeylessProvider } from "@enduragent/coach-contract";
 import { Check } from "lucide-react";
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import { Button, buttonVariants } from "@enduragent/ui";
-import { cn } from "@enduragent/ui";
+import { Button, buttonVariants, cn } from "@enduragent/ui";
 import {
   CUSTOM_MODEL_SELECTION,
   DESKTOP_CREDENTIAL_SLOTS,
@@ -36,6 +35,7 @@ import {
 } from "../../onboarding/lanes";
 import { llmSelectionFromDraft, type LlmSelectionDraft } from "../../onboarding/selection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
+import { SELECT_LIST_FIT_CLASS } from "../select-list";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -692,7 +692,7 @@ export function AiRow(props: {
                       <SelectTrigger id="onboarding-llm-model" className={SETUP_SELECT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent align="start">
+                      <SelectContent align="start" className={SELECT_LIST_FIT_CLASS}>
                         {draft.provider.models.map((model) => (
                           <SelectItem key={model.value} value={model.value}>
                             {model.hint === undefined
