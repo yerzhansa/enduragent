@@ -127,11 +127,11 @@ function approveHarness(reply: PlanCalendarRpcResult | Error) {
     order.push("send-again");
     return { status: "sending" };
   });
-  const approved = vi.fn();
+  const libraryChanged = vi.fn();
   const controller = createApproveController({
     approve,
     sendAgain,
-    approved,
+    libraryChanged,
     refresh,
     later: (run) => {
       later.push(run);
@@ -147,7 +147,7 @@ function approveHarness(reply: PlanCalendarRpcResult | Error) {
     order,
     refresh,
     approve,
-    approved,
+    libraryChanged,
     sendAgain,
     last: () => states.at(-1),
   };
@@ -165,13 +165,14 @@ describe("the Approve controller", () => {
     });
     expect(test.last()).toMatchObject({ kind: "sending", weeks: [1, 2] });
     expect(test.refresh).toHaveBeenCalledOnce();
-    expect(test.approved).toHaveBeenCalledOnce();
+    expect(test.libraryChanged).toHaveBeenCalledOnce();
     test.controller.observe(sentRead("none"), "idle");
     expect(test.last()).toMatchObject({ kind: "sending", polls: 1 });
     test.later.at(-1)?.();
     expect(test.refresh).toHaveBeenCalledTimes(2);
     test.controller.observe(sentRead("ok"), "idle");
     expect(test.last()).toEqual({ kind: "closed" });
+    expect(test.libraryChanged).toHaveBeenCalledTimes(2);
   });
 
   it("shows failed writes, and Retry asks the app to send again before it reads", async () => {
@@ -199,6 +200,7 @@ describe("the Approve controller", () => {
     expect(test.last()).toMatchObject({ kind: "sending", polls: SENDING_POLLS });
     test.controller.observe(sentRead("none"), "idle");
     expect(test.last()).toMatchObject({ kind: "send-failed", weeks: [1, 2] });
+    expect(test.libraryChanged).toHaveBeenCalledTimes(2);
     test.controller.observe(sentRead("ok"), "idle");
     expect(test.last()).toEqual({ kind: "closed" });
   });
@@ -227,7 +229,7 @@ describe("the Approve controller", () => {
           answer = resolve;
         }),
       sendAgain: async () => ({ status: "sending" }),
-      approved: vi.fn(),
+      libraryChanged: vi.fn(),
       refresh: vi.fn(),
       later: () => vi.fn(),
       publish: (state) => states.push(state),
@@ -277,7 +279,7 @@ describe("the Approve controller", () => {
     refused.controller.observe(waitingRead(), "idle");
     await refused.controller.approve();
     expect(refused.last()).toEqual({ kind: "refused", scope: { kind: "first-weeks" } });
-    expect(refused.approved).not.toHaveBeenCalled();
+    expect(refused.libraryChanged).not.toHaveBeenCalled();
     const offline = approveHarness(new Error("offline"));
     offline.controller.observe(waitingRead(), "idle");
     await offline.controller.approve();

@@ -40,7 +40,7 @@ export interface ApproveControllerDeps {
     readonly scope: ApprovalScope;
   }): Promise<PlanCalendarRpcResult>;
   sendAgain(): Promise<PlanCalendarRpcResult>;
-  approved(): void;
+  libraryChanged(): void;
   refresh(): void;
   later(run: () => void): () => void;
   publish(state: ApproveSheetState): void;
@@ -61,7 +61,9 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
       cancelTimer();
       cancelTimer = NO_TIMER;
     }
+    const leftSending = state.kind === "sending" && next.kind !== "sending";
     state = next;
+    if (leftSending) deps.libraryChanged();
     deps.publish(next);
   };
 
@@ -155,7 +157,7 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
         return;
       }
       poll(result.weeks, scope, 0);
-      deps.approved();
+      deps.libraryChanged();
       deps.refresh();
     },
     notNow() {
