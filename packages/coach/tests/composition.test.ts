@@ -480,6 +480,7 @@ async function intervalsApprovalFixture(
 async function planCalendarFixture(credentials: {
   readonly refused: string;
   readonly accepted: string;
+  readonly approve?: boolean;
 }) {
   const requests: {
     readonly credential: string;
@@ -583,16 +584,21 @@ async function planCalendarFixture(credentials: {
     expectedVersion: draft.planCreation.version,
     incumbent: null,
   });
-  if (activated.planId === null) throw new Error("Expected active Plan");
-  await expect(
-    lifecycle.operations["plan.calendar"]({
-      action: "approve-weeks",
-      planId: activated.planId,
-      scope: { kind: "first-weeks" },
-    }),
-  ).resolves.toMatchObject({ status: "approved" });
-  await created.value.idle();
+  const planId = activated.planId;
+  if (planId === null) throw new Error("Expected active Plan");
+  const approve = async () => {
+    await expect(
+      lifecycle.operations["plan.calendar"]({
+        action: "approve-weeks",
+        planId,
+        scope: { kind: "first-weeks" },
+      }),
+    ).resolves.toMatchObject({ status: "approved" });
+    await created.value.idle();
+  };
+  if (credentials.approve !== false) await approve();
   return {
+    approve,
     lifecycle,
     requests,
     async apply(apiKey: string) {
@@ -2262,6 +2268,27 @@ describe("local coach composition", () => {
     await expect(fixture.listPlans()).resolves.toMatchObject({
       active: { calendar: { status: "verified" } },
     });
+    await fixture.lifecycle.close();
+  });
+
+  it("tells the Plan library a new Plan waits for Approve until the athlete approves it", async () => {
+    const accepted = "fixture-calendar-waiting-key";
+    const fixture = await planCalendarFixture({
+      refused: "fixture-calendar-unused-key",
+      accepted,
+      approve: false,
+    });
+    await expect(fixture.apply(accepted)).resolves.toMatchObject({ status: "applied" });
+    await expect(fixture.listPlans()).resolves.toMatchObject({
+      active: { calendar: { status: "waiting-for-approve", window: null, currentThrough: null } },
+    });
+    expect(fixture.requests.filter((request) => request.method === "POST")).toEqual([]);
+    await fixture.approve();
+    const listed = await fixture.listPlans();
+    expect(listed.active?.calendar.status).not.toBe("waiting-for-approve");
+    expect(fixture.requests.filter((request) => request.method === "POST").length).toBeGreaterThan(
+      0,
+    );
     await fixture.lifecycle.close();
   });
 

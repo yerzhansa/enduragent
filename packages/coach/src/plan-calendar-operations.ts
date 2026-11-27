@@ -37,6 +37,9 @@ export function createPlanCalendarOperations(deps: {
             },
             request,
           );
+        case "send-again":
+          deps.changed();
+          return { status: "sending" };
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
         case "save-settings":

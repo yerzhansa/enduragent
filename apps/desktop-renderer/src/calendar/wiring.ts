@@ -21,7 +21,7 @@ export function startCalendar(
     localTodayDateKey,
     publish: (next) => {
       store.getState().setCalendar(next);
-      if (next.kind === "ready") approve.observe(next.read);
+      if (next.kind === "ready") approve.observe(next.read, next.refresh);
     },
   });
   const approve = createApproveController({
@@ -31,9 +31,12 @@ export function startCalendar(
         planId,
         scope,
       }),
+    sendAgain: async () =>
+      (await clients.getClient()).call("plan.calendar", { action: "send-again" }),
     refresh: () => void controller.refresh(),
     later: (run) => {
-      setTimeout(run, 1_500);
+      const timer = setTimeout(run, 1_500);
+      return () => clearTimeout(timer);
     },
     publish: (next) => store.getState().setCalendarApproval(next),
   });
@@ -50,7 +53,7 @@ export function startCalendar(
     open: (scope) => approve.open(scope),
     approve: () => void approve.approve(),
     notNow: () => approve.notNow(),
-    retry: () => approve.retry(),
+    retry: () => void approve.retry(),
     connect: () => store.getState().setActiveView("settings"),
   });
   store.getState().bindCalendarSettingsActions({
@@ -70,9 +73,21 @@ export function startCalendar(
       approve.pageOpened();
       void controller.open();
     }
+    const before = previousState.planLibrary.value;
+    const activated = state.planLibrary.value?.active;
+    if (
+      before !== null &&
+      activated != null &&
+      before.active?.planId !== activated.planId &&
+      activated.calendar.status === "waiting-for-approve" &&
+      state.activeView === "chat"
+    ) {
+      state.setActiveView("calendar");
+    }
   });
   return () => {
     dispose();
+    approve.dispose();
     store.getState().bindCalendarActions(null);
     store.getState().bindCalendarApproveActions(null);
     store.getState().bindCalendarSettingsActions(null);

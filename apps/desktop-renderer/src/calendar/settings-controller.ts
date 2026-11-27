@@ -59,10 +59,17 @@ export function createCalendarSettingsController(deps: {
       ]);
       publish({
         weekDelivery:
-          settings.status === "fulfilled"
-            ? weekDeliveryOf(settings.value)
-            : { kind: "unavailable" },
-        startAtLogin: login.status === "fulfilled" ? loginOf(login.value) : { kind: "unavailable" },
+          state.weekDelivery.kind === "saving"
+            ? state.weekDelivery
+            : settings.status === "fulfilled"
+              ? weekDeliveryOf(settings.value)
+              : { kind: "unavailable" },
+        startAtLogin:
+          state.startAtLogin.kind === "saving"
+            ? state.startAtLogin
+            : login.status === "fulfilled"
+              ? loginOf(login.value)
+              : { kind: "unavailable" },
       });
     },
     async setWeekDelivery(value) {

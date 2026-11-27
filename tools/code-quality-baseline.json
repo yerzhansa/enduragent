@@ -458,7 +458,7 @@
     "packages/coach/src/enduragent.ts": 2574,
     "packages/coach/src/plan-change-operations.ts": 1034,
     "packages/coach/src/plan-creation-answers.ts": 867,
-    "packages/coach/src/plan-creation-operations.ts": 910,
+    "packages/coach/src/plan-creation-operations.ts": 885,
     "packages/coach/src/planning-operations.ts": 5310,
     "packages/core/src/agent/chat-store.ts": 1516,
     "packages/core/src/agent/transcript-store.ts": 2934,

@@ -391,6 +391,10 @@ describe("Plan library", () => {
       "Calendar · Updating calendar",
     ],
     [
+      { status: "waiting-for-approve", window: null, currentThrough: null, error: null },
+      "Calendar · Waiting for Approve",
+    ],
+    [
       {
         status: "running",
         window: { start: "1998-09-07", end: "1998-09-13" },

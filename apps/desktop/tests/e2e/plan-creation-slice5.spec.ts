@@ -237,6 +237,7 @@ async function assertActivated(
   scenario: Scenario,
   reviewed: PlanCreationCardModel,
   before: Awaited<ReturnType<PlanCreationBackend["inspectActivation"]>>,
+  opensCalendar = true,
 ): Promise<void> {
   if (reviewed.draft === null) throw new TypeError("Reviewed Draft is unavailable");
   await expect.poll(async () => scenario.backend.card()).toBeNull();
@@ -302,6 +303,14 @@ async function assertActivated(
     status: "ready",
     state: { projection: "active", data: { plan: { id: planId, name: "Improve fitness" } } },
   });
+  if (!opensCalendar) return;
+  await expect(scenario.page.locator('[data-calendar-state="ready"]')).toBeVisible({
+    timeout: 15_000,
+  });
+  await scenario.page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("button", { name: "Chat", exact: true })
+    .click();
 }
 
 for (const appearance of [
@@ -403,7 +412,7 @@ for (const appearance of [
         await showActivePlan(scenario);
         const committed = await scenario.backend.inspectActivation();
         await relaunch(scenario, playwright);
-        await assertActivated(scenario, reviewed, before);
+        await assertActivated(scenario, reviewed, before, false);
         expect(await scenario.backend.inspectActivation()).toEqual(committed);
         await showActivePlan(scenario, "restored-active-plan");
         const after = await scenario.backend.inspectUnrelated();

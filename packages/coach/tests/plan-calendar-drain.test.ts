@@ -404,7 +404,7 @@ describe("Plan calendar drain", () => {
     expect(test.onIcu(planId)).toEqual(expect.arrayContaining(weekThree));
   });
 
-  it("records a failed create and sends it on the next run without a copy", async () => {
+  it("records a failed create, and Retry asks for the run that sends it without a copy", async () => {
     const test = await harness();
     const { planId } = await test.activate();
     await test.approve(planId);
@@ -413,6 +413,11 @@ describe("Plan calendar drain", () => {
     expect(
       await test.store.get("SELECT count(*) AS n FROM plan_icu_copy WHERE last_write='failed'"),
     ).toEqual({ n: 1 });
+    test.changed.mockClear();
+    await expect(
+      test.calendarOperations["plan.calendar"]({ action: "send-again" }),
+    ).resolves.toEqual({ status: "sending" });
+    expect(test.changed).toHaveBeenCalledOnce();
     await test.drain.kick();
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
     expect(new Set(test.onIcu(planId)).size).toBe(test.onIcu(planId).length);

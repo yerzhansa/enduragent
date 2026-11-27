@@ -101,7 +101,9 @@ describe("what the Approve sheet lists", () => {
   });
 
   it("follows the approved weeks while they are sent, and names the failed days", () => {
-    expect(sendingFailures(sentRead("none"), [1, 2])).toMatchObject({ sent: 1, waiting: 1 });
+    const sending = sendingFailures(sentRead("none"), [1, 2]);
+    expect(sending.sent).toBe(1);
+    expect(sending.waiting.map((entry) => entry.dateKey)).toEqual([19980113]);
     const failed = sendingFailures(sentRead("failed"), [1, 2]);
     expect(failed.sent).toBe(1);
     expect(failed.failed.map((entry) => entry.dateKey)).toEqual([19980113]);
@@ -112,24 +114,46 @@ describe("what the Approve sheet lists", () => {
 function approveHarness(reply: PlanCalendarRpcResult | Error) {
   const states: ApproveSheetState[] = [];
   const later: (() => void)[] = [];
-  const refresh = vi.fn();
+  const cancelled = vi.fn();
+  const order: string[] = [];
+  const refresh = vi.fn(() => {
+    order.push("refresh");
+  });
   const approve = vi.fn(async () => {
     if (reply instanceof Error) throw reply;
     return reply;
   });
+  const sendAgain = vi.fn(async (): Promise<PlanCalendarRpcResult> => {
+    order.push("send-again");
+    return { status: "sending" };
+  });
   const controller = createApproveController({
     approve,
+    sendAgain,
     refresh,
-    later: (run) => later.push(run),
+    later: (run) => {
+      later.push(run);
+      return cancelled;
+    },
     publish: (state) => states.push(state),
   });
-  return { controller, states, later, refresh, approve, last: () => states.at(-1) };
+  return {
+    controller,
+    states,
+    later,
+    cancelled,
+    order,
+    refresh,
+    approve,
+    sendAgain,
+    last: () => states.at(-1),
+  };
 }
 
 describe("the Approve controller", () => {
   it("opens for a new Plan, approves, and closes once both weeks are on intervals.icu", async () => {
     const test = approveHarness({ status: "approved", weeks: [1, 2] });
-    test.controller.observe(waitingRead());
+    test.controller.observe(waitingRead(), "idle");
     expect(test.last()).toEqual({ kind: "open", scope: { kind: "first-weeks" } });
     await test.controller.approve();
     expect(test.approve).toHaveBeenCalledWith({
@@ -138,45 +162,118 @@ describe("the Approve controller", () => {
     });
     expect(test.last()).toMatchObject({ kind: "sending", weeks: [1, 2] });
     expect(test.refresh).toHaveBeenCalledOnce();
-    test.controller.observe(sentRead("none"));
+    test.controller.observe(sentRead("none"), "idle");
     expect(test.last()).toMatchObject({ kind: "sending", polls: 1 });
     test.later.at(-1)?.();
     expect(test.refresh).toHaveBeenCalledTimes(2);
-    test.controller.observe(sentRead("ok"));
+    test.controller.observe(sentRead("ok"), "idle");
     expect(test.last()).toEqual({ kind: "closed" });
   });
 
-  it("shows failed writes with Retry, and stops polling after a while", async () => {
+  it("shows failed writes, and Retry asks the app to send again before it reads", async () => {
     const test = approveHarness({ status: "approved", weeks: [1, 2] });
-    test.controller.observe(waitingRead());
+    test.controller.observe(waitingRead(), "idle");
     await test.controller.approve();
-    test.controller.observe(sentRead("failed"));
+    test.controller.observe(sentRead("failed"), "idle");
     expect(test.last()).toMatchObject({ kind: "send-failed", weeks: [1, 2] });
-    test.controller.retry();
+    test.order.length = 0;
+    await test.controller.retry();
+    expect(test.sendAgain).toHaveBeenCalledOnce();
+    expect(test.order).toEqual(["send-again", "refresh"]);
     expect(test.last()).toMatchObject({ kind: "sending", polls: 0 });
-    for (let poll = 0; poll < SENDING_POLLS; poll += 1) test.controller.observe(sentRead("none"));
-    test.controller.observe(sentRead("none"));
+    test.controller.observe(sentRead("ok"), "idle");
     expect(test.last()).toEqual({ kind: "closed" });
+  });
+
+  it("keeps the sheet open with the unsent workouts when sending takes too long", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(waitingRead(), "idle");
+    await test.controller.approve();
+    for (let poll = 0; poll < SENDING_POLLS; poll += 1) {
+      test.controller.observe(sentRead("none"), "idle");
+    }
+    expect(test.last()).toMatchObject({ kind: "sending", polls: SENDING_POLLS });
+    test.controller.observe(sentRead("none"), "idle");
+    expect(test.last()).toMatchObject({ kind: "send-failed", weeks: [1, 2] });
+    test.controller.observe(sentRead("ok"), "idle");
+    expect(test.last()).toEqual({ kind: "closed" });
+  });
+
+  it("does not spend a poll on a read that is still refreshing, and counts a failed refresh", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(waitingRead(), "idle");
+    await test.controller.approve();
+    test.controller.observe(waitingRead(), "refreshing");
+    expect(test.last()).toMatchObject({ kind: "sending", polls: 0 });
+    test.controller.observe(waitingRead(), "failed");
+    expect(test.last()).toMatchObject({ kind: "sending", polls: 1 });
+    for (let poll = 1; poll < SENDING_POLLS; poll += 1) {
+      test.controller.observe(waitingRead(), "failed");
+    }
+    test.controller.observe(waitingRead(), "failed");
+    expect(test.last()).toMatchObject({ kind: "send-failed" });
+  });
+
+  it("ignores Not now while the Approve call is running", async () => {
+    let answer: (value: PlanCalendarRpcResult) => void = () => undefined;
+    const states: ApproveSheetState[] = [];
+    const controller = createApproveController({
+      approve: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      sendAgain: async () => ({ status: "sending" }),
+      refresh: vi.fn(),
+      later: () => vi.fn(),
+      publish: (state) => states.push(state),
+    });
+    controller.observe(waitingRead(), "idle");
+    const approving = controller.approve();
+    controller.notNow();
+    expect(states.at(-1)).toEqual({ kind: "approving", scope: { kind: "first-weeks" } });
+    answer({ status: "approved", weeks: [1, 2] });
+    await approving;
+    expect(states.at(-1)).toMatchObject({ kind: "sending" });
+  });
+
+  it("closes a refused sheet once nothing is left to approve, so later banners still show", async () => {
+    const test = approveHarness({ status: "refused", reason: "already-approved" });
+    test.controller.observe(waitingRead(), "idle");
+    await test.controller.approve();
+    expect(test.last()).toEqual({ kind: "refused", scope: { kind: "first-weeks" } });
+    test.controller.observe(sentRead("ok"), "idle");
+    expect(test.last()).toEqual({ kind: "closed" });
+  });
+
+  it("stops its poll timer when the page goes away", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(waitingRead(), "idle");
+    await test.controller.approve();
+    test.controller.dispose();
+    expect(test.cancelled).toHaveBeenCalled();
+    const published = test.states.length;
+    test.controller.observe(sentRead("ok"), "idle");
+    expect(test.states).toHaveLength(published);
   });
 
   it("keeps Not now until the page opens again", () => {
     const test = approveHarness({ status: "approved", weeks: [1, 2] });
-    test.controller.observe(waitingRead());
+    test.controller.observe(waitingRead(), "idle");
     test.controller.notNow();
-    test.controller.observe(waitingRead());
+    test.controller.observe(waitingRead(), "idle");
     expect(test.last()).toEqual({ kind: "closed" });
     test.controller.pageOpened();
-    test.controller.observe(waitingRead());
+    test.controller.observe(waitingRead(), "idle");
     expect(test.last()).toEqual({ kind: "open", scope: { kind: "first-weeks" } });
   });
 
   it("says the Change Set is out of date when the app refuses it, and reopens on a failed call", async () => {
     const refused = approveHarness({ status: "refused", reason: "already-approved" });
-    refused.controller.observe(waitingRead());
+    refused.controller.observe(waitingRead(), "idle");
     await refused.controller.approve();
     expect(refused.last()).toEqual({ kind: "refused", scope: { kind: "first-weeks" } });
     const offline = approveHarness(new Error("offline"));
-    offline.controller.observe(waitingRead());
+    offline.controller.observe(waitingRead(), "idle");
     await offline.controller.approve();
     expect(offline.last()).toEqual({ kind: "open", scope: { kind: "first-weeks" } });
   });

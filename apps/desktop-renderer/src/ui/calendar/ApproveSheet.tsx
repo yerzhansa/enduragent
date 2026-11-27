@@ -181,7 +181,12 @@ export function ApproveSheet(props: {
             {say("plan.calendar.approve.connect")}
           </Button>
         )}
-        <Button type="button" variant="outline" onClick={props.onNotNow}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={phase.kind === "approving"}
+          onClick={props.onNotNow}
+        >
           {say("plan.calendar.approve.notNow")}
         </Button>
       </div>

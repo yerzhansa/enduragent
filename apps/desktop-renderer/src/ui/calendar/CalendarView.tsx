@@ -100,7 +100,13 @@ function sheetView(
       const progress = sendingFailures(read, sheet.weeks);
       return {
         pending,
-        phase: { kind: "send-failed", sent: progress.sent, failed: progress.failed },
+        phase: {
+          kind: "send-failed",
+          sent: progress.sent,
+          failed: [...progress.failed, ...progress.waiting].sort(
+            (left, right) => left.dateKey - right.dateKey,
+          ),
+        },
       };
     }
   }

@@ -65,6 +65,7 @@ async function launch(
   options: {
     readonly delayMs?: number;
     readonly calendarConnected?: boolean;
+    readonly waitForApprove?: boolean;
   } = {},
 ): Promise<Scenario> {
   const scratch = await mkdtemp(join(tmpdir(), "plan-calendar-"));
@@ -73,6 +74,7 @@ async function launch(
   const backend = new PlanCreationBackend(join(scratch, "store.db"), false, true, {
     calendar,
     calendarConnected: options.calendarConnected ?? true,
+    waitForApprove: options.waitForApprove ?? false,
   });
   let fixture: RunningDesktopFixture | undefined;
   try {
@@ -244,6 +246,35 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   ).toBeVisible();
   await navigate(scenario, "Chat");
 }
+
+test("opens the Calendar with the Approve sheet once a new Plan is activated in Chat", async ({
+  playwright,
+}) => {
+  test.setTimeout(120_000);
+  const scenario = await launch(playwright, { waitForApprove: true });
+  try {
+    await replacementDraft(scenario);
+    await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
+    await scenario.page
+      .getByRole("dialog", { name: "Close and activate?", exact: true })
+      .getByRole("button", { name: "Activate new Plan", exact: true })
+      .click();
+    const sheet = scenario.page.locator("[data-approve-sheet]");
+    await expect(sheet).toBeVisible({ timeout: 30_000 });
+    await expect(
+      sheet.getByRole("heading", {
+        name: /^Send (the first two Training Weeks|this Training Week) to intervals\.icu\?$/u,
+      }),
+    ).toBeVisible();
+    await expect(scenario.page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+    expect(scenario.calendar.events).toEqual([]);
+    await sheet.getByRole("button", { name: "Not now", exact: true }).click();
+    await navigate(scenario, "Plan");
+    await expect(active(scenario).getByText("Calendar · Waiting for Approve")).toBeVisible();
+  } finally {
+    await close(scenario);
+  }
+});
 
 test("shows calendar progress and the verified two-week window", async ({ playwright }) => {
   test.setTimeout(120_000);

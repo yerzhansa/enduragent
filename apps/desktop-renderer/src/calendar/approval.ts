@@ -85,10 +85,10 @@ export function sendingFailures(
 ): {
   readonly sent: number;
   readonly failed: readonly PlanCalendarWorkout[];
-  readonly waiting: number;
+  readonly waiting: readonly PlanCalendarWorkout[];
 } {
   const plan = read.plan;
-  if (plan === null) return { sent: 0, failed: [], waiting: 0 };
+  if (plan === null) return { sent: 0, failed: [], waiting: [] };
   const inWeeks = plan.workouts.filter(
     (workout) =>
       workout.dateKey >= read.todayDateKey &&
@@ -107,7 +107,7 @@ export function sendingFailures(
     ),
     waiting: inWeeks.filter(
       (workout) => workout.copy.kind === "plan-only" && workout.lastWrite !== "failed",
-    ).length,
+    ),
   };
 }
 
