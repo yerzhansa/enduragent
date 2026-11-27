@@ -110,19 +110,21 @@ async function clearance(
         swapDay === null
           ? null
           : document.querySelector(`[role="cell"][data-date-key="${swapDay}"]`);
-      let bothFit = false;
-      if (target !== null && source !== null) {
-        const a = target.getBoundingClientRect();
-        const b = source.getBoundingClientRect();
-        const left = Math.min(a.left, b.left);
-        const right = Math.max(a.right, b.right);
-        const under = right > dialog.left && left < dialog.right;
-        const limit = under ? dialog.top - 12 : view.bottom;
-        bothFit =
-          b.right > view.left &&
-          b.left < view.right &&
-          Math.max(a.bottom, b.bottom) - Math.min(a.top, b.top) <= limit - view.top;
+      const boxes = [
+        target?.querySelector(`[data-move-preview="${id}"]`),
+        source?.querySelector(`[data-move-preview="${swapId}"]`),
+      ]
+        .filter((element): element is Element => element != null)
+        .map((element) => element.getBoundingClientRect())
+        .filter((box) => box.right > view.left && box.left < view.right);
+      let lower = Number.NEGATIVE_INFINITY;
+      let upper = Number.POSITIVE_INFINITY;
+      for (const box of boxes) {
+        const under = box.right > dialog.left && box.left < dialog.right;
+        lower = Math.max(lower, box.bottom - (under ? dialog.top - 12 : view.bottom));
+        upper = Math.min(upper, box.top - view.top);
       }
+      const bothFit = boxes.length === 2 && lower <= upper + 1;
       return {
         target: clearOf(target?.querySelector(`[data-move-preview="${id}"]`)),
         swapped: clearOf(source?.querySelector(`[data-move-preview="${swapId}"]`)),
@@ -153,10 +155,18 @@ async function expectTargetClear(
       message: `the move dialog covers the bottom of its target ${dateKey}`,
     })
     .toBe(true);
-  const both = await clearance(scenario, dateKey, workoutId, swap);
-  if (swap !== null && both?.bothFit === true && both.swapped !== null) {
-    expect(both.swapped, `the swapped preview on ${swap.dateKey} is covered`).toBe(true);
-  }
+  if (swap === null) return;
+  await expect
+    .poll(
+      async () => {
+        const both = await clearance(scenario, dateKey, workoutId, swap);
+        return both === null || !both.bothFit || both.swapped !== false;
+      },
+      {
+        message: `the swapped preview on ${swap.dateKey} is covered while both fit (target ${dateKey})`,
+      },
+    )
+    .toBe(true);
 }
 
 async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<void> {

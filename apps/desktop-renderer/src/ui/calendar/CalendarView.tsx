@@ -601,7 +601,7 @@ export function CalendarView(): ReactElement {
     >
       <div
         className={cn(
-          "h-full min-h-0 overflow-auto px-5 pt-3.5",
+          "h-full min-h-0 overflow-auto scrollbar-gutter-stable px-5 pt-3.5",
           move.kind === "closed" ? "pb-6" : "pb-96",
         )}
         data-page-scroll=""

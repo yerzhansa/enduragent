@@ -13,23 +13,19 @@ const STEP = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 const GAP_PX = 12;
 
-interface Box {
-  readonly top: number;
-  readonly bottom: number;
-  readonly left: number;
-  readonly right: number;
-}
-
 function cellOf(dateKey: number): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[role="cell"][data-date-key="${dateKey}"]`);
 }
 
-function shiftFor(box: Box, view: DOMRect, dialog: DOMRect): number | null {
-  const under = box.right > dialog.left && box.left < dialog.right;
-  const limit = under ? dialog.top - GAP_PX : view.bottom;
-  if (box.bottom - box.top > limit - view.top) return null;
-  if (box.bottom > limit) return box.bottom - limit;
-  return box.top < view.top ? box.top - view.top : 0;
+function shiftFor(boxes: readonly DOMRect[], view: DOMRect, dialog: DOMRect): number | null {
+  let lower = Number.NEGATIVE_INFINITY;
+  let upper = Number.POSITIVE_INFINITY;
+  for (const box of boxes) {
+    const under = box.right > dialog.left && box.left < dialog.right;
+    lower = Math.max(lower, box.bottom - (under ? dialog.top - GAP_PX : view.bottom));
+    upper = Math.min(upper, box.top - view.top);
+  }
+  return lower > upper ? null : Math.min(Math.max(0, lower), upper);
 }
 
 function keepTargetClear(frame: HTMLElement, dateKey: number, sourceKey: number | null): boolean {
@@ -40,23 +36,18 @@ function keepTargetClear(frame: HTMLElement, dateKey: number, sourceKey: number 
   if (scroller === null) return true;
   const view = scroller.getBoundingClientRect();
   const dialog = frame.getBoundingClientRect();
-  const target = cell.getBoundingClientRect();
-  const source = sourceKey === null ? null : (cellOf(sourceKey)?.getBoundingClientRect() ?? null);
-  const both =
-    source === null || source.right <= view.left || source.left >= view.right
-      ? null
-      : shiftFor(
-          {
-            top: Math.min(target.top, source.top),
-            bottom: Math.max(target.bottom, source.bottom),
-            left: Math.min(target.left, source.left),
-            right: Math.max(target.right, source.right),
-          },
-          view,
-          dialog,
-        );
+  const target = (cell.querySelector("[data-move-preview]") ?? cell).getBoundingClientRect();
+  const swapped = [
+    ...(sourceKey === null
+      ? []
+      : (cellOf(sourceKey)?.querySelectorAll("[data-move-preview]") ?? [])),
+  ]
+    .map((preview) => preview.getBoundingClientRect())
+    .filter((box) => box.right > view.left && box.left < view.right);
   scroller.scrollTop +=
-    both ?? shiftFor(target, view, dialog) ?? target.bottom - (dialog.top - GAP_PX);
+    (swapped.length === 0 ? null : shiftFor([target, ...swapped], view, dialog)) ??
+    shiftFor([target], view, dialog) ??
+    target.bottom - (dialog.top - GAP_PX);
   return true;
 }
 
