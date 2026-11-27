@@ -3200,8 +3200,10 @@
     "error": {
       "intervalsCredentials": "{{service}} avvisade begäran. Kontrollera din anslutning till {{service}} eller din API-nyckel.",
       "intervalsTransient": "Kunde inte nå {{service}} just nu. Försök igen om en liten stund.",
+      "modelUnavailable": "{{provider}} erbjuder inte längre den här modellen. Välj en annan modell under Inställningar, Tränare och skicka sedan meddelandet igen.",
       "openRouterCredits": "Ditt {{openrouter}}-konto har inte tillräckligt med krediter. Lägg till krediter hos {{openrouter}} och skicka sedan meddelandet igen.",
       "providerCredentials": "Modellleverantören avvisade API-nyckeln. Kontrollera dina inloggningsuppgifter hos leverantören.",
+      "providerCredits": "Ditt {{provider}}-konto har inte tillräckligt med krediter. Lägg till krediter hos {{provider}} och skicka sedan meddelandet igen.",
       "providerDown": "Modellleverantören har problem. Försök igen om några minuter.",
       "rateLimit": "Gränsen för antal förfrågningar är nådd. Försök igen om en liten stund.",
       "rateLimitDefault": "Gränsen för antal förfrågningar är nådd. Försök igen om ungefär en minut.",

@@ -3200,8 +3200,10 @@
     "error": {
       "intervalsCredentials": "{{service}} hylkäsi pyynnön. Tarkista {{service}}-yhteytesi tai API-avaimesi.",
       "intervalsTransient": "En saanut juuri nyt yhteyttä palveluun {{service}}. Yritä pian uudelleen.",
+      "modelUnavailable": "{{provider}} ei enää tarjoa tätä mallia. Valitse toinen malli kohdassa Asetukset, Valmentaja ja lähetä sitten viestisi uudelleen.",
       "openRouterCredits": "{{openrouter}}-tililläsi ei ole tarpeeksi krediittejä. Lisää krediittejä palvelussa {{openrouter}} ja lähetä sitten viestisi uudelleen.",
       "providerCredentials": "Mallin palveluntarjoaja hylkäsi API-avaimen. Tarkista palveluntarjoajan tunnistautumistietosi.",
+      "providerCredits": "{{provider}}-tililläsi ei ole tarpeeksi krediittejä. Lisää krediittejä palvelussa {{provider}} ja lähetä sitten viestisi uudelleen.",
       "providerDown": "Mallin palveluntarjoajalla on ongelmia. Yritä uudelleen muutaman minuutin kuluttua.",
       "rateLimit": "Pyyntöjä on nyt liikaa. Yritä pian uudelleen.",
       "rateLimitDefault": "Pyyntöjä on nyt liikaa. Yritä uudelleen noin minuutin kuluttua.",

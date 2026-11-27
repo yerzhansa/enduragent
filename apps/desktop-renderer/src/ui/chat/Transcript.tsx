@@ -82,7 +82,7 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
   return (
     <div className="flex min-w-0 items-center gap-inset">
       <CircleAlert className="size-3.5 shrink-0 text-danger" aria-hidden="true" />
-      {error == null || props.message.addCredits === true ? null : (
+      {error == null || props.message.errorNotice !== undefined ? null : (
         <span className="sr-only" role="alert">
           {text}
         </span>
@@ -110,15 +110,15 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
   );
 }
 
-function OpenRouterCreditsCallout(props: { readonly message: ChatMessageView }): ReactElement {
+function FailureNotice(props: { readonly message: ChatMessageView }): ReactElement {
   const text = useWireMessageText(props.message.error ?? "", props.message.errorMessage);
   return (
-    <div className="chat-credits-notice flex flex-wrap items-center justify-between gap-inset rounded-ctl border border-danger/40 bg-surface p-row text-sm leading-5 text-danger">
+    <div className="chat-error-notice flex flex-wrap items-center justify-between gap-inset rounded-ctl border border-danger/40 bg-surface p-row text-sm leading-5 text-danger">
       <span className="flex min-w-0 items-center gap-inset">
         <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
         <span role="alert">{text}</span>
       </span>
-      <AddOpenRouterCreditsButton />
+      {props.message.errorNotice === "add-credits" ? <AddOpenRouterCreditsButton /> : null}
     </div>
   );
 }
@@ -212,13 +212,13 @@ function MessageRow(props: {
       )}
     </ChatTurn>
   );
-  if (message.role !== "athlete" || message.retry !== true || message.addCredits !== true) {
+  if (message.role !== "athlete" || message.retry !== true || message.errorNotice === undefined) {
     return turn;
   }
   return (
     <div className="grid gap-inset">
       {turn}
-      <OpenRouterCreditsCallout message={message} />
+      <FailureNotice message={message} />
     </div>
   );
 }

@@ -111,7 +111,7 @@ describe("coach agent streaming", () => {
 
     expect(events.at(-1)).toMatchObject({
       type: "error",
-      kind: "provider-auth",
+      kind: "subscription-signed-out",
       athleteMessage: "Your ChatGPT sign-in is no longer valid. Open Setup and sign in again.",
     });
   });
@@ -151,7 +151,7 @@ describe("coach agent streaming", () => {
     expect(JSON.stringify(events)).not.toContain("Insufficient credits");
   });
 
-  it("keeps a 402 from another provider on the generic error", async () => {
+  it("keeps a 402 on a subscription lane on the generic error", async () => {
     const { engine } = engineWithTransport({
       generate: async () => {
         throw paymentRequired();
@@ -168,6 +168,74 @@ describe("coach agent streaming", () => {
       kind: "unknown",
       message: { key: "coach.error.unknown" },
     });
+  });
+
+  async function failedTurn(chatProvider: "deepseek" | "anthropic", failure: APICallError) {
+    const generate = vi.fn(async (): Promise<GenerateResult> => {
+      throw failure;
+    });
+    const { engine } = engineWithTransport({ generate, chatProvider });
+    const events: TurnEvent[] = [];
+    await expect(
+      engine.chat({ chatId: chatProvider, message: "hello" }, (event) => events.push(event)),
+    ).rejects.toBe(failure);
+    return {
+      attempts: generate.mock.calls.length,
+      errors: events.filter((e) => e.type === "error"),
+    };
+  }
+
+  function providerFailure(statusCode: number, message: string): APICallError {
+    return new APICallError({
+      message,
+      url: "https://provider.invalid/v1/chat/completions",
+      requestBodyValues: {},
+      statusCode,
+      responseHeaders: { "retry-after-ms": "1" },
+      responseBody: JSON.stringify({ error: { message } }),
+    });
+  }
+
+  it("names a key provider that answers 402 and does not retry", async () => {
+    const { attempts, errors } = await failedTurn(
+      "deepseek",
+      providerFailure(402, "Insufficient Balance"),
+    );
+
+    expect(attempts).toBe(1);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        kind: "provider-credits",
+        message: { key: "coach.error.providerCredits", vars: { provider: "DeepSeek" } },
+      }),
+    ]);
+    expect(JSON.stringify(errors)).not.toContain("Insufficient Balance");
+  });
+
+  it("tells the athlete to pick another model on a 404 and does not retry", async () => {
+    const { attempts, errors } = await failedTurn(
+      "anthropic",
+      providerFailure(404, "model: claude-retired"),
+    );
+
+    expect(attempts).toBe(1);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        kind: "model-unavailable",
+        athleteMessage:
+          "Anthropic no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
+      }),
+    ]);
+  });
+
+  it("keeps retrying a DeepSeek 429, which only means requests came too fast", async () => {
+    const { attempts, errors } = await failedTurn(
+      "deepseek",
+      providerFailure(429, "Rate Limit Reached"),
+    );
+
+    expect(attempts).toBe(4);
+    expect(errors).toEqual([expect.objectContaining({ kind: "rate_limit" })]);
   });
 
   it("emits ordered text_delta events before final-text", async () => {

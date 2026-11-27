@@ -27,7 +27,7 @@ test("offers Add credits when OpenRouter has no credits and keeps the message to
     compactions: 0,
   });
 
-  const credits = transcript.locator(".chat-credits-notice");
+  const credits = transcript.locator(".chat-error-notice");
   await expect(credits).toBeVisible();
   await expect(credits.getByRole("alert")).toHaveText(CREDITS_COPY);
   await expect(page.getByText(CREDITS_COPY, { exact: true })).toHaveCount(1);

@@ -2132,8 +2132,8 @@ describe("handshake", () => {
 });
 
 describe("additive protocol signals", () => {
-  it("keeps all existing error kinds and adds only detached and openrouter-credits", () => {
-    expect(AgentErrorKindSchema.options).toEqual([
+  it("keeps all existing error kinds and only appends new ones", () => {
+    const kinds = [
       "rate_limit",
       "provider-auth",
       "provider-down",
@@ -2141,16 +2141,12 @@ describe("additive protocol signals", () => {
       "unknown",
       "detached",
       "openrouter-credits",
-    ]);
-    for (const kind of [
-      "rate_limit",
-      "provider-auth",
-      "provider-down",
-      "intervals",
-      "unknown",
-      "detached",
-      "openrouter-credits",
-    ] as const) {
+      "subscription-signed-out",
+      "provider-credits",
+      "model-unavailable",
+    ] as const;
+    expect(AgentErrorKindSchema.options).toEqual(kinds);
+    for (const kind of kinds) {
       expect(AgentErrorKindSchema.parse(kind)).toBe(kind);
     }
     expect(AgentErrorKindSchema.safeParse("aborted").success).toBe(false);

@@ -17,6 +17,7 @@ import {
   type ChatTranscriptItemView,
   type ChatQueuedView,
   type ChatSurfaceState,
+  type FailedMessageNotice,
 } from "../chat-slice";
 import {
   chatScrollAnchor,
@@ -24,7 +25,7 @@ import {
   type ChatScrollAnchor,
   type ChatStreamBuffer,
 } from "../chat-stream";
-import { CHAT_RESPONSE_STOPPED_COPY } from "../../turn-state";
+import { CHAT_RESPONSE_STOPPED_COPY, type ChatErrorView } from "../../turn-state";
 
 type StreamAction =
   | { readonly kind: "append"; readonly messageId: string; readonly delta: string }
@@ -118,11 +119,24 @@ function coachHasVisibleText(state: ChatState, entries: readonly TranscriptPageE
   );
 }
 
+const FAILED_MESSAGE_NOTICES = {
+  rate_limit: null,
+  "provider-auth": null,
+  "provider-down": null,
+  intervals: null,
+  unknown: null,
+  detached: null,
+  "openrouter-credits": "add-credits",
+  "subscription-signed-out": "message",
+  "provider-credits": "message",
+  "model-unavailable": "message",
+} as const satisfies Record<ChatErrorView["kind"], FailedMessageNotice | null>;
+
 type TurnRecovery = {
   readonly messageId: string | null;
   readonly messageError: string | null;
   readonly messageErrorMessage: WireMessage | undefined;
-  readonly messageAddCredits: boolean;
+  readonly messageNotice: FailedMessageNotice | null;
   readonly notice: string | null;
   readonly noticeTone: "danger" | "neutral";
   readonly noticeMessage: WireMessage | undefined;
@@ -139,7 +153,7 @@ function stampRecoveredMessage(message: ChatMessageView, recovery: TurnRecovery)
     ...(recovery.messageErrorMessage === undefined
       ? {}
       : { errorMessage: recovery.messageErrorMessage }),
-    ...(recovery.messageAddCredits ? { addCredits: true as const } : {}),
+    ...(recovery.messageNotice === null ? {} : { errorNotice: recovery.messageNotice }),
   };
 }
 
@@ -170,7 +184,7 @@ function projectTurnRecovery(
     messageId: null,
     messageError: null,
     messageErrorMessage: undefined,
-    messageAddCredits: false,
+    messageNotice: null,
     notice: null,
     noticeTone: "neutral",
     noticeMessage: undefined,
@@ -183,7 +197,7 @@ function projectTurnRecovery(
     : (input.planNotice ?? (input.planValueMissing ? (input.planError ?? null) : null));
   if (input.decisionBlocksWork) return empty;
   const turnError = state.activeTurn?.error ?? null;
-  const addCredits = turnError?.kind === "openrouter-credits";
+  const failedNotice = turnError === null ? null : FAILED_MESSAGE_NOTICES[turnError.kind];
   const errorNotice: Pick<
     TurnRecovery,
     "notice" | "noticeTone" | "noticeMessage" | "noticeAddCredits"
@@ -191,7 +205,7 @@ function projectTurnRecovery(
     notice: turnError?.athleteMessage ?? planNotice ?? null,
     noticeTone: turnError != null || planDanger ? "danger" : "neutral",
     noticeMessage: turnError?.message,
-    noticeAddCredits: addCredits,
+    noticeAddCredits: failedNotice === "add-credits",
   };
   if (state.status === "streaming") {
     return { ...empty, ...errorNotice };
@@ -203,7 +217,7 @@ function projectTurnRecovery(
       messageId: athleteId,
       messageError: turnError?.athleteMessage ?? null,
       messageErrorMessage: turnError?.message,
-      messageAddCredits: addCredits,
+      messageNotice: failedNotice,
       notice: planNotice,
       noticeTone: planDanger ? "danger" : "neutral",
       noticeMessage: undefined,

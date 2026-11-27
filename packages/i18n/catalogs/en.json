@@ -1016,8 +1016,10 @@
     "error": {
       "intervalsCredentials": "{{service}} rejected the request — check your {{service}} connection or API key.",
       "intervalsTransient": "Couldn't reach {{service}} right now — try again shortly.",
+      "modelUnavailable": "{{provider}} no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
       "openRouterCredits": "Your {{openrouter}} account doesn't have enough credits. Add credits on {{openrouter}}, then send your message again.",
       "providerCredentials": "The model provider rejected the API key — check your provider credentials.",
+      "providerCredits": "Your {{provider}} account doesn’t have enough credits. Add credits with {{provider}}, then send your message again.",
       "providerDown": "The model provider is having trouble — try again in a few minutes.",
       "rateLimit": "Rate limited — please try again shortly.",
       "rateLimitDefault": "Rate limited — please try again in about a minute.",

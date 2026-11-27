@@ -3357,8 +3357,10 @@
     "error": {
       "intervalsCredentials": "{{service}} afviste anmodningen — tjek din forbindelse til {{service}} eller din API-nøgle.",
       "intervalsTransient": "Jeg kunne ikke kontakte {{service}} lige nu — prøv igen om lidt.",
+      "modelUnavailable": "{{provider}} tilbyder ikke længere denne model. Vælg en anden model under Indstillinger, Træner, og send derefter din besked igen.",
       "openRouterCredits": "Din {{openrouter}}-konto har ikke nok kreditter. Tilføj kreditter hos {{openrouter}}, og send derefter din besked igen.",
       "providerCredentials": "Modeludbyderen afviste API-nøglen — tjek dine adgangsoplysninger til udbyderen.",
+      "providerCredits": "Din {{provider}}-konto har ikke nok kreditter. Tilføj kreditter hos {{provider}}, og send derefter din besked igen.",
       "providerDown": "Modeludbyderen har problemer — prøv igen om et par minutter.",
       "rateLimit": "Grænsen for forespørgsler er nået — prøv igen om lidt.",
       "rateLimitDefault": "Grænsen for forespørgsler er nået — prøv igen om cirka et minut.",

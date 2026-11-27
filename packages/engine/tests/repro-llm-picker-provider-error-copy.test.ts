@@ -22,6 +22,10 @@ afterEach(() => {
 
 const GENERIC = "Sorry, something went wrong. Please try again.";
 const RATE_LIMIT = "Rate limited — please try again shortly.";
+const SIGNED_OUT = (provider: string) =>
+  `Your ${provider} sign-in is no longer valid. Open Setup and sign in again.`;
+const NO_CREDITS = (provider: string) =>
+  `Your ${provider} account doesn’t have enough credits. Add credits with ${provider}, then send your message again.`;
 
 function engineFor(
   provider: EngineLlmProvider,
@@ -77,7 +81,9 @@ async function errorEvent(engine: ReturnType<typeof createCoachEngine>) {
   const error = events.find((event) => event.type === "error") as
     | (TurnEvent & { kind: string; athleteMessage: string })
     | undefined;
-  return error === undefined ? undefined : { kind: error.kind, athleteMessage: error.athleteMessage };
+  return error === undefined
+    ? undefined
+    : { kind: error.kind, athleteMessage: error.athleteMessage };
 }
 
 describe("llm-picker bug 8: subscription lanes signed out", () => {
@@ -86,19 +92,21 @@ describe("llm-picker bug 8: subscription lanes signed out", () => {
       normalizeClaudeCliError(new Error("Not logged in · Please run /login")),
     );
     const event = await errorEvent(engine);
-    expect(event?.kind).toBe("provider-auth");
+    expect(event?.kind).toBe("subscription-signed-out");
     expect(event?.athleteMessage, "the athlete has no API key, only a Claude sign-in").not.toMatch(
       /API key/iu,
     );
+    expect(event?.athleteMessage).toBe(SIGNED_OUT("Claude Code"));
   });
 
   it("does not tell a Codex CLI athlete that their API key was rejected", async () => {
     const { engine } = engineFor("codex-agent", "gpt-5.6-sol", () => codexAgentNotSignedIn());
     const event = await errorEvent(engine);
-    expect(event?.kind).toBe("provider-auth");
+    expect(event?.kind).toBe("subscription-signed-out");
     expect(event?.athleteMessage, "the athlete has no API key, only a ChatGPT sign-in").not.toMatch(
       /API key/iu,
     );
+    expect(event?.athleteMessage).toBe(SIGNED_OUT("Codex"));
   });
 
   it("control: an API-key provider's 401 does get the API-key copy", async () => {
@@ -134,7 +142,8 @@ describe("llm-picker bug 12 (lead): provider failures reported as something else
           url: "https://provider.invalid/api/v1/chat/completions",
           requestBodyValues: {},
           statusCode: 404,
-          responseBody: '{"error":{"message":"No endpoints found for synthetic/retired-model.","code":404}}',
+          responseBody:
+            '{"error":{"message":"No endpoints found for synthetic/retired-model.","code":404}}',
           isRetryable: false,
         }),
     );
@@ -142,6 +151,11 @@ describe("llm-picker bug 12 (lead): provider failures reported as something else
     expect(event?.athleteMessage, "a retired model gets the generic copy with no hint").not.toBe(
       GENERIC,
     );
+    expect(event).toEqual({
+      kind: "model-unavailable",
+      athleteMessage:
+        "OpenRouter no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
+    });
   });
 
   it("tells the athlete the account is out of credit when the provider answers 402", async () => {
@@ -162,6 +176,7 @@ describe("llm-picker bug 12 (lead): provider failures reported as something else
     expect(event?.athleteMessage, "an out-of-credit account gets the generic copy").not.toBe(
       GENERIC,
     );
+    expect(event).toEqual({ kind: "provider-credits", athleteMessage: NO_CREDITS("DeepSeek") });
   });
 
   it("does not retry and say 'try again shortly' when a 429 means the account has no quota", async () => {
@@ -186,5 +201,6 @@ describe("llm-picker bug 12 (lead): provider failures reported as something else
       chatAttempts: 1,
     });
     expect(RATE_LIMIT).toBeDefined();
+    expect(event).toEqual({ kind: "provider-credits", athleteMessage: NO_CREDITS("OpenAI") });
   });
 });
