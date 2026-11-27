@@ -4,6 +4,7 @@ import type { useEnduragentStore } from "../state/store";
 import { opensCalendarAfterActivate } from "./approval";
 import { createApproveController } from "./approve-controller";
 import { createChangeController } from "./change-controller";
+import { createDetailsController } from "./details-controller";
 import { createMoveController } from "./move-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
@@ -84,6 +85,29 @@ export function startCalendar(
     confirm: (canSwap) => void move.confirm(canSwap),
     cancel: () => move.cancel(),
   });
+  const details = createDetailsController({
+    call: async (request) => (await clients.getClient()).call("plan.calendar", request),
+    closePlan: async (request) => (await clients.getClient()).call("plan.close", request),
+    newCommandId: () => globalThis.crypto.randomUUID(),
+    ended: () => {
+      void controller.refresh();
+      void store.getState().planLibraryActions?.refresh();
+    },
+    publish: (next) => store.getState().setCalendarDetails(next),
+  });
+  store.getState().bindCalendarDetailsActions({
+    open: (planId) => void details.open(planId),
+    close: () => details.close(),
+    startEnd: () => details.startEnd(),
+    setRemoveChanges: (remove) => details.setRemoveChanges(remove),
+    cancelEnd: () => details.cancelEnd(),
+    confirmEnd: () => void details.confirmEnd(),
+    replace: () => {
+      details.close();
+      store.getState().setActiveView("chat");
+      store.getState().chatActions?.startPlanCreation();
+    },
+  });
   store.getState().bindCalendarSettingsActions({
     load: () => void settings.load(),
     setWeekDelivery: (value) => void settings.setWeekDelivery(value),
@@ -122,5 +146,6 @@ export function startCalendar(
     store.getState().bindCalendarSettingsActions(null);
     store.getState().bindCalendarChangeActions(null);
     store.getState().bindCalendarMoveActions(null);
+    store.getState().bindCalendarDetailsActions(null);
   };
 }
