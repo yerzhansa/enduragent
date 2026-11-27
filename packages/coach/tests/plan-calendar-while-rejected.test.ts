@@ -274,6 +274,13 @@ async function planCalendarFixture(
     incumbent: null,
   });
   if (activated.planId === null) throw new Error("Expected active Plan");
+  const approved = await lifecycle.operations["plan.calendar"]({
+    action: "approve-weeks",
+    planId: activated.planId,
+    scope: { kind: "first-weeks" },
+  });
+  if (approved.status !== "approved")
+    throw new Error(`Expected Approve: ${JSON.stringify(approved)}`);
   return {
     planId: activated.planId,
     operations: lifecycle.operations,
