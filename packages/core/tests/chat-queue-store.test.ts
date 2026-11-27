@@ -375,4 +375,60 @@ describe("ChatQueueStore", () => {
     expect(recovered.getChatQueue("desktop").items).toEqual([]);
     expect(recoveredTranscript.readResetIntent("desktop")).toBeNull();
   });
+
+  it("preserves the active claim and queued follow-ups during a stale-reset", () => {
+    const root = mkdtempSync(join(tmpdir(), "chat-queue-stale-reset-"));
+    roots.push(root);
+    const conversations = createConversationStore(root);
+    conversations.enqueueChatMessage("desktop", "submission-1", "First", "message-1");
+    conversations.enqueueChatMessage("desktop", "submission-2", "Follow-up", "message-2");
+    conversations.claimChatQueue("desktop", "claim-1", "turn-1", ["message-1"]);
+
+    conversations.resetConversation({
+      chatId: "desktop",
+      boundaryAt: "1998-08-25T00:00:00.000Z",
+      reason: "stale-reset",
+    });
+
+    const completed = conversations.completeChatQueueClaim("desktop", "claim-1");
+    expect(completed.retryRequired).toBeUndefined();
+    expect(completed.items.map((item) => [item.queuedMessageId, item.text])).toEqual([
+      ["message-2", "Follow-up"],
+    ]);
+  });
+
+  it("preserves the queue when recovering a crashed stale-reset intent", () => {
+    const root = mkdtempSync(join(tmpdir(), "chat-queue-stale-reset-recovery-"));
+    roots.push(root);
+    const queue = new ChatQueueStore(root);
+    const transcript = new TranscriptStore(root);
+    queue.enqueue("desktop", "submission-1", "Queued before crash", "message-1");
+    queue.claim("desktop", {
+      claimId: "claim-1",
+      turnId: "turn-1",
+      queuedMessageIds: ["message-1"],
+    });
+    transcript.createResetIntent({
+      version: 1,
+      kind: "conversation-reset-intent",
+      resetId: "d".repeat(64),
+      chatId: "desktop",
+      boundaryAt: "1998-08-25T00:00:00.000Z",
+      reason: "stale-reset",
+    });
+
+    const recoveredTranscript = new TranscriptStore(root);
+    const recovered = new ConversationStore(
+      new ChatStore(root),
+      recoveredTranscript,
+      () => "e".repeat(64),
+      new ChatQueueStore(root),
+    );
+
+    expect(recoveredTranscript.readResetIntent("desktop")).toBeNull();
+    expect(recovered.getChatQueue("desktop")).toMatchObject({
+      items: [{ queuedMessageId: "message-1", text: "Queued before crash" }],
+      retryRequired: { claimId: "claim-1", turnId: "turn-1" },
+    });
+  });
 });
