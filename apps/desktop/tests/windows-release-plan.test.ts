@@ -88,9 +88,23 @@ describe("Windows release plan", () => {
       provider: "generic",
       url: feedUrl,
       channel: "latest",
+      useMultipleRangeRequest: false,
       updaterCacheDirName: "@enduragentdesktop-updater",
     };
     expect(parseWindowsReleaseUpdaterMetadata(stringify(base))).toEqual(base);
+    expect(() =>
+      parseWindowsReleaseUpdaterMetadata(
+        stringify({
+          provider: "generic",
+          url: feedUrl,
+          channel: "latest",
+          updaterCacheDirName: "@enduragentdesktop-updater",
+        }),
+      ),
+    ).toThrow("release updater metadata is invalid");
+    expect(() =>
+      parseWindowsReleaseUpdaterMetadata(stringify({ ...base, useMultipleRangeRequest: true })),
+    ).toThrow("release updater metadata is invalid");
     const publisherName = "CN=Enduragent Test";
     expect(
       parseWindowsReleaseUpdaterMetadata(stringify({ ...base, publisherName }), {
@@ -135,7 +149,12 @@ describe("Windows release plan", () => {
     expect(plan.builderOptions.config.forceCodeSigning).toBe(true);
     expect(plan.builderOptions.config.nsis.differentialPackage).toBe(true);
     expect(plan.builderOptions.config.publish).toEqual([
-      { provider: "generic", url: feedUrl, channel: "latest" },
+      {
+        provider: "generic",
+        url: feedUrl,
+        channel: "latest",
+        useMultipleRangeRequest: false,
+      },
     ]);
     expect(plan.builderOptions.publish).toBe("never");
     expect(plan.builderOptions.config.win).toEqual({
@@ -149,13 +168,12 @@ describe("Windows release plan", () => {
       feedUrl,
       WINDOWS_PUBLISHER_DN_PLACEHOLDER,
     );
-    expect(plan.updaterMetadataSha256).toBe(
-      windowsUpdaterMetadataDigest(canonicalUpdaterMetadata),
-    );
+    expect(plan.updaterMetadataSha256).toBe(windowsUpdaterMetadataDigest(canonicalUpdaterMetadata));
     expect(parse(canonicalUpdaterMetadata.toString("utf8"))).toEqual({
       provider: "generic",
       url: feedUrl,
       channel: "latest",
+      useMultipleRangeRequest: false,
       updaterCacheDirName: "@enduragentdesktop-updater",
       publisherName: [WINDOWS_PUBLISHER_DN_PLACEHOLDER],
     });
@@ -194,10 +212,12 @@ describe("Windows release plan", () => {
     } catch (error) {
       if (error instanceof Error && !/Cannot find module/u.test(error.message)) throw error;
       expect(config.win).not.toHaveProperty("publisherName");
-      expect(config.win.signtoolOptions.publisherName).toEqual([
-        WINDOWS_PUBLISHER_DN_PLACEHOLDER,
-      ]);
-      expect(Object.keys(config.win).every((key) => key in schema.definitions.WindowsConfiguration.properties)).toBe(true);
+      expect(config.win.signtoolOptions.publisherName).toEqual([WINDOWS_PUBLISHER_DN_PLACEHOLDER]);
+      expect(
+        Object.keys(config.win).every(
+          (key) => key in schema.definitions.WindowsConfiguration.properties,
+        ),
+      ).toBe(true);
     }
     const base = parse(readFileSync(resolve(desktopRoot, "electron-builder.yml"), "utf8"));
     const merged = {

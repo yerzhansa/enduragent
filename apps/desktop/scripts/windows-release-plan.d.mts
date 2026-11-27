@@ -10,6 +10,7 @@ export interface WindowsReleaseUpdaterMetadata {
   readonly provider: "generic";
   readonly url: string;
   readonly channel: "latest";
+  readonly useMultipleRangeRequest: false;
   readonly updaterCacheDirName: "@enduragentdesktop-updater";
   readonly publisherName?: string;
 }
@@ -38,7 +39,12 @@ export interface WindowsReleaseBuilderOptions {
       readonly enduragentDesktopRelease: true;
     };
     readonly publish: readonly [
-      { readonly provider: "generic"; readonly url: string; readonly channel: "latest" },
+      {
+        readonly provider: "generic";
+        readonly url: string;
+        readonly channel: "latest";
+        readonly useMultipleRangeRequest: false;
+      },
     ];
     readonly win: {
       readonly signtoolOptions: { readonly publisherName: readonly [string] };
