@@ -26,6 +26,7 @@ vi.mock("../src/coach-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/coach-client")>()),
   createDesktopCoachClientProvider: () => ({
     getClient: async () => ({ call: mocks.call }),
+    onConnectionOpen: () => () => {},
     close: async () => {},
   }),
 }));

@@ -61,6 +61,7 @@ import {
   type TranscriptPage,
 } from "./hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "./limits";
+import { settled } from "./settled";
 
 export type ActivePlanKnowledge =
   | { readonly kind: "unknown" }
@@ -150,13 +151,17 @@ function readPlanCreationPause(): PlanCreationPauseIdentity | null {
 function writePlanCreationPause(identity: PlanCreationPauseIdentity): void {
   try {
     pauseStorage()?.setItem(PLAN_CREATION_PAUSE_STORAGE_KEY, JSON.stringify(identity));
-  } catch {}
+  } catch {
+    console.error("desktop-plan-creation-pause-not-saved");
+  }
 }
 
 function clearPlanCreationPause(): void {
   try {
     pauseStorage()?.removeItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
-  } catch {}
+  } catch {
+    console.error("desktop-plan-creation-pause-not-cleared");
+  }
 }
 
 function planCreationQuestionKey(
@@ -410,7 +415,7 @@ export function createChatController(input: {
   let queueMutationCount = 0;
   let attachmentSurface: ChatAttachmentComposerReadModel | null = null;
   let attachmentAdmissions: readonly AttachmentAdmissionReadModel[] = [];
-  let draftError: string | null = null;
+  let failedDraftSave: { readonly text: string; readonly revision: number } | undefined;
   let attachmentError: string | null = null;
   let attachmentTextRevision = 0;
   let attachmentTextSaveTask: Promise<void> = Promise.resolve();
@@ -526,7 +531,7 @@ export function createChatController(input: {
             value: attachmentSurface,
             admissions: attachmentAdmissions,
             busy: attachmentBusyTokens.size > 0,
-            draftError,
+            draftError: failedDraftSave === undefined ? null : CHAT_DRAFT_SAVE_FAILURE_COPY,
             error: attachmentError,
           },
           planningRequests: {
@@ -567,7 +572,9 @@ export function createChatController(input: {
           },
         },
       );
-    } catch {}
+    } catch {
+      console.error("desktop-chat-render-failed");
+    }
   };
   const attachmentGenerationIsCurrent = (generation: number): boolean =>
     !disposed && generation === attachmentGeneration;
@@ -604,6 +611,9 @@ export function createChatController(input: {
   ): void => {
     state = reduceChatState(state, action);
     render(appendDelta);
+  };
+  const sendStop = (client: DesktopCoachClient, turnId: string, onFailure: () => void): void => {
+    void client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId }).then(undefined, onFailure);
   };
   const applyQueueSnapshot = (snapshot: ChatQueueSnapshot): void => {
     reduce({ type: "queue-snapshot", snapshot });
@@ -677,7 +687,7 @@ export function createChatController(input: {
       const callAbortController = new AbortController();
       let client: DesktopCoachClient | undefined;
       let stopRequested = false;
-      let stopTask: Promise<void> | undefined;
+      let stopSent = false;
       const current = (): boolean => !disposed && state.activeTurn?.requestKey === requestKey;
       const preserveInterruptedQueueOrigin = (): void => {
         interruptedQueueOrigin =
@@ -692,11 +702,9 @@ export function createChatController(input: {
       };
       const requestStop = (): void => {
         stopRequested = true;
-        if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = client
-          .call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId })
-          .then(() => undefined)
-          .catch(() => undefined);
+        if (client === undefined || boundTurnId === undefined || stopSent) return;
+        stopSent = true;
+        sendStop(client, boundTurnId, () => (stopSent = false));
       };
       activeStopRequest = { requestKey, request: requestStop };
 
@@ -965,9 +973,8 @@ export function createChatController(input: {
       } catch (error) {
         if (!current()) return;
         if (activeQueueCall !== undefined && client !== undefined) {
-          try {
-            applyQueueSnapshot(await client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID }));
-          } catch {}
+          const queue = await settled(client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID }));
+          if (queue.ok) applyQueueSnapshot(queue.value);
         }
         if (protocolFault || error instanceof CoachClientProtocolError) {
           retryClient = client;
@@ -990,12 +997,8 @@ export function createChatController(input: {
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
         if (callStarted) {
-          try {
-            void input.refreshSpend().catch(() => {});
-          } catch {}
-          try {
-            await input.refreshTrainingContext();
-          } catch {}
+          void input.refreshSpend();
+          await input.refreshTrainingContext();
         }
       }
     })();
@@ -1134,6 +1137,16 @@ export function createChatController(input: {
     planningRequestError = null;
     render();
     if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
+  };
+  const rereadPlanLibrary = async (): Promise<void> => {
+    const reread = await settled(input.refreshPlanLibrary?.() ?? Promise.resolve());
+    if (!reread.ok) console.error("desktop-plan-library-reread-failed");
+  };
+  const reportPlanningRequestLoadFailure = (): void => {
+    if (disposed) return;
+    planningRequestsLoaded = false;
+    planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
+    render();
   };
 
   const installPlanCreation = (
@@ -1499,7 +1512,7 @@ export function createChatController(input: {
       let protocolFault = false;
       const callAbortController = new AbortController();
       let stopRequested = false;
-      let stopTask: Promise<void> | undefined;
+      let stopSent = false;
       const current = (): boolean =>
         !disposed &&
         state.activeTurn?.requestKey === requestKey &&
@@ -1511,11 +1524,9 @@ export function createChatController(input: {
       };
       const requestStop = (): void => {
         stopRequested = true;
-        if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = client
-          .call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId })
-          .then(() => undefined)
-          .catch(() => undefined);
+        if (client === undefined || boundTurnId === undefined || stopSent) return;
+        stopSent = true;
+        sendStop(client, boundTurnId, () => (stopSent = false));
       };
       activeStopRequest = { requestKey, request: requestStop };
       const callOptions = {
@@ -1681,12 +1692,8 @@ export function createChatController(input: {
         }
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
-        try {
-          void input.refreshSpend().catch(() => {});
-        } catch {}
-        try {
-          await input.refreshTrainingContext();
-        } catch {}
+        void input.refreshSpend();
+        await input.refreshTrainingContext();
       }
     })();
     decisionContinuationTask = task;
@@ -1761,12 +1768,13 @@ export function createChatController(input: {
     });
     const probeEpoch = epoch;
     const sessionProbeTask = (async () => {
-      try {
-        const client = await input.clients.getClient();
-        const result = await client.call("hasSession", { chatId: DESKTOP_CHAT_ID });
-        if (disposed || epoch !== probeEpoch) return;
-        reduce({ type: "session-probe", hasSession: result.hasSession });
-      } catch {}
+      const probe = await settled(
+        input.clients
+          .getClient()
+          .then((client) => client.call("hasSession", { chatId: DESKTOP_CHAT_ID })),
+      );
+      if (!probe.ok || disposed || epoch !== probeEpoch) return;
+      reduce({ type: "session-probe", hasSession: probe.value.hasSession });
     })();
     const queueLoadTask = (async () => {
       try {
@@ -1780,13 +1788,7 @@ export function createChatController(input: {
     const attachmentLoadGeneration = attachmentGeneration;
     const attachmentLoadTask = refreshAttachments(undefined, attachmentLoadGeneration);
     const planningLoadTask = trackPlanningRequestLoad(
-      recoverPlanningRequests().catch(() => {
-        if (!disposed) {
-          planningRequestsLoaded = false;
-          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-          render();
-        }
-      }),
+      recoverPlanningRequests().catch(reportPlanningRequestLoadFailure),
     );
     const task = Promise.all([
       transcriptLoadTask,
@@ -1829,6 +1831,11 @@ export function createChatController(input: {
   });
 
   render();
+  const stopFollowingConnections = input.clients.onConnectionOpen(() => {
+    if (failedDraftSave?.revision === attachmentTextRevision) {
+      saveAttachmentDraftText(failedDraftSave.text);
+    }
+  });
   function saveAttachmentDraftText(text: string): void {
     const ownership = beginAttachmentWrite(false);
     if (ownership === null) return;
@@ -1850,7 +1857,7 @@ export function createChatController(input: {
             return;
           }
           attachmentSurface = surface;
-          draftError = null;
+          failedDraftSave = undefined;
           render();
         } catch {
           if (
@@ -1859,7 +1866,7 @@ export function createChatController(input: {
           ) {
             return;
           }
-          draftError = CHAT_DRAFT_SAVE_FAILURE_COPY;
+          failedDraftSave = { text, revision: textRevision };
           render();
         }
       })
@@ -2090,7 +2097,7 @@ export function createChatController(input: {
           }
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
             return;
           }
           if (result.reason === "race-window") {
@@ -2098,12 +2105,12 @@ export function createChatController(input: {
               notice:
                 "Only training reductions are allowed during this race window. Training is unchanged.",
             });
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
             return;
           }
           if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
             publishChange({ notice: "The latest Change is no longer eligible for Undo." });
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
             return;
           }
           const rejectionCopy =
@@ -2118,7 +2125,7 @@ export function createChatController(input: {
               : { error: rejectionCopy },
           );
           if (result.reason === "stale-version") {
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
           }
           return;
         }
@@ -2133,7 +2140,7 @@ export function createChatController(input: {
             notice: null,
             focusRequest: changeFocus("check"),
           });
-          await input.refreshPlanLibrary?.().catch(() => {});
+          await rereadPlanLibrary();
           if (result.pendingCheck === null) requestPlanCreationFocus("composer");
           render();
           return;
@@ -2150,7 +2157,7 @@ export function createChatController(input: {
             ? `This preview supersedes “${superseded.title}”. Training is unchanged until confirmation.`
             : "Review the exact changes before confirming.",
         });
-        await input.refreshPlanLibrary?.().catch(() => {});
+        await rereadPlanLibrary();
         if (epoch !== previewEpoch) return;
         publishChange({ focusRequest: changeFocus("preview") });
       } catch (error) {
@@ -2161,7 +2168,7 @@ export function createChatController(input: {
               ? error.message
               : "The preview result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await input.refreshPlanLibrary?.().catch(() => {});
+        await rereadPlanLibrary();
       } finally {
         if (!disposed) publishChange({ busy: false });
       }
@@ -2207,7 +2214,7 @@ export function createChatController(input: {
         if (result.status === "rejected") {
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
             return;
           }
           publishChange({
@@ -2237,7 +2244,7 @@ export function createChatController(input: {
             result.reason === "day-changed" ||
             result.reason === "not-eligible"
           ) {
-            await input.refreshPlanLibrary?.().catch(() => {});
+            await rereadPlanLibrary();
           }
           return;
         }
@@ -2250,7 +2257,7 @@ export function createChatController(input: {
               ? "Change applied locally. Training now matches the confirmed preview."
               : "Change cancelled. Training is unchanged; the preview remains in history.",
         });
-        await input.refreshPlanLibrary?.().catch(() => {});
+        await rereadPlanLibrary();
         implicitPlanChangeRouting = true;
         publishChange({ textRouting: false, focusRequest: changeFocus("change") });
       } catch {
@@ -2258,7 +2265,7 @@ export function createChatController(input: {
           notice:
             "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await input.refreshPlanLibrary?.().catch(() => {});
+        await rereadPlanLibrary();
       } finally {
         publishChange({ busy: false });
       }
@@ -2419,6 +2426,9 @@ export function createChatController(input: {
               ...(attachmentIds.length === 0 ? {} : { attachmentIds: [...attachmentIds] }),
             });
             if (!attachmentGenerationIsCurrent(ownership.generation)) return false;
+            if ((failedDraftSave?.revision ?? Infinity) <= submittedTextRevision) {
+              failedDraftSave = undefined;
+            }
             for (const attachment of submittedAttachments) {
               attachmentSummaries.set(attachment.attachmentId, attachment);
             }
@@ -2578,24 +2588,12 @@ export function createChatController(input: {
       planningRequestError = null;
       render();
       void trackPlanningRequestLoad(
-        recoverPlanningRequests().catch(() => {
-          if (disposed) return;
-          planningRequestsLoaded = false;
-          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-          render();
-        }),
+        recoverPlanningRequests().catch(reportPlanningRequestLoadFailure),
       );
     },
     refreshPlanningRequests() {
       if (disposed || planningRequestBusyId !== null) return;
-      void trackPlanningRequestLoad(
-        loadPlanningRequests().catch(() => {
-          if (disposed) return;
-          planningRequestsLoaded = false;
-          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-          render();
-        }),
-      );
+      void trackPlanningRequestLoad(loadPlanningRequests().catch(reportPlanningRequestLoadFailure));
     },
     focusPlanningRequest(requestId) {
       if (disposed) return;
@@ -2724,7 +2722,7 @@ export function createChatController(input: {
         installPlanCreation(result.planCreation);
         if (result.status === "rejected" && result.reason === "commitments-pending") {
           planCreationError = result.explanation;
-          await loadPlanningRequests().catch(() => {});
+          await loadPlanningRequests().catch(reportPlanningRequestLoadFailure);
         } else if (result.status === "rejected") {
           planCreationNotice =
             result.reason === "no-workouts"
@@ -2745,7 +2743,7 @@ export function createChatController(input: {
         ) {
           pendingPlanCreationCommand = null;
           planCreationError = error.message;
-          await loadPlanningRequests().catch(() => {});
+          await loadPlanningRequests().catch(reportPlanningRequestLoadFailure);
         } else {
           planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
         }
@@ -3005,7 +3003,7 @@ export function createChatController(input: {
           activationAttempt = null;
           planCreationActivateConfirmationOpen = false;
           planCreationError = error.message;
-          await loadPlanningRequests().catch(() => {});
+          await loadPlanningRequests().catch(reportPlanningRequestLoadFailure);
         } else if (
           rejection === "version-conflict" ||
           rejection === "not-ready" ||
@@ -3020,7 +3018,7 @@ export function createChatController(input: {
           planCreationError =
             "The activation result could not be confirmed. The Plan library will show the current state after refresh.";
         }
-        await input.refreshPlanLibrary?.().catch(() => {});
+        await rereadPlanLibrary();
         planCreationBusy = false;
         render();
         return;
@@ -3270,7 +3268,7 @@ export function createChatController(input: {
           }
           attachmentSurface = clearedAttachmentSurface;
           attachmentAdmissions = [];
-          draftError = null;
+          failedDraftSave = undefined;
           attachmentError = null;
           sequence += 1;
           retryClient = undefined;
@@ -3305,11 +3303,7 @@ export function createChatController(input: {
             announcement: NEW_CONVERSATION_UNCERTAIN_COPY,
           });
         } finally {
-          if (!disposed && epoch === resetEpoch) {
-            try {
-              void input.refreshSpend().catch(() => {});
-            } catch {}
-          }
+          if (!disposed && epoch === resetEpoch) void input.refreshSpend();
         }
       })();
       resetTask = task;
@@ -3364,6 +3358,7 @@ export function createChatController(input: {
     },
     dispose() {
       disposed = true;
+      stopFollowingConnections();
       activeStopRequest = undefined;
       interruptedQueueOrigin = undefined;
       hydrator.dispose();
