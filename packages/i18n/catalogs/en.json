@@ -1092,7 +1092,7 @@
         "progressTitle": "Progress",
         "raceLabel": "Race",
         "replaceAction": "Replace Plan",
-        "replaceBody": "Builds a new Plan with the coach. What changes on intervals.icu comes to you as one Change Set before anything is written. After you approve, the old Plan’s workouts from tomorrow on are removed first, then the new Plan’s first two weeks go out.",
+        "replaceBody": "Builds a new Plan with the coach. When you activate it, the old Plan’s workouts from tomorrow on come off intervals.icu, and nothing from the new Plan goes on until you approve its first two Training Weeks.",
         "replaceTitle": "Replace Plan",
         "title": "Plan details",
         "unavailable": "The Plan details could not be read. Try again.",

@@ -132,6 +132,9 @@ describe("the Plan details sheet", () => {
     expect(sheet).toHaveTextContent(
       "1 of 3 Training Weeks done. 1 of 3 workouts done or done differently, 1 missed, 1 to confirm.",
     );
+    expect(sheet).toHaveTextContent(
+      "When you activate it, the old Plan’s workouts from tomorrow on come off intervals.icu, and nothing from the new Plan goes on until you approve its first two Training Weeks.",
+    );
     const history = within(sheet)
       .getAllByRole("listitem")
       .map((item) => item.textContent);
