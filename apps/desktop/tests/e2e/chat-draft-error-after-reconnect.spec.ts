@@ -10,6 +10,7 @@ import { TRAINING_CURRENT_ATHLETE_STATE } from "../helpers/training-current-athl
 const TOKEN = "d".repeat(43);
 const DRAFT = "Synthetic question for the coach about tomorrow's ride";
 const DRAFT_ERROR = "Couldn’t reach the coach, so your message is still in the box.";
+const RESAVE_ANSWER_MS = 1_500;
 
 interface ScriptRequest {
   readonly method: string;
@@ -121,6 +122,7 @@ class ReconnectingCoach {
     const text = (params as { readonly text: string }).text;
     if (this.connectionDropped) {
       this.draftSavesAfterDrop.push(text);
+      await new Promise((resolve) => setTimeout(resolve, RESAVE_ANSWER_MS));
     } else if (text === DRAFT && !this.holdingDraftSave) {
       this.holdingDraftSave = true;
       this.draftSaveHeld.resolve();
