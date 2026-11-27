@@ -46,6 +46,8 @@ export function workout(
     lastWrite: "ok",
     outcome: { kind: "planned" },
     doneS: 0,
+    movable: false,
+    movedByYou: null,
     ...extra,
   };
 }
