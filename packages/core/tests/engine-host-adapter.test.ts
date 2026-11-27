@@ -165,8 +165,9 @@ describe("engine host adapter", () => {
 
   it("projects immutable engine config with independent chat and compact windows", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
+    const catalog = bundledAcceptedCatalog();
     const { ports } = createEngineHostAdapter({
-      catalog: bundledAcceptedCatalog(),
+      catalog,
       config: {
         ...config(dataDir),
         llm: { provider: "zai", model: "glm-5.3", compactModel: "glm-4.7", apiKey: "test" },
@@ -182,7 +183,7 @@ describe("engine host adapter", () => {
         apiKey: "test",
       },
       models: {
-        catalogRevision: 10,
+        catalogRevision: catalog.effective.revision,
         chat: {
           kind: "catalog",
           provider: "zai",
