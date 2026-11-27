@@ -40,6 +40,7 @@ import {
   CHAT_ATTACHMENT_FAILURE_COPY,
   CHAT_CONNECTION_INTERRUPTED_COPY,
   CHAT_DRAFT_SAVE_FAILURE_COPY,
+  CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
   CHAT_EMPTY_RESPONSE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
@@ -794,6 +795,12 @@ function subject(
   };
 }
 
+async function settleTimers(): Promise<void> {
+  for (let turn = 0; turn < 10; turn += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 describe("chat controller", () => {
   it("keeps submit, reset, and queued drain inert while setup is not ready", async () => {
     let release!: () => void;
@@ -1061,6 +1068,54 @@ describe("chat controller", () => {
       text: "Recovered",
       delivery: "complete",
     });
+  });
+
+  it("sends Stop again when the athlete presses it after a stop request failed", async () => {
+    let firstOptions: CoachClientCallOptions<"chat"> | undefined;
+    let finishFirst!: (value: { text: string }) => void;
+    const firstResult = new Promise<{ text: string }>((resolve) => {
+      finishFirst = resolve;
+    });
+    let stopAttempts = 0;
+    const fake = client(
+      async (_request, options) => {
+        firstOptions = options;
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial response" });
+        return firstResult;
+      },
+      {
+        stopChat: async () => {
+          stopAttempts += 1;
+          if (stopAttempts === 1) throw new CoachRpcRemoteError(-32000, "Stop failed", null);
+          deliver(firstOptions, {
+            type: "interrupted",
+            turnId: "turn-1",
+            chatId: "desktop",
+            text: "Partial response",
+          });
+          firstOptions?.onTerminalEnvelope?.({
+            jsonrpc: "2.0",
+            id: 1,
+            result: { text: "Partial response" },
+          });
+          finishFirst({ text: "Partial response" });
+          return { stopped: true };
+        },
+      },
+    );
+    const { controller, states } = subject(fake);
+
+    const submission = controller.submit("Stop this");
+    await vi.waitFor(() => expect(states.at(-1)?.messages.at(-1)?.text).toBe("Partial response"));
+    controller.stop();
+    await vi.waitFor(() => expect(stopAttempts).toBe(1));
+    await settleTimers();
+    controller.stop();
+
+    await vi.waitFor(() => expect(stopAttempts).toBe(2));
+    await submission;
+    expect(states.at(-1)?.messages.at(-1)).toMatchObject({ delivery: "interrupted" });
   });
 
   it("restores stopped copy when relaunch hydrates a retry-required queue", () => {
@@ -2295,6 +2350,44 @@ describe("chat controller", () => {
       "The Plan changed. Read the Plan library and confirm again.",
     );
     expect(refreshPlanLibrary).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the saved Plan requests could not be checked when the reread after a commitments refusal fails", async () => {
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 3,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      calendarWindow: null,
+      draftStale: false,
+      pendingCheck: null,
+      pendingCommitment: null,
+    };
+    const message = "Correct your written commitments before activating this Plan.";
+    const activatePlanCreation = vi
+      .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
+      .mockRejectedValue(new CoachRpcRemoteError(-32000, message, { code: "commitments-pending" }));
+    const listPlanningRequests = vi
+      .fn(async () => ({ deliveries: [], planCreation: card }))
+      .mockResolvedValueOnce({ deliveries: [], planCreation: card })
+      .mockRejectedValueOnce(new CoachClientDisconnectedError(1006, ""));
+    const { controller, controls } = subject(
+      client(replies(), { listPlanningRequests, activatePlanCreation }),
+    );
+    await controller.start();
+    await controller.openPlanCreationActivate();
+
+    await controller.confirmPlanCreationActivate();
+
+    expect(listPlanningRequests).toHaveBeenCalledTimes(2);
+    expect(controls.at(-1)?.planCreation).toMatchObject({ error: message, busy: false });
+    expect(controls.at(-1)?.planningRequests).toMatchObject({
+      loaded: false,
+      error: CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
+    });
   });
 
   it("rereads the Draft and shows the daemon message when commitments need correction", async () => {
@@ -3934,7 +4027,7 @@ describe("chat controller", () => {
     controller.saveAttachmentDraftText("Saved text");
     await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(1));
     openConnection();
-    await Promise.resolve();
+    await settleTimers();
     expect(saveText).toHaveBeenCalledTimes(1);
 
     failNext = true;
@@ -3960,13 +4053,74 @@ describe("chat controller", () => {
   });
 
   it("stops following new connections once disposed", async () => {
-    const fake = client(replies());
+    const saveText = vi.fn(async (_text: string) => {
+      throw new CoachClientDisconnectedError(1006, "");
+    });
+    const fake = client(replies(), { saveAttachmentDraftText: saveText });
     const { controller, openListeners } = subject(fake);
+    controller.saveAttachmentDraftText("Unsaved question");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(1));
+    const [listener] = [...openListeners];
 
-    expect(openListeners.size).toBe(1);
     controller.dispose();
+    listener?.();
+    await settleTimers();
 
     expect(openListeners.size).toBe(0);
+    expect(saveText).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets a failed draft save once that message is sent, so a new connection does not put it back", async () => {
+    let attempt = 0;
+    const saveText = vi.fn(async (_text: string) => {
+      attempt += 1;
+      if (attempt === 1) {
+        throw new CoachClientCallTimeoutError("saveChatAttachmentDraftText", 30_000);
+      }
+      return emptyComposer();
+    });
+    const fake = client(replies(), { saveAttachmentDraftText: saveText });
+    const { controller, controls, openConnection } = subject(fake);
+    controller.saveAttachmentDraftText("Sent question");
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+      }),
+    );
+
+    await controller.submit("Sent question");
+    openConnection();
+    await settleTimers();
+
+    expect(saveText).toHaveBeenCalledTimes(1);
+    expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null });
+  });
+
+  it("forgets a failed draft save when a new conversation clears the draft", async () => {
+    const saveText = vi.fn(async (_text: string) => {
+      throw new CoachClientDisconnectedError(1006, "");
+    });
+    const fake = client(replies(), {
+      saveAttachmentDraftText: saveText,
+      resetSession: async () => ({ memoryFlushed: true }),
+    });
+    const { controller, controls, openConnection } = subject(fake);
+    await controller.start();
+    await controller.submit("Earlier question");
+    controller.saveAttachmentDraftText("Old question");
+    await vi.waitFor(() =>
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+      }),
+    );
+
+    expect(controller.openNewConversation()).toBe(true);
+    await controller.confirmNewConversation();
+    openConnection();
+    await settleTimers();
+
+    expect(saveText).toHaveBeenCalledTimes(1);
+    expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null });
   });
 
   it("starts one exact session probe and deduplicates repeated starts", async () => {

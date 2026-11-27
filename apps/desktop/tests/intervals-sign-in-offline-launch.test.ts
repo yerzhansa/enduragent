@@ -335,7 +335,6 @@ describe("intervals.icu sign-in after a launch without network", () => {
       clients: {
         getClient: async () => client,
         reconnect: async () => client,
-        onConnectionOpen: () => () => {},
         close: async () => {},
         onConnectionOpen: () => () => {},
       },

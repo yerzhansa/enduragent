@@ -61,7 +61,7 @@ import {
   type TranscriptPage,
 } from "./hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "./limits";
-import { settled, type Settled } from "./settled";
+import { settled } from "./settled";
 
 export type ActivePlanKnowledge =
   | { readonly kind: "unknown" }
@@ -148,21 +148,19 @@ function readPlanCreationPause(): PlanCreationPauseIdentity | null {
   }
 }
 
-function writePlanCreationPause(identity: PlanCreationPauseIdentity): boolean {
+function writePlanCreationPause(identity: PlanCreationPauseIdentity): void {
   try {
     pauseStorage()?.setItem(PLAN_CREATION_PAUSE_STORAGE_KEY, JSON.stringify(identity));
-    return true;
   } catch {
-    return false;
+    console.error("desktop-plan-creation-pause-not-saved");
   }
 }
 
-function clearPlanCreationPause(): boolean {
+function clearPlanCreationPause(): void {
   try {
     pauseStorage()?.removeItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
-    return true;
   } catch {
-    return false;
+    console.error("desktop-plan-creation-pause-not-cleared");
   }
 }
 
@@ -614,6 +612,9 @@ export function createChatController(input: {
     state = reduceChatState(state, action);
     render(appendDelta);
   };
+  const sendStop = (client: DesktopCoachClient, turnId: string, onFailure: () => void): void => {
+    void client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId }).then(undefined, onFailure);
+  };
   const applyQueueSnapshot = (snapshot: ChatQueueSnapshot): void => {
     reduce({ type: "queue-snapshot", snapshot });
   };
@@ -686,7 +687,7 @@ export function createChatController(input: {
       const callAbortController = new AbortController();
       let client: DesktopCoachClient | undefined;
       let stopRequested = false;
-      let stopTask: Promise<Settled<unknown>> | undefined;
+      let stopSent = false;
       const current = (): boolean => !disposed && state.activeTurn?.requestKey === requestKey;
       const preserveInterruptedQueueOrigin = (): void => {
         interruptedQueueOrigin =
@@ -701,10 +702,9 @@ export function createChatController(input: {
       };
       const requestStop = (): void => {
         stopRequested = true;
-        if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = settled(
-          client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId }),
-        );
+        if (client === undefined || boundTurnId === undefined || stopSent) return;
+        stopSent = true;
+        sendStop(client, boundTurnId, () => (stopSent = false));
       };
       activeStopRequest = { requestKey, request: requestStop };
 
@@ -1138,8 +1138,10 @@ export function createChatController(input: {
     render();
     if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
   };
-  const rereadPlanLibrary = (): Promise<Settled<void>> =>
-    settled(input.refreshPlanLibrary?.() ?? Promise.resolve());
+  const rereadPlanLibrary = async (): Promise<void> => {
+    const reread = await settled(input.refreshPlanLibrary?.() ?? Promise.resolve());
+    if (!reread.ok) console.error("desktop-plan-library-reread-failed");
+  };
   const reportPlanningRequestLoadFailure = (): void => {
     if (disposed) return;
     planningRequestsLoaded = false;
@@ -1510,7 +1512,7 @@ export function createChatController(input: {
       let protocolFault = false;
       const callAbortController = new AbortController();
       let stopRequested = false;
-      let stopTask: Promise<Settled<unknown>> | undefined;
+      let stopSent = false;
       const current = (): boolean =>
         !disposed &&
         state.activeTurn?.requestKey === requestKey &&
@@ -1522,10 +1524,9 @@ export function createChatController(input: {
       };
       const requestStop = (): void => {
         stopRequested = true;
-        if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = settled(
-          client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId }),
-        );
+        if (client === undefined || boundTurnId === undefined || stopSent) return;
+        stopSent = true;
+        sendStop(client, boundTurnId, () => (stopSent = false));
       };
       activeStopRequest = { requestKey, request: requestStop };
       const callOptions = {
@@ -2425,6 +2426,9 @@ export function createChatController(input: {
               ...(attachmentIds.length === 0 ? {} : { attachmentIds: [...attachmentIds] }),
             });
             if (!attachmentGenerationIsCurrent(ownership.generation)) return false;
+            if ((failedDraftSave?.revision ?? Infinity) <= submittedTextRevision) {
+              failedDraftSave = undefined;
+            }
             for (const attachment of submittedAttachments) {
               attachmentSummaries.set(attachment.attachmentId, attachment);
             }
