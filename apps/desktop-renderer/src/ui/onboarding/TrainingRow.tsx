@@ -79,16 +79,16 @@ const TRAINING_ROW_STATES: Readonly<
   },
 };
 
-function trainingRowState(
-  statusKnown: boolean,
-  connected: boolean,
-  rejected: boolean,
-  trainingDataReady: boolean,
-): TrainingRowState {
-  if (!statusKnown) return "checking";
-  if (rejected) return "rejected";
-  if (connected) return "connected";
-  return trainingDataReady ? "saved-rides" : "missing";
+function trainingRowState(input: {
+  readonly statusKnown: boolean;
+  readonly connected: boolean;
+  readonly rejected: boolean;
+  readonly trainingDataReady: boolean;
+}): TrainingRowState {
+  if (!input.statusKnown) return "checking";
+  if (input.rejected) return "rejected";
+  if (input.connected) return "connected";
+  return input.trainingDataReady ? "saved-rides" : "missing";
 }
 
 function useHeldWhile<T>(value: T, holding: boolean): T {
@@ -178,12 +178,12 @@ export function TrainingRow(props: {
     focusHeadingAfterOpen.current = null;
   }, [credentialPort, open]);
 
-  const rowState = trainingRowState(
-    setupStatusKnown(surface),
+  const rowState = trainingRowState({
+    statusKnown: setupStatusKnown(surface),
     connected,
     rejected,
-    surface.readiness.trainingData,
-  );
+    trainingDataReady: surface.readiness.trainingData,
+  });
   const row = TRAINING_ROW_STATES[rowState];
   const subtitle = say(
     rowState === "connected" && athleteName !== null
