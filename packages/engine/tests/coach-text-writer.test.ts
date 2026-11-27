@@ -84,7 +84,7 @@ describe("the coach's verdict prompt", () => {
 });
 
 describe("the coach's verdict writer", () => {
-  it("makes one bounded reply on the coach-text lane, in the athlete's language whatever the note says", async () => {
+  it("makes one reply on the coach-text lane, leaves the output cap to the model layer, and writes in the athlete's language whatever the note says", async () => {
     const model = createFakeLLM(["  Three reps on target and the fourth short.  "]);
     const resolver = language("de");
     const writer = createCoachTextWriter({ model, language: resolver });
@@ -97,11 +97,11 @@ describe("the coach's verdict writer", () => {
     expect(model.capturedOpts[0]).toMatchObject({
       caller: "coach-text",
       maxSteps: 1,
-      maxOutputTokens: 600,
       deadlineMs: COACH_TEXT_DEADLINE_MS,
       signal,
     });
     expect(model.capturedOpts[0]?.tools).toBeUndefined();
+    expect(model.capturedOpts[0]?.maxOutputTokens).toBeUndefined();
     expect(resolver.resolveFor).toHaveBeenCalledWith({ chatId: "desktop", athleteText: "" });
   });
 

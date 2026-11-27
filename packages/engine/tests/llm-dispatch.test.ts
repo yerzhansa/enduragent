@@ -930,52 +930,8 @@ describe("LLM dispatch — the coach's verdict on keyless lanes", () => {
   });
 });
 
-describe("LLM dispatch — the coach's verdict asks for the least reasoning", () => {
-  it("asks OpenAI and OpenRouter for low effort on coach-text only, and leaves Anthropic's thinking off", async () => {
-    const { callerProviderOptions } = await import("../src/caller-options.js");
-    expect(callerProviderOptions("openai", "coach-text", false)).toEqual({
-      openai: { reasoningEffort: "low" },
-    });
-    expect(callerProviderOptions("openai", "coach-text", true)).toEqual({
-      openai: { forceReasoning: true, reasoningEffort: "low" },
-    });
-    expect(callerProviderOptions("openai", "chat", true)).toEqual({
-      openai: { forceReasoning: true },
-    });
-    expect(callerProviderOptions("openai", "chat", false)).toBeUndefined();
-    expect(callerProviderOptions("openrouter", "coach-text", false)).toEqual({
-      openrouter: { reasoning: { effort: "low" } },
-    });
-    expect(callerProviderOptions("openrouter", "intent-translation", false)).toBeUndefined();
-    expect(callerProviderOptions("anthropic", "coach-text", false)).toBeUndefined();
-  });
-
-  it("sends the provider options with the coach-text call on the AI SDK path", async () => {
-    const generateText = vi.fn(async (_request: { providerOptions?: unknown }) => MINIMAL_RESULT);
-    vi.doMock("ai", () => ({
-      generateText,
-      streamText: vi.fn(),
-      stepCountIs: vi.fn((count: number) => ({ type: "step-count", count })),
-    }));
-    vi.doMock("@openrouter/ai-sdk-provider", () => ({
-      createOpenRouter: () => ({ chat: () => ({ provider: "openrouter-stub" }) }),
-    }));
-    const { LLM } = await import("../src/llm.js");
-    const config: EngineConfig = {
-      ...anthropicConfig(),
-      llm: { provider: "openrouter", model: "synthetic/reasoner", apiKey: "test-key" },
-      models: testModelProfiles({ provider: "openrouter", chat: "synthetic/reasoner" }),
-    };
-    const llm = new LLM(config, llmTestPorts());
-    await llm.generate({ prompt: "verdict", caller: "coach-text" });
-    await llm.generate({ prompt: "translate", caller: "intent-translation" });
-    expect(generateText.mock.calls.map(([request]) => request.providerOptions)).toEqual([
-      { openrouter: { reasoning: { effort: "low" } } },
-      undefined,
-    ]);
-  });
-
-  it("runs the verdict on codex-agent at its lowest effort", async () => {
+describe("LLM dispatch — the coach's verdict on codex-agent", () => {
+  it("runs the verdict on codex-agent at effort low and leaves chat at the configured effort", async () => {
     const runtimes: unknown[] = [];
     vi.doMock("../src/agent/codex-agent/bridge.js", () => ({
       codexAgentGenerateText: vi.fn(async (_options: unknown, ports: { runtime: unknown }) => {

@@ -5,7 +5,6 @@ import type { LanguageModelPort } from "./sport.js";
 
 export const COACH_TEXT_DEADLINE_MS = 90_000;
 export const COACH_TEXT_MAX_CHARS = 3_000;
-const COACH_TEXT_MAX_OUTPUT_TOKENS = 600;
 const COACH_TEXT_CHAT_ID = "desktop";
 
 export interface CoachTextRide {
@@ -124,7 +123,6 @@ export function createCoachTextWriter(input: {
         prompt,
         caller: "coach-text",
         maxSteps: 1,
-        maxOutputTokens: COACH_TEXT_MAX_OUTPUT_TOKENS,
         deadlineMs: COACH_TEXT_DEADLINE_MS,
         signal,
       });

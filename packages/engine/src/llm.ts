@@ -14,9 +14,11 @@ import { dirname } from "node:path";
 import { splitSystemPromptAtBoundary } from "./agent/system-prompt.js";
 import { priceResolvedModelUsage, resolvedModelCacheReadSavingsUsd } from "./usage-cost.js";
 import {
+  ASTRA_MODEL,
+  callerMaxOutputTokens,
   callerProviderOptions,
+  codexAgentEffort,
   keylessBridgeCaller,
-  LOWEST_CODEX_AGENT_EFFORT,
 } from "./caller-options.js";
 
 import type {
@@ -243,8 +245,7 @@ export class LLM {
           runtime: {
             enabled: codexAgent.enabled,
             binaryPath: codexAgent.binaryPath,
-            reasoningEffort:
-              opts.caller === "coach-text" ? LOWEST_CODEX_AGENT_EFFORT : codexAgent.reasoningEffort,
+            reasoningEffort: codexAgentEffort(opts.caller, codexAgent.reasoningEffort),
           },
         },
       );
@@ -299,17 +300,16 @@ export class LLM {
       ];
     }
 
-    const astra = this.profile.provider === "openai" && this.profile.model === "gpt-6-astra";
-    const providerOptions = callerProviderOptions(this.profile.provider, opts.caller, astra);
+    const { provider, model } = this.profile;
+    const astra = provider === "openai" && model === ASTRA_MODEL;
+    const providerOptions = callerProviderOptions(provider, model, opts.caller);
     const base = {
       model: this.aiSdkModel,
       ...(providerOptions === undefined ? {} : { providerOptions }),
       system,
       tools: opts.tools,
       stopWhen: opts.stopWhen,
-      maxOutputTokens: astra
-        ? Math.min(opts.maxOutputTokens ?? 128_000, 128_000)
-        : opts.maxOutputTokens,
+      maxOutputTokens: callerMaxOutputTokens(provider, model, opts.caller, opts.maxOutputTokens),
       maxRetries: 0,
       abortSignal: opts.signal,
       experimental_context: opts.context,
