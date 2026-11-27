@@ -1999,6 +1999,7 @@ export async function createLocalCoachComposition(
       todayDateKey: planningDateKey,
       now,
       dateKeyOfMs: dateKeyOfMsIn(() => planningTimezone),
+      applyChange: planChangeOperations["plan_change.apply"],
       calendar: planCalendar,
       identity: planningIdentity,
       logger,

@@ -94,6 +94,16 @@ interface TranscriptTurn {
 
 const ordinaryCoachReply = "Keep the effort conversational and finish feeling fresh.";
 const completedAt = "1998-09-02T00:00:00.000Z";
+const unavailableCalendar = async (): Promise<never> => {
+  throw new TypeError("Synthetic intervals.icu calendar is not configured");
+};
+const NO_CALENDAR: CalendarMirrorPort = {
+  listEvents: unavailableCalendar,
+  readEvent: unavailableCalendar,
+  createEvent: unavailableCalendar,
+  updateEvent: unavailableCalendar,
+  deleteEvent: unavailableCalendar,
+};
 const fixtureId = (value: string) => `${"0".repeat(26 - value.length)}${value}`;
 const activePlanId = fixtureId("A");
 const closedPlanId = fixtureId("B");
@@ -531,6 +541,17 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       changed: () => void this.calendarDrain?.kick(),
       settled: async () => {
         await this.calendarDrain?.idle();
+      },
+      calendar: { mirror: this.options.calendar?.mirror ?? NO_CALENDAR },
+      identity: {
+        deviceId: async () => "fixture-device",
+        newUlid: () => `${++this.sequence}`.padStart(26, "0"),
+        hlcStamp: () => ({ physicalMs: this.instant++, counter: 0 }),
+      },
+      applyChange: (request) => {
+        if (this.changes === undefined)
+          throw new TypeError("Plan Change operations are unavailable");
+        return this.changes["plan_change.apply"](request);
       },
     });
   }

@@ -88,8 +88,8 @@ type TrainingHistorySourceOptions =
       readonly calendarTimeZone?: never;
     };
 
-export type CreatePersistedAthleteStateSourceOptions =
-  PersistedAthleteStateSourceBaseOptions & TrainingHistorySourceOptions;
+export type CreatePersistedAthleteStateSourceOptions = PersistedAthleteStateSourceBaseOptions &
+  TrainingHistorySourceOptions;
 
 interface TrainingHistoryCacheIdentity {
   readonly athleteHomeRoot: string;
@@ -113,24 +113,17 @@ function sameTrainingHistoryIdentity(
   );
 }
 
-function withoutTrainingHistoryCallouts(
-  panel: TrainingHistoryComputed,
-): TrainingHistoryComputed {
+function withoutTrainingHistoryCallouts(panel: TrainingHistoryComputed): TrainingHistoryComputed {
   return {
     ...panel,
     anchorWeek: { ...panel.anchorWeek, callout: null },
-    previousWeek:
-      panel.previousWeek === null
-        ? null
-        : { ...panel.previousWeek, callout: null },
+    previousWeek: panel.previousWeek === null ? null : { ...panel.previousWeek, callout: null },
   };
 }
 
 function isMissingFile(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
+    error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT"
   );
 }
 
@@ -146,12 +139,10 @@ async function readRecentRides(
       const parsed = RecentRidesPanelSchema.safeParse(value);
       return parsed.success ? parsed.data : { kind: "unknown", reason: "temporary-failure" };
     })
-    .catch(
-      (): RecentRidesPanel => ({
-        kind: "unknown",
-        reason: "temporary-failure",
-      }),
-    );
+    .catch((): RecentRidesPanel => ({
+      kind: "unknown",
+      reason: "temporary-failure",
+    }));
 }
 
 export function createPersistedAthleteStateSource(
@@ -213,10 +204,7 @@ export function createPersistedAthleteStateSource(
       if (
         lastGoodTrainingHistory !== null &&
         (trainingHistoryIdentity === null ||
-          !sameTrainingHistoryIdentity(
-            lastGoodTrainingHistory.identity,
-            trainingHistoryIdentity,
-          ))
+          !sameTrainingHistoryIdentity(lastGoodTrainingHistory.identity, trainingHistoryIdentity))
       ) {
         lastGoodTrainingHistory = null;
       }
@@ -320,19 +308,13 @@ export function createPersistedAthleteStateSource(
                   ? parsed.data
                   : { kind: "unavailable", reason: "invalid-data" };
               })
-              .catch(
-                (): PowerProgressPanel => ({
-                  kind: "unavailable",
-                  reason: "temporary-failure",
-                }),
-              ),
+              .catch((): PowerProgressPanel => ({
+                kind: "unavailable",
+                reason: "temporary-failure",
+              })),
         asOfEpochS === null
           ? Promise.resolve({ kind: "unknown", reason: "not-synced" } as const)
-          : readRecentRides(
-              input.recentRidesSource,
-              latest.metadata.last_updated,
-              asOfEpochS,
-            ),
+          : readRecentRides(input.recentRidesSource, latest.metadata.last_updated, asOfEpochS),
         asOfEpochS === null || trainingHistoryIdentity === null
           ? Promise.resolve({ kind: "unavailable", reason: "not-synced" } as const)
           : readTrainingHistory(trainingHistoryIdentity, {
@@ -353,8 +335,7 @@ export function createPersistedAthleteStateSource(
         performanceProgress,
         recentRides,
         trainingHistory,
-        droppedActivities:
-          input.droppedActivitiesSource?.() ?? EMPTY_DROPPED_ACTIVITIES,
+        droppedActivities: input.droppedActivitiesSource?.() ?? EMPTY_DROPPED_ACTIVITIES,
       });
       const mapped = {
         schemaVersion: latest.metadata.schema_version,

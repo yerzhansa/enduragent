@@ -143,7 +143,11 @@ function record(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function exactKeys(value: Record<string, unknown>, expected: readonly string[], label: string): void {
+function exactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  label: string,
+): void {
   const actual = Object.keys(value).sort();
   const sorted = [...expected].sort();
   if (actual.length !== sorted.length || actual.some((key, index) => key !== sorted[index])) {
@@ -194,8 +198,13 @@ export function hashSeasonReviewEvidence(manifest: unknown): string {
 }
 
 export function seasonReviewBlindKey(reportBytes: Uint8Array, label: string): string {
-  if (typeof label !== "string" || label.length === 0) throw new TypeError("Blind label is invalid.");
-  return createHash("sha256").update(reportBytes).update(new Uint8Array([0])).update(label, "utf8").digest("hex");
+  if (typeof label !== "string" || label.length === 0)
+    throw new TypeError("Blind label is invalid.");
+  return createHash("sha256")
+    .update(reportBytes)
+    .update(new Uint8Array([0]))
+    .update(label, "utf8")
+    .digest("hex");
 }
 
 export function roundUsd(value: number): number {
@@ -221,17 +230,37 @@ function validateCriterion(
   return candidate as Record<string, boolean | SeasonReviewVerdict>;
 }
 
-export function validateSeasonReviewScore(value: unknown, reportSha256?: string): SeasonReviewScore {
+export function validateSeasonReviewScore(
+  value: unknown,
+  reportSha256?: string,
+): SeasonReviewScore {
   const candidate = record(value, "Season review score");
-  exactKeys(candidate, ["schema_version", "report_sha256", "grounding", "specificity", "question_quality"], "Season review score");
-  if (candidate.schema_version !== 1) throw new TypeError("Season review score version is invalid.");
+  exactKeys(
+    candidate,
+    ["schema_version", "report_sha256", "grounding", "specificity", "question_quality"],
+    "Season review score",
+  );
+  if (candidate.schema_version !== 1)
+    throw new TypeError("Season review score version is invalid.");
   const reportHash = hash(candidate.report_sha256, "Season review report hash");
   if (reportSha256 !== undefined && reportHash !== hash(reportSha256, "Expected report hash")) {
     throw new TypeError("Season review score is bound to a different report.");
   }
-  const grounding = validateCriterion(candidate.grounding, ["G1", "G2", "G3", "G4"], "Grounding score");
-  const specificity = validateCriterion(candidate.specificity, ["S1", "S2", "S3", "S4"], "Specificity score");
-  const questionQuality = validateCriterion(candidate.question_quality, ["Q1", "Q2", "Q3", "Q4"], "Question-quality score");
+  const grounding = validateCriterion(
+    candidate.grounding,
+    ["G1", "G2", "G3", "G4"],
+    "Grounding score",
+  );
+  const specificity = validateCriterion(
+    candidate.specificity,
+    ["S1", "S2", "S3", "S4"],
+    "Specificity score",
+  );
+  const questionQuality = validateCriterion(
+    candidate.question_quality,
+    ["Q1", "Q2", "Q3", "Q4"],
+    "Question-quality score",
+  );
   return {
     schema_version: 1,
     report_sha256: reportHash,
@@ -242,10 +271,26 @@ export function validateSeasonReviewScore(value: unknown, reportSha256?: string)
 }
 
 const COST_KEYS = [
-  "input_tokens", "output_tokens", "total_tokens", "cache_read_tokens", "cache_write_tokens",
-  "priced_calls", "unpriced_calls", "usd_input", "usd_output", "usd_cache_read", "usd_cache_write", "usd_total",
+  "input_tokens",
+  "output_tokens",
+  "total_tokens",
+  "cache_read_tokens",
+  "cache_write_tokens",
+  "priced_calls",
+  "unpriced_calls",
+  "usd_input",
+  "usd_output",
+  "usd_cache_read",
+  "usd_cache_write",
+  "usd_total",
 ] as const;
-const USD_KEYS = ["usd_input", "usd_output", "usd_cache_read", "usd_cache_write", "usd_total"] as const;
+const USD_KEYS = [
+  "usd_input",
+  "usd_output",
+  "usd_cache_read",
+  "usd_cache_write",
+  "usd_total",
+] as const;
 
 export function validateCost(value: unknown, generateCalls: number): SeasonReviewCost {
   const calls = nonNegativeSafeInteger(generateCalls, "Generate call count");
@@ -265,9 +310,11 @@ export function validateCost(value: unknown, generateCalls: number): SeasonRevie
     usd_cache_write: null,
     usd_total: null,
   };
-  if (cost.priced_calls + cost.unpriced_calls !== calls) throw new TypeError("Cost call counts are invalid.");
+  if (cost.priced_calls + cost.unpriced_calls !== calls)
+    throw new TypeError("Cost call counts are invalid.");
   if (cost.unpriced_calls > 0) {
-    for (const key of USD_KEYS) if (candidate[key] !== null) throw new TypeError("Unpriced costs must have null USD values.");
+    for (const key of USD_KEYS)
+      if (candidate[key] !== null) throw new TypeError("Unpriced costs must have null USD values.");
     return cost;
   }
   const usdInput = finiteCost(candidate.usd_input, "Input cost");
@@ -278,11 +325,20 @@ export function validateCost(value: unknown, generateCalls: number): SeasonRevie
   if (usdTotal !== roundUsd(usdInput + usdOutput + usdCacheRead + usdCacheWrite)) {
     throw new TypeError("Total USD cost is invalid.");
   }
-  return { ...cost, usd_input: usdInput, usd_output: usdOutput, usd_cache_read: usdCacheRead,
-    usd_cache_write: usdCacheWrite, usd_total: usdTotal };
+  return {
+    ...cost,
+    usd_input: usdInput,
+    usd_output: usdOutput,
+    usd_cache_read: usdCacheRead,
+    usd_cache_write: usdCacheWrite,
+    usd_total: usdTotal,
+  };
 }
 
-function token(row: SeasonReviewUsageRow, key: "inputTokens" | "outputTokens" | "totalTokens" | "cacheReadTokens" | "cacheWriteTokens"): number {
+function token(
+  row: SeasonReviewUsageRow,
+  key: "inputTokens" | "outputTokens" | "totalTokens" | "cacheReadTokens" | "cacheWriteTokens",
+): number {
   return row[key] === undefined ? 0 : nonNegativeSafeInteger(row[key], `Usage ${key}`);
 }
 
@@ -295,17 +351,33 @@ export function summarizeGenerateUsage(
   nonEmpty(model, "Model");
   const generated = rows.filter((row) => row.kind === "generate");
   if (generated.length < 1) throw new TypeError("No generate usage was recorded.");
-  const sums = { input: 0, output: 0, total: 0, cacheRead: 0, cacheWrite: 0,
-    priced: 0, usdInput: 0, usdOutput: 0, usdCacheRead: 0, usdCacheWrite: 0 };
+  const sums = {
+    input: 0,
+    output: 0,
+    total: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    priced: 0,
+    usdInput: 0,
+    usdOutput: 0,
+    usdCacheRead: 0,
+    usdCacheWrite: 0,
+  };
   for (const row of generated) {
-    if (row.provider !== provider || row.model !== model) throw new TypeError("Usage identity differs from the configured model.");
+    if (row.provider !== provider || row.model !== model)
+      throw new TypeError("Usage identity differs from the configured model.");
     sums.input += token(row, "inputTokens");
     sums.output += token(row, "outputTokens");
     sums.total += token(row, "totalTokens");
     sums.cacheRead += token(row, "cacheReadTokens");
     sums.cacheWrite += token(row, "cacheWriteTokens");
-    for (const [label, amount] of [["input", sums.input], ["output", sums.output], ["total", sums.total],
-      ["cache read", sums.cacheRead], ["cache write", sums.cacheWrite]] as const) {
+    for (const [label, amount] of [
+      ["input", sums.input],
+      ["output", sums.output],
+      ["total", sums.total],
+      ["cache read", sums.cacheRead],
+      ["cache write", sums.cacheWrite],
+    ] as const) {
       if (!Number.isSafeInteger(amount)) throw new TypeError(`Summed ${label} tokens are invalid.`);
     }
     if (row.cost !== undefined) {
@@ -317,66 +389,140 @@ export function summarizeGenerateUsage(
       const cacheWrite = finiteCost(priced.cacheWrite, "Generate cache-write cost");
       finiteCost(priced.total, "Generate total cost");
       sums.priced += 1;
-      sums.usdInput += input; sums.usdOutput += output;
-      sums.usdCacheRead += cacheRead; sums.usdCacheWrite += cacheWrite;
+      sums.usdInput += input;
+      sums.usdOutput += output;
+      sums.usdCacheRead += cacheRead;
+      sums.usdCacheWrite += cacheWrite;
     }
   }
   const unpriced = generated.length - sums.priced;
   const nullUsd = unpriced > 0;
-  return { generateCalls: generated.length, cost: validateCost({
-    input_tokens: sums.input, output_tokens: sums.output, total_tokens: sums.total,
-    cache_read_tokens: sums.cacheRead, cache_write_tokens: sums.cacheWrite,
-    priced_calls: sums.priced, unpriced_calls: unpriced,
-    usd_input: nullUsd ? null : roundUsd(sums.usdInput),
-    usd_output: nullUsd ? null : roundUsd(sums.usdOutput),
-    usd_cache_read: nullUsd ? null : roundUsd(sums.usdCacheRead),
-    usd_cache_write: nullUsd ? null : roundUsd(sums.usdCacheWrite),
-    usd_total: nullUsd ? null : roundUsd(sums.usdInput + sums.usdOutput + sums.usdCacheRead + sums.usdCacheWrite),
-  }, generated.length) };
+  return {
+    generateCalls: generated.length,
+    cost: validateCost(
+      {
+        input_tokens: sums.input,
+        output_tokens: sums.output,
+        total_tokens: sums.total,
+        cache_read_tokens: sums.cacheRead,
+        cache_write_tokens: sums.cacheWrite,
+        priced_calls: sums.priced,
+        unpriced_calls: unpriced,
+        usd_input: nullUsd ? null : roundUsd(sums.usdInput),
+        usd_output: nullUsd ? null : roundUsd(sums.usdOutput),
+        usd_cache_read: nullUsd ? null : roundUsd(sums.usdCacheRead),
+        usd_cache_write: nullUsd ? null : roundUsd(sums.usdCacheWrite),
+        usd_total: nullUsd
+          ? null
+          : roundUsd(sums.usdInput + sums.usdOutput + sums.usdCacheRead + sums.usdCacheWrite),
+      },
+      generated.length,
+    ),
+  };
 }
 
-export function combineCosts(costs: readonly { readonly cost: SeasonReviewCost; readonly generateCalls: number }[]): {
-  readonly cost: SeasonReviewCost; readonly generateCalls: number;
+export function combineCosts(
+  costs: readonly { readonly cost: SeasonReviewCost; readonly generateCalls: number }[],
+): {
+  readonly cost: SeasonReviewCost;
+  readonly generateCalls: number;
 } {
   if (costs.length === 0) throw new TypeError("At least one cost is required.");
   let generateCalls = 0;
-  const sums = { input: 0, output: 0, total: 0, cacheRead: 0, cacheWrite: 0, priced: 0, unpriced: 0,
-    usdInput: 0, usdOutput: 0, usdCacheRead: 0, usdCacheWrite: 0 };
+  const sums = {
+    input: 0,
+    output: 0,
+    total: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    priced: 0,
+    unpriced: 0,
+    usdInput: 0,
+    usdOutput: 0,
+    usdCacheRead: 0,
+    usdCacheWrite: 0,
+  };
   for (const item of costs) {
     const value = validateCost(item.cost, item.generateCalls);
     generateCalls += item.generateCalls;
-    sums.input += value.input_tokens; sums.output += value.output_tokens; sums.total += value.total_tokens;
-    sums.cacheRead += value.cache_read_tokens; sums.cacheWrite += value.cache_write_tokens;
-    sums.priced += value.priced_calls; sums.unpriced += value.unpriced_calls;
-    sums.usdInput += value.usd_input ?? 0; sums.usdOutput += value.usd_output ?? 0;
-    sums.usdCacheRead += value.usd_cache_read ?? 0; sums.usdCacheWrite += value.usd_cache_write ?? 0;
+    sums.input += value.input_tokens;
+    sums.output += value.output_tokens;
+    sums.total += value.total_tokens;
+    sums.cacheRead += value.cache_read_tokens;
+    sums.cacheWrite += value.cache_write_tokens;
+    sums.priced += value.priced_calls;
+    sums.unpriced += value.unpriced_calls;
+    sums.usdInput += value.usd_input ?? 0;
+    sums.usdOutput += value.usd_output ?? 0;
+    sums.usdCacheRead += value.usd_cache_read ?? 0;
+    sums.usdCacheWrite += value.usd_cache_write ?? 0;
   }
-  for (const value of [generateCalls, sums.input, sums.output, sums.total, sums.cacheRead, sums.cacheWrite]) {
+  for (const value of [
+    generateCalls,
+    sums.input,
+    sums.output,
+    sums.total,
+    sums.cacheRead,
+    sums.cacheWrite,
+  ]) {
     if (!Number.isSafeInteger(value)) throw new TypeError("Combined cost is invalid.");
   }
   const nullUsd = sums.unpriced > 0;
-  return { generateCalls, cost: validateCost({
-    input_tokens: sums.input, output_tokens: sums.output, total_tokens: sums.total,
-    cache_read_tokens: sums.cacheRead, cache_write_tokens: sums.cacheWrite,
-    priced_calls: sums.priced, unpriced_calls: sums.unpriced,
-    usd_input: nullUsd ? null : roundUsd(sums.usdInput),
-    usd_output: nullUsd ? null : roundUsd(sums.usdOutput),
-    usd_cache_read: nullUsd ? null : roundUsd(sums.usdCacheRead),
-    usd_cache_write: nullUsd ? null : roundUsd(sums.usdCacheWrite),
-    usd_total: nullUsd ? null : roundUsd(sums.usdInput + sums.usdOutput + sums.usdCacheRead + sums.usdCacheWrite),
-  }, generateCalls) };
+  return {
+    generateCalls,
+    cost: validateCost(
+      {
+        input_tokens: sums.input,
+        output_tokens: sums.output,
+        total_tokens: sums.total,
+        cache_read_tokens: sums.cacheRead,
+        cache_write_tokens: sums.cacheWrite,
+        priced_calls: sums.priced,
+        unpriced_calls: sums.unpriced,
+        usd_input: nullUsd ? null : roundUsd(sums.usdInput),
+        usd_output: nullUsd ? null : roundUsd(sums.usdOutput),
+        usd_cache_read: nullUsd ? null : roundUsd(sums.usdCacheRead),
+        usd_cache_write: nullUsd ? null : roundUsd(sums.usdCacheWrite),
+        usd_total: nullUsd
+          ? null
+          : roundUsd(sums.usdInput + sums.usdOutput + sums.usdCacheRead + sums.usdCacheWrite),
+      },
+      generateCalls,
+    ),
+  };
 }
 
 export function validateSeasonReviewRunRecord(
   value: unknown,
-  expected: Partial<Pick<SeasonReviewRunRecord, "head_sha" | "sample" | "provider" | "model" | "report_sha256">> = {},
+  expected: Partial<
+    Pick<SeasonReviewRunRecord, "head_sha" | "sample" | "provider" | "model" | "report_sha256">
+  > = {},
 ): SeasonReviewRunRecord {
   const candidate = record(value, "Season review run record");
-  exactKeys(candidate, ["schema_version", "head_sha", "sample", "provider", "model", "report_sha256",
-    "store_before_sha256", "store_after_sha256", "store_unchanged", "generate_calls", "cost"], "Season review run record");
-  if (candidate.schema_version !== 1 || candidate.store_unchanged !== true) throw new TypeError("Season review run record is invalid.");
+  exactKeys(
+    candidate,
+    [
+      "schema_version",
+      "head_sha",
+      "sample",
+      "provider",
+      "model",
+      "report_sha256",
+      "store_before_sha256",
+      "store_after_sha256",
+      "store_unchanged",
+      "generate_calls",
+      "cost",
+    ],
+    "Season review run record",
+  );
+  if (candidate.schema_version !== 1 || candidate.store_unchanged !== true)
+    throw new TypeError("Season review run record is invalid.");
   const sample = candidate.sample;
-  if (typeof sample !== "string" || !(SEASON_REVIEW_MODEL_SAMPLES as readonly string[]).includes(sample)) {
+  if (
+    typeof sample !== "string" ||
+    !(SEASON_REVIEW_MODEL_SAMPLES as readonly string[]).includes(sample)
+  ) {
     throw new TypeError("Season review sample is invalid.");
   }
   const generateCalls = nonNegativeSafeInteger(candidate.generate_calls, "Generate calls");
@@ -410,15 +556,38 @@ export function scoreVerdicts(score: SeasonReviewScore): {
   readonly specificity: SeasonReviewVerdict;
   readonly question_quality: SeasonReviewVerdict;
 } {
-  return { grounding: score.grounding.verdict, specificity: score.specificity.verdict,
-    question_quality: score.question_quality.verdict };
+  return {
+    grounding: score.grounding.verdict,
+    specificity: score.specificity.verdict,
+    question_quality: score.question_quality.verdict,
+  };
 }
 
-export function validateSeasonReviewConclusion(value: unknown, expectedHead?: string): SeasonReviewConclusion {
+export function validateSeasonReviewConclusion(
+  value: unknown,
+  expectedHead?: string,
+): SeasonReviewConclusion {
   const candidate = record(value, "Season review conclusion");
-  exactKeys(candidate, ["schema_version", "head_sha", "provider", "model", "rubric_sha256", "model_calibration",
-    "grounding", "specificity", "question_quality", "cost_totals", "overall", "evidence_sha256"], "Season review conclusion");
-  if (candidate.schema_version !== 1) throw new TypeError("Season review conclusion version is invalid.");
+  exactKeys(
+    candidate,
+    [
+      "schema_version",
+      "head_sha",
+      "provider",
+      "model",
+      "rubric_sha256",
+      "model_calibration",
+      "grounding",
+      "specificity",
+      "question_quality",
+      "cost_totals",
+      "overall",
+      "evidence_sha256",
+    ],
+    "Season review conclusion",
+  );
+  if (candidate.schema_version !== 1)
+    throw new TypeError("Season review conclusion version is invalid.");
   const headSha = head(candidate.head_sha, "Conclusion HEAD");
   if (expectedHead !== undefined && headSha !== head(expectedHead, "Expected conclusion HEAD")) {
     throw new TypeError("Season review conclusion HEAD differs.");
@@ -426,29 +595,44 @@ export function validateSeasonReviewConclusion(value: unknown, expectedHead?: st
   if (!Array.isArray(candidate.model_calibration) || candidate.model_calibration.length !== 3) {
     throw new TypeError("Model calibration conclusions are invalid.");
   }
-  const calibration = candidate.model_calibration.map((value, index): SeasonReviewCalibrationConclusion => {
-    const item = record(value, "Model calibration conclusion");
-    exactKeys(item, ["sample", "report_sha256", "grounding", "specificity", "question_quality"], "Model calibration conclusion");
-    const sample = SEASON_REVIEW_MODEL_SAMPLES[index];
-    if (index > 2 || item.sample !== sample) throw new TypeError("Model calibration order is invalid.");
-    return { sample: sample as SeasonReviewCalibrationConclusion["sample"],
-      report_sha256: hash(item.report_sha256, "Calibration report hash"),
-      grounding: verdict(item.grounding, "Calibration grounding"),
-      specificity: verdict(item.specificity, "Calibration specificity"),
-      question_quality: verdict(item.question_quality, "Calibration question quality") };
-  });
+  const calibration = candidate.model_calibration.map(
+    (value, index): SeasonReviewCalibrationConclusion => {
+      const item = record(value, "Model calibration conclusion");
+      exactKeys(
+        item,
+        ["sample", "report_sha256", "grounding", "specificity", "question_quality"],
+        "Model calibration conclusion",
+      );
+      const sample = SEASON_REVIEW_MODEL_SAMPLES[index];
+      if (index > 2 || item.sample !== sample)
+        throw new TypeError("Model calibration order is invalid.");
+      return {
+        sample: sample as SeasonReviewCalibrationConclusion["sample"],
+        report_sha256: hash(item.report_sha256, "Calibration report hash"),
+        grounding: verdict(item.grounding, "Calibration grounding"),
+        specificity: verdict(item.specificity, "Calibration specificity"),
+        question_quality: verdict(item.question_quality, "Calibration question quality"),
+      };
+    },
+  );
   const grounding = verdict(candidate.grounding, "Real grounding");
   const specificity = verdict(candidate.specificity, "Real specificity");
   const questionQuality = verdict(candidate.question_quality, "Real question quality");
-  const expectedOverall = [grounding, specificity, questionQuality].every((value) => value === "KEEP") ? "KEEP" : "REWORK";
-  if (verdict(candidate.overall, "Overall verdict") !== expectedOverall) throw new TypeError("Overall verdict is invalid.");
+  const expectedOverall = [grounding, specificity, questionQuality].every(
+    (value) => value === "KEEP",
+  )
+    ? "KEEP"
+    : "REWORK";
+  if (verdict(candidate.overall, "Overall verdict") !== expectedOverall)
+    throw new TypeError("Overall verdict is invalid.");
   const totals = record(candidate.cost_totals, "Cost totals");
   exactKeys(totals, ["calibration", "real", "combined"], "Cost totals");
   const calibrationCostRaw = record(totals.calibration, "Calibration cost");
   const realCostRaw = record(totals.real, "Real cost");
   const combinedCostRaw = record(totals.combined, "Combined cost");
   const calls = (cost: Record<string, unknown>): number =>
-    nonNegativeSafeInteger(cost.priced_calls, "Priced calls") + nonNegativeSafeInteger(cost.unpriced_calls, "Unpriced calls");
+    nonNegativeSafeInteger(cost.priced_calls, "Priced calls") +
+    nonNegativeSafeInteger(cost.unpriced_calls, "Unpriced calls");
   const calibrationCost = validateCost(calibrationCostRaw, calls(calibrationCostRaw));
   const realCost = validateCost(realCostRaw, calls(realCostRaw));
   const combinedCost = validateCost(combinedCostRaw, calls(combinedCostRaw));
@@ -456,20 +640,30 @@ export function validateSeasonReviewConclusion(value: unknown, expectedHead?: st
     { cost: calibrationCost, generateCalls: calls(calibrationCostRaw) },
     { cost: realCost, generateCalls: calls(realCostRaw) },
   ]).cost;
-  if (canonicalJson(combinedCost) !== canonicalJson(expectedCombined)) throw new TypeError("Combined cost is invalid.");
+  if (canonicalJson(combinedCost) !== canonicalJson(expectedCombined))
+    throw new TypeError("Combined cost is invalid.");
   return {
-    schema_version: 1, head_sha: headSha, provider: nonEmpty(candidate.provider, "Conclusion provider"),
-    model: nonEmpty(candidate.model, "Conclusion model"), rubric_sha256: hash(candidate.rubric_sha256, "Rubric hash"),
-    model_calibration: calibration, grounding, specificity, question_quality: questionQuality,
+    schema_version: 1,
+    head_sha: headSha,
+    provider: nonEmpty(candidate.provider, "Conclusion provider"),
+    model: nonEmpty(candidate.model, "Conclusion model"),
+    rubric_sha256: hash(candidate.rubric_sha256, "Rubric hash"),
+    model_calibration: calibration,
+    grounding,
+    specificity,
+    question_quality: questionQuality,
     cost_totals: { calibration: calibrationCost, real: realCost, combined: combinedCost },
-    overall: expectedOverall, evidence_sha256: hash(candidate.evidence_sha256, "Evidence hash"),
+    overall: expectedOverall,
+    evidence_sha256: hash(candidate.evidence_sha256, "Evidence hash"),
   };
 }
 
 export function assertExactSeasonReviewRubric(bytes: Uint8Array): void {
-  if (!Buffer.from(bytes).equals(Buffer.from(SEASON_REVIEW_RUBRIC_BYTES))) throw new TypeError("Season review rubric bytes differ.");
+  if (!Buffer.from(bytes).equals(Buffer.from(SEASON_REVIEW_RUBRIC_BYTES)))
+    throw new TypeError("Season review rubric bytes differ.");
 }
 
 export function assertExactSeasonReviewScoreSchema(bytes: Uint8Array): void {
-  if (!Buffer.from(bytes).equals(Buffer.from(SEASON_REVIEW_SCORE_SCHEMA_BYTES))) throw new TypeError("Season review score schema bytes differ.");
+  if (!Buffer.from(bytes).equals(Buffer.from(SEASON_REVIEW_SCORE_SCHEMA_BYTES)))
+    throw new TypeError("Season review score schema bytes differ.");
 }

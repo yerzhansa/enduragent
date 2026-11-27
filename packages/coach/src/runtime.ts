@@ -52,19 +52,18 @@ export interface CoachStoreWriterPlan<T> {
 
 export async function withCoachStoreWriter<T>(
   env: Record<string, string | undefined>,
-  operationOrPlan:
-    | ((context: CoachStoreWriterContext) => Promise<T>)
-    | CoachStoreWriterPlan<T>,
+  operationOrPlan: ((context: CoachStoreWriterContext) => Promise<T>) | CoachStoreWriterPlan<T>,
   deps?: CoachRuntimeDependencies,
 ): Promise<T> {
-  const operation = typeof operationOrPlan === "function"
-    ? operationOrPlan
-    : operationOrPlan?.operation;
+  const operation =
+    typeof operationOrPlan === "function" ? operationOrPlan : operationOrPlan?.operation;
   if (typeof operation !== "function") {
     throw new TypeError("invalid coach writer operation");
   }
-  if (typeof operationOrPlan !== "function"
-    && typeof operationOrPlan?.beforeStoreOpen !== "function") {
+  if (
+    typeof operationOrPlan !== "function" &&
+    typeof operationOrPlan?.beforeStoreOpen !== "function"
+  ) {
     throw new TypeError("invalid coach writer pre-open operation");
   }
 
@@ -82,5 +81,9 @@ export async function withCoachStoreWriter<T>(
   if (result.status === "writer-lock-held") {
     throw new CoachStoreWriterError("writer-lock-held", null, undefined, result.contention);
   }
-  throw new CoachStoreWriterError("writer-failed", result.stage, result.cause === undefined ? undefined : { cause: result.cause });
+  throw new CoachStoreWriterError(
+    "writer-failed",
+    result.stage,
+    result.cause === undefined ? undefined : { cause: result.cause },
+  );
 }

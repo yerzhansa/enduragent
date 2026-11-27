@@ -3,7 +3,12 @@ import {
   type PlanCalendarRpcParams,
   type PlanCalendarRpcResult,
 } from "@enduragent/coach-contract";
-import { readWeekDelivery, saveWeekDelivery, weekDeliveryStep } from "@enduragent/engine/calendar";
+import {
+  readWeekDelivery,
+  saveWeekDelivery,
+  weekDeliveryStep,
+  type CalendarMirrorPort,
+} from "@enduragent/engine/calendar";
 import {
   createPlanCalendarMirrorRepository,
   createPlanReconciliationRepository,
@@ -11,6 +16,8 @@ import {
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import { todayInTZ } from "@enduragent/engine/sport";
+import { changeDetail, keepChange, putBackChange } from "./plan-calendar-changes.js";
+import type { PlanCalendarEditDeps } from "./plan-calendar-edit.js";
 import { readPlanCalendar } from "./plan-calendar-read.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
@@ -34,15 +41,18 @@ export interface PlanCalendarOperations {
   "plan.calendar"(request: PlanCalendarRpcParams): Promise<PlanCalendarRpcResult>;
 }
 
-export function createPlanCalendarOperations(deps: {
-  readonly store: SqlStore & Pick<MigratorStore, "transaction">;
-  readonly todayDateKey: () => number;
-  readonly now: () => number;
-  readonly calendarConnected: () => boolean;
-  readonly dateKeyOfMs: (ms: number) => number;
-  readonly changed: () => void;
-  readonly settled: () => Promise<void>;
-}): PlanCalendarOperations {
+export function createPlanCalendarOperations(
+  deps: PlanCalendarEditDeps & {
+    readonly store: SqlStore & Pick<MigratorStore, "transaction">;
+    readonly calendar: { readonly mirror: CalendarMirrorPort };
+    readonly todayDateKey: () => number;
+    readonly now: () => number;
+    readonly calendarConnected: () => boolean;
+    readonly dateKeyOfMs: (ms: number) => number;
+    readonly changed: () => void;
+    readonly settled: () => Promise<void>;
+  },
+): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const plans = createLegacyPlanRepository(deps.store);
   return {
@@ -66,6 +76,14 @@ export function createPlanCalendarOperations(deps: {
           return { status: "sending" };
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
+        case "change-detail":
+        case "keep-change":
+        case "put-back": {
+          const changeDeps = { ...deps, mirror: deps.calendar.mirror };
+          if (request.action === "change-detail") return changeDetail(changeDeps, request);
+          if (request.action === "keep-change") return keepChange(changeDeps, request);
+          return putBackChange(changeDeps, request);
+        }
         case "save-settings":
           await mirror.writeWeekDeliverySetting(request.weekDelivery, deps.now());
           deps.changed();
