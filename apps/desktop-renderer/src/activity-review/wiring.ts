@@ -7,7 +7,6 @@ import { createRideReviewController } from "./review-controller";
 import { selectedRide } from "./rides";
 
 const POLL_MS = 1_500;
-const DRAFT_WAIT_MS = 2_000;
 
 function shownRideId(state: EnduragentState): string | null {
   if (state.activeView !== "activity-review" || state.activityReview.kind !== "ready") return null;
@@ -17,29 +16,8 @@ function shownRideId(state: EnduragentState): string | null {
 }
 
 function askCoach(store: typeof useEnduragentStore, draft: string): void {
-  const state = store.getState();
-  const existing = state.chat.attachments?.draft?.text ?? "";
-  const next = existing.trim().length === 0 ? draft : `${existing}\n\n${draft}`;
-  let opened = false;
-  let stop = (): void => undefined;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const openChat = (): void => {
-    if (opened) return;
-    opened = true;
-    stop();
-    clearTimeout(timer);
-    store.getState().setActiveView("chat");
-  };
-  const chat = state.chatActions;
-  if (chat === null) {
-    openChat();
-    return;
-  }
-  stop = store.subscribe((current) => {
-    if (current.chat.attachments?.draft?.text === next) openChat();
-  });
-  timer = setTimeout(openChat, DRAFT_WAIT_MS);
-  chat.saveAttachmentDraftText(next);
+  store.getState().requestComposerPrefill(draft);
+  store.getState().setActiveView("chat");
 }
 
 export function startActivityReview(

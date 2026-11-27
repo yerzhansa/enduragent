@@ -308,7 +308,15 @@ export function currentPlanChangeCardsVisible(
   );
 }
 
+export interface ComposerPrefill {
+  readonly text: string;
+  readonly revision: number;
+}
+
 export interface ChatSlice {
+  readonly composerPrefill: ComposerPrefill | null;
+  requestComposerPrefill: (text: string) => void;
+  clearComposerPrefill: (revision: number) => void;
   readonly planChange: PlanChangeSurfaceState;
   setPlanChange: (next: PlanChangeSurfaceState) => void;
   readonly chat: ChatSurfaceState;
@@ -481,7 +489,14 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
   );
 }
 
-export const createChatSlice: StateCreator<EnduragentState, [], [], ChatSlice> = (set) => ({
+export const createChatSlice: StateCreator<EnduragentState, [], [], ChatSlice> = (set, get) => ({
+  composerPrefill: null,
+  requestComposerPrefill(text) {
+    set({ composerPrefill: { text, revision: (get().composerPrefill?.revision ?? 0) + 1 } });
+  },
+  clearComposerPrefill(revision) {
+    if (get().composerPrefill?.revision === revision) set({ composerPrefill: null });
+  },
   planChange: EMPTY_PLAN_CHANGE_SURFACE,
   setPlanChange(next) {
     set({ planChange: next });

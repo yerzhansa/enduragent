@@ -160,8 +160,9 @@ describe("the coach's verdict wiring", () => {
 });
 
 describe("Ask the coach about this ride", () => {
-  it("opens Chat with a draft that names the ride and sends nothing", async () => {
+  it("opens the mounted Chat with a draft that names the ride and sends nothing", async () => {
     const test = started();
+    render(<ChatView />);
     act(() => store.getState().setActiveView("activity-review"));
     await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
     act(() =>
@@ -169,13 +170,20 @@ describe("Ask the coach about this ride", () => {
         .getState()
         .activityReviewActions?.askCoach("What do you make of my ride on Thu 20 Aug, Road ride?"),
     );
-    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
-    render(<ChatView />);
+    expect(store.getState().activeView).toBe("chat");
     await waitFor(
       () => expect(composer()).toHaveValue("What do you make of my ride on Thu 20 Aug, Road ride?"),
       SETTLED,
     );
+    await vi.waitFor(
+      () =>
+        expect(store.getState().chat.attachments?.draft?.text).toBe(
+          "What do you make of my ride on Thu 20 Aug, Road ride?",
+        ),
+      SETTLED,
+    );
     expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
+    expect(store.getState().composerPrefill).toBeNull();
     test.dispose();
   });
 
@@ -184,15 +192,28 @@ describe("Ask the coach about this ride", () => {
     store.setState({
       chat: { ...store.getState().chat, attachments: surface("Keep my question") },
     });
+    render(<ChatView />);
+    await waitFor(() => expect(composer()).toHaveValue("Keep my question"), SETTLED);
     act(() => store.getState().setActiveView("activity-review"));
     await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
     act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
-    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
-    render(<ChatView />);
     await waitFor(
       () => expect(composer()).toHaveValue("Keep my question\n\nAbout my ride on Thu 20 Aug?"),
       SETTLED,
     );
+    test.dispose();
+  });
+
+  it("still puts the question in the composer when Chat cannot save the draft", async () => {
+    const test = started();
+    const busy = { ...store.getState().chatActions, saveAttachmentDraftText: vi.fn() };
+    store.setState({ chatActions: busy as never });
+    render(<ChatView />);
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().activityReviewActions?.askCoach("About my ride on Thu 20 Aug?"));
+    await waitFor(() => expect(composer()).toHaveValue("About my ride on Thu 20 Aug?"), SETTLED);
+    expect(store.getState().activeView).toBe("chat");
     test.dispose();
   });
 });
