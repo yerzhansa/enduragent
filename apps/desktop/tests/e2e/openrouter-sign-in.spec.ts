@@ -11,6 +11,7 @@ import {
 const TOKEN = "o".repeat(43);
 const SYNTHETIC_KEY = `sk-or-v1-${"0".repeat(64)}`;
 const ANTHROPIC_KEY = `sk-ant-api03-${"0".repeat(80)}`;
+const INTERVALS_APPROVAL = "a".repeat(64);
 
 interface ScriptRequest {
   readonly method: string;
@@ -26,6 +27,7 @@ interface LlmRuntimeRequest {
 
 interface RuntimeRequest {
   readonly llm?: LlmRuntimeRequest;
+  readonly intervals?: unknown;
   readonly session?: unknown;
 }
 
@@ -71,13 +73,14 @@ class OpenRouterCoach {
   readonly unexpected: string[] = [];
   private llm: { readonly provider: string; readonly model: string; readonly configured: boolean } =
     { provider: "anthropic", model: "synthetic-model", configured: false };
+  private intervalsConfigured = false;
 
   readonly script: DesktopFixtureScript = {
     onRequest: (value) => {
       const request = value as ScriptRequest;
       switch (request.method) {
         case "getSetupStatus":
-          return response({ schemaVersion: 1, durableTrainingData: true });
+          return response({ schemaVersion: 1, durableTrainingData: false });
         case "getLanguagePreference":
           return response({ value: null });
         case "setLanguagePreference":
@@ -130,6 +133,8 @@ class OpenRouterCoach {
               recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
             },
           });
+        case "verify_intervals_credential":
+          return response({ approval: INTERVALS_APPROVAL });
         case "configureRuntime":
           return response(this.configure(request.params));
         case "getRuntimeConfig":
@@ -153,12 +158,13 @@ class OpenRouterCoach {
           llm.clear_credential !== true && (this.llm.configured || llm.api_key !== undefined),
       };
     }
+    if (request.intervals !== undefined) this.intervalsConfigured = true;
     return {
       schemaVersion: 3,
       status: "applied",
       applied: {
         llm: llm !== undefined,
-        intervals: false,
+        intervals: request.intervals !== undefined,
         session: request.session !== undefined,
       },
     };
@@ -174,7 +180,7 @@ class OpenRouterCoach {
       },
       intervals: {
         athlete_id: "0",
-        credential_configured: false,
+        credential_configured: this.intervalsConfigured,
         managedByEnvironment: { athleteId: false },
       },
       session: {
@@ -200,6 +206,7 @@ interface OpenRouterDesktop {
   readonly fixture: RunningDesktopFixture;
   readonly coach: OpenRouterCoach;
   approveSignIn(): Promise<void>;
+  connectIntervals(): Promise<void>;
 }
 
 async function authorizeLines(log: string): Promise<readonly string[]> {
@@ -212,6 +219,7 @@ const test = base.extend<{ openRouterDesktop: OpenRouterDesktop }>({
     const coach = new OpenRouterCoach();
     const directory = await mkdtemp(join(tmpdir(), "openrouter-e2e-"));
     const log = join(directory, "authorize.log");
+    const intervalsLog = join(directory, "intervals-authorize.log");
     let approved = 0;
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
@@ -228,6 +236,7 @@ const test = base.extend<{ openRouterDesktop: OpenRouterDesktop }>({
           LANG: "en_US.UTF-8",
           TZ: "UTC",
           ENDURAGENT_ACCEPTANCE_OPENROUTER_AUTHORIZE_LOG: log,
+          ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG: intervalsLog,
         },
       });
       browser = await playwright.chromium.connectOverCDP(fixture.remoteDebuggingUrl);
@@ -258,6 +267,23 @@ const test = base.extend<{ openRouterDesktop: OpenRouterDesktop }>({
           callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
           const reply = await fetch(callback);
           expect(reply.status).toBe(200);
+        },
+        async connectIntervals() {
+          await page.locator('[data-setup-trigger="training"]').click();
+          await page
+            .getByRole("button", { name: "Sign in with Intervals.icu", exact: true })
+            .click();
+          await expect.poll(async () => (await authorizeLines(intervalsLog)).length).toBe(1);
+          const [line] = await authorizeLines(intervalsLog);
+          const authorize = new URL(line ?? "");
+          const callback = new URL(authorize.searchParams.get("redirect_uri") ?? "");
+          callback.searchParams.set("code", "acceptance-code");
+          callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
+          const reply = await fetch(callback);
+          expect(reply.ok).toBe(true);
+          await expect(
+            page.locator('[data-setup-row="training"] [data-setup-disc="ready"]'),
+          ).toBeVisible();
         },
       });
     } finally {
@@ -296,6 +322,22 @@ async function expectConnected(page: Page): Promise<void> {
   await expect(row).toHaveAttribute("data-state", "ready");
 }
 
+async function expectRequiredReady(page: Page, ready: number): Promise<void> {
+  const badge = page.locator("[data-setup-readiness]");
+  await expect(badge).toHaveAttribute("data-setup-readiness", String(ready));
+  await expect(badge).toHaveText(`${ready} of 2 required ready`);
+}
+
+async function startCoaching(desktop: OpenRouterDesktop): Promise<void> {
+  const { page } = desktop;
+  await expectRequiredReady(page, 1);
+  await expect(page.getByRole("button", { name: "Start coaching", exact: true })).toBeDisabled();
+  await desktop.connectIntervals();
+  await expectRequiredReady(page, 2);
+  await page.getByRole("button", { name: "Start coaching", exact: true }).click();
+  await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "app");
+}
+
 async function expectNoSecretInRenderer(desktop: OpenRouterDesktop): Promise<void> {
   await expect(desktop.page.locator('input[data-slot="openrouter"]')).toHaveCount(0);
   const html = await desktop.page.content();
@@ -312,6 +354,7 @@ test("connects OpenRouter by signing in through the browser, with no key pasted"
 }, testInfo) => {
   const { page } = desktop;
   await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "gate");
+  await expectRequiredReady(page, 0);
   await chooseOpenRouter(page);
   const panel = page.locator('[data-setup-panel="openrouter"]');
   await expect(panel).toContainText(
@@ -325,6 +368,12 @@ test("connects OpenRouter by signing in through the browser, with no key pasted"
 
   await expectConnected(page);
   await expect(panel).toHaveCount(0);
+  await expectRequiredReady(page, 1);
+  await expect(page.locator('[data-setup-row="training"]')).toHaveAttribute(
+    "data-state",
+    "pending",
+  );
+  await expect(page.getByRole("button", { name: "Start coaching", exact: true })).toBeDisabled();
   expect(desktop.coach.llmRequests).toContainEqual(
     expect.objectContaining({ provider: "openrouter", api_key: SYNTHETIC_KEY }),
   );
@@ -340,8 +389,7 @@ test("signs in to OpenRouter again from Settings after setup", async ({
   await page.getByRole("button", { name: "Sign in with OpenRouter", exact: true }).click();
   await desktop.approveSignIn();
   await expectConnected(page);
-  await page.getByRole("button", { name: "Start coaching", exact: true }).click();
-  await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "app");
+  await startCoaching(desktop);
 
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   await navigation.getByRole("button", { name: "Settings", exact: true }).click();
@@ -374,15 +422,15 @@ async function openSettings(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Setup", exact: true })).toBeVisible();
 }
 
-async function setUpWithAnthropicKey(page: Page): Promise<void> {
+async function setUpWithAnthropicKey(desktop: OpenRouterDesktop): Promise<void> {
+  const { page } = desktop;
   await page.locator('[data-setup-trigger="ai"]').click();
   await page.locator('[data-setup-menu="ai"] [data-lane="api-key"]').click();
   await page.locator("#credential-anthropic").fill(ANTHROPIC_KEY);
   await page.getByRole("button", { name: "Save API key", exact: true }).click();
   const row = page.locator('[data-setup-row="ai"]');
   await expect(row).toHaveAttribute("data-state", "ready");
-  await page.getByRole("button", { name: "Start coaching", exact: true }).click();
-  await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "app");
+  await startCoaching(desktop);
 }
 
 function coachRoute(page: Page) {
@@ -396,7 +444,7 @@ test("refreshes Settings after an OpenRouter sign-in replaces a pasted Anthropic
   openRouterDesktop: desktop,
 }, testInfo) => {
   const { page } = desktop;
-  await setUpWithAnthropicKey(page);
+  await setUpWithAnthropicKey(desktop);
   await openSettings(page);
   await expect(coachRoute(page)).toContainText("Anthropic");
 
