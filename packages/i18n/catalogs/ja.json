@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "過去120日間のライドはまだありません。intervals.icuのライドは、同期後にここに表示されます。",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · intervals.icuから",
+        "time": "{{date}} {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}} {{time}} · {{kind}} · intervals.icuから"
+      },
+      "kind": {
+        "gravel": "グラベルのライド",
+        "indoor": "屋内ライド",
+        "mountain": "マウンテンバイクのライド",
+        "other": "ライド",
+        "road": "ロードのライド"
+      },
+      "list": {
+        "doneAsPlanned": "予定どおり完了",
+        "doneDifferently": "予定と異なる内容で完了",
+        "extra": "追加",
+        "first": "アクティビティ · {{group}}",
+        "isThis": "これは{{name}}ですか？ 確認",
+        "label": "アクティビティ",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · 今日",
+        "trainingWeek": "第{{week}}トレーニング週"
+      },
+      "match": {
+        "averagePower": "平均{{power}}",
+        "cancel": "キャンセル",
+        "change": "変更",
+        "confirmed": "{{weekday}}のプランのワークアウトと対応 · 自分で確認済み",
+        "extra": "このライドに対応するプランのワークアウトがないため、追加としてカウントされます。",
+        "failed": "アプリから応答がなかったため、何も変更されていません。もう一度お試しください。",
+        "label": "プランのワークアウトとの対応",
+        "no": "いいえ、別のものです",
+        "noPlan": "プランがないため、比較する予定はありません。",
+        "otherDay": "別の日のワークアウトでした",
+        "paired": "{{weekday}}のプランのワークアウトと対応 · intervals.icuで紐付け済み",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "このライドの前後3日以内に、空いているプランのワークアウトはほかにありません。",
+        "pickTitle": "どのプランのワークアウトでしたか？",
+        "planWorkout": "プランのワークアウト · {{day}}",
+        "question": "これは{{weekday}}の{{name}}ですか？",
+        "refused": "その間にこのライドの対応が変更されました。リストには最新の内容が表示されています。",
+        "rideFacts": "{{distance}}、平均{{power}}",
+        "rideTitle": "{{name}}、{{duration}}",
+        "saving": "回答を保存中…",
+        "thisRide": "このライド",
+        "waiting": "回答するまで、このライドはプランにカウントされず、カレンダーでは{{weekday}}が完了でも未実施でもなく、確認待ちとして表示されます。",
+        "yes": "はい、そうです"
+      },
+      "refreshFailed": "ライドを更新できませんでした。以前に読み込んだ内容を表示しています。",
+      "retry": "再試行",
+      "showInCalendar": "カレンダーで表示",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "距離",
+        "exertion": "自覚的運動強度",
+        "exertionValue": "{{value}}/10",
+        "heartRate": "平均心拍数",
+        "kilometres": "{{kilometres}} km",
+        "label": "ライドのデータ",
+        "load": "負荷",
+        "notGiven": "未入力",
+        "notRecorded": "記録なし",
+        "power": "平均パワー",
+        "time": "ライド時間",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · プランなし",
+      "unavailable": "ライドを読み込めませんでした。もう一度お試しください。",
+      "untitled": "ライド"
+    }
+  },
   "common": {
     "automatic": "自動",
     "back": "戻る",
@@ -841,6 +918,7 @@
   "shell": {
     "checkingSetup": "セットアップを確認中…",
     "loading": {
+      "activityReview": "アクティビティの確認を読み込み中…",
       "archive": "過去のチャットを読み込み中…",
       "calendar": "カレンダーを読み込み中…",
       "chat": "チャットを読み込み中…",
@@ -915,6 +993,7 @@
       "restartingVersion": "アップデートバージョン{{version}}をインストールするため再起動中"
     },
     "views": {
+      "activityReview": "アクティビティの確認",
       "archive": "過去のチャット",
       "calendar": "カレンダー",
       "chat": "チャット",

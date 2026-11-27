@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Brak przejazdów z ostatnich 120 dni. Przejazdy z intervals.icu pojawią się tutaj po synchronizacji.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · z intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · z intervals.icu"
+      },
+      "kind": {
+        "gravel": "Przejazd gravelowy",
+        "indoor": "Przejazd w pomieszczeniu",
+        "mountain": "Przejazd na rowerze górskim",
+        "other": "Przejazd",
+        "road": "Przejazd szosowy"
+      },
+      "list": {
+        "doneAsPlanned": "Wykonano zgodnie z planem",
+        "doneDifferently": "Wykonano inaczej",
+        "extra": "Dodatkowa",
+        "first": "Aktywności · {{group}}",
+        "isThis": "Czy to {{name}}? Potwierdź",
+        "label": "Aktywności",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Dzisiaj",
+        "trainingWeek": "Tydzień treningowy {{week}}"
+      },
+      "match": {
+        "averagePower": "Średnio {{power}}",
+        "cancel": "Anuluj",
+        "change": "Zmień",
+        "confirmed": "Dopasowano do treningu z planu ({{weekday}}) · potwierdzone przez ciebie",
+        "extra": "Do tego przejazdu nie dopasowano żadnego treningu z planu, więc liczy się jako dodatkowy.",
+        "failed": "Aplikacja nie odpowiedziała, więc nic się nie zmieniło. Spróbuj ponownie.",
+        "label": "Dopasowanie do treningu z planu",
+        "no": "Nie, to było coś innego",
+        "noPlan": "Brak planu, więc nie ma nic zaplanowanego do porównania.",
+        "otherDay": "To był trening z innego dnia",
+        "paired": "Dopasowano do treningu z planu ({{weekday}}) · sparowane w intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "W ciągu trzech dni od tego przejazdu nie ma innego wolnego treningu z planu.",
+        "pickTitle": "Który to był trening z planu?",
+        "planWorkout": "Trening z planu · {{day}}",
+        "question": "Czy to {{name}} ({{weekday}})?",
+        "refused": "Dopasowanie tego przejazdu zmieniło się w międzyczasie. Lista pokazuje teraz najnowsze.",
+        "rideFacts": "{{distance}}, średnio {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Zapisywanie odpowiedzi…",
+        "thisRide": "Ten przejazd",
+        "waiting": "Dopóki nie odpowiesz, ten przejazd nie liczy się do planu, a kalendarz pokazuje dzień ({{weekday}}) jako oczekujący, a nie wykonany lub pominięty.",
+        "yes": "Tak, to ten"
+      },
+      "refreshFailed": "Nie udało się odświeżyć przejazdów. Widzisz to, co odczytano wcześniej.",
+      "retry": "Spróbuj ponownie",
+      "showInCalendar": "Pokaż w kalendarzu",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Dystans",
+        "exertion": "Odczuwany wysiłek",
+        "exertionValue": "{{value}} z 10",
+        "heartRate": "Średnie tętno",
+        "kilometres": "{{kilometres}} km",
+        "label": "Dane przejazdu",
+        "load": "Obciążenie treningowe",
+        "notGiven": "Nie podano",
+        "notRecorded": "Nie zarejestrowano",
+        "power": "Średnia moc",
+        "time": "Czas jazdy",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · brak planu",
+      "unavailable": "Nie udało się odczytać przejazdów. Spróbuj ponownie.",
+      "untitled": "Przejazd"
+    }
+  },
   "common": {
     "automatic": "Automatycznie",
     "back": "Wstecz",
@@ -850,6 +927,7 @@
   "shell": {
     "checkingSetup": "Sprawdzanie konfiguracji…",
     "loading": {
+      "activityReview": "Wczytywanie przeglądu aktywności…",
       "archive": "Wczytywanie wcześniejszych rozmów…",
       "calendar": "Wczytywanie kalendarza…",
       "chat": "Wczytywanie czatu…",
@@ -937,6 +1015,7 @@
       "restartingVersion": "Ponowne uruchamianie w celu instalacji aktualizacji do wersji {{version}}"
     },
     "views": {
+      "activityReview": "Przegląd aktywności",
       "archive": "Wcześniejsze rozmowy",
       "calendar": "Kalendarz",
       "chat": "Czat",

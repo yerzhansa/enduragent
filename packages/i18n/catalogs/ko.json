@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "최근 120일 동안의 라이딩이 아직 없습니다. intervals.icu의 라이딩은 동기화 후 여기에 표시됩니다.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · intervals.icu에서",
+        "time": "{{date}} {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}} {{time}} · {{kind}} · intervals.icu에서"
+      },
+      "kind": {
+        "gravel": "그래블 라이딩",
+        "indoor": "실내 라이딩",
+        "mountain": "산악자전거 라이딩",
+        "other": "라이딩",
+        "road": "로드 라이딩"
+      },
+      "list": {
+        "doneAsPlanned": "계획대로 완료",
+        "doneDifferently": "계획과 다르게 완료",
+        "extra": "추가",
+        "first": "활동 · {{group}}",
+        "isThis": "{{name}} 워크아웃인가요? 확인",
+        "label": "활동",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · 오늘",
+        "trainingWeek": "훈련 {{week}}주차"
+      },
+      "match": {
+        "averagePower": "평균 {{power}}",
+        "cancel": "취소",
+        "change": "변경",
+        "confirmed": "{{weekday}} 계획 워크아웃과 연결됨 · 직접 확인함",
+        "extra": "이 라이딩과 연결된 계획 워크아웃이 없어 추가로 집계됩니다.",
+        "failed": "앱이 응답하지 않아 아무것도 변경되지 않았습니다. 다시 시도하세요.",
+        "label": "계획 워크아웃 연결",
+        "no": "아니요, 다른 것이었습니다",
+        "noPlan": "계획이 없어 비교할 예정 항목이 없습니다.",
+        "otherDay": "다른 날의 워크아웃이었습니다",
+        "paired": "{{weekday}} 계획 워크아웃과 연결됨 · intervals.icu에서 연결됨",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "이 라이딩 전후 3일 이내에 비어 있는 다른 계획 워크아웃이 없습니다.",
+        "pickTitle": "어떤 계획 워크아웃이었나요?",
+        "planWorkout": "계획 워크아웃 · {{day}}",
+        "question": "{{weekday}}의 {{name}} 워크아웃인가요?",
+        "refused": "그사이 이 라이딩의 연결이 변경되었습니다. 이제 목록에 최신 상태가 표시됩니다.",
+        "rideFacts": "{{distance}}, 평균 {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "답변을 저장하는 중…",
+        "thisRide": "이 라이딩",
+        "waiting": "답변하기 전까지 이 라이딩은 계획에 집계되지 않으며, 캘린더에는 {{weekday}}이 완료나 미실시가 아닌 대기 중으로 표시됩니다.",
+        "yes": "네, 맞습니다"
+      },
+      "refreshFailed": "라이딩을 새로 고칠 수 없습니다. 이전에 읽은 내용을 표시합니다.",
+      "retry": "다시 시도",
+      "showInCalendar": "캘린더에서 보기",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "거리",
+        "exertion": "운동자각도",
+        "exertionValue": "{{value}}/10",
+        "heartRate": "평균 심박수",
+        "kilometres": "{{kilometres}} km",
+        "label": "라이딩 정보",
+        "load": "부하",
+        "notGiven": "입력 안 함",
+        "notRecorded": "기록되지 않음",
+        "power": "평균 파워",
+        "time": "라이딩 시간",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · 계획 없음",
+      "unavailable": "라이딩을 읽을 수 없습니다. 다시 시도하세요.",
+      "untitled": "라이딩"
+    }
+  },
   "common": {
     "automatic": "자동",
     "back": "뒤로",
@@ -841,6 +918,7 @@
   "shell": {
     "checkingSetup": "설정 확인 중…",
     "loading": {
+      "activityReview": "활동 검토 불러오는 중…",
       "archive": "이전 채팅 불러오는 중…",
       "calendar": "캘린더 불러오는 중…",
       "chat": "채팅 불러오는 중…",
@@ -915,6 +993,7 @@
       "restartingVersion": "업데이트 버전 {{version}} 설치를 위해 다시 시작하는 중"
     },
     "views": {
+      "activityReview": "활동 검토",
       "archive": "이전 채팅",
       "calendar": "캘린더",
       "chat": "채팅",

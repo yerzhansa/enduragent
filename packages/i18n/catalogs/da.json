@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Ingen ture fra de seneste 120 dage endnu. Ture fra intervals.icu vises her efter en synkronisering.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · fra intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · fra intervals.icu"
+      },
+      "kind": {
+        "gravel": "Graveltur",
+        "indoor": "Indendørstur",
+        "mountain": "Mountainbiketur",
+        "other": "Tur",
+        "road": "Landevejstur"
+      },
+      "list": {
+        "doneAsPlanned": "Gennemført som planlagt",
+        "doneDifferently": "Gennemført anderledes",
+        "extra": "Ekstra",
+        "first": "Aktiviteter · {{group}}",
+        "isThis": "Er det {{name}}? Bekræft",
+        "label": "Aktiviteter",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · I dag",
+        "trainingWeek": "Træningsuge {{week}}"
+      },
+      "match": {
+        "averagePower": "Gennemsnit {{power}}",
+        "cancel": "Annuller",
+        "change": "Skift",
+        "confirmed": "Hører til træningen {{weekday}} i træningsplanen · bekræftet af dig",
+        "extra": "Ingen træning i træningsplanen hører til denne tur, så den tæller som ekstra.",
+        "failed": "Appen svarede ikke, så intet blev ændret. Prøv igen.",
+        "label": "Kobling til træning i træningsplanen",
+        "no": "Nej, det var noget andet",
+        "noPlan": "Ingen træningsplan, så der er intet planlagt at sammenligne med.",
+        "otherDay": "Det var en anden dags træning",
+        "paired": "Hører til træningen {{weekday}} i træningsplanen · koblet i intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Ingen anden træning i træningsplanen inden for tre dage af denne tur er ledig.",
+        "pickTitle": "Hvilken træning i træningsplanen var det?",
+        "planWorkout": "Træning i træningsplanen · {{day}}",
+        "question": "Er det {{name}} fra {{weekday}}?",
+        "refused": "Koblingen for denne tur blev ændret i mellemtiden. Listen viser nu den nyeste.",
+        "rideFacts": "{{distance}}, gennemsnit {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Gemmer dit svar…",
+        "thisRide": "Denne tur",
+        "waiting": "Indtil du svarer, tæller denne tur ikke med i træningsplanen, og kalenderen viser {{weekday}} som afventende i stedet for gennemført eller ikke gennemført.",
+        "yes": "Ja, det er den"
+      },
+      "refreshFailed": "Turene kunne ikke opdateres. Her vises det, der blev læst før.",
+      "retry": "Prøv igen",
+      "showInCalendar": "Vis i kalenderen",
+      "stats": {
+        "bpm": "{{bpm}} slag/min",
+        "distance": "Distance",
+        "exertion": "Oplevet anstrengelse",
+        "exertionValue": "{{value}} af 10",
+        "heartRate": "Gennemsnitspuls",
+        "kilometres": "{{kilometres}} km",
+        "label": "Turdata",
+        "load": "Træningsbelastning",
+        "notGiven": "Ikke angivet",
+        "notRecorded": "Ikke registreret",
+        "power": "Gennemsnitlig effekt",
+        "time": "Køretid",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · ingen træningsplan",
+      "unavailable": "Turene kunne ikke læses. Prøv igen.",
+      "untitled": "Tur"
+    }
+  },
   "common": {
     "automatic": "Automatisk",
     "back": "Tilbage",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Kontrollerer opsætning…",
     "loading": {
+      "activityReview": "Indlæser aktivitetsgennemgang…",
       "archive": "Indlæser tidligere chats…",
       "calendar": "Indlæser kalender…",
       "chat": "Indlæser chat…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Genstarter for at installere opdatering til version {{version}}"
     },
     "views": {
+      "activityReview": "Aktivitetsgennemgang",
       "archive": "Tidligere chats",
       "calendar": "Kalender",
       "chat": "Chat",

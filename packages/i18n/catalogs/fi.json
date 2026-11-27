@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Viimeisen 120 päivän ajalta ei ole vielä lenkkejä. intervals.icu-palvelun lenkit näkyvät täällä synkronoinnin jälkeen.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · intervals.icu-palvelusta",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · intervals.icu-palvelusta"
+      },
+      "kind": {
+        "gravel": "Gravel-lenkki",
+        "indoor": "Sisäpyöräilylenkki",
+        "mountain": "Maastopyörälenkki",
+        "other": "Lenkki",
+        "road": "Maantiepyörälenkki"
+      },
+      "list": {
+        "doneAsPlanned": "Tehty suunnitellusti",
+        "doneDifferently": "Tehty eri tavalla",
+        "extra": "Ylimääräinen",
+        "first": "Suoritukset · {{group}}",
+        "isThis": "Onko tämä {{name}}? Vahvista",
+        "label": "Suoritukset",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Tänään",
+        "trainingWeek": "Harjoitusviikko {{week}}"
+      },
+      "match": {
+        "averagePower": "Keskiteho {{power}}",
+        "cancel": "Peruuta",
+        "change": "Muuta",
+        "confirmed": "Yhdistetty suunnitelman harjoitukseen ({{weekday}}) · vahvistit itse",
+        "extra": "Tähän lenkkiin ei ole yhdistetty suunnitelman harjoitusta, joten se lasketaan ylimääräiseksi.",
+        "failed": "Sovellus ei vastannut, joten mitään ei muutettu. Yritä uudelleen.",
+        "label": "Yhdistäminen suunnitelman harjoitukseen",
+        "no": "Ei, se oli jotain muuta",
+        "noPlan": "Ei suunnitelmaa, joten vertailtavaa suunniteltua ei ole.",
+        "otherDay": "Se oli toisen päivän harjoitus",
+        "paired": "Yhdistetty suunnitelman harjoitukseen ({{weekday}}) · yhdistetty intervals.icu-palvelussa",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Kolmen päivän sisällä tästä lenkistä ei ole muita vapaita suunnitelman harjoituksia.",
+        "pickTitle": "Mikä suunnitelman harjoitus se oli?",
+        "planWorkout": "Suunnitelman harjoitus · {{day}}",
+        "question": "Onko tämä {{name}} ({{weekday}})?",
+        "refused": "Tämän lenkin yhdistäminen muuttui sillä välin. Lista näyttää nyt uusimman tilanteen.",
+        "rideFacts": "{{distance}}, keskiteho {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Tallennetaan vastaustasi…",
+        "thisRide": "Tämä lenkki",
+        "waiting": "Kunnes vastaat, tätä lenkkiä ei lasketa suunnitelmaan, ja kalenteri näyttää päivän ({{weekday}}) odottavana, ei tehtynä eikä väliin jääneenä.",
+        "yes": "Kyllä on"
+      },
+      "refreshFailed": "Lenkkejä ei voitu päivittää. Tässä näkyy aiemmin luettu tilanne.",
+      "retry": "Yritä uudelleen",
+      "showInCalendar": "Näytä kalenterissa",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Matka",
+        "exertion": "Koettu rasitus",
+        "exertionValue": "{{value}}/10",
+        "heartRate": "Keskisyke",
+        "kilometres": "{{kilometres}} km",
+        "label": "Lenkin tiedot",
+        "load": "Harjoituskuorma",
+        "notGiven": "Ei annettu",
+        "notRecorded": "Ei tallennettu",
+        "power": "Keskiteho",
+        "time": "Ajoaika",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · ei suunnitelmaa",
+      "unavailable": "Lenkkejä ei voitu lukea. Yritä uudelleen.",
+      "untitled": "Lenkki"
+    }
+  },
   "common": {
     "automatic": "Automaattinen",
     "back": "Takaisin",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Tarkistetaan käyttöönottoa…",
     "loading": {
+      "activityReview": "Ladataan suoritusten tarkastelua…",
       "archive": "Ladataan aiempia keskusteluja…",
       "calendar": "Ladataan kalenteria…",
       "chat": "Ladataan keskustelua…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Käynnistetään uudelleen päivitysversion {{version}} asentamiseksi"
     },
     "views": {
+      "activityReview": "Suoritusten tarkastelu",
       "archive": "Aiemmat keskustelut",
       "calendar": "Kalenteri",
       "chat": "Keskustelu",

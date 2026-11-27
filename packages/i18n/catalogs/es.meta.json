@@ -11032,6 +11032,266 @@
       "sourceHash": "d359cdab5f108d46d752a75430ebf10cb5e1e8d26a2219e6fe4bdf6e254c2259",
       "translatedBy": "model"
     },
+    "activity.review.empty": {
+      "sourceHash": "0b8d0a56a240c825778b32833f58001accf693d5a2be4b25c31d61bf9be12b90",
+      "translatedBy": "model"
+    },
+    "activity.review.header.day": {
+      "sourceHash": "d0c6c882400676c3432e56da00caa022d79b379042cfa2f0af95c5904591e3b6",
+      "translatedBy": "model"
+    },
+    "activity.review.header.dayFromIntervals": {
+      "sourceHash": "845e8753d11f8ebab32d32c58cdc737a635cab4f388eae7d478dc9fd6fe189c0",
+      "translatedBy": "model"
+    },
+    "activity.review.header.time": {
+      "sourceHash": "7e8caf6216f40fa6622ede31e38a87472b50806b0fa1a8929b4de720e9ba1655",
+      "translatedBy": "model"
+    },
+    "activity.review.header.timeFromIntervals": {
+      "sourceHash": "5aa8cc9427a486b047c9dc40ae7c3c5498b7aa5dfd3a80f7913ecc8862e83166",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.gravel": {
+      "sourceHash": "5b1aa1e735330b136d87fc11a9e82a597ababbf64ba2fc616f6af556fdf9b5e0",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.indoor": {
+      "sourceHash": "b61bfec3a719469b02b0f2571c5dff099f9939eb532671758b973f3961a6c3e8",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.mountain": {
+      "sourceHash": "47e486c18f5fc321a1c71d91f9bfd872385cae7e14f113f5f3e97e68102cf71e",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.other": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.road": {
+      "sourceHash": "8096ab5265148bca4769c68bcd8fb3e677abce0bb7562402cc9ae252b3790c88",
+      "translatedBy": "model"
+    },
+    "activity.review.list.doneAsPlanned": {
+      "sourceHash": "509cad194256a37d63f4ea1b2c244999590d1d4851680d5d56929cbad34794d0",
+      "translatedBy": "model"
+    },
+    "activity.review.list.doneDifferently": {
+      "sourceHash": "1a2c058bd86299126e2b2459497f08c43978c9fe6f068196f8454560a4648bcd",
+      "translatedBy": "model"
+    },
+    "activity.review.list.extra": {
+      "sourceHash": "2e4aaf05df1cbfb30a89bd189df147c7e70f2f46a698a95336b344c0ecb79041",
+      "translatedBy": "model"
+    },
+    "activity.review.list.first": {
+      "sourceHash": "67ad9806044669eaa1950618d66858eb3e853e562a688086528a2853356e1368",
+      "translatedBy": "model"
+    },
+    "activity.review.list.isThis": {
+      "sourceHash": "3560e07495c0bdede815b7234bc5d748003b4e24505988b59c76de013fb39239",
+      "translatedBy": "model"
+    },
+    "activity.review.list.label": {
+      "sourceHash": "4d0076e6b4c71059f0403fbdebc3a4079e4eb2124cb19b3c6be54ff9c0a30d06",
+      "translatedBy": "model"
+    },
+    "activity.review.list.ride": {
+      "sourceHash": "70d0c6709f50f0e7d5964243bd9994d982989b775f4cf99d5394dd2619a454d5",
+      "translatedBy": "model"
+    },
+    "activity.review.list.today": {
+      "sourceHash": "e84793d45ba013e2d76e2682431418b0f55b7425af6179f2c7c50b4909d7e8e9",
+      "translatedBy": "model"
+    },
+    "activity.review.list.trainingWeek": {
+      "sourceHash": "67778461ef8dae2381ef6a2c0f7a29e25da71627b2eb1078d769bc22e85693b6",
+      "translatedBy": "model"
+    },
+    "activity.review.match.averagePower": {
+      "sourceHash": "61231abaf89bb5dc8fffbafd5004b1b9fd014258dd61d0c13094f0c85b7b5c66",
+      "translatedBy": "model"
+    },
+    "activity.review.match.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "activity.review.match.change": {
+      "sourceHash": "c0bf75bd78bf9572596720d596bd5a20a5b9145cde0fe50dec1e783cb184d69b",
+      "translatedBy": "model"
+    },
+    "activity.review.match.confirmed": {
+      "sourceHash": "617cc1c94d9bed68994a852a3990717613c5fbcca327e2b6a4bde7fb8a743112",
+      "translatedBy": "model"
+    },
+    "activity.review.match.extra": {
+      "sourceHash": "236fa470593bc956c5d4dadf715d051d2be1dae4c907cebcdba089268002128b",
+      "translatedBy": "model"
+    },
+    "activity.review.match.failed": {
+      "sourceHash": "7cb801bb0c524d10a6b4ac0d366d786aba3925e2d1852fcceeb530a63503358a",
+      "translatedBy": "model"
+    },
+    "activity.review.match.label": {
+      "sourceHash": "2c308363493986d5fad59e1c4de99d3c9fc44cf3067f038ebad545acf9cf73b2",
+      "translatedBy": "model"
+    },
+    "activity.review.match.no": {
+      "sourceHash": "14b7477b61914502d386586d0257ece95e3dfa3101c1b6b2f7ec1fd6f0d202b7",
+      "translatedBy": "model"
+    },
+    "activity.review.match.noPlan": {
+      "sourceHash": "c20a49f4c2dc866d4d7476f95fa4e0838e2d4134a3f74ace4b391af7fe10eb5e",
+      "translatedBy": "model"
+    },
+    "activity.review.match.otherDay": {
+      "sourceHash": "1a9d126aec151302e71cf65b9c03dd0fc4cc2c2e0acd4947f871d2081cee0639",
+      "translatedBy": "model"
+    },
+    "activity.review.match.paired": {
+      "sourceHash": "56623d90572c9d5506f12c3e31e2c7e55fa07e46162471272e45f5cade19db6e",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickItem": {
+      "sourceHash": "a04b644cab5aa678e2c5265d22f3343a9c4b695166d1fcf76739988559ffe51a",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickItemLength": {
+      "sourceHash": "ef9eaac6d443a5d1d84d2f4b765d693f980e6c8fd6c868b085dce41d22bc54dd",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickNone": {
+      "sourceHash": "ebb0de0e1d956205a8040a31e2e4d14aa6084af6cd235ae1c55fbe47dc65c887",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickTitle": {
+      "sourceHash": "2d8339f59db893beb0ecfe7e5717b141e333d2b8814ed679e922647eba1272ee",
+      "translatedBy": "model"
+    },
+    "activity.review.match.planWorkout": {
+      "sourceHash": "2cefeb404a7bedd8b7db9ca85ea54a660e788daaea7d60328928915ac5d46cf7",
+      "translatedBy": "model"
+    },
+    "activity.review.match.question": {
+      "sourceHash": "374e173d5f29ec864712ccc7ac046b94e5066712e99d975e1848ebe141edf760",
+      "translatedBy": "model"
+    },
+    "activity.review.match.refused": {
+      "sourceHash": "d095fb48bec4856f4ef9d8e3bb5f6e24b9c4796efc88b3272e812e4e61c1a1bc",
+      "translatedBy": "model"
+    },
+    "activity.review.match.rideFacts": {
+      "sourceHash": "ebe79937848b78f216e30d2991742f53025ca9af54b86783e26e99273fd9e9de",
+      "translatedBy": "model"
+    },
+    "activity.review.match.rideTitle": {
+      "sourceHash": "224a512359a5269115fa814f7430cd02491366f5e2a669dcd492310bf0ae9963",
+      "translatedBy": "model"
+    },
+    "activity.review.match.saving": {
+      "sourceHash": "f336fdeaada4cdcfe400d3fb6f88ec4e137116cbaec0130fea57bff1df7d12cb",
+      "translatedBy": "model"
+    },
+    "activity.review.match.thisRide": {
+      "sourceHash": "7f591aa5235c89c650566bbba295ac7063e76c15fdd141c290fb30e8bfc62202",
+      "translatedBy": "model"
+    },
+    "activity.review.match.waiting": {
+      "sourceHash": "bb6a17897d36e1686ec493c7901ecdf59f0fd240156627abcd17e05b2df7ad77",
+      "translatedBy": "model"
+    },
+    "activity.review.match.yes": {
+      "sourceHash": "9b9349eb45852ce5d46a1d1d58a9261617f3fdb889c8499a1ee483d7d31d61f9",
+      "translatedBy": "model"
+    },
+    "activity.review.refreshFailed": {
+      "sourceHash": "f179d7d4949f9c30710881c1f5db7b04222a9085370804d8f5427ffd6f1c2939",
+      "translatedBy": "model"
+    },
+    "activity.review.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
+      "translatedBy": "model"
+    },
+    "activity.review.showInCalendar": {
+      "sourceHash": "cf6a91dbc52d1a4f0fa4c93b22a7b6c1e44a6a3da266ef5599a49e6cfdd3af9e",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.bpm": {
+      "sourceHash": "3b34d22aa402f4046b2a9973f87c7edfaa1da21c0cbbec2471c769ea496f6b0e",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.distance": {
+      "sourceHash": "b7bdf7a2d6e73e58d69a667ad9b63f706dd96bbbc4a8187914fc34646a1e003b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.exertion": {
+      "sourceHash": "41a845d3a7be22fe521c482cf9b0c0985dff919ed2084ae1d5482d1cb184b10b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.exertionValue": {
+      "sourceHash": "fcfee8fc3c2f0eaceb9951cb8dc4af492702f73430b06d06ae13de4cb5073843",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.heartRate": {
+      "sourceHash": "90440886e9c7ef1a1f176fa30440606edbf6e74aabdf3e424b1b8f31416f936b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.kilometres": {
+      "sourceHash": "b62718dbf20d568bba97942896024c386c249ed3c586ca35f754bd62063fcf6b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.label": {
+      "sourceHash": "92e789411c64bbc9328792c0c5a7e3007ae905db77254d4b88a3ea05a7fc0bdd",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.load": {
+      "sourceHash": "8a6bdb6b18da586fe7f2acbd8f1055533f2cd97a3681b3652bcd712224df45c3",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.notGiven": {
+      "sourceHash": "be71c56252603aec4aeb947381c4aa680fea7e0ef78108e687c4a55049322fed",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.notRecorded": {
+      "sourceHash": "b37c7879f6c359f633ed1c478dc9ffac47ad7aac648653bb4a4d509a25fdb3b0",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.power": {
+      "sourceHash": "d5e133fc24d9feb39546de51c8e129f6829a64dad7581a0ee35810db0fff0e92",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.time": {
+      "sourceHash": "c8aca6cb7abbfc4353f1cfa8070c4f718f185de97ffc09a9561843570734fc50",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.watts": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "activity.review.subtitle": {
+      "sourceHash": "a04b644cab5aa678e2c5265d22f3343a9c4b695166d1fcf76739988559ffe51a",
+      "translatedBy": "model"
+    },
+    "activity.review.subtitleNoPlan": {
+      "sourceHash": "3d207b7ac485d5db8298375bddd6692e8680f036e6df3ebe662bf13ab9e07025",
+      "translatedBy": "model"
+    },
+    "activity.review.unavailable": {
+      "sourceHash": "42d9dbcdc1c9378290705ef8f20b26a90e0f672953958d664a60d8fb86a2a5b7",
+      "translatedBy": "model"
+    },
+    "activity.review.untitled": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "shell.loading.activityReview": {
+      "sourceHash": "6737b4037c3fc20f5e2531924a885a20c68d35fbaa88ff0f1ebdc13a643f76fe",
+      "translatedBy": "model"
+    },
+    "sidebar.views.activityReview": {
+      "sourceHash": "9f8a04a68566c237f140f8229ce49bd559945f89bd4898a9268b7614fe343553",
+      "translatedBy": "model"
+    },
     "plan.calendar.approve.replace.approve": {
       "sourceHash": "83d538d62862da90556d8157534157a27276b4ded0d0a8ee1f376814092a4d81",
       "translatedBy": "model"

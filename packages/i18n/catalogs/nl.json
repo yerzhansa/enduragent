@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Nog geen ritten uit de afgelopen 120 dagen. Ritten uit intervals.icu verschijnen hier na een synchronisatie.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · uit intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · uit intervals.icu"
+      },
+      "kind": {
+        "gravel": "Gravelrit",
+        "indoor": "Binnenrit",
+        "mountain": "Mountainbikerit",
+        "other": "Rit",
+        "road": "Wegrit"
+      },
+      "list": {
+        "doneAsPlanned": "Gedaan volgens planning",
+        "doneDifferently": "Anders gedaan",
+        "extra": "Extra",
+        "first": "Activiteiten · {{group}}",
+        "isThis": "Is dit {{name}}? Bevestigen",
+        "label": "Activiteiten",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Vandaag",
+        "trainingWeek": "Trainingsweek {{week}}"
+      },
+      "match": {
+        "averagePower": "Gemiddeld {{power}}",
+        "cancel": "Annuleren",
+        "change": "Wijzigen",
+        "confirmed": "Hoort bij de training van {{weekday}} uit het trainingsschema · door jou bevestigd",
+        "extra": "Er is geen training uit het trainingsschema aan deze rit gekoppeld, dus die telt als extra.",
+        "failed": "De app reageerde niet, dus er is niets gewijzigd. Probeer het opnieuw.",
+        "label": "Koppeling met training uit het trainingsschema",
+        "no": "Nee, het was iets anders",
+        "noPlan": "Geen trainingsschema, dus er is niets gepland om mee te vergelijken.",
+        "otherDay": "Het was de training van een andere dag",
+        "paired": "Hoort bij de training van {{weekday}} uit het trainingsschema · gekoppeld in intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Binnen drie dagen rond deze rit is er geen andere training uit het trainingsschema vrij.",
+        "pickTitle": "Welke training uit het trainingsschema was het?",
+        "planWorkout": "Training uit het trainingsschema · {{day}}",
+        "question": "Is dit {{name}} van {{weekday}}?",
+        "refused": "De koppeling van deze rit is intussen gewijzigd. De lijst toont nu de nieuwste.",
+        "rideFacts": "{{distance}}, gemiddeld {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Je antwoord wordt opgeslagen…",
+        "thisRide": "Deze rit",
+        "waiting": "Tot je antwoordt, telt deze rit niet mee voor het trainingsschema en toont de kalender {{weekday}} als wachtend, niet als gedaan of gemist.",
+        "yes": "Ja, dat klopt"
+      },
+      "refreshFailed": "De ritten konden niet worden vernieuwd. Dit is wat eerder is gelezen.",
+      "retry": "Opnieuw proberen",
+      "showInCalendar": "Tonen in kalender",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Afstand",
+        "exertion": "Ervaren inspanning",
+        "exertionValue": "{{value}} van 10",
+        "heartRate": "Gemiddelde hartslag",
+        "kilometres": "{{kilometres}} km",
+        "label": "Ritgegevens",
+        "load": "Trainingsbelasting",
+        "notGiven": "Niet opgegeven",
+        "notRecorded": "Niet geregistreerd",
+        "power": "Gemiddeld vermogen",
+        "time": "Rijtijd",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · geen trainingsschema",
+      "unavailable": "De ritten konden niet worden gelezen. Probeer het opnieuw.",
+      "untitled": "Rit"
+    }
+  },
   "common": {
     "automatic": "Automatisch",
     "back": "Terug",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Configuratie controleren…",
     "loading": {
+      "activityReview": "Activiteitencontrole laden…",
       "archive": "Eerdere chats laden…",
       "calendar": "Kalender laden…",
       "chat": "Chat laden…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Opnieuw opstarten om updateversie {{version}} te installeren"
     },
     "views": {
+      "activityReview": "Activiteitencontrole",
       "archive": "Eerdere chats",
       "calendar": "Kalender",
       "chat": "Chat",
