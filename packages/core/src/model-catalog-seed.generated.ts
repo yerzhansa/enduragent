@@ -1,9 +1,9 @@
 export const GENERATED_MODEL_CATALOG_SEED = {
   schemaVersion: 1,
-  revision: 10,
+  revision: 12,
   provenance: {
     kind: "bundled-seed",
-    establishedAt: "2026-11-26T00:00:00.000Z",
+    establishedAt: "2026-11-27T00:00:00.000Z",
   },
   providers: [
     {
@@ -517,6 +517,24 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             inputUsdPerMillion: 1.32,
             outputUsdPerMillion: 3.96,
             cacheReadUsdPerMillion: 0.044,
+            cacheWriteUsdPerMillion: 0,
+          },
+        },
+        {
+          modelId: "deepseek-v4-flash",
+          label: "DeepSeek V4.1 Flash (old name)",
+          order: 2,
+          compatibilityProfile: "deepseek-ai-sdk-v1",
+          contextWindow: {
+            kind: "known",
+            tokens: 1000000,
+          },
+          imageInput: "incompatible",
+          pricing: {
+            kind: "token-rates",
+            inputUsdPerMillion: 0.3,
+            outputUsdPerMillion: 1.2,
+            cacheReadUsdPerMillion: 0.006,
             cacheWriteUsdPerMillion: 0,
           },
         },

@@ -125,10 +125,23 @@ describe("bundled model catalog seed", () => {
   it("replaces each retired model with one the bundled list offers", () => {
     for (const [provider, replacements] of Object.entries(RETIRED_MODEL_REPLACEMENTS)) {
       for (const [retired, replacement] of Object.entries(replacements)) {
-        expect(seedModel(provider, retired), `${provider} ${retired}`).toBeUndefined();
         expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
+        if (provider === "deepseek" && retired === "deepseek-v4-flash") continue;
+        expect(seedModel(provider, retired), `${provider} ${retired}`).toBeUndefined();
       }
     }
+  });
+
+  it("keeps the old DeepSeek name released builds default to, priced like its replacement", () => {
+    const replacement = seedModel("deepseek", "deepseek-flash");
+    expect(replacement?.hint).toBe("recommended");
+    expect(seedModel("deepseek", "deepseek-v4-flash")).toEqual({
+      ...replacement,
+      modelId: "deepseek-v4-flash",
+      label: "DeepSeek V4.1 Flash (old name)",
+      order: 2,
+      hint: undefined,
+    });
   });
 
   it("contains metadata only", () => {
@@ -138,8 +151,8 @@ describe("bundled model catalog seed", () => {
     );
   });
 
-  it("includes the revision-10 model ids and drops the retired ones", () => {
-    expect(BUNDLED_MODEL_CATALOG.revision).toBe(10);
+  it("includes the revision-12 model ids and drops the retired ones", () => {
+    expect(BUNDLED_MODEL_CATALOG.revision).toBe(12);
     const ids = Object.fromEntries(
       BUNDLED_MODEL_CATALOG.providers.map((provider) => [
         provider.providerId,
@@ -181,7 +194,7 @@ describe("bundled model catalog seed", () => {
     expect(ids.google).toEqual(
       expect.arrayContaining(["gemini-4-hydrogen", "gemini-4-neon", "gemini-4-carbon"]),
     );
-    expect(ids.deepseek).toContain("deepseek-flash");
+    expect(ids.deepseek).toEqual(["deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash"]);
     expect(ids.qwen).toEqual(expect.arrayContaining(["qwen4-max", "qwen3.8-flash"]));
     expect(ids.minimax).toContain("MiniMax-M3.1-Flash");
     expect(ids.kimi).toContain("kimi-k3.1-pro");
@@ -206,7 +219,6 @@ describe("bundled model catalog seed", () => {
     const retired = {
       anthropic: ["claude-opus-5", "claude-fable-5-1"],
       google: ["gemini-3.7-flash", "gemini-3.1-pro-preview"],
-      deepseek: ["deepseek-v4-flash"],
       qwen: ["qwen3.7-max", "qwen3.8-max"],
       minimax: ["MiniMax-M2.7", "MiniMax-M2.7-highspeed"],
       kimi: ["kimi-k2.6", "kimi-k2.7-code"],

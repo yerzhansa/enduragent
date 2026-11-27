@@ -265,6 +265,14 @@ export const MODEL_CATALOG_BASELINE = [
         imageInput: "incompatible",
         pricing: rates(1.32, 3.9600000000000004, 0.044, 0),
       },
+      {
+        value: "deepseek-v4-flash",
+        label: "DeepSeek V4.1 Flash (old name)",
+        contextWindowTokens: 1_000_000,
+        catalogContext: { kind: "known", tokens: 1_000_000 },
+        imageInput: "incompatible",
+        pricing: rates(0.3, 1.2, 0.006, 0),
+      },
     ],
   },
   {
