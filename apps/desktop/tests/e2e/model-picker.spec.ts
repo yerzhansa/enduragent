@@ -5,25 +5,54 @@ import { expect, test as firstRunTest } from "./fixtures/first-run-desktop.js";
 const OPEN_LIST = '[data-slot="select-content"][data-open]';
 const PROVIDERS = ["Anthropic", "OpenRouter"] as const;
 const WIDTHS = [1180, 760] as const;
+const SETUP_BUTTON_MAX_WIDTH = 236;
+const SETTINGS_BUTTON_MAX_WIDTH = 260;
+
+type ListLayout = "aligned" | "floating";
+
+interface ModelListMeasure {
+  readonly problems: string[];
+  readonly widestRow: number;
+}
 
 async function visibleModelListProblems(
   page: Page,
   trigger: Locator,
+  layout: ListLayout,
   maxTriggerWidth: number,
   info: TestInfo,
   capture: string,
 ): Promise<readonly string[]> {
-  const closedWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
+  const block = layout === "aligned" ? ("center" as const) : ("end" as const);
+  await trigger.evaluate(
+    (element, position) => element.scrollIntoView({ block: position, behavior: "instant" }),
+    block,
+  );
+  const closedRect = await trigger.evaluate((element) => element.getBoundingClientRect().toJSON());
+  const closedWidth = closedRect.width;
   await trigger.click();
   const list = page.locator(OPEN_LIST);
   await expect(list.getByRole("option").first()).toBeVisible();
+  const where = `${capture}: button at ${Math.round(closedRect.top)}-${Math.round(closedRect.bottom)}px`;
+  if (layout === "aligned") {
+    await expect(list, where).toHaveAttribute("data-side", "none");
+  } else {
+    await expect(list, where).not.toHaveAttribute("data-side", "none");
+  }
   await list.evaluate((element) =>
     Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
   );
   const openWidth = await trigger.evaluate((element) => element.getBoundingClientRect().width);
-  const problems = await list.evaluate((element) => {
+  const measure = await list.evaluate((element): ModelListMeasure => {
     const found: string[] = [];
+    const listStyle = getComputedStyle(element);
     const listRect = element.getBoundingClientRect();
+    const listChrome =
+      listRect.width -
+      element.clientWidth +
+      Number.parseFloat(listStyle.paddingLeft) +
+      Number.parseFloat(listStyle.paddingRight);
+    let widestRow = 0;
     const visibleRight = listRect.left + element.clientLeft + element.clientWidth;
     if (listRect.left < 0 || listRect.right > window.innerWidth) {
       found.push(
@@ -36,12 +65,15 @@ async function visibleModelListProblems(
       const label = (text.textContent ?? "").trim();
       const range = document.createRange();
       range.selectNodeContents(text);
-      const textRight = range.getBoundingClientRect().right;
+      const textRect = range.getBoundingClientRect();
+      const optionStyle = getComputedStyle(option);
+      const paddingLeft = Number.parseFloat(optionStyle.paddingLeft);
+      const paddingRight = Number.parseFloat(optionStyle.paddingRight);
+      widestRow = Math.max(widestRow, textRect.width + paddingLeft + paddingRight + listChrome);
       const optionRect = option.getBoundingClientRect();
-      const contentRight =
-        optionRect.right - Number.parseFloat(getComputedStyle(option).paddingRight);
-      if (textRight > contentRight + 0.5) {
-        found.push(`"${label}" is cut off by ${Math.ceil(textRight - contentRight)}px`);
+      const contentRight = optionRect.right - paddingRight;
+      if (textRect.right > contentRight + 0.5) {
+        found.push(`"${label}" is cut off by ${Math.ceil(textRect.right - contentRight)}px`);
       }
       if (optionRect.right > visibleRight + 0.5) {
         found.push(
@@ -55,17 +87,18 @@ async function visibleModelListProblems(
         continue;
       }
       const indicatorRect = indicator.getBoundingClientRect();
-      if (textRight > indicatorRect.left + 0.5) {
+      if (textRect.right > indicatorRect.left + 0.5) {
         found.push(
-          `the check mark overlaps "${label}" by ${Math.ceil(textRight - indicatorRect.left)}px`,
+          `the check mark overlaps "${label}" by ${Math.ceil(textRect.right - indicatorRect.left)}px`,
         );
       }
       if (indicatorRect.right > visibleRight + 0.5) {
         found.push(`the check mark for "${label}" is cut off by the list's edge`);
       }
     }
-    return found;
+    return { problems: found, widestRow };
   });
+  const problems = [...measure.problems];
   if (Math.abs(openWidth - closedWidth) > 0.5) {
     problems.push(`the picker button changed from ${closedWidth}px to ${openWidth}px when opened`);
   }
@@ -77,6 +110,10 @@ async function visibleModelListProblems(
   await info.attach(capture, { path, contentType: "image/png" });
   await page.keyboard.press("Escape");
   await expect(page.locator(OPEN_LIST)).toHaveCount(0);
+  expect(
+    measure.widestRow,
+    `${capture}: no model name needs more room than its ${closedWidth}px button, so this list cannot show the clipping`,
+  ).toBeGreaterThan(closedWidth);
   return problems;
 }
 
@@ -108,7 +145,8 @@ for (const width of WIDTHS) {
         const problems = await visibleModelListProblems(
           page,
           modelTrigger,
-          236,
+          "aligned",
+          SETUP_BUTTON_MAX_WIDTH,
           info,
           `setup-${provider.toLowerCase()}-${width}`,
         );
@@ -138,20 +176,22 @@ for (const width of WIDTHS) {
       await providerTrigger.scrollIntoViewIfNeeded();
       for (const provider of PROVIDERS) {
         await chooseProvider(page, providerTrigger, provider);
-        await modelTrigger.scrollIntoViewIfNeeded();
-        const problems = await visibleModelListProblems(
-          page,
-          modelTrigger,
-          260,
-          info,
-          `settings-${provider.toLowerCase()}-${width}`,
-        );
-        expect
-          .soft(
-            problems,
-            `Settings ${provider} model list must show whole names clear of the check mark`,
-          )
-          .toEqual([]);
+        for (const layout of ["aligned", "floating"] as const) {
+          const problems = await visibleModelListProblems(
+            page,
+            modelTrigger,
+            layout,
+            SETTINGS_BUTTON_MAX_WIDTH,
+            info,
+            `settings-${provider.toLowerCase()}-${layout}-${width}`,
+          );
+          expect
+            .soft(
+              problems,
+              `Settings ${provider} model list (${layout}) must show whole names clear of the check mark`,
+            )
+            .toEqual([]);
+        }
       }
     },
   );
