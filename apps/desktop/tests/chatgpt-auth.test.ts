@@ -10,6 +10,7 @@ import {
   hasChatGptProfile,
   writeChatGptProfile,
 } from "../src/main/chatgpt-auth.js";
+import { CredentialRuntimeRefusal } from "../src/main/credential-vault.js";
 
 const roots: string[] = [];
 
@@ -167,6 +168,20 @@ describe("desktop ChatGPT auth", () => {
     await expect(ambiguous.deleteCredential()).resolves.toEqual({
       status: "refused",
       reason: "runtime-state-diverged",
+    });
+    await expect(hasChatGptProfile(directory)).resolves.toBe(true);
+
+    const busy = createChatGptAuth({
+      configDir: directory,
+      applyRuntimeConfig: vi.fn(async () => {}),
+      clearRuntimeCredential: vi.fn(async () => {
+        throw new CredentialRuntimeRefusal("busy-replying");
+      }),
+      openExternal: vi.fn(async () => {}),
+    });
+    await expect(busy.deleteCredential()).resolves.toEqual({
+      status: "refused",
+      reason: "runtime-unavailable",
     });
     await expect(hasChatGptProfile(directory)).resolves.toBe(true);
 
