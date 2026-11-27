@@ -1356,7 +1356,7 @@
       "successLabelShort": "Framgång",
       "successRequired": "Beskriv vad det innebär att lyckas.",
       "syncToday": "Inget skickas till intervals.icu förrän du godkänner. Sedan öppnas Kalender med dina två första träningsveckor.",
-      "syncTomorrow": "Träningspass med datum synkroniseras från imorgon till och med {{date}}.",
+      "syncTomorrow": "Den gamla planens träningspass från och med i morgon tas bort från intervals.icu nu. Inget från den nya planen skickas förrän du godkänner. Sedan öppnas Kalender med dina två första träningsveckor.",
       "syncWait": "Kalendern uppdateras först när {{service}} är anslutet.",
       "timeOff": "Ledig {{start}} till {{end}}",
       "title": "Skapa plan",

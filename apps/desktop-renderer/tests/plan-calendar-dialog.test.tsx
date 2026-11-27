@@ -100,7 +100,7 @@ describe("activation calendar consequence", () => {
       expect(
         await screen.findByText(
           closing
-            ? "Dated Workouts sync from tomorrow through 15 Sept 1998."
+            ? "The old Plan’s workouts from tomorrow on come off intervals.icu now. Nothing from the new Plan goes on until you approve. The Calendar opens next with your first two Training Weeks."
             : "Nothing goes to intervals.icu until you approve. The Calendar opens next with your first two Training Weeks.",
         ),
       ).toBeVisible();

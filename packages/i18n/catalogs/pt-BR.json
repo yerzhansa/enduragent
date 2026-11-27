@@ -1356,7 +1356,7 @@
       "successLabelShort": "Sucesso",
       "successRequired": "Descreva o que significa ter sucesso.",
       "syncToday": "Nada vai para o intervals.icu até você aprovar. Em seguida, o Calendário abre com suas duas primeiras semanas de treinamento.",
-      "syncTomorrow": "Os treinos com data são sincronizados de amanhã até {{date}}.",
+      "syncTomorrow": "Os treinos do plano antigo a partir de amanhã saem do intervals.icu agora. Nada do novo plano vai para o intervals.icu até você aprovar. Em seguida, o Calendário abre com suas duas primeiras semanas de treinamento.",
       "syncWait": "As atualizações do calendário aguardam a conexão com {{service}}.",
       "timeOff": "Ausente de {{start}} a {{end}}",
       "title": "Criação do plano",

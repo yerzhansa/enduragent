@@ -1,6 +1,5 @@
 import { chatFeedbackMessage } from "./copy";
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { useChatDate } from "./use-chat-date";
 import type {
   PlanCreationAnswerInput,
   PlanCreationCardModel,
@@ -98,7 +97,6 @@ export function PlanCreationDiscardDialog(): ReactElement {
 
 export function PlanCreationActivateDialog(): ReactElement | null {
   const { say } = usePhrasebook();
-  const formatDate = useChatDate();
   const open = useEnduragentStore((state) => state.chat.planCreationActivateConfirmationOpen);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
@@ -180,9 +178,7 @@ export function PlanCreationActivateDialog(): ReactElement | null {
               {calendarWindow !== null
                 ? activePlanName === null
                   ? say("chat.planCreation.syncToday")
-                  : say("chat.planCreation.syncTomorrow", {
-                      date: formatDate(calendarWindow.endDate),
-                    })
+                  : say("chat.planCreation.syncTomorrow")
                 : say("chat.planCreation.syncWait", { service: "intervals.icu" })}
             </p>
           )}

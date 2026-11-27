@@ -52,7 +52,7 @@ async function harness() {
     now: () => nowMs,
     calendarConnected: () => connected,
     dateKeyOfMs: () => today,
-    changed: () => undefined,
+    changed: async () => undefined,
     settled: async () => undefined,
   });
   onTestFinished(async () => {

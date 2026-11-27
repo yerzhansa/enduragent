@@ -1345,7 +1345,7 @@
       "successLabelShort": "成功",
       "successRequired": "请描述怎样算成功。",
       "syncToday": "批准之前，不会向 intervals.icu 发送任何内容。接下来会打开日历，显示前两个训练周。",
-      "syncTomorrow": "有日期的训练课程将从明天同步至 {{date}}。",
+      "syncTomorrow": "旧计划从明天起的训练课程现在会从 intervals.icu 中移除。批准之前，新计划的任何内容都不会发送到 intervals.icu。接下来会打开日历，显示前两个训练周。",
       "syncWait": "连接 {{service}} 后才会更新日历。",
       "timeOff": "{{start}} 至 {{end}} 休假",
       "title": "创建计划",

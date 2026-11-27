@@ -1356,7 +1356,7 @@
       "successLabelShort": "Erfolg",
       "successRequired": "Beschreibe, was Erfolg bedeutet.",
       "syncToday": "Nichts geht an intervals.icu, bevor du zustimmst. Danach öffnet sich der Kalender mit deinen ersten zwei Trainingswochen.",
-      "syncTomorrow": "Trainings mit Datum werden ab morgen bis zum {{date}} synchronisiert.",
+      "syncTomorrow": "Die Trainings des alten Plans ab morgen werden jetzt aus intervals.icu entfernt. Nichts aus dem neuen Plan geht an intervals.icu, bevor du zustimmst. Danach öffnet sich der Kalender mit deinen ersten zwei Trainingswochen.",
       "syncWait": "Kalenderaktualisierungen warten, bis {{service}} verbunden ist.",
       "timeOff": "Auszeit vom {{start}} bis {{end}}",
       "title": "Planerstellung",

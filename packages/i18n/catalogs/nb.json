@@ -1356,7 +1356,7 @@
       "successLabelShort": "Suksess",
       "successRequired": "Beskriv hva det vil si å lykkes.",
       "syncToday": "Ingenting sendes til intervals.icu før du godkjenner. Deretter åpnes Kalender med de to første treningsukene dine.",
-      "syncTomorrow": "Treningsøkter med dato synkroniseres fra i morgen til og med {{date}}.",
+      "syncTomorrow": "Den gamle planens treningsøkter fra og med i morgen fjernes fra intervals.icu nå. Ingenting fra den nye planen sendes før du godkjenner. Deretter åpnes Kalender med de to første treningsukene dine.",
       "syncWait": "Kalenderoppdateringer venter til {{service}} er tilkoblet.",
       "timeOff": "Fravær fra {{start}} til {{end}}",
       "title": "Planoppretting",

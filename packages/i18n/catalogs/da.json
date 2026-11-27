@@ -1356,7 +1356,7 @@
       "successLabelShort": "Succes",
       "successRequired": "Beskriv, hvad succes betyder.",
       "syncToday": "Intet sendes til intervals.icu, før du godkender. Derefter åbner Kalender med dine første to træningsuger.",
-      "syncTomorrow": "Træninger med dato synkroniseres fra i morgen til og med {{date}}.",
+      "syncTomorrow": "Den gamle træningsplans træninger fra i morgen fjernes nu fra intervals.icu. Intet fra den nye træningsplan sendes, før du godkender. Derefter åbner Kalender med dine første to træningsuger.",
       "syncWait": "Kalenderopdateringer afventer, at {{service}} er forbundet.",
       "timeOff": "Fravær fra {{start}} til {{end}}",
       "title": "Oprettelse af træningsplan",

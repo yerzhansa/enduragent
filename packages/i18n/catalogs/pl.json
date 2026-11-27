@@ -1378,7 +1378,7 @@
       "successLabelShort": "Sukces",
       "successRequired": "Opisz, co oznacza sukces.",
       "syncToday": "Nic nie trafi do intervals.icu, dopóki nie zatwierdzisz. Następnie otworzy się kalendarz z twoimi dwoma pierwszymi tygodniami treningowymi.",
-      "syncTomorrow": "Treningi z datą będą synchronizowane od jutra do {{date}}.",
+      "syncTomorrow": "Treningi starego planu od jutra zostaną teraz usunięte z intervals.icu. Nic z nowego planu nie trafi do intervals.icu, dopóki nie zatwierdzisz. Następnie otworzy się kalendarz z twoimi dwoma pierwszymi tygodniami treningowymi.",
       "syncWait": "Aktualizacje kalendarza czekają na połączenie z {{service}}.",
       "timeOff": "Przerwa {{start}}–{{end}}",
       "title": "Tworzenie planu",

@@ -1356,7 +1356,7 @@
       "successLabelShort": "Onnistuminen",
       "successRequired": "Kuvaile, mitä onnistuminen tarkoittaa.",
       "syncToday": "Mitään ei lähetetä intervals.icu-palveluun ennen kuin hyväksyt. Seuraavaksi avautuu kalenteri, jossa ovat kaksi ensimmäistä harjoitusviikkoasi.",
-      "syncTomorrow": "Päivätyt harjoitukset synkronoidaan huomisesta päivään {{date}} asti.",
+      "syncTomorrow": "Vanhan suunnitelman harjoitukset huomisesta alkaen poistetaan nyt intervals.icu-palvelusta. Uudesta suunnitelmasta ei lähetetä mitään ennen kuin hyväksyt. Seuraavaksi avautuu kalenteri, jossa ovat kaksi ensimmäistä harjoitusviikkoasi.",
       "syncWait": "Kalenterin päivitykset odottavat, kunnes {{service}} on yhdistetty.",
       "timeOff": "Tauko {{start}}–{{end}}",
       "title": "Suunnitelman luonti",

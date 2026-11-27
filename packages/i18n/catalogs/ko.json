@@ -1345,7 +1345,7 @@
       "successLabelShort": "성공",
       "successRequired": "무엇을 성공으로 생각하는지 설명하세요.",
       "syncToday": "승인하기 전에는 intervals.icu로 아무것도 전송되지 않습니다. 다음으로 처음 두 훈련 주차가 담긴 캘린더가 열립니다.",
-      "syncTomorrow": "내일부터 {{date}}까지 날짜가 지정된 워크아웃을 동기화합니다.",
+      "syncTomorrow": "이전 계획의 내일부터의 워크아웃이 지금 intervals.icu에서 제거됩니다. 승인하기 전에는 새 계획의 어떤 것도 전송되지 않습니다. 다음으로 처음 두 훈련 주차가 담긴 캘린더가 열립니다.",
       "syncWait": "{{service}}에 연결할 때까지 캘린더 업데이트가 대기합니다.",
       "timeOff": "{{start}}~{{end}} 훈련 중단",
       "title": "계획 생성",

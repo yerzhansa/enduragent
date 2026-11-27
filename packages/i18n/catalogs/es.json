@@ -1356,7 +1356,7 @@
       "successLabelShort": "Éxito",
       "successRequired": "Describe qué significa tener éxito.",
       "syncToday": "No se envía nada a intervals.icu hasta que lo apruebes. A continuación se abre el Calendario con tus dos primeras semanas de entrenamiento.",
-      "syncTomorrow": "Los entrenamientos con fecha se sincronizan desde mañana hasta el {{date}}.",
+      "syncTomorrow": "Los entrenamientos del plan anterior a partir de mañana se quitan ahora de intervals.icu. No se envía nada del nuevo plan hasta que lo apruebes. A continuación se abre el Calendario con tus dos primeras semanas de entrenamiento.",
       "syncWait": "El calendario se actualizará cuando {{service}} esté conectado.",
       "timeOff": "Sin entrenar del {{start}} al {{end}}",
       "title": "Creación del plan",

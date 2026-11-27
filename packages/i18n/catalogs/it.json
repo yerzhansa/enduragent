@@ -1356,7 +1356,7 @@
       "successLabelShort": "Successo",
       "successRequired": "Descrivi cosa significa riuscire.",
       "syncToday": "Non viene inviato nulla a intervals.icu finché non approvi. Poi si apre il calendario con le tue prime due settimane di allenamento.",
-      "syncTomorrow": "Gli allenamenti con data vengono sincronizzati da domani fino al {{date}}.",
+      "syncTomorrow": "Gli allenamenti del vecchio piano da domani in poi vengono tolti ora da intervals.icu. Non viene inviato nulla del nuovo piano finché non approvi. Poi si apre il calendario con le tue prime due settimane di allenamento.",
       "syncWait": "Il calendario verrà aggiornato quando {{service}} sarà connesso.",
       "timeOff": "Pausa dal {{start}} al {{end}}",
       "title": "Creazione del piano",
