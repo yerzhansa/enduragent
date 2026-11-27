@@ -15,6 +15,7 @@ import type {
 import {
   belongsInPrimaryAiRow,
   credentialChangesBlocked,
+  repairRequiredCredential,
   createCredentialSettingsController,
   type CredentialSettingsState,
   type CredentialSettingsView,
@@ -1602,6 +1603,22 @@ describe("credential settings controller", () => {
     expect(controller.state()).toMatchObject({ status: "error", kind: "load", announcement });
     expect(credentialFeedbackMessages(announcement)).toHaveLength(2);
     expect(credentialFeedbackMessages("Disconnect cancelled.")).toHaveLength(1);
+  });
+
+  it("keeps the athlete out of Setup when Setup cannot re-read after a key delete", async () => {
+    const { controller, subject } = createSubject({
+      deletion: { credential: "openrouter", status: "deleted", cleanupPending: false },
+      onDeleted: async () => {
+        throw new Error("synthetic slow setup check");
+      },
+    });
+    await controller.activate();
+
+    subject.requestDelete("openrouter");
+    subject.confirmDelete();
+    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+    expect(controller.state()).toMatchObject({ status: "error", kind: "load" });
+    expect(repairRequiredCredential(controller.state())).toBeNull();
   });
 
   it("keeps model-credential deletion copy unchanged", async () => {
