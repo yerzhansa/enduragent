@@ -11955,6 +11955,46 @@
     "plan.calendar.workout.today": {
       "sourceHash": "2b065c7c9ce466e5ebcad757987d5d660ee4c9ea708bc62c43444b53334738ba",
       "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOff": {
+      "sourceHash": "5d94fe943880c3772dbc969491bac9e324df76a30da6b701f8f53fc3c4fc741f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOn": {
+      "sourceHash": "3ba1497d84e69cf9588df96029b2bf52f691e4754b079cfe16a24d49d34a1544",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_one": {
+      "sourceHash": "89c922dc33f0a380e7d2a5a6440663303473f21826b27e71f3284f863f5721df",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_few": {
+      "sourceHash": "be6ad8049c32c6c58c55520c89c5a32d336a7b3cf539776db454ac44b3652660",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_many": {
+      "sourceHash": "be6ad8049c32c6c58c55520c89c5a32d336a7b3cf539776db454ac44b3652660",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_other": {
+      "sourceHash": "be6ad8049c32c6c58c55520c89c5a32d336a7b3cf539776db454ac44b3652660",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_one": {
+      "sourceHash": "488d138a379ad41c3b2e8800fe857f4db864a63fa9bfd850da6782198e2367cd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_few": {
+      "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_many": {
+      "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_other": {
+      "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
+      "translatedBy": "model"
     }
   }
 }

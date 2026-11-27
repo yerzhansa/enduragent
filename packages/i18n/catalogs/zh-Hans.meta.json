@@ -11199,6 +11199,22 @@
     "plan.calendar.workout.today": {
       "sourceHash": "2b065c7c9ce466e5ebcad757987d5d660ee4c9ea708bc62c43444b53334738ba",
       "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOff": {
+      "sourceHash": "5d94fe943880c3772dbc969491bac9e324df76a30da6b701f8f53fc3c4fc741f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOn": {
+      "sourceHash": "3ba1497d84e69cf9588df96029b2bf52f691e4754b079cfe16a24d49d34a1544",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_other": {
+      "sourceHash": "be6ad8049c32c6c58c55520c89c5a32d336a7b3cf539776db454ac44b3652660",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_other": {
+      "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
+      "translatedBy": "model"
     }
   }
 }
