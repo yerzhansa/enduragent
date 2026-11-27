@@ -56,6 +56,7 @@ import {
   llmSelectionFromDraft,
   type LlmSelectionDraft,
 } from "./selection";
+import { ONBOARDING_STATUS_REFRESH_TIMEOUT_MS, readSetupStatus } from "./status-read";
 import { afterNextPaint, settleWithin } from "./timing";
 
 export interface OnboardingReadiness {
@@ -158,17 +159,6 @@ export interface OnboardingControllerOptions {
 
 export const CHATGPT_PROGRESS_DETAIL_DELAY_MS = 3_000;
 export const CHATGPT_ACTIVATION_TRANSPORT_TIMEOUT_MS = 12_000;
-export const ONBOARDING_STATUS_REFRESH_TIMEOUT_MS = 3_000;
-export const ONBOARDING_STATUS_COLD_START_TIMEOUT_MS = 8_000;
-export const ONBOARDING_STATUS_LOAD_ATTEMPTS = 4;
-export const ONBOARDING_STATUS_RETRY_BASE_DELAY_MS = 500;
-export const ONBOARDING_STATUS_RETRY_MAX_DELAY_MS = 2_000;
-export function onboardingStatusRetryDelayMs(attempt: number): number {
-  const delay = ONBOARDING_STATUS_RETRY_BASE_DELAY_MS * 2 ** attempt;
-  return delay > ONBOARDING_STATUS_RETRY_MAX_DELAY_MS
-    ? ONBOARDING_STATUS_RETRY_MAX_DELAY_MS
-    : delay;
-}
 
 export function setupStatusKnown(
   surface: Pick<OnboardingSurfaceState, "initialized" | "loadUnavailable">,
@@ -767,40 +757,11 @@ export function createOnboardingController(
       publish();
       opening = false;
     };
-    const coldStart = retryWhileStarting && !hasSuccessfulLoad;
-    const attemptTimeoutMs = coldStart
-      ? ONBOARDING_STATUS_COLD_START_TIMEOUT_MS
-      : ONBOARDING_STATUS_REFRESH_TIMEOUT_MS;
-    const maxAttempts = coldStart ? ONBOARDING_STATUS_LOAD_ATTEMPTS : 1;
-    const readAuthoritativeStatus = () =>
-      Promise.all([
-        settleWithin(options.bridge.credentialStatuses(), attemptTimeoutMs),
-        settleWithin(options.bridge.chatGptStatus(), attemptTimeoutMs),
-        settleWithin(options.bridge.llmConfiguration(), attemptTimeoutMs),
-        settleWithin(
-          options.bridge.getSetupStatus?.() ??
-            Promise.resolve({
-              schemaVersion: 1 as const,
-              durableTrainingData: false,
-            }),
-          attemptTimeoutMs,
-        ),
-      ]);
-    let read = await readAuthoritativeStatus();
-    let attempt = 0;
-    while (
-      read.some((entry) => entry.status !== "fulfilled") &&
-      attempt + 1 < maxAttempts &&
-      !disposed &&
-      visit === openVisit
-    ) {
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, onboardingStatusRetryDelayMs(attempt));
-      });
-      if (disposed || visit !== openVisit) break;
-      attempt += 1;
-      read = await readAuthoritativeStatus();
-    }
+    const read = await readSetupStatus(
+      options.bridge,
+      retryWhileStarting && !hasSuccessfulLoad,
+      () => !disposed && visit === openVisit,
+    );
     const [statusesResult, chatGptResult, configurationResult, setupResult] = read;
     if (disposed || visit !== openVisit) {
       opening = false;

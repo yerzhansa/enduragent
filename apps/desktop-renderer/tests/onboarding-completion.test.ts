@@ -10,11 +10,13 @@ import {
 } from "../src/onboarding/completion";
 import {
   createOnboardingController,
+  type OnboardingSurfaceState,
+} from "../src/onboarding/controller";
+import {
   onboardingStatusRetryDelayMs,
   ONBOARDING_STATUS_COLD_START_TIMEOUT_MS,
   ONBOARDING_STATUS_LOAD_ATTEMPTS,
-  type OnboardingSurfaceState,
-} from "../src/onboarding/controller";
+} from "../src/onboarding/status-read";
 import type { CredentialDraftPort } from "../src/onboarding/credentials";
 import type { OnboardingCompletion } from "../src/onboarding/machine";
 import { openRouterTestBridge } from "./openrouter-test-bridge";
