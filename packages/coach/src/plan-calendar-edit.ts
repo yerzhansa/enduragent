@@ -4,7 +4,7 @@ import {
   type PlanChangeApplyRpcParams,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
-import { createPlanChangeRepository } from "@enduragent/kernel/planning";
+import { createPlanChangeRepository, type PlanChangeEnvelope } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 
@@ -96,7 +96,7 @@ export async function applyWorkoutEdits(
   input: {
     readonly planId: string;
     readonly title: string;
-    readonly intent: Readonly<Record<string, string | null>>;
+    readonly intent: PlanChangeEnvelope["intent"];
     readonly edits: readonly WorkoutEdit[];
   },
 ): Promise<"applied" | "refused"> {
@@ -140,7 +140,7 @@ export async function applyWorkoutEdits(
         afterSnapshotJson: JSON.stringify(result.after),
         envelope: {
           title: input.title,
-          intent: { ...input.intent },
+          intent: input.intent,
           diff: result.diff,
           totals: { before: totals(draft), after: totals(result.after) },
           supersedes: null,

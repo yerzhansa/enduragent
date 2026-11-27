@@ -51,6 +51,15 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       basis: z.string().min(1).max(128),
     })
     .strict(),
+  z
+    .object({
+      action: z.literal("move-workout"),
+      planId: UlidSchema,
+      planWorkoutId: UlidSchema,
+      toDateKey: DateKeySchema,
+      swap: z.boolean(),
+    })
+    .strict(),
 ]);
 export type PlanCalendarRpcParams = z.infer<typeof PlanCalendarRpcParamsSchema>;
 
@@ -61,6 +70,9 @@ export const PlanCalendarRefusalSchema = z.enum([
   "week-not-due",
   "intervals-unavailable",
   "plan-change-refused",
+  "workout-not-movable",
+  "change-card-open",
+  "outside-plan",
 ]);
 export type PlanCalendarRefusal = z.infer<typeof PlanCalendarRefusalSchema>;
 
@@ -122,6 +134,8 @@ export const PlanCalendarWorkoutSchema = z
     lastWrite: z.enum(["none", "ok", "failed"]),
     outcome: PlanCalendarOutcomeSchema,
     doneS: SecondsSchema,
+    movable: z.boolean(),
+    movedByYou: z.object({ fromDateKey: DateKeySchema }).strict().nullable(),
   })
   .strict();
 export type PlanCalendarWorkout = z.infer<typeof PlanCalendarWorkoutSchema>;
@@ -212,6 +226,11 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
       plan: PlanCalendarWorkoutVersionSchema,
       intervals: PlanCalendarWorkoutVersionSchema.nullable(),
       editedAt: z.string().min(1).max(64).nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("moved"),
     })
     .strict(),
   z

@@ -7,6 +7,7 @@ import type {
   PlanCalendarWorkout,
 } from "@enduragent/coach-contract";
 import {
+  icuCopyAllowsMove,
   icuFingerprintParts,
   outcomeCount,
   readIcuCopies,
@@ -33,9 +34,17 @@ import {
   type SqlStore,
 } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { movesByYou } from "./plan-calendar-move.js";
 import { phaseForWeek } from "./plan-phase.js";
 
 export type PlanCalendarRead = Extract<PlanCalendarRpcResult, { status: "calendar" }>;
+
+function movedByYouOf(
+  move: { readonly fromDateKey: number; readonly toDateKey: number } | undefined,
+  dateKey: number,
+): PlanCalendarWorkout["movedByYou"] {
+  return move === undefined || move.toDateKey !== dateKey ? null : { fromDateKey: move.fromDateKey };
+}
 
 export interface PlanCalendarReadDeps {
   readonly store: SqlStore & Pick<MigratorStore, "transaction">;
@@ -242,6 +251,7 @@ async function readInside(
     sync.lastSuccessfulSyncAtMs === null
       ? { kind: "never" }
       : { kind: "started-on", dateKey: deps.dateKeyOfMs(sync.lastSuccessfulSyncAtMs) };
+  const moves = await movesByYou(deps.store, plan.id);
   const calendarWorkouts: PlanCalendarWorkout[] = workouts.map((workout) => {
     const stored = copies.get(workout.id);
     const copy = storedIcuCopy(stored);
@@ -266,6 +276,11 @@ async function readInside(
       lastWrite: stored?.lastWrite.kind ?? "none",
       outcome: outcomeView(outcome, match),
       doneS: doneSeconds(outcome, match),
+      movable:
+        workout.dateKey >= deps.todayDateKey &&
+        outcome.kind === "planned" &&
+        icuCopyAllowsMove(copy),
+      movedByYou: movedByYouOf(moves.get(workout.id), workout.dateKey),
     };
   });
   const delivery = await readWeekDelivery(mirror, plan.id);

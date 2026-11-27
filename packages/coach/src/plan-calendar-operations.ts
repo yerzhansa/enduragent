@@ -18,6 +18,7 @@ import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import { todayInTZ } from "@enduragent/engine/sport";
 import { changeDetail, keepChange, putBackChange } from "./plan-calendar-changes.js";
 import type { PlanCalendarEditDeps } from "./plan-calendar-edit.js";
+import { moveWorkout } from "./plan-calendar-move.js";
 import { readPlanCalendar } from "./plan-calendar-read.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
@@ -74,6 +75,8 @@ export function createPlanCalendarOperations(
           return { status: "sending" };
         case "read-settings":
           return { status: "settings", weekDelivery: await mirror.readWeekDeliverySetting() };
+        case "move-workout":
+          return moveWorkout(deps, request);
         case "change-detail":
         case "keep-change":
         case "put-back": {
