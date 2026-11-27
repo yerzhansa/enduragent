@@ -1219,8 +1219,10 @@
         "cardOpen": "{{day}} was changed in intervals.icu. Keep or Put back first, then move it.",
         "clash": "{{weekday}} already has {{workouts}}",
         "confirm": "Move",
+        "earlier": "Earlier day",
         "failed": "The app did not answer, so nothing moved. Try again.",
         "keepBoth": "Keep both on {{weekday}}",
+        "later": "Later day",
         "leaves": "It comes off intervals.icu until Week {{week}} goes out.",
         "notMovable": "This workout can’t move to that day, so nothing moved.",
         "onIntervals": "It moves on intervals.icu too, so your head unit gets it for {{weekday}}.",
@@ -1295,6 +1297,20 @@
         "startsOn": "starts {{date}}",
         "toConfirm_one": "{{count}} ride to confirm",
         "toConfirm_other": "{{count}} rides to confirm"
+      },
+      "workout": {
+        "ask": "Ask the coach to change it",
+        "askDraft": "Please change {{name}} on {{day}}:",
+        "close": "Close",
+        "export": "Export",
+        "move": "Move…",
+        "moving": "Moving on intervals.icu",
+        "onIntervals": "On intervals.icu",
+        "onIntervalsYours": "On intervals.icu, with your edit",
+        "planOnly": "In the Plan only, not sent yet",
+        "planOnlyGoesOut": "In the Plan only, goes out {{date}}",
+        "planWorkout": "Plan Workout",
+        "today": "Today"
       }
     },
     "details": {

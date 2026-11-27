@@ -16,6 +16,7 @@ import { createCalendarChangeSlice, type CalendarChangeSlice } from "./calendar-
 import { createCalendarMoveSlice, type CalendarMoveSlice } from "./calendar-move-slice";
 import { createCalendarDetailsSlice, type CalendarDetailsSlice } from "./calendar-details-slice";
 import { createActivityReviewSlice, type ActivityReviewSlice } from "./activity-review-slice";
+import { createCalendarWorkoutSlice, type CalendarWorkoutSlice } from "./calendar-workout-slice";
 import { createActivityAnalysisSlice, type ActivityAnalysisSlice } from "./activity-analysis-slice";
 import { createChatSlice, type ChatSlice } from "./chat-slice";
 import { createOnboardingSlice, type OnboardingSlice } from "./onboarding-slice";
@@ -36,6 +37,7 @@ export interface EnduragentState
     CalendarMoveSlice,
     CalendarDetailsSlice,
     ActivityReviewSlice,
+    CalendarWorkoutSlice,
     SettingsSlice,
     TrainingSlice,
     PlanSlice,
@@ -74,6 +76,7 @@ export const useEnduragentStore = create<EnduragentState>((set, get, api) => ({
   ...createCalendarMoveSlice(set, get, api),
   ...createCalendarDetailsSlice(set, get, api),
   ...createActivityReviewSlice(set, get, api),
+  ...createCalendarWorkoutSlice(set, get, api),
   ...createSettingsSlice(set, get, api),
   ...createTrainingSlice(set, get, api),
   ...createPlanSlice(set, get, api),

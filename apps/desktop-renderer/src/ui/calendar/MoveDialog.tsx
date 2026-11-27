@@ -1,5 +1,6 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, type ReactElement } from "react";
 import type { MovePreview } from "../../calendar/move";
 import type { MoveDialogState } from "../../calendar/move-controller";
@@ -54,15 +55,20 @@ function failure(
 export function MoveDialog(props: {
   readonly state: Exclude<MoveDialogState, { kind: "closed" }>;
   readonly preview: MovePreview;
+  readonly earlier: number | null;
+  readonly later: number | null;
+  readonly onDay: (toDateKey: number) => void;
   readonly onSwap: (swap: boolean) => void;
   readonly onMove: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
   const { say } = usePhrasebook();
   const text = useCalendarText();
+  const frame = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const { state, preview } = props;
+  const { state, preview, earlier, later } = props;
   useEffect(() => {
+    if (frame.current?.contains(document.activeElement) === true) return;
     heading.current?.focus();
   }, [preview.toDateKey]);
   const title = say("plan.calendar.move.title", {
@@ -79,6 +85,7 @@ export function MoveDialog(props: {
   );
   return (
     <div
+      ref={frame}
       className="absolute top-58 right-5 z-20 flex w-85 max-w-full flex-col gap-2.5 rounded-card border border-line bg-surface p-4 shadow-elev-3"
       role="dialog"
       aria-label={title}
@@ -88,9 +95,39 @@ export function MoveDialog(props: {
         if (event.key === "Escape") props.onCancel();
       }}
     >
-      <h2 ref={heading} tabIndex={-1} className="m-0 text-base font-semibold text-ink">
-        {title}
-      </h2>
+      <div className="flex items-start gap-2">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="m-0 min-w-0 flex-1 text-base font-semibold text-ink"
+        >
+          {title}
+        </h2>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label={say("plan.calendar.move.earlier")}
+          disabled={busy || earlier === null}
+          onClick={() => {
+            if (earlier !== null) props.onDay(earlier);
+          }}
+        >
+          <ChevronLeft aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label={say("plan.calendar.move.later")}
+          disabled={busy || later === null}
+          onClick={() => {
+            if (later !== null) props.onDay(later);
+          }}
+        >
+          <ChevronRight aria-hidden="true" />
+        </Button>
+      </div>
       <p className="m-0 text-xs text-ink-2">{effect(preview, text, say)}</p>
       {preview.clash.length === 0 ? null : (
         <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">

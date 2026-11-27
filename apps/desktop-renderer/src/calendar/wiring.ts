@@ -9,6 +9,7 @@ import { createMoveController } from "./move-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
 import { localTodayDateKey } from "./dates";
+import { createWorkoutCardController } from "./workout-card-controller";
 
 export function startCalendar(
   store: typeof useEnduragentStore,
@@ -107,6 +108,21 @@ export function startCalendar(
       store.getState().chatActions?.startPlanCreation();
     },
   });
+  const workout = createWorkoutCardController({
+    composerText: () => store.getState().chat.attachments?.draft?.text ?? "",
+    prefillComposer: (text) => store.getState().chatActions?.saveAttachmentDraftText(text),
+    openChangeInChat: () => {
+      const library = store.getState().planLibraryActions;
+      if (library === null) store.getState().setActiveView("chat");
+      else library.changeInChat();
+    },
+    publish: (next) => store.getState().setCalendarWorkout(next),
+  });
+  store.getState().bindCalendarWorkoutActions({
+    open: (planId, workoutId) => workout.open(planId, workoutId),
+    close: () => workout.close(),
+    askCoach: (draft) => workout.askCoach(draft),
+  });
   store.getState().bindCalendarSettingsActions({
     load: () => void settings.load(),
     setWeekDelivery: (value) => void settings.setWeekDelivery(value),
@@ -146,5 +162,6 @@ export function startCalendar(
     store.getState().bindCalendarChangeActions(null);
     store.getState().bindCalendarMoveActions(null);
     store.getState().bindCalendarDetailsActions(null);
+    store.getState().bindCalendarWorkoutActions(null);
   };
 }

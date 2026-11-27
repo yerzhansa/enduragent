@@ -259,6 +259,7 @@ function WorkoutCard(props: {
   readonly workout: PlanCalendarWorkout;
   readonly activities: readonly PlanCalendarActivity[];
   readonly highlighted: boolean;
+  readonly selected: boolean;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly drag: Dragging;
@@ -269,15 +270,18 @@ function WorkoutCard(props: {
   const { drag, workout } = props;
   const beingMoved = props.preview !== true && drag.moving?.workoutId === workout.id;
   const draggable = props.preview !== true && workout.movable && !look.opens;
+  const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
+  const interactive = props.preview !== true && (look.opens || !ghost);
   const shared = {
     className: cn(
       CARD,
       FRAME[look.frame],
-      look.opens && OPENS,
+      interactive && OPENS,
       props.highlighted && "border-brand",
       draggable && "cursor-grab",
       beingMoved && "border-dashed opacity-45",
       props.preview === true && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
+      props.selected && "outline-2 outline-offset-1 outline-brand",
     ),
     "data-workout-id": props.preview === true ? undefined : workout.id,
     "data-move-preview": props.preview === true ? workout.id : undefined,
@@ -298,8 +302,14 @@ function WorkoutCard(props: {
     onDragEnd: draggable ? () => drag.end() : undefined,
   };
   const body = <CardBody name={props.workout.name} look={look} />;
-  return look.opens ? (
-    <button type="button" {...shared} onClick={() => props.onOpen(props.workout.id)}>
+  return interactive ? (
+    <button
+      type="button"
+      {...shared}
+      aria-haspopup="dialog"
+      aria-expanded={props.selected}
+      onClick={() => props.onOpen(props.workout.id)}
+    >
       {body}
     </button>
   ) : (
@@ -521,6 +531,7 @@ function DayCell(props: {
   readonly day: CalendarDay;
   readonly read: PlanCalendarRead;
   readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly drag: Dragging;
@@ -590,6 +601,7 @@ function DayCell(props: {
           workout={workout}
           activities={read.activities}
           highlighted={props.highlighted.has(workout.id)}
+          selected={props.selected === workout.id}
           text={text}
           onOpen={props.onOpen}
           drag={drag}
@@ -600,6 +612,7 @@ function DayCell(props: {
           workout={incoming}
           activities={read.activities}
           highlighted={false}
+          selected={false}
           text={text}
           onOpen={props.onOpen}
           drag={drag}
@@ -632,6 +645,7 @@ export function CalendarGrid(props: {
   readonly rows: readonly CalendarRow[];
   readonly firstDay: FirstDayOfWeek;
   readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
   readonly onOpen: (planWorkoutId: string) => void;
   readonly moving: Dragging["moving"];
   readonly onMove: (workoutId: string, toDateKey: number) => void;
@@ -692,6 +706,7 @@ export function CalendarGrid(props: {
                 day={day}
                 read={props.read}
                 highlighted={props.highlighted}
+                selected={props.selected}
                 text={text}
                 onOpen={props.onOpen}
                 drag={drag}

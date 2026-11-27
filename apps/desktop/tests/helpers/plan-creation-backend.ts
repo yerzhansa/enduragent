@@ -165,6 +165,7 @@ export class PlanCreationBackend {
   private queueRevision = 0;
   private queue: QueuedMessage[] = [];
   private transcript: TranscriptTurn[] = [];
+  private draftText = "";
   private syncedEventCandidate = {
     id: 17,
     name: "Local supporting ride",
@@ -192,6 +193,7 @@ export class PlanCreationBackend {
       readonly calendarConnected?: boolean;
       readonly waitForApprove?: boolean;
       readonly legacy?: LegacyPlanSummary | null;
+      readonly keepsDraftText?: boolean;
     } = {},
   ) {
     const base = coexistence ? createPlanInspectionFixtureScript() : createPlanQaFixtureScript();
@@ -260,6 +262,17 @@ export class PlanCreationBackend {
                 this.options.calendarConnected ?? Boolean(this.options.calendar),
             },
           });
+        }
+        if (
+          this.options.keepsDraftText === true &&
+          !coexistence &&
+          (request.method === "getChatAttachmentComposer" ||
+            request.method === "saveChatAttachmentDraftText")
+        ) {
+          if (request.method === "saveChatAttachmentDraftText") {
+            this.draftText = (request.params as { readonly text: string }).text;
+          }
+          return response(this.attachmentComposer());
         }
         if (
           request.method === "getChatAttachmentComposer" ||
@@ -1256,6 +1269,26 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
 
   private queueSnapshot() {
     return { schemaVersion: 1 as const, revision: this.queueRevision, items: this.queue };
+  }
+
+  get chatSubmissions(): number {
+    return this.queueRevision;
+  }
+
+  private attachmentComposer() {
+    return this.draftText.length === 0
+      ? emptyAttachmentComposer
+      : {
+          ...emptyAttachmentComposer,
+          draft: {
+            schemaVersion: 1,
+            chatId: "desktop",
+            text: this.draftText,
+            state: "active",
+            updatedAt: completedAt,
+            attachments: [],
+          },
+        };
   }
 
   private enqueue(value: unknown) {

@@ -61,6 +61,33 @@ export function canDropOn(
   );
 }
 
+export function dropDayFrom(
+  read: PlanCalendarRead,
+  workout: PlanCalendarWorkout,
+  fromDateKey: number,
+  step: 1 | -1,
+): number | null {
+  const plan = read.plan;
+  const last = lastPlanDay(read);
+  if (plan === null || last === null) return null;
+  const first = Math.max(read.todayDateKey, plan.startDateKey);
+  for (
+    let day = addDays(fromDateKey, step);
+    day >= first && day <= last;
+    day = addDays(day, step)
+  ) {
+    if (canDropOn(read, workout, day)) return day;
+  }
+  return null;
+}
+
+export function firstDropDay(read: PlanCalendarRead, workout: PlanCalendarWorkout): number | null {
+  return (
+    dropDayFrom(read, workout, workout.dateKey, 1) ??
+    dropDayFrom(read, workout, workout.dateKey, -1)
+  );
+}
+
 export function movePreview(
   read: PlanCalendarRead,
   workoutId: string,
