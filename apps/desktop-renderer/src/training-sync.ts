@@ -232,8 +232,9 @@ export function createTrainingSyncCoordinator(input: {
       terminalValid =
         !protocolFault &&
         envelope.jsonrpc === "2.0" &&
-        envelope.id === requestId &&
-        ((successTerminal && progress === 2) || (errorTerminal && progress === 1));
+        ((errorTerminal && progress === 0) ||
+          (envelope.id === requestId &&
+            ((successTerminal && progress === 2) || (errorTerminal && progress === 1))));
       if (!terminalValid) failProtocol();
     };
 
@@ -318,6 +319,15 @@ export function createTrainingSyncCoordinator(input: {
         (!successTerminal && !(failure instanceof CoachRpcRemoteError))
       ) {
         publishProtocol(selectedEpoch, selectedOperation);
+        return;
+      }
+      if (progress === 0) {
+        publish({
+          status: "failed",
+          operation: selectedOperation,
+          kind: "operation",
+          retryable: true,
+        });
         return;
       }
 
