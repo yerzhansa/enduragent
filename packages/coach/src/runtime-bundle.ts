@@ -31,6 +31,8 @@ export class CoachTextUnavailableError extends Error {
   }
 }
 
+export type RuntimeReplacement = "replaced" | "busy-replying";
+
 export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   readonly intentTranslator: IntentTranslationPort;
   readonly coachText: RideVerdictModel;
@@ -52,11 +54,13 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   replace<T>(
     prepare: () => T | Promise<T>,
     commit: (prepared: T) => RuntimeBundle | Promise<RuntimeBundle>,
-  ): Promise<void>;
+    whileReplying?: "wait" | "refuse",
+  ): Promise<RuntimeReplacement>;
 } {
   let active = initial;
   let admission = Promise.resolve();
   let activeCalls = 0;
+  let runningTurns = 0;
   let pendingReplacements = 0;
   const drainWaiters = new Set<() => void>();
 
@@ -74,6 +78,15 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       }
     }
   };
+  const runTurn = <T>(operation: (bundle: RuntimeBundle) => Promise<T>): Promise<T> =>
+    run(async (bundle) => {
+      runningTurns += 1;
+      try {
+        return await operation(bundle);
+      } finally {
+        runningTurns -= 1;
+      }
+    });
   const queueUnavailable = (): never => {
     throw new TypeError("Durable chat queue is unavailable.");
   };
@@ -81,20 +94,20 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   return {
     intentTranslator: {
       translateIntent: (text, schema, context) =>
-        run(
+        runTurn(
           async (bundle) => bundle.intentTranslator?.translateIntent(text, schema, context) ?? null,
         ),
     },
     coachText: {
       available: () => active.coachText !== undefined,
       writeCoachText: (facts, signal) =>
-        run(async (bundle) => {
+        runTurn(async (bundle) => {
           if (bundle.coachText === undefined) throw new CoachTextUnavailableError();
           return bundle.coachText.writeCoachText(facts, signal);
         }),
     },
     engine: {
-      chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),
+      chat: (request, onEvent) => runTurn((bundle) => bundle.engine.chat(request, onEvent)),
       stopChat: (request) =>
         run(async (bundle) => bundle.engine.stopChat?.(request) ?? { stopped: false }),
       enqueueChatMessage: (request) =>
@@ -104,17 +117,23 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       removeQueuedChatMessage: (request) =>
         run((bundle) => bundle.engine.removeQueuedChatMessage?.(request) ?? queueUnavailable()),
       resumeChatQueue: (request, onEvent) =>
-        run((bundle) => bundle.engine.resumeChatQueue?.(request, onEvent) ?? queueUnavailable()),
+        runTurn(
+          (bundle) => bundle.engine.resumeChatQueue?.(request, onEvent) ?? queueUnavailable(),
+        ),
       runQueuedCommand: (request, onEvent) =>
-        run((bundle) => bundle.engine.runQueuedCommand?.(request, onEvent) ?? queueUnavailable()),
+        runTurn(
+          (bundle) => bundle.engine.runQueuedCommand?.(request, onEvent) ?? queueUnavailable(),
+        ),
       retryQueuedTurn: (request, onEvent) =>
-        run((bundle) => bundle.engine.retryQueuedTurn?.(request, onEvent) ?? queueUnavailable()),
+        runTurn(
+          (bundle) => bundle.engine.retryQueuedTurn?.(request, onEvent) ?? queueUnavailable(),
+        ),
       getCoachDecision: (request) => run((bundle) => bundle.engine.getCoachDecision(request)),
       answerCoachDecision: (request, onEvent) =>
-        run((bundle) => bundle.engine.answerCoachDecision(request, onEvent)),
+        runTurn((bundle) => bundle.engine.answerCoachDecision(request, onEvent)),
       skipCoachDecision: (request) => run((bundle) => bundle.engine.skipCoachDecision(request)),
       resumeCoachDecision: (request, onEvent) =>
-        run((bundle) => bundle.engine.resumeCoachDecision(request, onEvent)),
+        runTurn((bundle) => bundle.engine.resumeCoachDecision(request, onEvent)),
       resetSession: (request) => run((bundle) => bundle.engine.resetSession(request)),
       settle: (request) => run(async (bundle) => bundle.engine.settle?.(request)),
       hasSession: (request) => run((bundle) => bundle.engine.hasSession(request)),
@@ -142,7 +161,8 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
         bundle.chatStore.readArchivedConversationPage("desktop", boundaryRef, request),
       ),
     withChatStore: (operation) => run((bundle) => operation(bundle.chatStore)),
-    async replace(prepare, commit) {
+    async replace(prepare, commit, whileReplying = "wait") {
+      if (whileReplying === "refuse" && runningTurns > 0) return "busy-replying";
       pendingReplacements += 1;
       const previousAdmission = admission;
       let release!: () => void;
@@ -161,6 +181,7 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
         pendingReplacements -= 1;
         release();
       }
+      return "replaced";
     },
   };
 }

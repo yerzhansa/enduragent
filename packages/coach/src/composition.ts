@@ -1440,20 +1440,12 @@ export async function createLocalCoachComposition(
         return "credential-required";
       }
       if (
-        request.llm?.clear_credential === true &&
-        llmCredentialManagedByEnvironment(input.env, unapprovedConfig.llm.provider)
-      ) {
-        return "managed-by-environment";
-      }
-      if (
-        request.intervals?.clear_credential === true &&
-        nonemptyEnvironmentValue(input.env, "INTERVALS_API_KEY")
-      ) {
-        return "managed-by-environment";
-      }
-      if (
-        request.intervals?.athlete_id !== undefined &&
-        input.env.INTERVALS_ATHLETE_ID !== undefined
+        (request.llm?.clear_credential === true &&
+          llmCredentialManagedByEnvironment(input.env, unapprovedConfig.llm.provider)) ||
+        (request.intervals?.clear_credential === true &&
+          nonemptyEnvironmentValue(input.env, "INTERVALS_API_KEY")) ||
+        (request.intervals?.athlete_id !== undefined &&
+          input.env.INTERVALS_ATHLETE_ID !== undefined)
       ) {
         return "managed-by-environment";
       }
@@ -1478,9 +1470,6 @@ export async function createLocalCoachComposition(
           : acceptModelCatalogSnapshot(request.llm.catalog_snapshot);
       if (request.llm?.catalog_snapshot !== undefined && pinnedCatalog === undefined) {
         throw new TypeError("runtime model catalog snapshot is not compatible");
-      }
-      if (pinnedCatalog !== undefined) {
-        catalogSession = CatalogSession.pin(pinnedCatalog);
       }
       let verificationEvidence: IntervalsCredentialVerificationEvidence | undefined;
       if (request.intervals?.verification_approval !== undefined) {
@@ -1585,9 +1574,12 @@ export async function createLocalCoachComposition(
       const chatGptProfileClear =
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
       signal.throwIfAborted();
-      await reconfigurable.replace(
+      const replacement = await reconfigurable.replace(
         async () => {
           signal.throwIfAborted();
+          if (pinnedCatalog !== undefined) {
+            catalogSession = CatalogSession.pin(pinnedCatalog);
+          }
           const latestCandidate = mergedRuntimeConfig(unapprovedConfig, effectiveRequest);
           if (
             intervalsOwnerApproved &&
@@ -1648,7 +1640,9 @@ export async function createLocalCoachComposition(
           activeTimezone = replacement.timezone;
           return replacement;
         },
+        "refuse",
       );
+      if (replacement === "busy-replying") return "busy-replying";
       if (request.intervals !== undefined && candidate.intervals.apiKey.length > 0) {
         if (initialRefreshStarted && initialRefreshConfigCaptured && intervalsOwnerReady) {
           ensureSchedulerStarted();
