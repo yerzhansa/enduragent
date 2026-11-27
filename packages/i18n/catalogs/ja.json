@@ -1558,6 +1558,7 @@
         "changed": "intervals.icuで変更済み",
         "deleted": "intervals.icuで削除済み",
         "moved": "intervals.icuで{{date}}に移動済み",
+        "movedByYou": "自分で{{weekday}}から移動",
         "notSent": "未送信: intervals.icuから応答がありません",
         "editedLength": "ここでは{{intervals}}、プランでは{{plan}}",
         "movedFrom": "{{date}}から移動",
@@ -1576,6 +1577,24 @@
       "duration": {
         "hoursMinutes": "{{hours}}時間{{minutes}}分",
         "minutes": "{{minutes}}分"
+      },
+      "move": {
+        "beingMoved": "{{name}}、移動中",
+        "cancel": "キャンセル",
+        "cardOpen": "{{day}}のワークアウトはintervals.icuで変更されています。先に「維持」か「元に戻す」を選んでから移動してください。",
+        "clash": "{{weekday}}にはすでに{{workouts}}があります",
+        "confirm": "移動",
+        "failed": "アプリから応答がなかったため、何も移動していません。もう一度お試しください。",
+        "keepBoth": "両方とも{{weekday}}のままにする",
+        "leaves": "第{{week}}週が送信されるまで、intervals.icuからは削除されます。",
+        "notMovable": "このワークアウトはその日に移動できないため、何も移動していません。",
+        "onIntervals": "intervals.icuでも移動するため、サイクルコンピュータには{{weekday}}の予定として届きます。",
+        "planOnly": "プラン内で移動します。intervals.icuには、その週が送信されるときに届きます。",
+        "refused": "プランにこの移動を反映できなかったため、何も移動していません。",
+        "swap_other": "入れ替え: {{names}}を{{weekday}}に移動",
+        "title": "{{name}}を{{day}}に移動しますか？",
+        "weeksChange": "第{{from}}週は{{fromTotal}}、第{{to}}週は{{toTotal}}になります。",
+        "weekStays": "週の合計は{{total}}のままです。"
       },
       "next": "翌週",
       "noPlan": {

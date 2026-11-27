@@ -1576,6 +1576,7 @@
         "changed": "Modifié dans intervals.icu",
         "deleted": "Supprimé dans intervals.icu",
         "moved": "Déplacé au {{date}} dans intervals.icu",
+        "movedByYou": "Déplacé par toi depuis le {{weekday}}",
         "notSent": "Non envoyé : intervals.icu n’a pas répondu",
         "editedLength": "{{intervals}} ici, {{plan}} dans le plan",
         "movedFrom": "depuis le {{date}}",
@@ -1594,6 +1595,25 @@
       "duration": {
         "hoursMinutes": "{{hours}} h {{minutes}} min",
         "minutes": "{{minutes}} min"
+      },
+      "move": {
+        "beingMoved": "{{name}}, en cours de déplacement",
+        "cancel": "Annuler",
+        "cardOpen": "L’entraînement du {{day}} a été modifié dans intervals.icu. Choisis d’abord « Garder » ou « Remettre », puis déplace-le.",
+        "clash": "Déjà prévu {{weekday}} : {{workouts}}",
+        "confirm": "Déplacer",
+        "failed": "L’application n’a pas répondu, donc rien n’a été déplacé. Réessaie.",
+        "keepBoth": "Garder les deux {{weekday}}",
+        "leaves": "Il est retiré d’intervals.icu jusqu’à l’envoi de la semaine {{week}}.",
+        "notMovable": "Cet entraînement ne peut pas être déplacé à ce jour, donc rien n’a été déplacé.",
+        "onIntervals": "Il est aussi déplacé dans intervals.icu, donc ton compteur vélo le reçoit pour {{weekday}}.",
+        "planOnly": "Il est déplacé dans le plan. intervals.icu le reçoit quand sa semaine part.",
+        "refused": "Le plan n’a pas pu accepter ce déplacement, donc rien n’a été déplacé.",
+        "swap_one": "Échanger : {{names}} passe au {{weekday}}",
+        "swap_other": "Échanger : {{names}} passent au {{weekday}}",
+        "title": "Déplacer {{name}} au {{day}} ?",
+        "weeksChange": "La semaine {{from}} passe à {{fromTotal}} et la semaine {{to}} à {{toTotal}}.",
+        "weekStays": "La semaine reste à {{total}}."
       },
       "next": "Semaine suivante",
       "noPlan": {

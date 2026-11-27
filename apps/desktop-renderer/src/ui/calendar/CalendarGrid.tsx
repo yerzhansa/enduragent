@@ -6,8 +6,8 @@ import type {
 } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { cn } from "@enduragent/ui";
-import type { ReactElement } from "react";
-import { weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
+import { useState, type DragEvent, type ReactElement } from "react";
+import { daysBetween, weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
 import {
   rowLabel,
   weekTiming,
@@ -17,7 +17,20 @@ import {
   type CalendarRowLabel,
   type PlanCalendarRead,
 } from "../../calendar/grid";
+import { canDropOn } from "../../calendar/move";
 import { useCalendarText, type CalendarText } from "./calendar-text";
+
+interface Dragging {
+  readonly workout: PlanCalendarWorkout | null;
+  readonly over: number | null;
+  readonly moving: { readonly workoutId: string; readonly toDateKey: number } | null;
+  start(workout: PlanCalendarWorkout): void;
+  enter(dateKey: number | null): void;
+  end(): void;
+  drop(dateKey: number): void;
+}
+
+const MOVE_TYPE = "application/x-enduragent-workout";
 
 type Tone = "ok" | "warn" | "danger" | "brand" | "muted";
 
@@ -96,16 +109,39 @@ function changedLook(
   };
 }
 
-function plannedLook(workout: PlanCalendarWorkout, planned: string | null, say: Say): WorkoutLook {
+function plannedLook(
+  workout: PlanCalendarWorkout,
+  planned: string | null,
+  say: Say,
+  text: CalendarText,
+): WorkoutLook {
   const frame = workout.copy.kind === "plan-only" ? "plan-only" : "sent";
-  return workout.lastWrite === "failed"
-    ? {
-        frame,
-        detail: planned,
-        status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
-        opens: false,
-      }
-    : { frame, detail: planned, status: null, opens: false };
+  if (workout.lastWrite === "failed") {
+    return {
+      frame,
+      detail: planned,
+      status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
+      opens: false,
+    };
+  }
+  const moved = workout.movedByYou;
+  return {
+    frame,
+    detail: planned,
+    status:
+      moved === null
+        ? null
+        : {
+            tone: "muted",
+            text: say("plan.calendar.copy.movedByYou", {
+              weekday:
+                Math.abs(daysBetween(moved.fromDateKey, workout.dateKey)) > 6
+                  ? text.weekdayDay(moved.fromDateKey)
+                  : text.weekday(text.isoWeekdayOf(moved.fromDateKey)),
+            }),
+          },
+    opens: false,
+  };
 }
 
 function useWorkoutLook(): (
@@ -191,7 +227,7 @@ function useWorkoutLook(): (
           opens: false,
         };
       case "planned":
-        return changed ?? plannedLook(workout, planned, say);
+        return changed ?? plannedLook(workout, planned, say, text);
     }
   };
 }
@@ -225,19 +261,41 @@ function WorkoutCard(props: {
   readonly highlighted: boolean;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
+  readonly drag: Dragging;
+  readonly preview?: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
+  const { drag, workout } = props;
+  const beingMoved = props.preview !== true && drag.moving?.workoutId === workout.id;
+  const draggable = props.preview !== true && workout.movable && !look.opens;
   const shared = {
     className: cn(
       CARD,
       FRAME[look.frame],
       look.opens && OPENS,
       props.highlighted && "border-brand",
+      draggable && "cursor-grab",
+      beingMoved && "border-dashed opacity-45",
+      props.preview === true && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
     ),
-    "data-workout-id": props.workout.id,
-    "data-outcome": props.workout.outcome.kind,
-    "data-copy": props.workout.copy.kind,
+    "data-workout-id": props.preview === true ? undefined : workout.id,
+    "data-move-preview": props.preview === true ? workout.id : undefined,
+    "data-outcome": workout.outcome.kind,
+    "data-copy": workout.copy.kind,
     "data-highlighted": props.highlighted ? "" : undefined,
+    "aria-label": beingMoved
+      ? say("plan.calendar.move.beingMoved", { name: workout.name })
+      : undefined,
+    draggable: draggable ? true : undefined,
+    onDragStart: draggable
+      ? (event: DragEvent<HTMLElement>) => {
+          event.dataTransfer.setData(MOVE_TYPE, workout.id);
+          event.dataTransfer.effectAllowed = "move";
+          drag.start(workout);
+        }
+      : undefined,
+    onDragEnd: draggable ? () => drag.end() : undefined,
   };
   const body = <CardBody name={props.workout.name} look={look} />;
   return look.opens ? (
@@ -465,9 +523,16 @@ function DayCell(props: {
   readonly highlighted: ReadonlySet<string>;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
+  readonly drag: Dragging;
 }): ReactElement {
   const { say } = usePhrasebook();
-  const { day, read, text } = props;
+  const { day, read, text, drag } = props;
+  const dragged = drag.workout;
+  const accepts = dragged !== null && canDropOn(read, dragged, day.dateKey);
+  const incoming =
+    drag.moving?.toDateKey === day.dateKey
+      ? read.plan?.workouts.find((workout) => workout.id === drag.moving?.workoutId)
+      : undefined;
   const number = text.dayOfMonth(day.dateKey);
   const heading =
     day.today === "today"
@@ -476,7 +541,10 @@ function DayCell(props: {
         ? say("plan.calendar.day.weekStarts", { day: number, week: day.weekStarts.index })
         : number;
   const empty =
-    day.workouts.length === 0 && day.movedIn.length === 0 && day.activities.length === 0;
+    day.workouts.length === 0 &&
+    day.movedIn.length === 0 &&
+    day.activities.length === 0 &&
+    incoming === undefined;
   return (
     <div
       className={cn(
@@ -485,9 +553,26 @@ function DayCell(props: {
         day.place === "before-plan" && "bg-sunk",
         day.weekStarts !== null &&
           "before:absolute before:inset-y-0 before:left-0 before:w-0.75 before:bg-brand",
+        accepts && drag.over === day.dateKey && "outline-2 -outline-offset-2 outline-brand",
       )}
       data-date-key={day.dateKey}
+      data-drop-target={accepts && drag.over === day.dateKey ? "" : undefined}
       role="cell"
+      onDragOver={(event) => {
+        if (!accepts) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (drag.over !== day.dateKey) drag.enter(day.dateKey);
+      }}
+      onDragLeave={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof Node && event.currentTarget.contains(next))) drag.enter(null);
+      }}
+      onDrop={(event) => {
+        if (!accepts) return;
+        event.preventDefault();
+        drag.drop(day.dateKey);
+      }}
     >
       <span
         className={cn(
@@ -507,8 +592,20 @@ function DayCell(props: {
           highlighted={props.highlighted.has(workout.id)}
           text={text}
           onOpen={props.onOpen}
+          drag={drag}
         />
       ))}
+      {incoming === undefined ? null : (
+        <WorkoutCard
+          workout={incoming}
+          activities={read.activities}
+          highlighted={false}
+          text={text}
+          onOpen={props.onOpen}
+          drag={drag}
+          preview
+        />
+      )}
       {day.movedIn.map((workout) => (
         <MovedInCard key={`in-${workout.id}`} workout={workout} text={text} onOpen={props.onOpen} />
       ))}
@@ -536,9 +633,29 @@ export function CalendarGrid(props: {
   readonly firstDay: FirstDayOfWeek;
   readonly highlighted: ReadonlySet<string>;
   readonly onOpen: (planWorkoutId: string) => void;
+  readonly moving: Dragging["moving"];
+  readonly onMove: (workoutId: string, toDateKey: number) => void;
 }): ReactElement {
   const { say } = usePhrasebook();
   const text = useCalendarText();
+  const [dragged, setDragged] = useState<PlanCalendarWorkout | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const drag: Dragging = {
+    workout: dragged,
+    over,
+    moving: props.moving,
+    start: (workout) => setDragged(workout),
+    enter: (dateKey) => setOver(dateKey),
+    end: () => {
+      setDragged(null);
+      setOver(null);
+    },
+    drop: (dateKey) => {
+      if (dragged !== null) props.onMove(dragged.id, dateKey);
+      setDragged(null);
+      setOver(null);
+    },
+  };
   return (
     <div className="overflow-x-auto">
       <div
@@ -577,6 +694,7 @@ export function CalendarGrid(props: {
                 highlighted={props.highlighted}
                 text={text}
                 onOpen={props.onOpen}
+                drag={drag}
               />
             ))}
           </div>

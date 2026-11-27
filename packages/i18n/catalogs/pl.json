@@ -1612,6 +1612,7 @@
         "changed": "Zmieniono w intervals.icu",
         "deleted": "Usunięto w intervals.icu",
         "moved": "Przeniesiono na {{date}} w intervals.icu",
+        "movedByYou": "Przeniesiony przez ciebie, wcześniej: {{weekday}}",
         "notSent": "Nie wysłano: intervals.icu nie odpowiedział",
         "editedLength": "{{intervals}} tutaj, {{plan}} w planie",
         "movedFrom": "wcześniej: {{date}}",
@@ -1630,6 +1631,27 @@
       "duration": {
         "hoursMinutes": "{{hours}} godz. {{minutes}} min",
         "minutes": "{{minutes}} min"
+      },
+      "move": {
+        "beingMoved": "{{name}}, w trakcie przenoszenia",
+        "cancel": "Anuluj",
+        "cardOpen": "Trening z dnia {{day}} został zmieniony w intervals.icu. Najpierw wybierz „Zachowaj” lub „Przywróć”, a potem go przenieś.",
+        "clash": "Na ten dzień ({{weekday}}) jest już {{workouts}}",
+        "confirm": "Przenieś",
+        "failed": "Aplikacja nie odpowiedziała, więc nic nie zostało przeniesione. Spróbuj ponownie.",
+        "keepBoth": "Zostaw oba w tym samym dniu ({{weekday}})",
+        "leaves": "Trening zostanie usunięty z intervals.icu do czasu wysłania tygodnia {{week}}.",
+        "notMovable": "Tego treningu nie można przenieść na ten dzień, więc nic nie zostało przeniesione.",
+        "onIntervals": "Trening przenosi się też w intervals.icu, więc twój licznik rowerowy otrzyma go na właściwy dzień ({{weekday}}).",
+        "planOnly": "Trening przenosi się w planie. intervals.icu otrzyma go, gdy zostanie wysłany jego tydzień.",
+        "refused": "Plan nie mógł przyjąć tego przeniesienia, więc nic nie zostało przeniesione.",
+        "swap_one": "Zamień: {{names}} przechodzi na drugi dzień ({{weekday}})",
+        "swap_few": "Zamień: {{names}} przechodzą na drugi dzień ({{weekday}})",
+        "swap_many": "Zamień: {{names}} przechodzą na drugi dzień ({{weekday}})",
+        "swap_other": "Zamień: {{names}} przechodzą na drugi dzień ({{weekday}})",
+        "title": "Przenieść {{name}} na {{day}}?",
+        "weeksChange": "Tydzień {{from}} będzie miał {{fromTotal}}, a tydzień {{to}} – {{toTotal}}.",
+        "weekStays": "Tydzień nadal ma {{total}}."
       },
       "next": "Następny tydzień",
       "noPlan": {

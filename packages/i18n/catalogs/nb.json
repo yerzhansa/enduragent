@@ -1576,6 +1576,7 @@
         "changed": "Endret i intervals.icu",
         "deleted": "Slettet i intervals.icu",
         "moved": "Flyttet til {{date}} i intervals.icu",
+        "movedByYou": "Flyttet av deg fra {{weekday}}",
         "notSent": "Ikke sendt: intervals.icu svarte ikke",
         "editedLength": "{{intervals}} her, {{plan}} i planen",
         "movedFrom": "fra {{date}}",
@@ -1594,6 +1595,25 @@
       "duration": {
         "hoursMinutes": "{{hours}} t {{minutes}} min",
         "minutes": "{{minutes}} min"
+      },
+      "move": {
+        "beingMoved": "{{name}}, flyttes",
+        "cancel": "Avbryt",
+        "cardOpen": "Treningsøkten {{day}} ble endret i intervals.icu. Velg først «Behold» eller «Tilbakestill», og flytt den deretter.",
+        "clash": "På {{weekday}} ligger det allerede {{workouts}}",
+        "confirm": "Flytt",
+        "failed": "Appen svarte ikke, så ingenting ble flyttet. Prøv igjen.",
+        "keepBoth": "Behold begge på {{weekday}}",
+        "leaves": "Den fjernes fra intervals.icu til uke {{week}} sendes.",
+        "notMovable": "Denne treningsøkten kan ikke flyttes til den dagen, så ingenting ble flyttet.",
+        "onIntervals": "Den flyttes også i intervals.icu, så sykkelcomputeren din får den til {{weekday}}.",
+        "planOnly": "Den flyttes i planen. intervals.icu får den når uken sendes.",
+        "refused": "Planen kunne ikke ta imot flyttingen, så ingenting ble flyttet.",
+        "swap_one": "Bytt: {{names}} flyttes til {{weekday}}",
+        "swap_other": "Bytt: {{names}} flyttes til {{weekday}}",
+        "title": "Flytte {{name}} til {{day}}?",
+        "weeksChange": "Uke {{from}} blir {{fromTotal}}, og uke {{to}} blir {{toTotal}}.",
+        "weekStays": "Uken forblir {{total}}."
       },
       "next": "Neste uke",
       "noPlan": {

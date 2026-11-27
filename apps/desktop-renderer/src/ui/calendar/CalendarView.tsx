@@ -21,6 +21,8 @@ import type { ApproveSheetState } from "../../calendar/approve-controller";
 import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
 import { ChangeSheet } from "./ChangeSheet";
+import { MoveDialog } from "./MoveDialog";
+import { movePreview } from "../../calendar/move";
 import { WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
@@ -201,6 +203,28 @@ function ChangeLayer(props: { readonly read: PlanCalendarRead }): ReactElement |
   );
 }
 
+function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const state = useEnduragentStore((store) => store.calendarMove);
+  const actions = useEnduragentStore((store) => store.calendarMoveActions);
+  const preview =
+    state.kind === "closed"
+      ? null
+      : movePreview(props.read, state.workoutId, state.toDateKey, state.swap);
+  useEffect(() => {
+    if (state.kind !== "closed" && state.kind !== "moving" && preview === null) actions?.cancel();
+  }, [state.kind, preview, actions]);
+  if (state.kind === "closed" || preview === null) return null;
+  return (
+    <MoveDialog
+      state={state}
+      preview={preview}
+      onSwap={(swap) => actions?.setSwap(swap)}
+      onMove={() => actions?.confirm(preview.canSwap)}
+      onCancel={() => actions?.cancel()}
+    />
+  );
+}
+
 function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | null {
   const sheet = useEnduragentStore((store) => store.calendarApproval);
   const actions = useEnduragentStore((store) => store.calendarApproveActions);
@@ -216,6 +240,8 @@ export function CalendarView(): ReactElement {
   const approval = useEnduragentStore((store) => store.calendarApproval);
   const change = useEnduragentStore((store) => store.calendarChange);
   const changeActions = useEnduragentStore((store) => store.calendarChangeActions);
+  const move = useEnduragentStore((store) => store.calendarMove);
+  const moveActions = useEnduragentStore((store) => store.calendarMoveActions);
   const read = state.kind === "ready" ? state.read : null;
   const subtitle = useSubtitle(read);
   const firstDay = rendererPlatformProjection().firstDayOfWeek;
@@ -286,13 +312,26 @@ export function CalendarView(): ReactElement {
                 const planId = state.read.plan?.planId;
                 if (planId !== undefined) changeActions?.open(planId, planWorkoutId);
               }}
+              moving={
+                move.kind === "closed"
+                  ? null
+                  : { workoutId: move.workoutId, toDateKey: move.toDateKey }
+              }
+              onMove={(workoutId, toDateKey) => {
+                const planId = state.read.plan?.planId;
+                const preview = movePreview(state.read, workoutId, toDateKey, true);
+                if (planId !== undefined) {
+                  moveActions?.request(planId, workoutId, toDateKey, preview?.canSwap === true);
+                }
+              }}
             />
           </div>
         ) : null}
       </div>
-      {state.kind === "ready" && change.kind === "closed" ? (
+      {state.kind === "ready" && change.kind === "closed" && move.kind === "closed" ? (
         <ApprovalLayer read={state.read} />
       ) : null}
+      {state.kind === "ready" ? <MoveLayer read={state.read} /> : null}
       {state.kind === "ready" ? <ChangeLayer read={state.read} /> : null}
     </Page>
   );

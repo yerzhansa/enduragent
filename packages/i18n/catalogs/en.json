@@ -1046,6 +1046,7 @@
         "deleted": "Deleted in intervals.icu",
         "editedLength": "{{intervals}} here, {{plan}} in Plan",
         "moved": "Moved to {{date}} in intervals.icu",
+        "movedByYou": "Moved by you from {{weekday}}",
         "movedFrom": "from {{date}}",
         "movedIn": "Moved in intervals.icu",
         "notSent": "Not sent: intervals.icu did not answer"
@@ -1063,6 +1064,25 @@
       "duration": {
         "hoursMinutes": "{{hours}}h {{minutes}}m",
         "minutes": "{{minutes}}m"
+      },
+      "move": {
+        "beingMoved": "{{name}}, being moved",
+        "cancel": "Cancel",
+        "cardOpen": "{{day}} was changed in intervals.icu. Keep or Put back first, then move it.",
+        "clash": "{{weekday}} already has {{workouts}}",
+        "confirm": "Move",
+        "failed": "The app did not answer, so nothing moved. Try again.",
+        "keepBoth": "Keep both on {{weekday}}",
+        "leaves": "It comes off intervals.icu until Week {{week}} goes out.",
+        "notMovable": "This workout can’t move to that day, so nothing moved.",
+        "onIntervals": "It moves on intervals.icu too, so your head unit gets it for {{weekday}}.",
+        "planOnly": "It moves in the Plan. intervals.icu gets it when its week goes out.",
+        "refused": "The Plan could not take this move, so nothing moved.",
+        "swap_one": "Swap: {{names}} goes to {{weekday}}",
+        "swap_other": "Swap: {{names}} go to {{weekday}}",
+        "title": "Move {{name}} to {{day}}?",
+        "weeksChange": "Week {{from}} becomes {{fromTotal}} and Week {{to}} becomes {{toTotal}}.",
+        "weekStays": "The week stays {{total}}."
       },
       "next": "Next week",
       "noPlan": {

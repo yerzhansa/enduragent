@@ -4,6 +4,7 @@ import type { useEnduragentStore } from "../state/store";
 import { opensCalendarAfterActivate } from "./approval";
 import { createApproveController } from "./approve-controller";
 import { createChangeController } from "./change-controller";
+import { createMoveController } from "./move-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
 
@@ -71,6 +72,18 @@ export function startCalendar(
     putBack: () => void change.putBack(),
     close: () => change.close(),
   });
+  const move = createMoveController({
+    call: async (request) => (await clients.getClient()).call("plan.calendar", request),
+    refresh: () => void controller.refresh(),
+    publish: (next) => store.getState().setCalendarMove(next),
+  });
+  store.getState().bindCalendarMoveActions({
+    request: (planId, workoutId, toDateKey, swap) =>
+      move.request(planId, workoutId, toDateKey, swap),
+    setSwap: (swap) => move.setSwap(swap),
+    confirm: (canSwap) => void move.confirm(canSwap),
+    cancel: () => move.cancel(),
+  });
   store.getState().bindCalendarSettingsActions({
     load: () => void settings.load(),
     setWeekDelivery: (value) => void settings.setWeekDelivery(value),
@@ -108,5 +121,6 @@ export function startCalendar(
     store.getState().bindCalendarApproveActions(null);
     store.getState().bindCalendarSettingsActions(null);
     store.getState().bindCalendarChangeActions(null);
+    store.getState().bindCalendarMoveActions(null);
   };
 }

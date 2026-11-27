@@ -1558,6 +1558,7 @@
         "changed": "intervals.icu에서 변경됨",
         "deleted": "intervals.icu에서 삭제됨",
         "moved": "intervals.icu에서 {{date}} 날짜로 이동됨",
+        "movedByYou": "직접 이동함 · 원래 {{weekday}}",
         "notSent": "전송 안 됨: intervals.icu가 응답하지 않음",
         "editedLength": "여기 {{intervals}}, 계획 {{plan}}",
         "movedFrom": "원래 {{date}}",
@@ -1576,6 +1577,24 @@
       "duration": {
         "hoursMinutes": "{{hours}}시간 {{minutes}}분",
         "minutes": "{{minutes}}분"
+      },
+      "move": {
+        "beingMoved": "{{name}}, 이동 중",
+        "cancel": "취소",
+        "cardOpen": "{{day}} 워크아웃이 intervals.icu에서 변경되었습니다. 먼저 “유지” 또는 “되돌리기”를 선택한 후 이동하세요.",
+        "clash": "{{weekday}}에는 이미 다음 워크아웃이 있습니다: {{workouts}}",
+        "confirm": "이동",
+        "failed": "앱이 응답하지 않아 아무것도 이동되지 않았습니다. 다시 시도하세요.",
+        "keepBoth": "둘 다 {{weekday}}에 두기",
+        "leaves": "{{week}}주차가 전송될 때까지 intervals.icu에서 제거됩니다.",
+        "notMovable": "이 워크아웃은 해당 날짜로 이동할 수 없어 아무것도 이동되지 않았습니다.",
+        "onIntervals": "intervals.icu에서도 이동되므로 사이클링 컴퓨터가 {{weekday}} 일정으로 받습니다.",
+        "planOnly": "계획에서 이동됩니다. intervals.icu에는 해당 주가 전송될 때 반영됩니다.",
+        "refused": "계획에 이 이동을 반영할 수 없어 아무것도 이동되지 않았습니다.",
+        "swap_other": "맞바꾸기: {{names}} 워크아웃을 {{weekday}}로 이동",
+        "title": "{{name}} 워크아웃을 {{day}} 날짜로 이동할까요?",
+        "weeksChange": "{{from}}주차는 {{fromTotal}}, {{to}}주차는 {{toTotal}}이 됩니다.",
+        "weekStays": "주간 합계는 그대로 {{total}}입니다."
       },
       "next": "다음 주",
       "noPlan": {
