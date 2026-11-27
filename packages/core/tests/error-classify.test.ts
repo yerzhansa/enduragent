@@ -231,19 +231,39 @@ function providerError(input: {
 }
 
 describe("model unavailable", () => {
-  it("classifies an HTTP 404 as model_unavailable whatever its message says", () => {
-    expect(classifyFailure(apiError(404))).toBe("model_unavailable");
+  it("keeps a bare 404, such as a wrong base URL, generic", () => {
+    expect(classifyFailure(apiError(404))).toBe("unknown");
+    expect(classifyFailure(apiError(404), "anthropic")).toBe("unknown");
     expect(
-      classifyFailure(providerError({ statusCode: 404, message: "Request timed out: rate limit" })),
-    ).toBe("model_unavailable");
+      classifyFailure(
+        providerError({ statusCode: 404, body: { error: { code: 404, message: "Not Found" } } }),
+        "openrouter",
+      ),
+    ).toBe("unknown");
+    expect(
+      classifyFailure(providerError({ statusCode: 404, rawBody: "<html>Not Found</html>" })),
+    ).toBe("unknown");
   });
 
-  it("classifies a 400 with the model_not_found code, parsed or raw, as model_unavailable", () => {
-    const body = { error: { code: "model_not_found", message: "The model does not exist" } };
-    expect(classifyFailure(providerError({ statusCode: 400, body }))).toBe("model_unavailable");
-    expect(classifyFailure(providerError({ statusCode: 400, rawBody: JSON.stringify(body) }))).toBe(
-      "model_unavailable",
-    );
+  it.each([400, 404])(
+    "classifies a %i with the model_not_found code or type, parsed or raw, as model_unavailable",
+    (statusCode) => {
+      const code = { error: { code: "model_not_found", message: "The model does not exist" } };
+      const type = { error: { type: "model_not_found" } };
+      expect(classifyFailure(providerError({ statusCode, body: code }))).toBe("model_unavailable");
+      expect(classifyFailure(providerError({ statusCode, rawBody: JSON.stringify(code) }))).toBe(
+        "model_unavailable",
+      );
+      expect(classifyFailure(providerError({ statusCode, body: type }))).toBe("model_unavailable");
+    },
+  );
+
+  it("classifies Anthropic's not_found_error as model_unavailable on the anthropic route only", () => {
+    const body = { type: "error", error: { type: "not_found_error", message: "model: retired" } };
+    const error = providerError({ statusCode: 404, body });
+    expect(classifyFailure(error, "anthropic")).toBe("model_unavailable");
+    expect(classifyFailure(error, "openrouter")).toBe("unknown");
+    expect(classifyFailure(error)).toBe("unknown");
   });
 
   it("keeps other 400s as an invalid request or an overflow", () => {

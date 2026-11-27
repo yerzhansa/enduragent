@@ -155,12 +155,11 @@ export function isPaymentRequiredError(err: unknown, provider?: LlmProvider): bo
   );
 }
 
-const MODEL_NOT_FOUND_CODES: ReadonlySet<unknown> = new Set(["model_not_found"]);
-
-export function isModelUnavailableError(err: unknown): boolean {
+export function isModelUnavailableError(err: unknown, provider?: LlmProvider): boolean {
   if (!APICallError.isInstance(err)) return false;
-  if (err.statusCode === 404) return true;
-  return err.statusCode === 400 && MODEL_NOT_FOUND_CODES.has(providerErrorBody(err)?.code);
+  const body = providerErrorBody(err);
+  if (body?.code === "model_not_found" || body?.type === "model_not_found") return true;
+  return provider === "anthropic" && body?.type === "not_found_error";
 }
 
 export function isInvalidRequestError(err: unknown): boolean {
@@ -171,7 +170,7 @@ export function classifyFailure(err: unknown, provider?: LlmProvider): FailureRe
   const refreshFailureReason = readRefreshFailureReason(err);
   if (refreshFailureReason !== null) return refreshFailureReason;
   if (isPaymentRequiredError(err, provider)) return "payment_required";
-  if (isModelUnavailableError(err)) return "model_unavailable";
+  if (isModelUnavailableError(err, provider)) return "model_unavailable";
   if (isContextOverflowError(err)) return "overflow";
   if (isTimeoutError(err)) return "timeout";
   if (isRateLimitError(err)) return "rate_limit";

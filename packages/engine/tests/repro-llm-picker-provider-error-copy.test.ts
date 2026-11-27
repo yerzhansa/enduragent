@@ -134,16 +134,16 @@ describe("llm-picker bug 8: subscription lanes signed out", () => {
 describe("llm-picker bug 12 (lead): provider failures reported as something else", () => {
   it("tells the athlete to pick another model when the provider no longer serves the model (404)", async () => {
     const { engine } = engineFor(
-      "openrouter",
-      "synthetic/retired-model",
+      "openai",
+      "gpt-5.6-sol",
       () =>
         new APICallError({
-          message: "No endpoints found for synthetic/retired-model.",
-          url: "https://provider.invalid/api/v1/chat/completions",
+          message: "The model `gpt-5.6-sol` does not exist or you do not have access to it.",
+          url: "https://provider.invalid/v1/responses",
           requestBodyValues: {},
           statusCode: 404,
           responseBody:
-            '{"error":{"message":"No endpoints found for synthetic/retired-model.","code":404}}',
+            '{"error":{"message":"The model `gpt-5.6-sol` does not exist or you do not have access to it.","type":"invalid_request_error","param":null,"code":"model_not_found"}}',
           isRetryable: false,
         }),
     );
@@ -154,7 +154,7 @@ describe("llm-picker bug 12 (lead): provider failures reported as something else
     expect(event).toEqual({
       kind: "model-unavailable",
       athleteMessage:
-        "OpenRouter no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
+        "OpenAI no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
     });
   });
 

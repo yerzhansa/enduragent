@@ -185,14 +185,18 @@ describe("coach agent streaming", () => {
     };
   }
 
-  function providerFailure(statusCode: number, message: string): APICallError {
+  function providerFailure(
+    statusCode: number,
+    message: string,
+    body: unknown = { error: { message } },
+  ): APICallError {
     return new APICallError({
       message,
       url: "https://provider.invalid/v1/chat/completions",
       requestBodyValues: {},
       statusCode,
       responseHeaders: { "retry-after-ms": "1" },
-      responseBody: JSON.stringify({ error: { message } }),
+      responseBody: JSON.stringify(body),
     });
   }
 
@@ -212,10 +216,13 @@ describe("coach agent streaming", () => {
     expect(JSON.stringify(errors)).not.toContain("Insufficient Balance");
   });
 
-  it("tells the athlete to pick another model on a 404 and does not retry", async () => {
+  it("tells the athlete to pick another model when Anthropic does not find it, without retrying", async () => {
     const { attempts, errors } = await failedTurn(
       "anthropic",
-      providerFailure(404, "model: claude-retired"),
+      providerFailure(404, "model: claude-retired", {
+        type: "error",
+        error: { type: "not_found_error", message: "model: claude-retired" },
+      }),
     );
 
     expect(attempts).toBe(1);
@@ -225,6 +232,15 @@ describe("coach agent streaming", () => {
         athleteMessage:
           "Anthropic no longer serves this model. Pick another model in Settings, Coach, then send your message again.",
       }),
+    ]);
+  });
+
+  it("keeps a bare 404, such as a wrong base URL, on the generic error", async () => {
+    const { attempts, errors } = await failedTurn("anthropic", providerFailure(404, "Not Found"));
+
+    expect(attempts).toBe(1);
+    expect(errors).toEqual([
+      expect.objectContaining({ kind: "unknown", message: { key: "coach.error.unknown" } }),
     ]);
   });
 
