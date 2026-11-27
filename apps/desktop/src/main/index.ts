@@ -5,7 +5,7 @@ import { bindDevelopmentUserData } from "./development-user-data.js";
 import { bindWindowsUserData } from "./windows-user-data.js";
 import {
   createAcceptanceKeychainTransport,
-  resolveAcceptanceCredentialBackend,
+  acceptanceCredentialBackendForApp,
 } from "./acceptance-credential-backend.js";
 import { realpath, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -544,15 +544,10 @@ async function runDesktop(): Promise<void> {
     );
     const serializeCredentialMutation = createCredentialMutationLock();
     const serializeCredentialEnvelopeMutation = createCredentialEnvelopeMutationLock();
-    const acceptanceCredentialBackend = resolveAcceptanceCredentialBackend({
-      isPackaged: app.isPackaged,
+    const acceptanceCredentialBackend = acceptanceCredentialBackendForApp({
+      app,
       hidden: desktopAcceptanceHidden,
-      backend: environment.ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND,
-      appName: app.getName(),
-      appPath: app.getAppPath(),
-      userDataPath: app.getPath("userData"),
-      disposableContext:
-        environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
+      environment,
     });
     traceDesktopStartupStage("prepare-credential-encryption");
     const credentialEncryption = await prepareDesktopCredentialEncryption({
