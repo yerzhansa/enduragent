@@ -123,6 +123,7 @@ describe("the calendar read", () => {
       calendarConnected: true,
       weekDelivery: "send-each-week",
       plan: null,
+      replacing: null,
       activities: [
         {
           activityId: "a".repeat(64),

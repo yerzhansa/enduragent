@@ -1,6 +1,9 @@
 import type { PlanCalendarStatus } from "@enduragent/coach-contract";
-import type { PlanReconciliationJobRecord } from "@enduragent/kernel/planning";
-import type { SqlStore } from "@enduragent/kernel/store";
+import {
+  createPlanReconciliationRepository,
+  type PlanReconciliationJobRecord,
+} from "@enduragent/kernel/planning";
+import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 
 export function dateText(dateKey: number): string {
   const digits = String(dateKey).padStart(8, "0");
@@ -11,7 +14,10 @@ export async function plansWaitingForApprove(
   store: Pick<SqlStore, "all">,
 ): Promise<ReadonlySet<string>> {
   const rows = await store.all(
-    "SELECT plan_id FROM plan_week_delivery WHERE state_kind='waiting-for-first-approve'",
+    `SELECT delivery.plan_id FROM plan_week_delivery delivery
+JOIN planning_plan plan ON plan.plan_id=delivery.plan_id
+WHERE delivery.state_kind='waiting-for-first-approve' AND plan.status='active'
+UNION SELECT plan_id FROM plan_cleanup_hold WHERE released_at_ms IS NULL`,
   );
   return new Set(rows.flatMap((row) => (typeof row.plan_id === "string" ? [row.plan_id] : [])));
 }
@@ -57,4 +63,18 @@ export function planCalendarStatus(input: {
   }
   const status = jobStatus(input.job, input.connected);
   return input.waitingForApprove ? { ...status, waitingForApprove: true } : status;
+}
+
+export async function closedPlanCalendar(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  input: { readonly planId: string; readonly connected: boolean },
+): Promise<PlanCalendarStatus> {
+  return planCalendarStatus({
+    job: await createPlanReconciliationRepository(store).readLatestJobByWindow(
+      input.planId,
+      "cleanup",
+    ),
+    connected: input.connected,
+    waitingForApprove: (await plansWaitingForApprove(store)).has(input.planId),
+  });
 }

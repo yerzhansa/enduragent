@@ -195,6 +195,107 @@ describe("opening the Calendar after Activate", () => {
   });
 });
 
+const TICK = {
+  planWorkoutId: "0".repeat(24) + "77",
+  eventId: 707,
+  dateKey: 19980110,
+  fingerprint: "icu:edited",
+};
+
+function replacingRead(
+  cleanup: "held" | "pending" | "running" | "failed",
+  removes: readonly number[] = [19980108, 19980109],
+) {
+  return {
+    ...waitingRead(),
+    replacing: {
+      planName: "Old base",
+      cleanup,
+      removes: removes.map((dateKey, index) => ({
+        planWorkoutId: "0".repeat(24) + String(60 + index),
+        name: `Old ride ${index + 1}`,
+        dateKey,
+        durationS: 3_600,
+      })),
+      staysToday: [],
+      athleteChanges: [
+        {
+          planWorkoutId: TICK.planWorkoutId,
+          name: "My own ride",
+          dateKey: TICK.dateKey,
+          durationS: 5_400,
+          tick: TICK,
+        },
+      ],
+    },
+  };
+}
+
+describe("the Replace Approve", () => {
+  it("sends the ticked changes, follows the removal, then the new weeks", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(replacingRead("held"), "idle");
+    expect(test.last()).toEqual({ kind: "open", scope: { kind: "first-weeks" } });
+    test.controller.setRemoveChanges(true);
+    expect(test.last()).toEqual({
+      kind: "open",
+      scope: { kind: "first-weeks" },
+      removeChanges: true,
+    });
+    await test.controller.approve();
+    expect(test.approve).toHaveBeenCalledWith({
+      planId: waitingRead().plan?.planId,
+      scope: { kind: "first-weeks" },
+      ticked: [TICK],
+    });
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 3, polls: 0 });
+    test.controller.observe(replacingRead("running", [19980109]), "idle");
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 3, polls: 1 });
+    test.controller.observe(replacingRead("failed", [19980109]), "idle");
+    expect(test.last()).toMatchObject({ kind: "remove-failed", removing: 3, weeks: [1, 2] });
+    test.order.length = 0;
+    await test.controller.retry();
+    expect(test.order).toEqual(["send-again", "refresh"]);
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 3, polls: 0 });
+    test.controller.observe({ ...sentRead("none"), replacing: null }, "idle");
+    expect(test.last()).toMatchObject({ kind: "sending", polls: 1 });
+    test.controller.observe({ ...sentRead("ok"), replacing: null }, "idle");
+    expect(test.last()).toEqual({ kind: "closed" });
+  });
+
+  it("keeps the athlete's changes unless they tick them, and moves on once the removal is done", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(replacingRead("held"), "idle");
+    test.controller.setRemoveChanges(true);
+    test.controller.setRemoveChanges(false);
+    await test.controller.approve();
+    expect(test.approve).toHaveBeenCalledWith(expect.objectContaining({ ticked: [] }));
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 2 });
+    test.controller.observe(replacingRead("failed"), "idle");
+    expect(test.last()).toMatchObject({ kind: "remove-failed" });
+    test.controller.observe({ ...sentRead("none"), replacing: null }, "idle");
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 2, polls: 0 });
+  });
+
+  it("keeps saying Removing, and never that intervals.icu did not answer, while the cleanup is still running", async () => {
+    const test = approveHarness({ status: "approved", weeks: [1, 2] });
+    test.controller.observe(replacingRead("held"), "idle");
+    await test.controller.approve();
+    for (let poll = 0; poll <= SENDING_POLLS + 5; poll += 1) {
+      test.controller.observe(replacingRead("running"), "idle");
+    }
+    expect(test.last()).toMatchObject({ kind: "sending", removing: 2 });
+    expect(test.states.some((state) => state.kind === "remove-failed")).toBe(false);
+    test.controller.observe({ ...sentRead("none"), replacing: null }, "idle");
+    expect(test.last(), "the new weeks get their own polls once the removal is done").toMatchObject(
+      {
+        kind: "sending",
+        polls: 1,
+      },
+    );
+  });
+});
+
 describe("the Approve controller", () => {
   it("opens for a new Plan, approves, and closes once both weeks are on intervals.icu", async () => {
     const test = approveHarness({ status: "approved", weeks: [1, 2] });
@@ -204,6 +305,7 @@ describe("the Approve controller", () => {
     expect(test.approve).toHaveBeenCalledWith({
       planId: waitingRead().plan?.planId,
       scope: { kind: "first-weeks" },
+      ticked: [],
     });
     expect(test.last()).toMatchObject({ kind: "sending", weeks: [1, 2] });
     expect(test.refresh).toHaveBeenCalledOnce();

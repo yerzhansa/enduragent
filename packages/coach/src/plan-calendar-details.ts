@@ -9,9 +9,11 @@ import {
   storedIcuCopy,
   type PlanCopyOnIcu,
   type TickedChange,
+  type TrainingWeekPlan,
 } from "@enduragent/engine/calendar";
 import {
   createPlanCalendarMirrorRepository,
+  createPlanCleanupHoldRepository,
   type PlanWorkoutRecord,
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
@@ -128,6 +130,46 @@ function endingWorkout(
   };
 }
 
+export async function planEndingView(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  planId: string,
+  closedOnDateKey: number,
+): Promise<Details["ending"]> {
+  const workouts = new Map(
+    (await createLegacyPlanRepository(store).readWorkouts(planId)).map((workout) => [
+      workout.id,
+      workout,
+    ]),
+  );
+  const copies = await readIcuCopies(createPlanCalendarMirrorRepository(store), planId);
+  const summary = planEndingSummary(
+    [...copies.values()].map((record) => {
+      const workout = workouts.get(record.planWorkoutId);
+      return {
+        planWorkoutId: record.planWorkoutId,
+        dateKey: workout?.dateKey ?? record.dateKey,
+        copy: storedIcuCopy(record),
+      };
+    }),
+    closedOnDateKey,
+  );
+  return {
+    removes: summary.removes.map((entry) => endingWorkout(entry, workouts)),
+    staysToday: summary.staysToday.map((entry) => endingWorkout(entry, workouts)),
+    athleteChanges: summary.athleteChanges.map((entry) => {
+      const shown = icuFingerprintParts(entry.tick.fingerprint);
+      const planned = endingWorkout(entry, workouts);
+      return {
+        ...planned,
+        name: shortName(shown?.name ?? planned.name),
+        durationS: shown?.durationS ?? planned.durationS,
+        dateKey: entry.tick.dateKey,
+        tick: entry.tick,
+      };
+    }),
+  };
+}
+
 export async function planDetails(
   deps: PlanCalendarDetailsDeps,
   request: { readonly planId: string },
@@ -161,39 +203,67 @@ export async function planDetails(
     }
     history.splice(HISTORY_LIMIT);
     history.push({ kind: "saved", atMs: active.activated_at_ms });
-    const copies = await readIcuCopies(createPlanCalendarMirrorRepository(deps.store), plan.id);
-    const summary = planEndingSummary(
-      [...copies.values()].map((record) => {
-        const workout = workouts.get(record.planWorkoutId);
-        return {
-          planWorkoutId: record.planWorkoutId,
-          dateKey: workout?.dateKey ?? record.dateKey,
-          copy: storedIcuCopy(record),
-        };
-      }),
-      deps.todayDateKey(),
-    );
     return {
       status: "plan-details",
       planId: plan.id,
       version: active.version,
       history,
-      ending: {
-        removes: summary.removes.map((entry) => endingWorkout(entry, workouts)),
-        staysToday: summary.staysToday.map((entry) => endingWorkout(entry, workouts)),
-        athleteChanges: summary.athleteChanges.map((entry) => {
-          const shown = icuFingerprintParts(entry.tick.fingerprint);
-          const planned = endingWorkout(entry, workouts);
-          return {
-            ...planned,
-            name: shortName(shown?.name ?? planned.name),
-            durationS: shown?.durationS ?? planned.durationS,
-            dateKey: entry.tick.dateKey,
-            tick: entry.tick,
-          };
-        }),
-      },
+      ending: await withHeldPlans(deps.store, plan.id, deps.todayDateKey()),
     } as const;
+  });
+}
+
+async function heldPlanIds(store: SqlStore, planId: string): Promise<readonly string[]> {
+  return (await createPlanCleanupHoldRepository(store).readForReplacement(planId))
+    .filter((hold) => hold.releasedAtMs === null)
+    .map((hold) => hold.planId);
+}
+
+async function withHeldPlans(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  planId: string,
+  todayDateKey: number,
+): Promise<Details["ending"]> {
+  const endings = [];
+  for (const id of [planId, ...(await heldPlanIds(store, planId))]) {
+    endings.push(await planEndingView(store, id, todayDateKey));
+  }
+  const byDate = <T extends { readonly dateKey: number }>(rows: readonly T[]) =>
+    [...rows].sort((left, right) => left.dateKey - right.dateKey);
+  return {
+    removes: byDate(endings.flatMap((ending) => ending.removes)),
+    staysToday: endings.flatMap((ending) => ending.staysToday).slice(0, 20),
+    athleteChanges: byDate(endings.flatMap((ending) => ending.athleteChanges)),
+  };
+}
+
+async function writeEndChoice(
+  deps: PlanCalendarDetailsDeps,
+  plan: TrainingWeekPlan & { readonly id: string },
+  ticked: readonly TickedChange[],
+  commandId: string,
+): Promise<void> {
+  const mirror = createPlanCalendarMirrorRepository(deps.store);
+  const current = await mirror.readDelivery(plan.id);
+  const choice =
+    ticked.length === 0
+      ? { kind: "keep-them" as const }
+      : { kind: "remove-them" as const, ticked: [...ticked] };
+  if (current === undefined && choice.kind === "keep-them") return;
+  const delivery = {
+    kind: "approved" as const,
+    firstSetWeeks: firstChangeSetWeeks(plan, deps.todayDateKey()),
+    approvedWeeks: [],
+  };
+  await mirror.writeDelivery({
+    planId: plan.id,
+    stateKind: current?.stateKind ?? delivery.kind,
+    stateJson: current?.stateJson ?? encodeWeekDelivery(delivery),
+    closeChoiceJson:
+      choice.kind === "keep-them"
+        ? encodeCloseChoice(choice)
+        : JSON.stringify({ ...choice, commandId }),
+    updatedAtMs: deps.now(),
   });
 }
 
@@ -206,8 +276,8 @@ export async function saveEndChoice(
   },
 ): Promise<PlanCalendarRpcResult> {
   return deps.store.transaction(async () => {
-    const mirror = createPlanCalendarMirrorRepository(deps.store);
-    const plan = await createLegacyPlanRepository(deps.store).read(request.planId);
+    const plans = createLegacyPlanRepository(deps.store);
+    const plan = await plans.read(request.planId);
     const active = await deps.store.get(
       "SELECT plan_id FROM planning_plan WHERE plan_id=? AND status='active'",
       [request.planId],
@@ -215,29 +285,17 @@ export async function saveEndChoice(
     if (plan === undefined || active === undefined) {
       return { status: "refused", reason: "no-active-plan" } as const;
     }
-    const current = await mirror.readDelivery(plan.id);
-    const choice =
-      request.ticked.length === 0
-        ? { kind: "keep-them" as const }
-        : { kind: "remove-them" as const, ticked: [...request.ticked] };
-    if (current === undefined && choice.kind === "keep-them") {
-      return { status: "end-choice-saved" } as const;
+    for (const id of [plan.id, ...(await heldPlanIds(deps.store, plan.id))]) {
+      const target = id === plan.id ? plan : await plans.read(id);
+      if (target === undefined) continue;
+      const workouts = new Set((await plans.readWorkouts(id)).map((workout) => workout.id));
+      await writeEndChoice(
+        deps,
+        target,
+        request.ticked.filter((tick) => workouts.has(tick.planWorkoutId)),
+        request.commandId,
+      );
     }
-    const delivery = {
-      kind: "approved" as const,
-      firstSetWeeks: firstChangeSetWeeks(plan, deps.todayDateKey()),
-      approvedWeeks: [],
-    };
-    await mirror.writeDelivery({
-      planId: plan.id,
-      stateKind: current?.stateKind ?? delivery.kind,
-      stateJson: current?.stateJson ?? encodeWeekDelivery(delivery),
-      closeChoiceJson:
-        choice.kind === "keep-them"
-          ? encodeCloseChoice(choice)
-          : JSON.stringify({ ...choice, commandId: request.commandId }),
-      updatedAtMs: deps.now(),
-    });
     return { status: "end-choice-saved" } as const;
   });
 }

@@ -560,6 +560,16 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     return this.calendarOperations()["plan.calendar"]({ action: "save-settings", weekDelivery });
   }
 
+  async approveFirstWeeks(planId: string) {
+    const result = await this.calendarOperations()["plan.calendar"]({
+      action: "approve-weeks",
+      planId,
+      scope: { kind: "first-weeks" },
+    });
+    await this.calendarRun();
+    return result;
+  }
+
   async calendarIdle(): Promise<void> {
     await this.calendarDrain?.idle();
   }

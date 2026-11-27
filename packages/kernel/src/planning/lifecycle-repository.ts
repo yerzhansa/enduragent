@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createPlanCleanupHoldRepository } from "./cleanup-hold-repository.js";
 import { createPlanningCommandLedger, fail, PlanCreationStoreError } from "./command-ledger.js";
 import type { PlanCreationCommandStamp, PlanCreationStore } from "./creation-repository.js";
 import { addCivilDays } from "./date-keys.js";
@@ -105,6 +106,7 @@ export function createPlanLifecycleRepository(
     windowStart: number;
     windowEnd: number;
     endCommandId: string | null;
+    todayDateKey: number;
   }) => {
     await store.run(
       `UPDATE planning_plan SET status='closed',pending_check_json=NULL,close_reason=?,close_actor=?,
@@ -148,6 +150,18 @@ export function createPlanLifecycleRepository(
         input.updatedAtMs,
       ],
     );
+    await store.run(
+      `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',updated_at_ms=?
+      WHERE plan_id IN (SELECT plan_id FROM plan_cleanup_hold
+        WHERE replacement_plan_id=? AND released_at_ms IS NULL)
+      AND (? IS NULL OR json_extract(close_choice_json,'$.commandId') IS NOT ?)`,
+      [input.updatedAtMs, input.planId, input.endCommandId, input.endCommandId],
+    );
+    await createPlanCleanupHoldRepository(store).release(input.planId, {
+      closedOnDateKey: input.todayDateKey,
+      nowMs: input.updatedAtMs,
+      newId: identity.newId,
+    });
     const job = await store.get(
       `SELECT id FROM plan_reconciliation_job
       WHERE plan_id=? AND kind='cleanup' AND window_start_date_key=? AND window_end_date_key=?`,
@@ -191,6 +205,7 @@ export function createPlanLifecycleRepository(
           windowStart,
           windowEnd: Math.max(windowStart, finalDateKey),
           endCommandId: input.command.commandId,
+          todayDateKey: input.todayDateKey,
         });
         const result = PlanCloseResultSchema.parse({
           status: "closed",
@@ -240,6 +255,7 @@ export function createPlanLifecycleRepository(
           windowStart,
           windowEnd: windowStart,
           endCommandId: null,
+          todayDateKey,
         });
         return { completedPlanId: active.plan_id };
       });

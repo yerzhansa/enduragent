@@ -85,6 +85,7 @@ export function plan(
     totalWeeks: weeks.length,
     currentWeek: null,
     phase: null,
+    sendsFromDateKey: startDateKey,
     weeks: [...weeks],
     workouts: [...workouts],
     ...extra,
@@ -102,6 +103,7 @@ export function calendarRead(
     calendarConnected: true,
     weekDelivery: "send-each-week",
     plan: planned,
+    replacing: null,
     activities: [...activities],
   };
 }

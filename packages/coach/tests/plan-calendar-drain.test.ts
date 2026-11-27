@@ -12,6 +12,7 @@ import {
   addCivilDays,
   createPlanCreationRepository,
   createPlanChangeRepository,
+  createPlanCalendarMirrorRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
 } from "@enduragent/kernel/planning";
@@ -909,6 +910,29 @@ describe("Plan calendar drain", () => {
     });
   });
 
+  it("keeps a drag not yet sent as a drag while the Plan is held behind a Replace", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    const mirror = createPlanCalendarMirrorRepository(test.store);
+    const dragged = async () =>
+      (await mirror.readCopies(planId)).find((copy) => copy.planWorkoutId === first.id);
+    expect(await dragged()).toMatchObject({ stateKind: "moving-by-you" });
+    const replacement = await test.activate();
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.drain.kick();
+    expect(
+      await dragged(),
+      "the held Plan's unsent drag after the drain read it back",
+    ).toMatchObject({
+      stateKind: "moving-by-you",
+    });
+    expect(test.calendar.updates, "nothing is written to the held Plan").toEqual([]);
+  });
+
   it("swaps with the workout already on the target day when asked", async () => {
     const test = await harness();
     const { planId } = await test.activate();
@@ -1160,11 +1184,44 @@ describe("Plan calendar drain", () => {
     });
     const replacement = await test.activate();
     expect(replacement.closedPlanId).toBe(planId);
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.approve(replacement.planId);
     await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toMatchObject({
+      status: "verified",
+    });
     expect(
       test.calendar.events.find((event) => event.id === edited.id)?.name,
       "the athlete's own edit after Replace",
     ).toBe("My own ride");
+  });
+
+  it("runs a held cleanup once its replacement no longer waits for the first Approve", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const replacement = await test.activate();
+    if (replacement.planId === null) throw new Error("Expected the replacement");
+    await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toBeUndefined();
+    await test.store.run(
+      "UPDATE plan_week_delivery SET state_kind='approved',state_json=? WHERE plan_id=?",
+      [
+        JSON.stringify({ kind: "approved", firstSetWeeks: [], approvedWeeks: [] }),
+        replacement.planId,
+      ],
+    );
+    await test.drain.kick();
+    expect(await test.reconciliation.readLatestJob(planId, "cleanup")).toMatchObject({
+      status: "verified",
+      windowStartDateKey: addCivilDays(test.today(), 1),
+    });
+    expect(
+      test.calendar.events.filter(
+        (event) => event.externalId?.includes(planId) === true && event.dateKey > test.today(),
+      ),
+    ).toEqual([]);
   });
 
   it("keeps the athlete's changes when another command closes the Plan after a failed End", async () => {

@@ -138,6 +138,10 @@ describe("final Plan details", () => {
       "Calendar cleanup waits for intervals.icu",
     ],
     [
+      { status: "waiting-for-approve", window: null, currentThrough: null, error: null },
+      "Waiting for Approve",
+    ],
+    [
       {
         status: "failed",
         window: null,

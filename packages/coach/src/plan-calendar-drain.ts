@@ -4,12 +4,15 @@ import {
   dueWindow,
   firstChangeSetWeeks,
   mirrorPlanCalendar,
+  observeIcuCopies,
   readWeekDelivery,
   saveWeekDelivery,
   type CalendarMirrorPort,
 } from "@enduragent/engine/calendar";
 import {
+  addCivilDays,
   createPlanCalendarMirrorRepository,
+  createPlanCleanupHoldRepository,
   createPlanReconciliationRepository,
   type PlanIcuWriteErrorCode,
   type PlanReconciliationErrorCode,
@@ -26,6 +29,7 @@ export interface PlanCalendarDrain {
 
 const MIRROR_FAILURE_BUDGET = 5;
 const CLEANUP_RETRY_MS = 900_000;
+const HELD_OBSERVE_MS = 300_000;
 
 function jobErrorCode(failure: PlanIcuWriteErrorCode | undefined): PlanReconciliationErrorCode {
   if (failure === "calendar-create-failed" || failure === "calendar-delete-failed") return failure;
@@ -86,6 +90,7 @@ export function createPlanCalendarDrain(deps: {
   logger: { warn(event: string, fields?: Record<string, unknown>): void };
 }): PlanCalendarDrain {
   let active: Promise<void> | undefined;
+  const observedAt = new Map<string, number>();
   let rerun = false;
   let reclaimRunning = false;
 
@@ -102,6 +107,13 @@ export function createPlanCalendarDrain(deps: {
       now: deps.now,
     };
     const today = deps.todayDateKey();
+    await store.transaction(() =>
+      createPlanCleanupHoldRepository(store).releaseOrphans({
+        closedOnDateKey: today,
+        nowMs: deps.now(),
+        newId: () => deps.identity.newUlid(),
+      }),
+    );
     const jobs = await repository.listRunnable({
       nowMs: deps.now(),
       leaseMs: reclaim ? 0 : 300_000,
@@ -115,6 +127,25 @@ export function createPlanCalendarDrain(deps: {
       reconciliation: repository,
       now: deps.now,
     };
+    for (const planId of await createPlanCleanupHoldRepository(store).readHeldPlanIds()) {
+      const seenAt = observedAt.get(planId);
+      if (seenAt !== undefined && deps.now() - seenAt < HELD_OBSERVE_MS) continue;
+      observedAt.set(planId, deps.now());
+      const held = await plans.read(planId);
+      if (held === undefined) continue;
+      const window = {
+        planId,
+        workouts: await plans.readWorkouts(planId),
+        startDateKey: addCivilDays(today, 1),
+        endDateKey: addCivilDays(held.startDateKey, held.totalWeeks * 7 - 1),
+      };
+      if (window.startDateKey > window.endDateKey) continue;
+      try {
+        await observeIcuCopies(window, mirrorDeps);
+      } catch (error) {
+        deps.logger.warn("plan_calendar_drain_failed", { planId, kind: "held", error });
+      }
+    }
     for (const job of jobs) {
       try {
         const chatPlan = await store.get("SELECT plan_id FROM planning_plan WHERE plan_id=?", [
@@ -156,32 +187,36 @@ export function createPlanCalendarDrain(deps: {
         }
       }
     }
-    const activePlan = await store.get(
-      "SELECT plan_id, version FROM planning_plan WHERE status='active'",
-    );
-    if (typeof activePlan?.plan_id !== "string") return;
-    const barrier = await repository.readCleanupBarrier();
-    if (barrier !== undefined && barrier.status !== "verified") return;
-    const barrierStart = barrier?.windowStartDateKey ?? today;
-    const plan = await plans.read(activePlan.plan_id);
-    if (plan === undefined || plan.status !== "active") return;
-    const input = {
-      plan,
-      workouts: await plans.readWorkouts(plan.id),
-      todayDateKey: today,
-      firstEligibleDateKey: Math.max(today, barrierStart),
-    };
-    const window = dueWindow(input);
-    if ((await mirrorDeps.mirror.readDelivery(plan.id)) === undefined) {
-      await saveWeekDelivery(
-        mirrorDeps.mirror,
-        plan.id,
-        { kind: "approved", firstSetWeeks: firstChangeSetWeeks(plan, today), approvedWeeks: [] },
-        deps.now(),
+    const due = await store.transaction(async () => {
+      const activePlan = await store.get(
+        "SELECT plan_id, version FROM planning_plan WHERE status='active'",
       );
-    }
-    const delivery = await readWeekDelivery(mirrorDeps.mirror, plan.id);
-    if (window === null || delivery.kind === "waiting-for-first-approve") return;
+      if (typeof activePlan?.plan_id !== "string") return null;
+      const plan = await plans.read(activePlan.plan_id);
+      if (plan === undefined || plan.status !== "active") return null;
+      if ((await mirrorDeps.mirror.readDelivery(plan.id)) === undefined) {
+        await saveWeekDelivery(
+          mirrorDeps.mirror,
+          plan.id,
+          { kind: "approved", firstSetWeeks: firstChangeSetWeeks(plan, today), approvedWeeks: [] },
+          deps.now(),
+        );
+      }
+      const delivery = await readWeekDelivery(mirrorDeps.mirror, plan.id);
+      if (delivery.kind === "waiting-for-first-approve") return null;
+      const barrier = await repository.readCleanupBarrier();
+      if (barrier !== undefined && barrier.status !== "verified") return null;
+      const input = {
+        plan,
+        workouts: await plans.readWorkouts(plan.id),
+        todayDateKey: today,
+        firstEligibleDateKey: Math.max(today, barrier?.windowStartDateKey ?? today),
+      };
+      const window = dueWindow(input);
+      return window === null ? null : { version: activePlan.version, plan, input, window };
+    });
+    if (due === null) return;
+    const { plan, input, window } = due;
     const job = await todaysMirrorJob(repository, {
       planId: plan.id,
       todayDateKey: today,
@@ -206,7 +241,7 @@ export function createPlanCalendarDrain(deps: {
       await repository.failJob(job.id, "calendar-verification-failed", deps.now());
     }
     const current = await store.get("SELECT version FROM planning_plan WHERE plan_id=?", [plan.id]);
-    if (current?.version !== activePlan.version) rerun = true;
+    if (current?.version !== due.version) rerun = true;
   };
 
   return {

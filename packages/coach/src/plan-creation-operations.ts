@@ -1,6 +1,7 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
 import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
+import { closedPlanCalendar } from "./plan-calendar-status.js";
 import { z } from "zod";
 import {
   PlanCloseRpcParamsSchema,
@@ -376,7 +377,7 @@ export function createPlanCreationOperations(input: {
           calendar: summarizeCalendar(
             (plan.status === "active" ? holding : undefined) ??
               jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
-            plan.status === "active" && waiting.has(plan.planId),
+            waiting.has(plan.planId),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;
@@ -481,11 +482,10 @@ export function createPlanCreationOperations(input: {
                 ...detail,
                 plan: {
                   ...summarizePlan(detail.plan),
-                  calendar: summarizeCalendar(
-                    await createPlanReconciliationRepository(
-                      transactionStore,
-                    ).readLatestJobByWindow(detail.plan.planId, "cleanup"),
-                  ),
+                  calendar: await closedPlanCalendar(transactionStore, {
+                    planId: detail.plan.planId,
+                    connected: calendarConnected(),
+                  }),
                 },
               },
         );
@@ -757,7 +757,6 @@ export function createPlanCreationOperations(input: {
           activatedAt: today(),
           todayDateKey: todayDateKey(),
           mirrorJobId: input.identity.newUlid(),
-          cleanupJobId: input.identity.newUlid(),
           revisionId: input.identity.newUlid(),
           isDraftCurrent(snapshot) {
             if (

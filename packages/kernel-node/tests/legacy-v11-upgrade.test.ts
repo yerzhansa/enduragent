@@ -149,7 +149,7 @@ describe("legacy v11 store upgrade and startup", () => {
 
     expect(result.applied).toEqual([
       12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
-      35,
+      35, 36,
     ]);
     expect(await dumpLegacyV11Tables(store)).toEqual(before);
     const newTables = (await tableNames()).filter((name) => !previousTables.has(name));
@@ -165,6 +165,7 @@ describe("legacy v11 store upgrade and startup", () => {
       "plan",
       "plan_adaptation_ledger",
       "plan_change",
+      "plan_cleanup_hold",
       "plan_conversation",
       "plan_conversation_turn",
       "plan_creation",
@@ -212,7 +213,7 @@ describe("legacy v11 store upgrade and startup", () => {
         hlc_counter: null,
       },
     ]);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 35 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 36 });
   });
 
   it("creates no Plan or startup marker when the legacy JSON is absent", async () => {

@@ -66,6 +66,7 @@ async function launch(
     readonly delayMs?: number;
     readonly calendarConnected?: boolean;
     readonly waitForApprove?: boolean;
+    readonly seedGoal?: "fitness" | "event";
   } = {},
 ): Promise<Scenario> {
   const scratch = await mkdtemp(join(tmpdir(), "plan-calendar-"));
@@ -80,7 +81,7 @@ async function launch(
   try {
     backend.setCivilDate(today);
     await backend.open();
-    const seed = await backend.seedActiveTraining();
+    const seed = await backend.seedActiveTraining({ goal: options.seedGoal ?? "fitness" });
     if (calendar.delayMs === 0) await backend.calendarIdle();
     fixture = await launchDesktopFixture({
       script: backend.script,
@@ -224,7 +225,7 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   await expect(dialog).toContainText("Today’s calendar Workout stays. The new Plan activates now.");
   await expect(dialog).toContainText(
     connected
-      ? "The old Plan’s workouts from tomorrow on come off intervals.icu now. Nothing from the new Plan goes on until you approve. The Calendar opens next with your first two Training Weeks."
+      ? "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on."
       : "Calendar updates wait until intervals.icu is connected.",
   );
   await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
@@ -271,6 +272,114 @@ test("opens the Calendar with the Approve sheet once a new Plan is activated in 
     await sheet.getByRole("button", { name: "Not now", exact: true }).click();
     await navigate(scenario, "Plan");
     await expect(active(scenario).getByText("Calendar · Waiting for Approve")).toBeVisible();
+  } finally {
+    await close(scenario);
+  }
+});
+
+test("keeps the old Plan on intervals.icu until the Replace is approved, then takes it off before the new Plan goes on", async ({
+  playwright,
+}) => {
+  test.setTimeout(180_000);
+  const scenario = await launch(playwright, { waitForApprove: true, seedGoal: "event" });
+  try {
+    const oldPlanId = scenario.seed.planId;
+    if (oldPlanId === null) throw new TypeError("The first Plan was not activated");
+    expect(await scenario.backend.approveFirstWeeks(oldPlanId)).toMatchObject({
+      status: "approved",
+    });
+    const ofPlan = (planId: string) =>
+      scenario.calendar.events.filter(
+        (event) => event.externalId?.startsWith(planMirrorExternalIdPrefix(planId)) === true,
+      );
+    const todayKey = Number(today.replaceAll("-", ""));
+    const oldLater = ofPlan(oldPlanId).filter((event) => event.dateKey > todayKey);
+    const oldToday = ofPlan(oldPlanId).filter((event) => event.dateKey === todayKey);
+    expect(oldLater.length, "the old Plan's later workouts on intervals.icu").toBeGreaterThan(0);
+
+    await replacementDraft(scenario);
+    await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
+    const dialog = scenario.page.getByRole("dialog", { name: "Close and activate?", exact: true });
+    await expect
+      .soft(dialog)
+      .toContainText(
+        "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on.",
+      );
+    await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
+    const sheet = scenario.page.locator("[data-approve-sheet]");
+    await expect(sheet).toBeVisible({ timeout: 30_000 });
+    await expect
+      .soft(sheet.getByRole("heading", { name: "Switch intervals.icu to your new Plan?" }))
+      .toBeVisible();
+    await expect
+      .soft(sheet)
+      .toContainText("Workout Change Set · your new Plan replaces Local cycling event");
+    await expect
+      .soft(
+        scenario.page
+          .getByRole("region", { name: "Calendar", exact: true })
+          .getByText(/^Improve fitness · Training Week \d+ of \d+$/u),
+        "the Calendar header names the new Plan",
+      )
+      .toBeVisible();
+    await expect
+      .soft(sheet.locator('[data-replace-block="comes-off"]'))
+      .toContainText(new RegExp(`^Comes off · .+ · ${oldLater.length} workouts`, "u"));
+    await expect
+      .soft(sheet.locator('[data-replace-block="comes-off"] .line-through'))
+      .toHaveCount(oldLater.length);
+    await expect.soft(sheet.getByText("Goes on · your new Plan")).toBeVisible();
+    const shot = process.env.REPLACE_SHEET_SHOT;
+    if (shot !== undefined) {
+      await scenario.fixture.setViewport(1180, 1500);
+      await scenario.page.screenshot({ path: shot });
+      await scenario.fixture.setViewport(1180, 820);
+    }
+    await scenario.backend.calendarRun();
+    const newPlanId = (await scenario.backend.inspectActivation()).planningPlans.find(
+      (plan) => plan.status === "active",
+    )?.plan_id;
+    if (typeof newPlanId !== "string" || newPlanId === oldPlanId)
+      throw new TypeError("The new Plan is not active");
+    const ids = (events: readonly { readonly id: number }[]) =>
+      events.map((event) => event.id).sort((left, right) => left - right);
+    expect(
+      ids(ofPlan(oldPlanId)),
+      "the old Plan's workouts on intervals.icu before Approve",
+    ).toEqual(ids([...oldToday, ...oldLater]));
+    expect(ofPlan(newPlanId), "the new Plan on intervals.icu before Approve").toEqual([]);
+
+    await sheet.getByRole("button", { name: "Not now", exact: true }).click();
+    const banner = scenario.page.locator("[data-replace-waiting]");
+    await expect(banner).toContainText(
+      new RegExp(
+        `Your new Plan is not on intervals\\.icu yet\\. ${oldLater.length} workouts from .+ are still there, so your head unit shows the old Plan\\.`,
+        "u",
+      ),
+    );
+    await scenario.backend.calendarRun();
+    expect(ids(ofPlan(oldPlanId)), "the old Plan after Not now").toEqual(
+      ids([...oldToday, ...oldLater]),
+    );
+    let oldLeftAtFirstWrite: number | undefined;
+    scenario.calendar.beforeWrite = () => {
+      oldLeftAtFirstWrite ??= ofPlan(oldPlanId).filter((event) => event.dateKey > todayKey).length;
+    };
+
+    await banner.getByRole("button", { name: "Review and approve", exact: true }).click();
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: /^Approve \d+ off, \d+ on$/u }).click();
+    await expect(sheet).toHaveCount(0, { timeout: 60_000 });
+    await scenario.backend.calendarIdle();
+    expect(ids(ofPlan(oldPlanId)), "the old Plan keeps only today's workout").toEqual(
+      ids(oldToday),
+    );
+    expect(oldLeftAtFirstWrite, "old Plan workouts left when the first new one went on").toBe(0);
+    const sent = ofPlan(newPlanId);
+    expect(sent.length, "the new Plan's weeks on intervals.icu after Approve").toBeGreaterThan(0);
+    expect(sent.every((event) => event.dateKey > todayKey)).toBe(true);
+    await navigate(scenario, "Plan");
+    await expect(active(scenario).getByText(/Up to date/u)).toBeVisible({ timeout: 30_000 });
   } finally {
     await close(scenario);
   }

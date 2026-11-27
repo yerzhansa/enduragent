@@ -144,7 +144,6 @@ describe("Plan Change repository", () => {
       activatedAt: "1998-01-01",
       todayDateKey: 19980101,
       mirrorJobId: id("4"),
-      cleanupJobId: id("5"),
       revisionId: id("3"),
       materialize: () => ({
         plan: {

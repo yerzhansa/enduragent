@@ -22,3 +22,4 @@ export * from "./change-repository.js";
 export * from "./writer-fence.js";
 export * from "./pending-check-repository.js";
 export * from "./calendar-mirror-repository.js";
+export * from "./cleanup-hold-repository.js";
