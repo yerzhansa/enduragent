@@ -4,6 +4,7 @@ import {
   STRAVA_RESTRICTION_DESKTOP_COPY,
   SYNC_INDETERMINATE_COPY,
   SYNC_NO_CHANGE_COPY,
+  SYNC_NOT_IN_USE_COPY,
   SYNC_OPERATION_FAILURE_COPY,
   SYNC_PARTIAL_COPY,
   SYNC_PROTOCOL_COPY,
@@ -47,6 +48,11 @@ export function manualSyncStatusMessage(
       return msg("sidebar.sync.message.operationFailure");
     case SYNC_INDETERMINATE_COPY:
       return msg("sidebar.sync.message.indeterminate", { product: "Enduragent" });
+    case SYNC_NOT_IN_USE_COPY:
+      return msg("sidebar.sync.message.signInNotInUse", {
+        intervals: "Intervals.icu",
+        product: "Enduragent",
+      });
     case SYNC_PROTOCOL_COPY:
       return msg("sidebar.sync.message.protocol", { product: "Enduragent" });
   }

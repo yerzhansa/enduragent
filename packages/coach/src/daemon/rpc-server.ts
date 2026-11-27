@@ -62,6 +62,7 @@ import {
 } from "./invocation-coordinator.js";
 import { HANDOFF_CAPABILITY_BYTES, type MonotonicTimer } from "./upgrade-fence.js";
 import { serializeBoundaryError } from "./error-boundary.js";
+import { callPlanLibraryMethod, type PlanLibraryOperations } from "./plan-library-rpc.js";
 import type { DesktopTelegramController } from "../desktop-telegram-controller.js";
 
 const AUTH_TIMEOUT_MS = 1_000;
@@ -305,6 +306,7 @@ export interface CoachRpcServerInput {
     PlanningRequestOperations &
     PlanCreationOperations &
     PlanChangeOperations &
+    PlanLibraryOperations &
     PlanningOperations;
   readonly spend: SpendRpcHandlers;
   readonly selfTestOperations: CoachSelfTestOperations;
@@ -532,6 +534,7 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "getPlanningReadModel",
   "plan.list",
   "plan.close",
+  "plan.calendar",
   "plan_change.preview",
   "plan_change.apply",
   "plan.history",
@@ -1369,27 +1372,15 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
             }
             break;
           case "plan.list":
-            try {
-              const request = COACH_RPC_METHOD_REGISTRY["plan.list"].requestSchema.parse(
-                generic.data.params,
-              );
-              if (input.operations["plan.list"] === undefined) {
-                throw new TypeError("Plan library operation is unavailable.");
-              }
-              result = await input.operations["plan.list"](request);
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
           case "plan.close":
+          case "plan.history":
+          case "plan.calendar":
             try {
-              const request = COACH_RPC_METHOD_REGISTRY["plan.close"].requestSchema.parse(
+              result = await callPlanLibraryMethod(
+                registry.wireName,
                 generic.data.params,
+                input.operations,
               );
-              if (input.operations["plan.close"] === undefined) {
-                throw new TypeError("Plan closure operation is unavailable.");
-              }
-              result = await input.operations["plan.close"](request);
             } catch (error) {
               invocationFailure = { error };
             }
@@ -1432,19 +1423,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
                 throw new TypeError("Plan Change apply operation is unavailable.");
               }
               result = await input.operations["plan_change.apply"](request);
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
-          case "plan.history":
-            try {
-              const request = COACH_RPC_METHOD_REGISTRY["plan.history"].requestSchema.parse(
-                generic.data.params,
-              );
-              if (input.operations["plan.history"] === undefined) {
-                throw new TypeError("Plan history operation is unavailable.");
-              }
-              result = await input.operations["plan.history"](request);
             } catch (error) {
               invocationFailure = { error };
             }

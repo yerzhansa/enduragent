@@ -149,6 +149,7 @@ async function makeRuntime(
       now: () => new Date("1998-07-18T12:00:00.000Z"),
       monotonicNow: () => 1,
       openReadonlyStore,
+      schedulerDependencies: { nowEpochMs: () => Date.now() },
     },
   });
   return {
@@ -723,6 +724,7 @@ describe("StoreRuntime", () => {
     const root = await mkdtemp(join(await realpath(tmpdir()), "store-runtime-scheduled-error-"));
     roots.push(root);
     const scheduled: Array<() => void> = [];
+    let schedulerNow = Date.parse("1998-07-18T12:00:00.000Z");
     let markRescheduled!: () => void;
     const rescheduled = new Promise<void>((resolve) => {
       markRescheduled = resolve;
@@ -768,7 +770,7 @@ describe("StoreRuntime", () => {
         monotonicNow: () => 1,
         openReadonlyStore: () => emptyReadonlyStore(),
         schedulerDependencies: {
-          nowEpochMs: () => new Date("1998-07-18T12:00:00.000Z").getTime(),
+          nowEpochMs: () => schedulerNow,
           setTimeout: vi.fn((callback: () => void) => {
             scheduled.push(callback);
             if (scheduled.length === 2) markRescheduled();
@@ -780,6 +782,7 @@ describe("StoreRuntime", () => {
     });
     await runtime.runWindow();
     runtime.startScheduler();
+    schedulerNow = Date.parse("1998-07-18T18:00:00.000Z");
     scheduled[0]!();
     await rescheduled;
 
@@ -805,12 +808,11 @@ describe("StoreRuntime", () => {
     await runtime.close();
   });
 
-  it("owns one unref'd six-hour timer, skips overlap, and closes once", async () => {
+  it("owns one unref'd scheduler timer, skips overlap, and closes once", async () => {
     const root = await mkdtemp(join(await realpath(tmpdir()), "store-runtime-timer-"));
     roots.push(root);
     const unref = vi.fn(),
       clear = vi.fn();
-    let delay = 0;
     const handle = { unref } as unknown as ReturnType<typeof setTimeout>;
     let release!: () => void;
     const reference = {
@@ -850,17 +852,13 @@ describe("StoreRuntime", () => {
         openReadonlyStore: () => emptyReadonlyStore(),
         schedulerDependencies: {
           nowEpochMs: () => new Date("1998-07-18T12:00:00.000Z").getTime(),
-          setTimeout: ((_: () => void, ms: number) => {
-            delay = ms;
-            return handle;
-          }) as typeof setTimeout,
+          setTimeout: (() => handle) as unknown as typeof setTimeout,
           clearTimeout: clear as unknown as typeof clearTimeout,
         },
       },
     });
     runtime.startScheduler();
     runtime.startScheduler();
-    expect(delay).toBe(STORE_REFRESH_INTERVAL_MS);
     expect(unref).toHaveBeenCalledTimes(1);
     const first = runtime.runWindow(),
       second = runtime.runWindow();

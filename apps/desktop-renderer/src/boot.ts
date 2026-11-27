@@ -163,6 +163,8 @@ export function bootRenderer(): Disposer {
       rideAnalysisController.invalidate();
       await Promise.all([trainingContextController.refresh(), planController.refresh()]);
     },
+    intervalsSignInSaved: () =>
+      store.getState().onboarding.wizard.credentialStatus["intervals-icu"] === "configured",
   });
   const disposeSignInHealth = signInHealth.follow(trainingSyncCoordinator, window);
   const syncAdapter = createManualSyncViewAdapter({

@@ -1,5 +1,13 @@
 # @enduragent/sport-running
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies [0eb83f7]
+- Updated dependencies [0992b39]
+  - @enduragent/engine@0.1.0
+
 ## 0.1.10
 
 ### Patch Changes

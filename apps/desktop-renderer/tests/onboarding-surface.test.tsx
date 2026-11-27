@@ -24,6 +24,7 @@ import {
   resetOnboardingStore,
   retryButtons,
   rowState,
+  rowSubtitle,
   saveModelKey,
   seedSecret,
   selectSetupOption,
@@ -416,6 +417,10 @@ describe("mounted onboarding", () => {
     });
     expect(errorText()).toBe("The Intervals.icu sign-in couldn’t be activated. Sign in again.");
     expect(retryButtons()).toHaveLength(1);
+    expect(rowState("training"), "a sign-in that cannot be used should not look connected").toBe(
+      "attention",
+    );
+    expect(rowSubtitle("training")).toBe("Signed in, but not working yet");
     expect(bridge.writeCredential).not.toHaveBeenCalled();
 
     await user.click(button("Retry saved keys"));
