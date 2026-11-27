@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Inga cykelturer från de senaste 120 dagarna än. Cykelturer från intervals.icu visas här efter en synkronisering.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · från intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · från intervals.icu"
+      },
+      "kind": {
+        "gravel": "Gruscykeltur",
+        "indoor": "Cykeltur inomhus",
+        "mountain": "Mountainbiketur",
+        "other": "Cykeltur",
+        "road": "Landsvägstur"
+      },
+      "list": {
+        "doneAsPlanned": "Genomfört som planerat",
+        "doneDifferently": "Genomfört annorlunda",
+        "extra": "Extra",
+        "first": "Aktiviteter · {{group}}",
+        "isThis": "Är det {{name}}? Bekräfta",
+        "label": "Aktiviteter",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Idag",
+        "trainingWeek": "Träningsvecka {{week}}"
+      },
+      "match": {
+        "averagePower": "Snitt {{power}}",
+        "cancel": "Avbryt",
+        "change": "Ändra",
+        "confirmed": "Kopplad till träningspasset på {{weekday}} i planen · bekräftad av dig",
+        "extra": "Inget träningspass i planen är kopplat till den här cykelturen, så den räknas som extra.",
+        "failed": "Appen svarade inte, så inget ändrades. Försök igen.",
+        "label": "Koppling till träningspass i planen",
+        "no": "Nej, det var något annat",
+        "noPlan": "Ingen plan, så det finns inget planerat att jämföra med.",
+        "otherDay": "Det var en annan dags träningspass",
+        "paired": "Kopplad till träningspasset på {{weekday}} i planen · ihopparad i intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Inget annat träningspass i planen inom tre dagar från den här cykelturen är ledigt.",
+        "pickTitle": "Vilket träningspass i planen var det?",
+        "planWorkout": "Träningspass i planen · {{day}}",
+        "question": "Är det {{name}} på {{weekday}}?",
+        "refused": "Kopplingen för den här cykelturen har ändrats under tiden. Listan visar nu den senaste.",
+        "rideFacts": "{{distance}}, snitt {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Sparar ditt svar…",
+        "thisRide": "Den här cykelturen",
+        "waiting": "Tills du svarar räknas den här cykelturen inte in i planen, och kalendern visar {{weekday}} som väntande, inte som genomfört eller missat.",
+        "yes": "Ja, det är det"
+      },
+      "refreshFailed": "Cykelturerna kunde inte uppdateras. Det här visar det som lästes in tidigare.",
+      "retry": "Försök igen",
+      "showInCalendar": "Visa i kalendern",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Distans",
+        "exertion": "Upplevd ansträngning",
+        "exertionValue": "{{value}} av 10",
+        "heartRate": "Medelpuls",
+        "kilometres": "{{kilometres}} km",
+        "label": "Fakta om cykelturen",
+        "load": "Belastning",
+        "notGiven": "Inte angivet",
+        "notRecorded": "Inte registrerat",
+        "power": "Medeleffekt",
+        "time": "Cykeltid",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · ingen plan",
+      "unavailable": "Cykelturerna kunde inte läsas in. Försök igen.",
+      "untitled": "Cykeltur"
+    }
+  },
   "common": {
     "automatic": "Automatiskt",
     "back": "Tillbaka",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Kontrollerar konfigurationen…",
     "loading": {
+      "activityReview": "Läser in aktivitetsgranskningen…",
       "archive": "Läser in tidigare chattar…",
       "calendar": "Läser in kalendern…",
       "chat": "Läser in chatten…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Startar om för att installera uppdatering till version {{version}}"
     },
     "views": {
+      "activityReview": "Aktivitetsgranskning",
       "archive": "Tidigare chattar",
       "calendar": "Kalender",
       "chat": "Chatt",

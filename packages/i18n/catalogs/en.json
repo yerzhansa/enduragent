@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "No rides from the last 120 days yet. Rides from intervals.icu show up here after a sync.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · from intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · from intervals.icu"
+      },
+      "kind": {
+        "gravel": "Gravel ride",
+        "indoor": "Indoor ride",
+        "mountain": "Mountain bike ride",
+        "other": "Ride",
+        "road": "Road ride"
+      },
+      "list": {
+        "doneAsPlanned": "Done as planned",
+        "doneDifferently": "Done differently",
+        "extra": "Extra",
+        "first": "Activities · {{group}}",
+        "isThis": "Is this {{name}}? Confirm",
+        "label": "Activities",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Today",
+        "trainingWeek": "Training Week {{week}}"
+      },
+      "match": {
+        "averagePower": "Average {{power}}",
+        "cancel": "Cancel",
+        "change": "Change",
+        "confirmed": "Matched to {{weekday}}’s Plan Workout · confirmed by you",
+        "extra": "No Plan Workout is matched to this ride, so it counts as Extra.",
+        "failed": "The app did not answer, so nothing changed. Try again.",
+        "label": "Plan Workout match",
+        "no": "No, it was something else",
+        "noPlan": "No Plan, so there is nothing planned to compare.",
+        "otherDay": "It was another day’s workout",
+        "paired": "Matched to {{weekday}}’s Plan Workout · paired in intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "No other Plan Workout within three days of this ride is free.",
+        "pickTitle": "Which Plan Workout was it?",
+        "planWorkout": "Plan Workout · {{day}}",
+        "question": "Is this {{weekday}}’s {{name}}?",
+        "refused": "This ride’s match changed meanwhile. The list now shows the latest.",
+        "rideFacts": "{{distance}}, average {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Saving your answer…",
+        "thisRide": "This ride",
+        "waiting": "Until you answer, this ride does not count toward the Plan, and the calendar shows {{weekday}} as waiting, not done or missed.",
+        "yes": "Yes, it is"
+      },
+      "refreshFailed": "The rides could not be refreshed. This shows what was read before.",
+      "retry": "Retry",
+      "showInCalendar": "Show in calendar",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Distance",
+        "exertion": "Perceived exertion",
+        "exertionValue": "{{value}} of 10",
+        "heartRate": "Average heart rate",
+        "kilometres": "{{kilometres}} km",
+        "label": "Ride facts",
+        "load": "Load",
+        "notGiven": "Not given",
+        "notRecorded": "Not recorded",
+        "power": "Average power",
+        "time": "Riding time",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · no Plan",
+      "unavailable": "The rides could not be read. Try again.",
+      "untitled": "Ride"
+    }
+  },
   "archive": {
     "athlete": "You",
     "back": "All past chats",
@@ -2641,6 +2718,7 @@
   "shell": {
     "checkingSetup": "Checking setup…",
     "loading": {
+      "activityReview": "Loading activity review…",
       "archive": "Loading past chats…",
       "calendar": "Loading the calendar…",
       "chat": "Loading chat…",
@@ -2720,6 +2798,7 @@
       "restartingVersion": "Restarting to install update version {{version}}"
     },
     "views": {
+      "activityReview": "Activity review",
       "archive": "Past chats",
       "calendar": "Calendar",
       "chat": "Chat",

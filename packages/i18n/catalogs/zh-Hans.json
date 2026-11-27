@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "最近 120 天内还没有骑行。同步后，intervals.icu 中的骑行会显示在这里。",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · 来自 intervals.icu",
+        "time": "{{date}} {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}} {{time}} · {{kind}} · 来自 intervals.icu"
+      },
+      "kind": {
+        "gravel": "砾石骑行",
+        "indoor": "室内骑行",
+        "mountain": "山地骑行",
+        "other": "骑行",
+        "road": "公路骑行"
+      },
+      "list": {
+        "doneAsPlanned": "按计划完成",
+        "doneDifferently": "完成情况与计划不同",
+        "extra": "额外",
+        "first": "活动 · {{group}}",
+        "isThis": "这是 {{name}} 吗？确认",
+        "label": "活动",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · 今天",
+        "trainingWeek": "第 {{week}} 训练周"
+      },
+      "match": {
+        "averagePower": "平均 {{power}}",
+        "cancel": "取消",
+        "change": "更改",
+        "confirmed": "已匹配{{weekday}}的计划训练课程 · 由你确认",
+        "extra": "此骑行没有匹配的计划训练课程，因此计为额外。",
+        "failed": "应用没有响应，因此未做任何更改。请重试。",
+        "label": "计划训练课程匹配",
+        "no": "不是，是别的训练",
+        "noPlan": "没有计划，因此没有可比较的安排。",
+        "otherDay": "是另一天的训练课程",
+        "paired": "已匹配{{weekday}}的计划训练课程 · 已在 intervals.icu 中配对",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "此骑行前后三天内没有其他空闲的计划训练课程。",
+        "pickTitle": "是哪次计划训练课程？",
+        "planWorkout": "计划训练课程 · {{day}}",
+        "question": "这是{{weekday}}的 {{name}} 吗？",
+        "refused": "此骑行的匹配在此期间已更改。列表现在显示最新内容。",
+        "rideFacts": "{{distance}}，平均 {{power}}",
+        "rideTitle": "{{name}}，{{duration}}",
+        "saving": "正在保存你的回答…",
+        "thisRide": "此骑行",
+        "waiting": "在你回答之前，此骑行不计入计划，日历会将{{weekday}}显示为等待中，而不是已完成或未完成。",
+        "yes": "是的"
+      },
+      "refreshFailed": "无法刷新骑行。这里显示的是之前读取的内容。",
+      "retry": "重试",
+      "showInCalendar": "在日历中显示",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "距离",
+        "exertion": "主观用力程度",
+        "exertionValue": "{{value}}/10",
+        "heartRate": "平均心率",
+        "kilometres": "{{kilometres}} km",
+        "label": "骑行数据",
+        "load": "训练负荷",
+        "notGiven": "未填写",
+        "notRecorded": "未记录",
+        "power": "平均功率",
+        "time": "骑行时间",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · 无计划",
+      "unavailable": "无法读取骑行。请重试。",
+      "untitled": "骑行"
+    }
+  },
   "common": {
     "automatic": "自动",
     "back": "返回",
@@ -841,6 +918,7 @@
   "shell": {
     "checkingSetup": "正在检查初始设置…",
     "loading": {
+      "activityReview": "正在加载活动回顾…",
       "archive": "正在加载历史聊天…",
       "calendar": "正在加载日历…",
       "chat": "正在加载聊天…",
@@ -915,6 +993,7 @@
       "restartingVersion": "正在重启以安装 {{version}} 版更新"
     },
     "views": {
+      "activityReview": "活动回顾",
       "archive": "历史聊天",
       "calendar": "日历",
       "chat": "聊天",

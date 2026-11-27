@@ -1160,7 +1160,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
     );
     if (ride.match === undefined) return;
     const decided = ride.match.decision === "confirmed" ? this.instant : null;
-    await createPlanWorkoutMatchRepository(store).observe({
+    const stored = await createPlanWorkoutMatchRepository(store).observe({
       id: fixtureId(`M${ride.key.slice(0, 4)}`),
       planId: ride.match.planId,
       planWorkoutId: ride.match.planWorkoutId,
@@ -1178,6 +1178,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
       hlcPhysicalMs: this.instant,
       hlcCounter: 0,
     });
+    if (stored === null) throw new TypeError("Calendar ride match was not stored");
   }
 
   async seedUnrelatedPlans(): Promise<void> {

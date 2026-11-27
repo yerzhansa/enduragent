@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Noch keine Fahrten aus den letzten 120 Tagen. Fahrten aus intervals.icu erscheinen hier nach einer Synchronisierung.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · aus intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · aus intervals.icu"
+      },
+      "kind": {
+        "gravel": "Gravel-Fahrt",
+        "indoor": "Indoor-Fahrt",
+        "mountain": "Mountainbike-Fahrt",
+        "other": "Fahrt",
+        "road": "Rennradfahrt"
+      },
+      "list": {
+        "doneAsPlanned": "Wie geplant absolviert",
+        "doneDifferently": "Anders absolviert",
+        "extra": "Zusätzlich",
+        "first": "Aktivitäten · {{group}}",
+        "isThis": "Ist das {{name}}? Bestätigen",
+        "label": "Aktivitäten",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Heute",
+        "trainingWeek": "Trainingswoche {{week}}"
+      },
+      "match": {
+        "averagePower": "Durchschnitt {{power}}",
+        "cancel": "Abbrechen",
+        "change": "Ändern",
+        "confirmed": "Dem Plan-Training vom {{weekday}} zugeordnet · von dir bestätigt",
+        "extra": "Dieser Fahrt ist kein Plan-Training zugeordnet, daher zählt sie als zusätzlich.",
+        "failed": "Die App hat nicht geantwortet, daher wurde nichts geändert. Versuche es erneut.",
+        "label": "Zuordnung zum Plan-Training",
+        "no": "Nein, es war etwas anderes",
+        "noPlan": "Kein Plan, daher gibt es nichts Geplantes zum Vergleichen.",
+        "otherDay": "Es war das Training eines anderen Tages",
+        "paired": "Dem Plan-Training vom {{weekday}} zugeordnet · in intervals.icu verknüpft",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Innerhalb von drei Tagen um diese Fahrt ist kein anderes Plan-Training frei.",
+        "pickTitle": "Welches Plan-Training war es?",
+        "planWorkout": "Plan-Training · {{day}}",
+        "question": "Ist das {{name}} vom {{weekday}}?",
+        "refused": "Die Zuordnung dieser Fahrt hat sich inzwischen geändert. Die Liste zeigt jetzt den neuesten Stand.",
+        "rideFacts": "{{distance}}, Durchschnitt {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Deine Antwort wird gespeichert…",
+        "thisRide": "Diese Fahrt",
+        "waiting": "Bis du antwortest, zählt diese Fahrt nicht für den Plan, und der Kalender zeigt {{weekday}} als wartend, nicht als absolviert oder verpasst.",
+        "yes": "Ja, das ist es"
+      },
+      "refreshFailed": "Die Fahrten konnten nicht aktualisiert werden. Angezeigt wird der zuletzt gelesene Stand.",
+      "retry": "Erneut versuchen",
+      "showInCalendar": "Im Kalender anzeigen",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Distanz",
+        "exertion": "Wahrgenommene Anstrengung",
+        "exertionValue": "{{value}} von 10",
+        "heartRate": "Durchschnittliche Herzfrequenz",
+        "kilometres": "{{kilometres}} km",
+        "label": "Fahrtdaten",
+        "load": "Trainingsbelastung",
+        "notGiven": "Nicht angegeben",
+        "notRecorded": "Nicht aufgezeichnet",
+        "power": "Durchschnittliche Leistung",
+        "time": "Fahrzeit",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · kein Plan",
+      "unavailable": "Die Fahrten konnten nicht gelesen werden. Versuche es erneut.",
+      "untitled": "Fahrt"
+    }
+  },
   "common": {
     "automatic": "Automatisch",
     "back": "Zurück",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Einrichtung wird geprüft…",
     "loading": {
+      "activityReview": "Aktivitätsprüfung wird geladen…",
       "archive": "Bisherige Chats werden geladen…",
       "calendar": "Kalender wird geladen…",
       "chat": "Chat wird geladen…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Neustart zur Installation von Update-Version {{version}}"
     },
     "views": {
+      "activityReview": "Aktivitätsprüfung",
       "archive": "Bisherige Chats",
       "calendar": "Kalender",
       "chat": "Chat",

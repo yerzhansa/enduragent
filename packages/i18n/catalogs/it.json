@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Ancora nessuna uscita negli ultimi 120 giorni. Le uscite da intervals.icu compaiono qui dopo una sincronizzazione.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · da intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · da intervals.icu"
+      },
+      "kind": {
+        "gravel": "Uscita gravel",
+        "indoor": "Uscita indoor",
+        "mountain": "Uscita in mountain bike",
+        "other": "Uscita",
+        "road": "Uscita su strada"
+      },
+      "list": {
+        "doneAsPlanned": "Svolto come programmato",
+        "doneDifferently": "Svolto diversamente",
+        "extra": "Extra",
+        "first": "Attività · {{group}}",
+        "isThis": "È {{name}}? Conferma",
+        "label": "Attività",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Oggi",
+        "trainingWeek": "Settimana di allenamento {{week}}"
+      },
+      "match": {
+        "averagePower": "Media {{power}}",
+        "cancel": "Annulla",
+        "change": "Modifica",
+        "confirmed": "Abbinata all’allenamento del piano di {{weekday}} · confermata da te",
+        "extra": "Nessun allenamento del piano è abbinato a questa uscita, quindi conta come extra.",
+        "failed": "L’app non ha risposto, quindi non è cambiato nulla. Riprova.",
+        "label": "Abbinamento all’allenamento del piano",
+        "no": "No, era un’altra cosa",
+        "noPlan": "Nessun piano, quindi non c’è nulla di programmato da confrontare.",
+        "otherDay": "Era l’allenamento di un altro giorno",
+        "paired": "Abbinata all’allenamento del piano di {{weekday}} · associata su intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Nessun altro allenamento del piano è libero nei tre giorni intorno a questa uscita.",
+        "pickTitle": "Quale allenamento del piano era?",
+        "planWorkout": "Allenamento del piano · {{day}}",
+        "question": "È {{name}} di {{weekday}}?",
+        "refused": "L’abbinamento di questa uscita è cambiato nel frattempo. L’elenco ora mostra quello più recente.",
+        "rideFacts": "{{distance}}, media {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Salvataggio della risposta…",
+        "thisRide": "Questa uscita",
+        "waiting": "Finché non rispondi, questa uscita non conta per il piano e il calendario mostra {{weekday}} come in attesa, né svolto né saltato.",
+        "yes": "Sì, è questo"
+      },
+      "refreshFailed": "Impossibile aggiornare le uscite. Viene mostrato ciò che era stato letto prima.",
+      "retry": "Riprova",
+      "showInCalendar": "Mostra nel calendario",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Distanza",
+        "exertion": "Sforzo percepito",
+        "exertionValue": "{{value}} su 10",
+        "heartRate": "Frequenza cardiaca media",
+        "kilometres": "{{kilometres}} km",
+        "label": "Dati dell’uscita",
+        "load": "Carico",
+        "notGiven": "Non indicato",
+        "notRecorded": "Non registrato",
+        "power": "Potenza media",
+        "time": "Tempo in sella",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · nessun piano",
+      "unavailable": "Impossibile leggere le uscite. Riprova.",
+      "untitled": "Uscita"
+    }
+  },
   "common": {
     "automatic": "Automatico",
     "back": "Indietro",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Verifica della configurazione…",
     "loading": {
+      "activityReview": "Caricamento della revisione attività…",
       "archive": "Caricamento delle chat passate…",
       "calendar": "Caricamento del calendario…",
       "chat": "Caricamento della chat…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Riavvio per installare l’aggiornamento alla versione {{version}}"
     },
     "views": {
+      "activityReview": "Revisione attività",
       "archive": "Chat passate",
       "calendar": "Calendario",
       "chat": "Chat",

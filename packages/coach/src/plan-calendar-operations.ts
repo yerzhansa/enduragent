@@ -22,6 +22,7 @@ import { planDetails, saveEndChoice } from "./plan-calendar-details.js";
 import { moveWorkout } from "./plan-calendar-move.js";
 import { readPlanCalendar } from "./plan-calendar-read.js";
 import { releaseReplacedPlans } from "./plan-calendar-replace.js";
+import { decideRide, readRides } from "./plan-calendar-rides.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
 
@@ -71,6 +72,13 @@ export function createPlanCalendarOperations(
             },
             request,
           );
+        case "rides":
+          return readRides(
+            { store: deps.store, identity: deps.identity, todayDateKey: deps.todayDateKey() },
+            request,
+          );
+        case "decide-ride":
+          return decideRide(deps, request);
         case "send-again":
           await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
           await settledWithin(deps.changed, SEND_AGAIN_WAIT_MS);

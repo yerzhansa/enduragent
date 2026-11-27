@@ -95,8 +95,25 @@ function qualified(workout: PlanWorkoutRecord, activity: PlanActivityObservation
   ) {
     return false;
   }
-  const difference = durationDifference(workout, activity);
-  return difference === null || difference <= differenceLimit(workout.durationS!);
+  if (workout.durationS === null || activity.durationS === null) return true;
+  return Math.abs(workout.durationS - activity.durationS) <= differenceLimit(workout.durationS);
+}
+
+function positiveSeconds(value: number | null): number | null {
+  return value !== null && value > 0 ? value : null;
+}
+
+function stalePairing(
+  match: PlanWorkoutMatchRecord,
+  activityById: ReadonlyMap<string, PlanActivityObservation>,
+): boolean {
+  const activity = activityById.get(match.activityId);
+  return (
+    match.source === "platform" &&
+    match.decision === "confirmed" &&
+    activity !== undefined &&
+    activity.pairedEventId !== match.providerEventId
+  );
 }
 
 export async function refreshPlanWorkoutMatches(input: {
@@ -125,13 +142,13 @@ export async function refreshPlanWorkoutMatches(input: {
     providerIdentities.map((identity) => [identity.providerEventId, identity.planWorkoutId]),
   );
   const workoutById = new Map(eligibleWorkouts.map((workout) => [workout.id, workout]));
-  const usedWorkoutIds = new Set(
-    existing.filter((match) => match.decision === "confirmed").map((match) => match.planWorkoutId),
-  );
-  const usedActivityIds = new Set(
-    existing.filter((match) => match.decision === "confirmed").map((match) => match.activityId),
-  );
+  const activityById = new Map(activities.map((activity) => [activity.activityId, activity]));
   const deviceId = await input.identity.deviceId();
+  const stale = existing.filter((match) => stalePairing(match, activityById));
+  for (const match of stale) await input.repository.withdraw(match.id);
+  const held = existing.filter((match) => match.decision === "confirmed" && !stale.includes(match));
+  const usedWorkoutIds = new Set(held.map((match) => match.planWorkoutId));
+  const usedActivityIds = new Set(held.map((match) => match.activityId));
 
   for (const activity of activities) {
     const workoutId =
@@ -150,14 +167,14 @@ export async function refreshPlanWorkoutMatches(input: {
       decision: "confirmed",
       activityDateKey: activity.dateKey,
       activitySport: activity.sport,
-      activityDurationS: activity.durationS,
+      activityDurationS: positiveSeconds(activity.durationS),
       observedAtMs: stamp.physicalMs,
       decidedAtMs: stamp.physicalMs,
       deviceId,
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     });
-    if (match.decision === "confirmed") {
+    if (match?.decision === "confirmed") {
       usedWorkoutIds.add(match.planWorkoutId);
       usedActivityIds.add(match.activityId);
     }
@@ -201,14 +218,14 @@ export async function refreshPlanWorkoutMatches(input: {
       decision: "suggested",
       activityDateKey: candidate.activity.dateKey,
       activitySport: candidate.activity.sport,
-      activityDurationS: candidate.activity.durationS,
+      activityDurationS: positiveSeconds(candidate.activity.durationS),
       observedAtMs: stamp.physicalMs,
       decidedAtMs: null,
       deviceId,
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     });
-    if (match.decision !== "rejected" && match.decision !== "unpaired") {
+    if (match !== null && match.decision !== "rejected" && match.decision !== "unpaired") {
       usedWorkoutIds.add(candidate.workout.id);
       usedActivityIds.add(candidate.activity.activityId);
     }
@@ -230,7 +247,12 @@ export function projectWorkoutMatches(input: {
   const effective = input.matches.filter(
     (match) => match.decision === "confirmed" || match.decision === "suggested",
   );
-  const matchByWorkout = new Map(effective.map((match) => [match.planWorkoutId, match]));
+  const matchByWorkout = new Map<string, PlanWorkoutMatchRecord>();
+  for (const match of effective) {
+    if (matchByWorkout.get(match.planWorkoutId)?.decision !== "confirmed") {
+      matchByWorkout.set(match.planWorkoutId, match);
+    }
+  }
   const usedActivities = new Set(effective.map((match) => match.activityId));
   const rows: ProjectedWorkoutMatch[] = [];
   for (const workout of input.workouts) {

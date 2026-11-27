@@ -152,6 +152,12 @@ function memoryMatches(activities: readonly PlanActivityObservation[]) {
     decide: async () => {
       throw new Error("not used");
     },
+    withdraw: async () => {
+      throw new Error("not used");
+    },
+    clearUnpaired: async () => {
+      throw new Error("not used");
+    },
   };
   return { repository, records };
 }

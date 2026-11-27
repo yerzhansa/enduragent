@@ -14,6 +14,10 @@ function fromEpochDay(value: number): number {
   return date.getUTCFullYear() * 10_000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
 }
 
+export function localTodayDateKey(now = new Date()): number {
+  return now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate();
+}
+
 export function addDays(dateKey: number, days: number): number {
   return fromEpochDay(epochDay(dateKey) + days);
 }

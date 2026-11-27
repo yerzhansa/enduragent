@@ -721,7 +721,6 @@
     "packages/engine/src/planning/history.ts": 2,
     "packages/engine/src/planning/proposal.ts": 1,
     "packages/engine/src/planning/season.ts": 2,
-    "packages/engine/src/planning/workout-match.ts": 1,
     "packages/engine/src/sport/memory-tools.ts": 1,
     "packages/engine/src/sport/user-time.ts": 3,
     "packages/kernel-node/src/chat-attachments/document-reader.ts": 1,

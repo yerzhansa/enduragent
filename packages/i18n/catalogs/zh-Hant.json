@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "最近 120 天內還沒有騎乘。同步後，intervals.icu 中的騎乘會顯示在這裡。",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · 來自 intervals.icu",
+        "time": "{{date}} {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}} {{time}} · {{kind}} · 來自 intervals.icu"
+      },
+      "kind": {
+        "gravel": "礫石路騎乘",
+        "indoor": "室內騎乘",
+        "mountain": "登山車騎乘",
+        "other": "騎乘",
+        "road": "公路騎乘"
+      },
+      "list": {
+        "doneAsPlanned": "依計畫完成",
+        "doneDifferently": "完成內容與計畫不同",
+        "extra": "額外",
+        "first": "活動 · {{group}}",
+        "isThis": "這是 {{name}} 嗎？確認",
+        "label": "活動",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · 今天",
+        "trainingWeek": "第 {{week}} 訓練週"
+      },
+      "match": {
+        "averagePower": "平均 {{power}}",
+        "cancel": "取消",
+        "change": "變更",
+        "confirmed": "已對應{{weekday}}的計畫訓練課表 · 由你確認",
+        "extra": "此騎乘沒有對應的計畫訓練課表，因此計為額外。",
+        "failed": "應用程式沒有回應，因此未做任何變更。請重試。",
+        "label": "計畫訓練課表對應",
+        "no": "不是，是別的訓練",
+        "noPlan": "沒有計畫，因此沒有可比較的安排。",
+        "otherDay": "是另一天的訓練課表",
+        "paired": "已對應{{weekday}}的計畫訓練課表 · 已在 intervals.icu 中配對",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "此騎乘前後三天內沒有其他空閒的計畫訓練課表。",
+        "pickTitle": "是哪一份計畫訓練課表？",
+        "planWorkout": "計畫訓練課表 · {{day}}",
+        "question": "這是{{weekday}}的 {{name}} 嗎？",
+        "refused": "此騎乘的對應在此期間已變更。清單現在顯示最新內容。",
+        "rideFacts": "{{distance}}，平均 {{power}}",
+        "rideTitle": "{{name}}，{{duration}}",
+        "saving": "正在儲存你的回答…",
+        "thisRide": "此騎乘",
+        "waiting": "在你回答之前，此騎乘不計入計畫，行事曆會將{{weekday}}顯示為等待中，而不是已完成或未完成。",
+        "yes": "是的"
+      },
+      "refreshFailed": "無法重新整理騎乘。這裡顯示的是之前讀取的內容。",
+      "retry": "重試",
+      "showInCalendar": "在行事曆中顯示",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "距離",
+        "exertion": "自覺強度",
+        "exertionValue": "{{value}}/10",
+        "heartRate": "平均心率",
+        "kilometres": "{{kilometres}} 公里",
+        "label": "騎乘資料",
+        "load": "負荷",
+        "notGiven": "未填寫",
+        "notRecorded": "未記錄",
+        "power": "平均功率",
+        "time": "騎乘時間",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · 無計畫",
+      "unavailable": "無法讀取騎乘。請重試。",
+      "untitled": "騎乘"
+    }
+  },
   "common": {
     "automatic": "自動",
     "back": "返回",
@@ -841,6 +918,7 @@
   "shell": {
     "checkingSetup": "正在檢查初始設定…",
     "loading": {
+      "activityReview": "正在載入活動回顧…",
       "archive": "正在載入過往聊天…",
       "calendar": "正在載入行事曆…",
       "chat": "正在載入聊天…",
@@ -915,6 +993,7 @@
       "restartingVersion": "正在重新啟動以安裝 {{version}} 版更新"
     },
     "views": {
+      "activityReview": "活動回顧",
       "archive": "過往聊天",
       "calendar": "行事曆",
       "chat": "聊天",

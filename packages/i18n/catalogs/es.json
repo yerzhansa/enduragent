@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Aún no hay salidas de los últimos 120 días. Las salidas de intervals.icu aparecen aquí después de una sincronización.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · de intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · de intervals.icu"
+      },
+      "kind": {
+        "gravel": "Salida de gravel",
+        "indoor": "Salida en interior",
+        "mountain": "Salida de ciclismo de montaña",
+        "other": "Salida",
+        "road": "Salida de carretera"
+      },
+      "list": {
+        "doneAsPlanned": "Completado según lo previsto",
+        "doneDifferently": "Completado de otra forma",
+        "extra": "Adicional",
+        "first": "Actividades · {{group}}",
+        "isThis": "¿Es {{name}}? Confirmar",
+        "label": "Actividades",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Hoy",
+        "trainingWeek": "Semana de entrenamiento {{week}}"
+      },
+      "match": {
+        "averagePower": "Media de {{power}}",
+        "cancel": "Cancelar",
+        "change": "Cambiar",
+        "confirmed": "Asociada al entrenamiento del plan del {{weekday}} · confirmada por ti",
+        "extra": "Ningún entrenamiento del plan está asociado a esta salida, así que cuenta como adicional.",
+        "failed": "La aplicación no respondió, así que no cambió nada. Inténtalo de nuevo.",
+        "label": "Asociación con el entrenamiento del plan",
+        "no": "No, fue otra cosa",
+        "noPlan": "No hay plan, así que no hay nada planificado con lo que comparar.",
+        "otherDay": "Era el entrenamiento de otro día",
+        "paired": "Asociada al entrenamiento del plan del {{weekday}} · emparejada en intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "No hay ningún otro entrenamiento del plan libre en los tres días antes o después de esta salida.",
+        "pickTitle": "¿Qué entrenamiento del plan era?",
+        "planWorkout": "Entrenamiento del plan · {{day}}",
+        "question": "¿Es el {{name}} del {{weekday}}?",
+        "refused": "La asociación de esta salida cambió mientras tanto. La lista ya muestra lo más reciente.",
+        "rideFacts": "{{distance}}, media de {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Guardando tu respuesta…",
+        "thisRide": "Esta salida",
+        "waiting": "Hasta que respondas, esta salida no cuenta para el plan y el calendario muestra el {{weekday}} como pendiente, no como completado ni no realizado.",
+        "yes": "Sí, es este"
+      },
+      "refreshFailed": "No se pudieron actualizar las salidas. Se muestra lo que se leyó antes.",
+      "retry": "Reintentar",
+      "showInCalendar": "Mostrar en el calendario",
+      "stats": {
+        "bpm": "{{bpm}} lpm",
+        "distance": "Distancia",
+        "exertion": "Esfuerzo percibido",
+        "exertionValue": "{{value}} de 10",
+        "heartRate": "Frecuencia cardiaca media",
+        "kilometres": "{{kilometres}} km",
+        "label": "Datos de la salida",
+        "load": "Carga",
+        "notGiven": "Sin indicar",
+        "notRecorded": "Sin registrar",
+        "power": "Potencia media",
+        "time": "Tiempo en bicicleta",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · sin plan",
+      "unavailable": "No se pudieron leer las salidas. Inténtalo de nuevo.",
+      "untitled": "Salida"
+    }
+  },
   "common": {
     "automatic": "Automático",
     "back": "Atrás",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Comprobando configuración…",
     "loading": {
+      "activityReview": "Cargando revisión de actividades…",
       "archive": "Cargando chats anteriores…",
       "calendar": "Cargando calendario…",
       "chat": "Cargando chat…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Reiniciando para instalar la actualización a la versión {{version}}"
     },
     "views": {
+      "activityReview": "Revisión de actividades",
       "archive": "Chats anteriores",
       "calendar": "Calendario",
       "chat": "Chat",

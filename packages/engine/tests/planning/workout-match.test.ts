@@ -59,6 +59,15 @@ function memoryRepository(input: {
     async decide() {
       throw new Error("unused");
     },
+    async withdraw(id) {
+      records.splice(
+        records.findIndex((record) => record.id === id),
+        1,
+      );
+    },
+    async clearUnpaired() {
+      throw new Error("unused");
+    },
     async listActivities() {
       return input.activities;
     },
@@ -164,5 +173,51 @@ describe("WorkoutMatch", () => {
         awaitingSync: false,
       })[0],
     ).toMatchObject({ status: "missed" });
+  });
+  it("stores no length for a zero-length ride, and shows a confirmed ride before an older suggestion", async () => {
+    const repository = memoryRepository({
+      providerEventId: 42,
+      activities: [
+        {
+          activityId: ACTIVITY_ID,
+          providerActivityId: "i1",
+          pairedEventId: 42,
+          dateKey: 20260825,
+          sport: "cycling",
+          durationS: 0,
+        },
+      ],
+    });
+    await refreshPlanWorkoutMatches({
+      planId: PLAN_ID,
+      workouts: [workout({ id: ENDURANCE_ID })],
+      startDateKey: 20260824,
+      endDateKey: 20260830,
+      repository,
+      identity,
+    });
+    expect(repository.records).toEqual([
+      expect.objectContaining({ decision: "confirmed", activityDurationS: null }),
+    ]);
+    const confirmed = repository.records[0];
+    if (confirmed === undefined) throw new Error("Expected a confirmed match");
+    const older: PlanWorkoutMatchRecord = {
+      ...confirmed,
+      id: `${"0".repeat(25)}9`,
+      activityId: "b".repeat(64),
+      source: "heuristic",
+      providerEventId: null,
+      decision: "suggested",
+      decidedAtMs: null,
+    };
+    expect(
+      projectWorkoutMatches({
+        workouts: [workout({ id: ENDURANCE_ID })],
+        activities: [],
+        matches: [confirmed, older],
+        todayDateKey: 20260826,
+        awaitingSync: false,
+      })[0],
+    ).toMatchObject({ status: "as-planned", activityId: ACTIVITY_ID });
   });
 });

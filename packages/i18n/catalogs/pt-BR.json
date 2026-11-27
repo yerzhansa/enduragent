@@ -1,4 +1,81 @@
 {
+  "activity": {
+    "review": {
+      "empty": "Ainda não há pedaladas dos últimos 120 dias. As pedaladas do intervals.icu aparecem aqui depois de uma sincronização.",
+      "header": {
+        "day": "{{date}} · {{kind}}",
+        "dayFromIntervals": "{{date}} · {{kind}} · do intervals.icu",
+        "time": "{{date}}, {{time}} · {{kind}}",
+        "timeFromIntervals": "{{date}}, {{time}} · {{kind}} · do intervals.icu"
+      },
+      "kind": {
+        "gravel": "Pedalada de gravel",
+        "indoor": "Pedalada em ambiente fechado",
+        "mountain": "Pedalada de mountain bike",
+        "other": "Pedalada",
+        "road": "Pedalada de estrada"
+      },
+      "list": {
+        "doneAsPlanned": "Feito conforme planejado",
+        "doneDifferently": "Feito de outro jeito",
+        "extra": "Extra",
+        "first": "Atividades · {{group}}",
+        "isThis": "É {{name}}? Confirmar",
+        "label": "Atividades",
+        "ride": "{{name}} · {{duration}}",
+        "today": "{{day}} · Hoje",
+        "trainingWeek": "Semana de treinamento {{week}}"
+      },
+      "match": {
+        "averagePower": "Média de {{power}}",
+        "cancel": "Cancelar",
+        "change": "Alterar",
+        "confirmed": "Associada ao treino do plano de {{weekday}} · confirmada por você",
+        "extra": "Nenhum treino do plano está associado a esta pedalada, então ela conta como extra.",
+        "failed": "O aplicativo não respondeu, então nada mudou. Tente novamente.",
+        "label": "Associação ao treino do plano",
+        "no": "Não, foi outra coisa",
+        "noPlan": "Sem plano, então não há nada planejado para comparar.",
+        "otherDay": "Foi o treino de outro dia",
+        "paired": "Associada ao treino do plano de {{weekday}} · pareada no intervals.icu",
+        "pickItem": "{{day}} · {{name}}",
+        "pickItemLength": "{{day}} · {{name}} · {{duration}}",
+        "pickNone": "Nenhum outro treino do plano está livre nos três dias antes ou depois desta pedalada.",
+        "pickTitle": "Qual treino do plano era?",
+        "planWorkout": "Treino do plano · {{day}}",
+        "question": "É {{name}} de {{weekday}}?",
+        "refused": "A associação desta pedalada mudou nesse meio-tempo. A lista agora mostra a mais recente.",
+        "rideFacts": "{{distance}}, média de {{power}}",
+        "rideTitle": "{{name}}, {{duration}}",
+        "saving": "Salvando sua resposta…",
+        "thisRide": "Esta pedalada",
+        "waiting": "Até você responder, esta pedalada não conta para o plano e o calendário mostra {{weekday}} como pendente, não como feito nem como não realizado.",
+        "yes": "Sim, é"
+      },
+      "refreshFailed": "Não foi possível atualizar as pedaladas. Isto mostra o que foi lido antes.",
+      "retry": "Tentar novamente",
+      "showInCalendar": "Mostrar no calendário",
+      "stats": {
+        "bpm": "{{bpm}} bpm",
+        "distance": "Distância",
+        "exertion": "Esforço percebido",
+        "exertionValue": "{{value}} de 10",
+        "heartRate": "Frequência cardíaca média",
+        "kilometres": "{{kilometres}} km",
+        "label": "Dados da pedalada",
+        "load": "Carga",
+        "notGiven": "Não informado",
+        "notRecorded": "Não registrado",
+        "power": "Potência média",
+        "time": "Tempo pedalando",
+        "watts": "{{watts}} W"
+      },
+      "subtitle": "{{day}} · {{name}}",
+      "subtitleNoPlan": "{{day}} · {{name}} · sem plano",
+      "unavailable": "Não foi possível ler as pedaladas. Tente novamente.",
+      "untitled": "Pedalada"
+    }
+  },
   "archive": {
     "athlete": "Você",
     "back": "Todas as conversas anteriores",
@@ -844,6 +921,7 @@
   "shell": {
     "checkingSetup": "Verificando configuração…",
     "loading": {
+      "activityReview": "Carregando revisão de atividades…",
       "archive": "Carregando conversas anteriores…",
       "calendar": "Carregando calendário…",
       "chat": "Carregando chat…",
@@ -923,6 +1001,7 @@
       "restartingVersion": "Reiniciando para instalar a atualização para a versão {{version}}"
     },
     "views": {
+      "activityReview": "Revisão de atividades",
       "archive": "Conversas anteriores",
       "calendar": "Calendário",
       "chat": "Chat",
