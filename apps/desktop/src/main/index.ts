@@ -553,6 +553,7 @@ async function runDesktop(): Promise<void> {
       userDataPath: app.getPath("userData"),
       disposableContext:
         environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
+      lockMarkerPath: environment.ENDURAGENT_ACCEPTANCE_KEYCHAIN_LOCK_FILE,
     });
     traceDesktopStartupStage("prepare-credential-encryption");
     const credentialEncryption = await prepareDesktopCredentialEncryption({

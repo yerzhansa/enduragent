@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readFile, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, readFile, unlink, writeFile } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import {
   KEYCHAIN_KEY_BYTES,
   KEYCHAIN_TEAM_IDENTIFIER,
@@ -18,9 +18,12 @@ const TELEGRAM_ACCEPTANCE_PRODUCT_NAME_DIGEST =
   "1cda3287fbe8127102a851088456509106bf8369111bd8860f56d80d3493461a";
 const ACCEPTANCE_KEY_FILE = ".enduragent-acceptance-key";
 
-export type AcceptanceCredentialBackend =
+// lockMarkerPath: while that file exists, the fake Keychain answers like a locked one.
+export type AcceptanceCredentialBackend = (
   | Readonly<{ kind: "memory"; key: Buffer }>
-  | Readonly<{ kind: "file"; keyPath: string }>;
+  | Readonly<{ kind: "file"; keyPath: string }>
+) &
+  Readonly<{ lockMarkerPath?: string }>;
 
 function matchesIdentity(value: unknown, digest: string): boolean {
   return (
@@ -53,7 +56,7 @@ function packagedAcceptanceManifest(input: {
   }
 }
 
-export function resolveAcceptanceCredentialBackend(input: {
+interface AcceptanceCredentialBackendInput {
   readonly isPackaged: boolean;
   readonly hidden: boolean;
   readonly backend: string | undefined;
@@ -61,8 +64,23 @@ export function resolveAcceptanceCredentialBackend(input: {
   readonly appPath: string;
   readonly userDataPath: string;
   readonly disposableContext: boolean;
+  readonly lockMarkerPath?: string | undefined;
   readonly readPackageJson?: (path: string) => string;
-}): AcceptanceCredentialBackend | undefined {
+}
+
+export function resolveAcceptanceCredentialBackend(
+  input: AcceptanceCredentialBackendInput,
+): AcceptanceCredentialBackend | undefined {
+  const backend = eligibleBackend(input);
+  const marker = input.lockMarkerPath;
+  return backend === undefined || marker === undefined || !isAbsolute(marker)
+    ? backend
+    : { ...backend, lockMarkerPath: marker };
+}
+
+function eligibleBackend(
+  input: AcceptanceCredentialBackendInput,
+): AcceptanceCredentialBackend | undefined {
   if (!input.isPackaged) {
     return input.backend === "memory" && input.disposableContext
       ? { kind: "memory", key: randomBytes(KEYCHAIN_KEY_BYTES) }
@@ -171,8 +189,35 @@ function fileTransport(keyPath: string): KeychainBindingTransport {
   };
 }
 
+// A locked login Keychain still answers the probe and a rollback retry with no debt;
+// every item read, create, or delete is refused (native CreateKey reports no rollback).
+function lockedWhileMarkerExists(
+  transport: KeychainBindingTransport,
+  markerPath: string,
+): KeychainBindingTransport {
+  return {
+    async send(request) {
+      if (request.op === "probe" || request.op === "retry-created-key-rollback") {
+        return await transport.send(request);
+      }
+      const locked = await access(markerPath).then(
+        () => true,
+        () => false,
+      );
+      if (!locked) return await transport.send(request);
+      return request.op === "create-key"
+        ? { ok: false, code: "keychain-locked", creationRollbackPending: false }
+        : { ok: false, code: "keychain-locked" };
+    },
+  };
+}
+
 export function createAcceptanceKeychainTransport(
   backend: AcceptanceCredentialBackend,
 ): KeychainBindingTransport {
-  return backend.kind === "memory" ? memoryTransport(backend.key) : fileTransport(backend.keyPath);
+  const transport =
+    backend.kind === "memory" ? memoryTransport(backend.key) : fileTransport(backend.keyPath);
+  return backend.lockMarkerPath === undefined
+    ? transport
+    : lockedWhileMarkerExists(transport, backend.lockMarkerPath);
 }
