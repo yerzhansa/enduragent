@@ -1,3 +1,4 @@
+import { PlanChangeIntentSchema } from "@enduragent/coach-contract";
 import { CoachRpcRemoteError } from "@enduragent/coach-client";
 import type { CoachClient } from "@enduragent/coach-client";
 import type {
@@ -190,7 +191,8 @@ describe("Plan Change controller", () => {
     async (action) => {
       const h = harness({ status: "rejected", reason: "sync-stale" });
       h.controller.openPlanChangeEditor();
-      if (action === "preview") await h.controller.previewPlanChange(change.intent);
+      if (action === "preview")
+        await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       else await h.controller.applyPlanChange("apply");
       expect(h.surface()).toMatchObject({
         editorOpen: false,
@@ -208,7 +210,8 @@ describe("Plan Change controller", () => {
     async (action) => {
       const h = harness({ status: "rejected", reason: "sync-stale" });
       h.refresh.mockRejectedValue(new Error("unavailable"));
-      if (action === "preview") await h.controller.previewPlanChange(change.intent);
+      if (action === "preview")
+        await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       else await h.controller.applyPlanChange("apply");
       expect(h.surface()).toMatchObject({
         error: null,
@@ -224,7 +227,7 @@ describe("Plan Change controller", () => {
     h.pause();
     h.controller.openPlanChangeEditor();
     expect(h.surface().editorOpen).toBe(false);
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     await h.controller.previewPlanChange({ kind: "inverse", changeId: "applied-change" });
     await h.controller.applyPlanChange("apply");
     expect(h.call).not.toHaveBeenCalled();
@@ -367,7 +370,7 @@ describe("Plan Change controller", () => {
         };
       });
       h.call.mockImplementationOnce(() => response);
-      const preview = h.controller.previewPlanChange(change.intent);
+      const preview = h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       await vi.waitFor(() =>
         expect(h.call).toHaveBeenCalledWith(
           "plan_change.preview",
@@ -393,7 +396,7 @@ describe("Plan Change controller", () => {
   it("previews with the summary version, refreshes, and focuses the preview", async () => {
     const h = harness({ status: "previewed", change, version: 8 }, []);
     h.controller.openPlanChangeEditor();
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     expect(h.call).toHaveBeenCalledWith(
       "plan_change.preview",
       {
@@ -468,7 +471,7 @@ describe("Plan Change controller", () => {
       });
       if (refreshFails) h.refresh.mockRejectedValue(new Error("unavailable"));
       h.controller.openPlanChangeEditor();
-      await h.controller.previewPlanChange(change.intent);
+      await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       expect(h.surface()).toMatchObject({
         editorOpen: true,
         busy: false,
@@ -814,7 +817,7 @@ describe("Plan Change controller", () => {
       change: { ...change, changeId: "new-change", supersedes: change.changeId },
       version: 8,
     });
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     expect(h.surface().notice).toBe(
       "This preview supersedes “Limit weekday duration”. Training is unchanged until confirmation.",
     );
@@ -823,7 +826,7 @@ describe("Plan Change controller", () => {
   it.each([
     [
       "stale-version",
-      change.intent,
+      PlanChangeIntentSchema.parse(change.intent),
       "This request used an older Plan revision. Request a fresh preview.",
     ],
     [
@@ -910,7 +913,7 @@ describe("Plan Change controller", () => {
       await h.controller.applyPlanChange("apply");
       expect(h.refresh).toHaveBeenCalledOnce();
       h.controller.openPlanChangeEditor();
-      await h.controller.previewPlanChange(change.intent);
+      await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       expect(h.call).toHaveBeenNthCalledWith(
         2,
         "plan_change.preview",
@@ -928,9 +931,9 @@ describe("Plan Change controller", () => {
   it("refreshes a stale preview before another preview", async () => {
     const h = harness({ status: "rejected", reason: "stale-version" });
     h.refresh.mockImplementation(async () => h.updateVersion(8));
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     expect(h.refresh).toHaveBeenCalledOnce();
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     expect(h.call).toHaveBeenNthCalledWith(
       2,
       "plan_change.preview",
@@ -950,7 +953,7 @@ describe("Plan Change controller", () => {
       const h = harness({ status: "rejected", reason: "stale-version" });
       h.refresh.mockRejectedValue(new Error("unavailable"));
       if (action === "apply") await h.controller.applyPlanChange("apply");
-      else await h.controller.previewPlanChange(change.intent);
+      else await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
       expect(h.refresh).toHaveBeenCalledOnce();
       expect(h.surface().busy).toBe(false);
       expect(action === "apply" ? h.surface().notice : h.surface().error).toBe(
@@ -1003,7 +1006,7 @@ describe("Plan Change controller", () => {
       h.refresh.mockImplementation(async () => h.updateVersion(8));
       const submit = () =>
         action === "preview"
-          ? h.controller.previewPlanChange(change.intent)
+          ? h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent))
           : h.controller.applyPlanChange("apply");
       await submit();
       await submit();
@@ -1020,7 +1023,7 @@ describe("Plan Change controller", () => {
       const h = harness({ status: "rejected", reason: "stale-version" });
       const submit = () =>
         action === "preview"
-          ? h.controller.previewPlanChange(change.intent)
+          ? h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent))
           : h.controller.applyPlanChange("apply");
       await submit();
       await submit();
@@ -1030,7 +1033,7 @@ describe("Plan Change controller", () => {
 
   it("starts a new command for a different preview intent after a lost response", async () => {
     const h = harness(new Error("lost response"));
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     await h.controller.previewPlanChange({ kind: "weekly-duration", hours: 2.25 });
     expect(h.call.mock.calls[1]?.[1]).toMatchObject({
       intent: { kind: "weekly-duration", hours: 2.25 },
@@ -1062,7 +1065,7 @@ describe("Plan Change controller", () => {
   it("ignores actions and late responses after disposal", async () => {
     const h = harness(null);
     h.controller.dispose();
-    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange(PlanChangeIntentSchema.parse(change.intent));
     await h.controller.applyPlanChange("cancel");
     expect(h.call).not.toHaveBeenCalled();
     expect(h.surface()).toEqual(EMPTY_PLAN_CHANGE_SURFACE);

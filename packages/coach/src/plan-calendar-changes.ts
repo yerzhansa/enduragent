@@ -2,6 +2,8 @@ import type { PlanCalendarRpcResult, PlanCalendarWorkoutVersion } from "@endurag
 import {
   applyIcuCopyEffect,
   icuCopyKeep,
+  icuCopyOnRun,
+  icuFingerprintParts,
   icuCopyPutBack,
   icuSighting,
   planWorkoutFingerprint,
@@ -30,6 +32,17 @@ export interface PlanCalendarChangeDeps extends PlanCalendarEditDeps {
 }
 
 type ChangeRequest = { readonly planId: string; readonly planWorkoutId: string };
+type ChoiceRequest = ChangeRequest & { readonly basis: string };
+
+export function sightingBasis(sighting: IcuSighting): string {
+  return sighting.kind === "absent"
+    ? "absent"
+    : `${sighting.eventId}@${sighting.dateKey}:${sighting.version.fingerprint}`;
+}
+
+function sendPlan(workout: PlanWorkoutRecord) {
+  return { kind: "send" as const, planFingerprint: planWorkoutFingerprint(workout) };
+}
 
 interface CardContext {
   readonly stored: PlanIcuCopyRecord;
@@ -129,9 +142,18 @@ export async function changeDetail(
   if (found === null) return { status: "change-resolved", outcome: "no-card" };
   const current = await readCurrent(deps, found.card);
   if (current === null) return UNAVAILABLE;
+  const observed = icuCopyOnRun(found.card, sendPlan(found.workout), current.sighting).copy;
+  if (observed.kind !== "changed-in-icu") {
+    void deps.changed();
+    return { status: "change-resolved", outcome: "no-card" };
+  }
+  if (sightingBasis(found.card.shown) !== sightingBasis(current.sighting)) {
+    await save(deps, request.planId, found, observed);
+  }
   const intervals = current.event === null ? null : intervalsVersion(current.event, found.workout);
   return {
     status: "change-detail",
+    basis: sightingBasis(current.sighting),
     planWorkoutId: found.workout.id,
     change:
       intervals === null
@@ -145,15 +167,33 @@ export async function changeDetail(
   };
 }
 
+async function unseen(
+  deps: PlanCalendarChangeDeps,
+  request: ChoiceRequest,
+  found: CardContext,
+  sighting: IcuSighting,
+): Promise<PlanCalendarRpcResult | null> {
+  if (sightingBasis(sighting) === request.basis) return null;
+  const observed = icuCopyOnRun(found.card, sendPlan(found.workout), sighting).copy;
+  if (observed.kind !== "changed-in-icu") {
+    void deps.changed();
+    return { status: "change-resolved", outcome: "no-card" };
+  }
+  await save(deps, request.planId, found, observed);
+  return { status: "change-resolved", outcome: "refreshed" };
+}
+
 export async function putBackChange(
   deps: PlanCalendarChangeDeps,
-  request: ChangeRequest,
+  request: ChoiceRequest,
 ): Promise<PlanCalendarRpcResult> {
   const found = await context(deps, request);
   if (found === null) return { status: "change-resolved", outcome: "no-card" };
   const current = await readCurrent(deps, found.card);
   if (current === null) return UNAVAILABLE;
-  const plan = { kind: "send" as const, planFingerprint: planWorkoutFingerprint(found.workout) };
+  const changedSince = await unseen(deps, request, found, current.sighting);
+  if (changedSince !== null) return changedSince;
+  const plan = sendPlan(found.workout);
   const decided = icuCopyPutBack(found.card, current.sighting, plan);
   if (decided.kind !== "done") {
     await save(deps, request.planId, found, decided.copy);
@@ -178,19 +218,24 @@ export async function putBackChange(
   );
   await save(deps, request.planId, found, applied.copy, applied.lastWrite);
   if (applied.lastWrite.kind === "failed") return UNAVAILABLE;
+  if (applied.copy.kind === "changed-in-icu") {
+    return { status: "change-resolved", outcome: "refreshed" };
+  }
   void deps.changed();
   return { status: "change-resolved", outcome: "put-back" };
 }
 
 export async function keepChange(
   deps: PlanCalendarChangeDeps,
-  request: ChangeRequest,
+  request: ChoiceRequest,
 ): Promise<PlanCalendarRpcResult> {
   const found = await context(deps, request);
   if (found === null) return { status: "change-resolved", outcome: "no-card" };
   const current = await readCurrent(deps, found.card);
   if (current === null) return UNAVAILABLE;
-  const plan = { kind: "send" as const, planFingerprint: planWorkoutFingerprint(found.workout) };
+  const changedSince = await unseen(deps, request, found, current.sighting);
+  if (changedSince !== null) return changedSince;
+  const plan = sendPlan(found.workout);
   const probe = icuCopyKeep(found.card, current.sighting, plan, plan.planFingerprint);
   if (probe.kind !== "done") {
     await save(deps, request.planId, found, probe.copy);
@@ -202,19 +247,31 @@ export async function keepChange(
     return { status: "change-resolved", outcome: "kept" };
   }
   const version = intervalsVersion(current.event, found.workout);
-  const adopted = await applyWorkoutEdits(deps, {
-    planId: request.planId,
-    title: "Kept your intervals.icu change",
-    intent: { kind: "keep-intervals-change", planWorkoutId: found.workout.id },
-    edits: [
-      {
-        planWorkoutId: found.workout.id,
-        dateKey: version.dateKey,
-        name: version.name,
-        minutes: Math.round((version.durationS ?? found.workout.durationS ?? 60) / 60),
-      },
-    ],
-  });
+  const shownLength =
+    current.sighting.kind === "present"
+      ? icuFingerprintParts(current.sighting.version.fingerprint)?.durationS
+      : null;
+  const minutes =
+    shownLength === null || shownLength === undefined ? undefined : Math.round(shownLength / 60);
+  const unchanged =
+    version.dateKey === found.workout.dateKey &&
+    version.name === found.workout.name &&
+    (minutes === undefined || minutes === Math.round((found.workout.durationS ?? 0) / 60));
+  const adopted = unchanged
+    ? "applied"
+    : await applyWorkoutEdits(deps, {
+        planId: request.planId,
+        title: "Kept your intervals.icu change",
+        intent: { kind: "keep-intervals-change", planWorkoutId: found.workout.id },
+        edits: [
+          {
+            planWorkoutId: found.workout.id,
+            dateKey: version.dateKey,
+            name: version.name,
+            ...(minutes === undefined ? {} : { minutes }),
+          },
+        ],
+      });
   if (adopted === "refused") return { status: "refused", reason: "plan-change-refused" };
   const updated = (await createLegacyPlanRepository(deps.store).readWorkouts(request.planId)).find(
     (row) => row.id === found.workout.id,

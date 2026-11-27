@@ -84,6 +84,7 @@ function detail(extra: Partial<ChangeDetail>): ChangeDetail {
   return {
     status: "change-detail",
     planWorkoutId: workoutId(1),
+    basis: "1@19980114:seen",
     change: "edited",
     plan: { dateKey: 19980114, name: "Endurance 1", durationS: 3_600, description: null },
     intervals: { dateKey: 19980114, name: "Endurance 1", durationS: 2_700, description: null },

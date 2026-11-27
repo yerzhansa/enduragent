@@ -11,8 +11,8 @@ import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 export interface WorkoutEdit {
   readonly planWorkoutId: string;
   readonly dateKey: number;
-  readonly name: string;
-  readonly minutes: number;
+  readonly name?: string;
+  readonly minutes?: number;
 }
 
 export interface PlanCalendarEditDeps {
@@ -77,8 +77,9 @@ function edited(
     const changed = {
       ...before,
       date,
-      name: edit.name,
-      minutes: Math.max(1, Math.min(1440, edit.minutes)),
+      name: edit.name ?? before.name,
+      minutes:
+        edit.minutes === undefined ? before.minutes : Math.max(1, Math.min(1440, edit.minutes)),
     };
     from.workouts = from.workouts.filter((workout) => workout.id !== draftId);
     into.workouts = [...into.workouts, changed].sort((left, right) =>

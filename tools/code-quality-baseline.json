@@ -456,7 +456,7 @@
     "packages/coach/src/daemon/rpc-server.ts": 2309,
     "packages/coach/src/desktop-telegram-controller.ts": 1060,
     "packages/coach/src/enduragent.ts": 2574,
-    "packages/coach/src/plan-change-operations.ts": 1034,
+    "packages/coach/src/plan-change-operations.ts": 1027,
     "packages/coach/src/plan-creation-answers.ts": 867,
     "packages/coach/src/plan-creation-operations.ts": 887,
     "packages/coach/src/planning-operations.ts": 5310,

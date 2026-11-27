@@ -1,3 +1,4 @@
+import { PlanChangeIntentSchema } from "@enduragent/coach-contract";
 import { renderLocalized as render, renderWithCatalog } from "./language-harness";
 import type {
   ListPlansResult,
@@ -472,7 +473,8 @@ describe("Plan Change cards", () => {
         </>,
       );
       await act(async () => {
-        if (action === "preview") await controller.previewPlanChange(change().intent);
+        if (action === "preview")
+          await controller.previewPlanChange(PlanChangeIntentSchema.parse(change().intent));
         else await controller.applyPlanChange("apply");
       });
       expect(refresh).toHaveBeenCalledOnce();

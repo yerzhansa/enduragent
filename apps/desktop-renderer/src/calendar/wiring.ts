@@ -62,6 +62,7 @@ export function startCalendar(
   const change = createChangeController({
     call: async (request) => (await clients.getClient()).call("plan.calendar", request),
     refresh: () => void controller.refresh(),
+    planChanged: () => void store.getState().planLibraryActions?.refresh(),
     publish: (next) => store.getState().setCalendarChange(next),
   });
   store.getState().bindCalendarChangeActions({

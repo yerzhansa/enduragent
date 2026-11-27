@@ -14,6 +14,7 @@ const WORKOUT = "0".repeat(24) + "11";
 const DETAIL: ChangeDetail = {
   status: "change-detail",
   planWorkoutId: WORKOUT,
+  basis: "7@19980114:seen",
   change: "edited",
   plan: { dateKey: 19980114, name: "Endurance 1", durationS: 3_600, description: null },
   intervals: { dateKey: 19980114, name: "Endurance 1", durationS: 2_700, description: null },
@@ -30,12 +31,14 @@ function harness(replies: readonly (PlanCalendarRpcResult | Error)[]) {
     return next;
   });
   const refresh = vi.fn();
+  const planChanged = vi.fn();
   const controller = createChangeController({
     call,
     refresh,
+    planChanged,
     publish: (state) => states.push(state),
   });
-  return { controller, states, call, refresh, last: () => states.at(-1) };
+  return { controller, states, call, refresh, planChanged, last: () => states.at(-1) };
 }
 
 describe("the change card controller", () => {
@@ -53,6 +56,7 @@ describe("the change card controller", () => {
       action: "keep-change",
       planId: PLAN,
       planWorkoutId: WORKOUT,
+      basis: "7@19980114:seen",
     });
     expect(test.states.map((state) => state.kind)).toEqual([
       "loading",
@@ -61,6 +65,7 @@ describe("the change card controller", () => {
       "closed",
     ]);
     expect(test.refresh).toHaveBeenCalledOnce();
+    expect(test.planChanged).toHaveBeenCalledOnce();
   });
 
   it("shows the newest version first when the workout changed again before Put back", async () => {
@@ -81,6 +86,7 @@ describe("the change card controller", () => {
       action: "put-back",
       planId: PLAN,
       planWorkoutId: WORKOUT,
+      basis: "7@19980114:seen",
     });
     expect(test.last()).toEqual({ kind: "open", planId: PLAN, detail: newer });
     expect(test.refresh).toHaveBeenCalledOnce();
@@ -122,6 +128,7 @@ describe("the change card controller", () => {
           answer = resolve;
         }),
       refresh: vi.fn(),
+      planChanged: vi.fn(),
       publish: (state) => states.push(state),
     });
     const opening = controller.open(PLAN, WORKOUT);
@@ -129,6 +136,33 @@ describe("the change card controller", () => {
     answer(DETAIL);
     await opening;
     expect(states.at(-1)).toEqual({ kind: "closed" });
+  });
+
+  it("keeps the sheet while a choice is saved, and refreshes when a choice settles after Close", async () => {
+    let answer: (value: PlanCalendarRpcResult) => void = () => undefined;
+    const replies: (() => Promise<PlanCalendarRpcResult>)[] = [
+      async () => DETAIL,
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    ];
+    const states: ChangeSheetState[] = [];
+    const refresh = vi.fn();
+    const controller = createChangeController({
+      call: () => (replies.shift() ?? (async () => DETAIL))(),
+      refresh,
+      planChanged: vi.fn(),
+      publish: (state) => states.push(state),
+    });
+    await controller.open(PLAN, WORKOUT);
+    const choosing = controller.putBack();
+    controller.close();
+    expect(states.at(-1)?.kind).toBe("working");
+    answer({ status: "change-resolved", outcome: "put-back" });
+    await choosing;
+    expect(states.at(-1)).toEqual({ kind: "closed" });
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("does nothing on Keep or Put back while no card is open", async () => {

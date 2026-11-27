@@ -32,12 +32,22 @@ export interface ChangeController {
 }
 
 export function createChangeController(deps: {
-  call(request: {
-    readonly action: "change-detail" | "keep-change" | "put-back";
-    readonly planId: string;
-    readonly planWorkoutId: string;
-  }): Promise<PlanCalendarRpcResult>;
+  call(
+    request:
+      | {
+          readonly action: "change-detail";
+          readonly planId: string;
+          readonly planWorkoutId: string;
+        }
+      | {
+          readonly action: "keep-change" | "put-back";
+          readonly planId: string;
+          readonly planWorkoutId: string;
+          readonly basis: string;
+        },
+  ): Promise<PlanCalendarRpcResult>;
   refresh(): void;
+  planChanged(): void;
   publish(state: ChangeSheetState): void;
 }): ChangeController {
   let state: ChangeSheetState = CHANGE_SHEET_CLOSED;
@@ -83,12 +93,17 @@ export function createChangeController(deps: {
         action: choice === "keep" ? "keep-change" : "put-back",
         planId,
         planWorkoutId: detail.planWorkoutId,
+        basis: detail.basis,
       });
     } catch {
       if (mine === generation) publish({ kind: "failed", planId, detail, reason: "unavailable" });
       return;
     }
-    if (mine !== generation) return;
+    if (result.status === "change-resolved" && result.outcome === "kept") deps.planChanged();
+    if (mine !== generation) {
+      deps.refresh();
+      return;
+    }
     if (result.status === "change-resolved" && result.outcome === "refreshed") {
       deps.refresh();
       await load(planId, detail.planWorkoutId);
@@ -115,6 +130,7 @@ export function createChangeController(deps: {
     keep: () => choose("keep"),
     putBack: () => choose("put-back"),
     close() {
+      if (state.kind === "working") return;
       generation += 1;
       publish(CHANGE_SHEET_CLOSED);
     },

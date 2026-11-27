@@ -1,3 +1,4 @@
+import { PlanChangeIntentSchema } from "@enduragent/coach-contract";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -467,7 +468,10 @@ async function assertApplied(scenario: Scenario, pending: PlanChangeModel, befor
     source_kind: "plan-change",
     source_id: pending.changeId,
   });
-  const expected = expectedChange(scenario.seed.draft, pending.intent);
+  const expected = expectedChange(
+    scenario.seed.draft,
+    PlanChangeIntentSchema.parse(pending.intent),
+  );
   const revision = PlanCreationDraftSchema.parse(
     JSON.parse(String(after.revisions[1]?.snapshot_json)),
   );

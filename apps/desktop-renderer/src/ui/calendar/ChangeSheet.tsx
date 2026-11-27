@@ -295,7 +295,7 @@ export function ChangeSheet(props: {
       ) : null}
       <Choice choice={options.keep} primary disabled={busy} onChoose={props.onKeep} />
       <Choice choice={options.putBack} primary={false} disabled={busy} onChoose={props.onPutBack} />
-      <Button type="button" variant="ghost" onClick={props.onClose}>
+      <Button type="button" variant="ghost" disabled={busy} onClick={props.onClose}>
         {say("plan.calendar.change.close")}
       </Button>
     </aside>
