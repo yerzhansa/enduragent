@@ -3,7 +3,7 @@ import {
   applyIcuCopyEffect,
   icuCopyKeep,
   icuCopyOnRun,
-  icuFingerprintParts,
+  icuSightingKey,
   icuCopyPutBack,
   icuSighting,
   planWorkoutFingerprint,
@@ -34,10 +34,12 @@ export interface PlanCalendarChangeDeps extends PlanCalendarEditDeps {
 type ChangeRequest = { readonly planId: string; readonly planWorkoutId: string };
 type ChoiceRequest = ChangeRequest & { readonly basis: string };
 
-export function sightingBasis(sighting: IcuSighting): string {
-  return sighting.kind === "absent"
-    ? "absent"
-    : `${sighting.eventId}@${sighting.dateKey}:${sighting.version.fingerprint}`;
+export async function sightingBasis(sighting: IcuSighting): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(icuSightingKey(sighting)),
+  );
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function sendPlan(workout: PlanWorkoutRecord) {
@@ -144,16 +146,17 @@ export async function changeDetail(
   if (current === null) return UNAVAILABLE;
   const observed = icuCopyOnRun(found.card, sendPlan(found.workout), current.sighting).copy;
   if (observed.kind !== "changed-in-icu") {
+    await save(deps, request.planId, found, observed);
     void deps.changed();
     return { status: "change-resolved", outcome: "no-card" };
   }
-  if (sightingBasis(found.card.shown) !== sightingBasis(current.sighting)) {
+  if (icuSightingKey(found.card.shown) !== icuSightingKey(current.sighting)) {
     await save(deps, request.planId, found, observed);
   }
   const intervals = current.event === null ? null : intervalsVersion(current.event, found.workout);
   return {
     status: "change-detail",
-    basis: sightingBasis(current.sighting),
+    basis: await sightingBasis(current.sighting),
     planWorkoutId: found.workout.id,
     change:
       intervals === null
@@ -173,9 +176,10 @@ async function unseen(
   found: CardContext,
   sighting: IcuSighting,
 ): Promise<PlanCalendarRpcResult | null> {
-  if (sightingBasis(sighting) === request.basis) return null;
+  if ((await sightingBasis(sighting)) === request.basis) return null;
   const observed = icuCopyOnRun(found.card, sendPlan(found.workout), sighting).copy;
   if (observed.kind !== "changed-in-icu") {
+    await save(deps, request.planId, found, observed);
     void deps.changed();
     return { status: "change-resolved", outcome: "no-card" };
   }
@@ -247,12 +251,7 @@ export async function keepChange(
     return { status: "change-resolved", outcome: "kept" };
   }
   const version = intervalsVersion(current.event, found.workout);
-  const shownLength =
-    current.sighting.kind === "present"
-      ? icuFingerprintParts(current.sighting.version.fingerprint)?.durationS
-      : null;
-  const minutes =
-    shownLength === null || shownLength === undefined ? undefined : Math.round(shownLength / 60);
+  const minutes = version.durationS === null ? undefined : Math.round(version.durationS / 60);
   const unchanged =
     version.dateKey === found.workout.dateKey &&
     version.name === found.workout.name &&

@@ -1,3 +1,7 @@
+import {
+  PlanCalendarRpcParamsSchema,
+  PlanCalendarRpcResultSchema,
+} from "@enduragent/coach-contract";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import { createHash } from "node:crypto";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -694,6 +698,74 @@ describe("Plan calendar drain", () => {
         planWorkoutId,
       }),
     ).toEqual({ status: "change-resolved", outcome: "no-card" });
+    const read = await test.calendarOperations["plan.calendar"]({
+      action: "read",
+      startDateKey: test.today(),
+      endDateKey: addCivilDays(test.today(), 27),
+    });
+    if (read.status !== "calendar") throw new Error("Expected the calendar");
+    expect(read.plan?.workouts.find((workout) => workout.id === planWorkoutId)?.copy.kind).toBe(
+      "on-intervals",
+    );
+  });
+
+  it("keeps the length the sheet showed when the athlete adds steps and shortens the ride", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, {
+      description: "- 20m 60%\n- 10m 90%",
+      durationS: 1_800,
+    });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    expect(detail.intervals?.durationS).toBe(1_800);
+    expect(await choose(test, "keep-change", { planId, planWorkoutId }, detail.basis)).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId)?.durationS,
+    ).toBe(1_800);
+  });
+
+  it("opens and resolves a card whose intervals.icu description is very long", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { description: "Ride by feel. ".repeat(700) });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    expect(PlanCalendarRpcResultSchema.safeParse(detail).success).toBe(true);
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    const request = {
+      action: "put-back" as const,
+      planId,
+      planWorkoutId,
+      basis: detail.basis,
+    };
+    expect(PlanCalendarRpcParamsSchema.safeParse(request).success).toBe(true);
+    expect(await test.calendarOperations["plan.calendar"](request)).toEqual({
+      status: "change-resolved",
+      outcome: "put-back",
+    });
   });
 
   it("says refreshed when the athlete edits again between the read and the Put back write", async () => {

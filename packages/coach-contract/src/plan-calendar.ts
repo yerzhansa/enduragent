@@ -48,7 +48,7 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       action: z.enum(["keep-change", "put-back"]),
       planId: UlidSchema,
       planWorkoutId: UlidSchema,
-      basis: z.string().min(1).max(8_192),
+      basis: z.string().min(1).max(128),
     })
     .strict(),
 ]);
@@ -207,7 +207,7 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
     .object({
       status: z.literal("change-detail"),
       planWorkoutId: UlidSchema,
-      basis: z.string().min(1).max(8_192),
+      basis: z.string().min(1).max(128),
       change: z.enum(["edited", "moved", "deleted"]),
       plan: PlanCalendarWorkoutVersionSchema,
       intervals: PlanCalendarWorkoutVersionSchema.nullable(),
