@@ -171,6 +171,47 @@ describe("the Plan details controller", () => {
     expect(test.ended).toHaveBeenCalledOnce();
   });
 
+  it("keeps an unconfirmed End across Cancel and reopening, and counts a Plan that is gone as ended", async () => {
+    const test = harness({
+      close: [new Error("reply lost"), { status: "rejected", reason: "no-active-plan" }],
+      save: [{ status: "end-choice-saved" }, { status: "refused", reason: "no-active-plan" }],
+    });
+    await test.controller.open(PLAN);
+    test.controller.startEnd();
+    test.controller.setRemoveChanges(true);
+    await test.controller.confirmEnd();
+    test.controller.cancelEnd();
+    test.controller.close();
+    await test.controller.open(PLAN);
+    test.controller.startEnd();
+    expect(test.last()).toMatchObject({
+      end: {
+        kind: "failed",
+        reason: "unconfirmed",
+        removeChanges: true,
+        commandId: "end-command-1",
+      },
+    });
+    test.controller.setRemoveChanges(false);
+    await test.controller.confirmEnd();
+    expect(test.closePlan.mock.calls.map(([request]) => request.commandId)).toEqual([
+      "end-command-1",
+      "end-command-1",
+    ]);
+    expect(test.last()).toEqual({ kind: "closed" });
+    expect(test.ended).toHaveBeenCalledOnce();
+  });
+
+  it("starts a fresh End once the last one was answered", async () => {
+    const test = harness({ close: [{ status: "rejected", reason: "stale-version" }] });
+    await test.controller.open(PLAN);
+    test.controller.startEnd();
+    await test.controller.confirmEnd();
+    test.controller.cancelEnd();
+    test.controller.startEnd();
+    expect(test.last()).toMatchObject({ end: { kind: "idle", commandId: "end-command-2" } });
+  });
+
   it("does not close when the choice could not be saved for another reason", async () => {
     const test = harness({ save: [{ status: "refused", reason: "plan-change-refused" }] });
     await test.controller.open(PLAN);

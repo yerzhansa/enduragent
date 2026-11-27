@@ -47,7 +47,14 @@ export interface DetailsController {
 type EndOutcome = "closed" | "changed" | "unconfirmed";
 
 function closeOutcome(result: PlanCloseResult): EndOutcome {
-  return result.status === "closed" ? "closed" : "changed";
+  if (result.status === "closed") return "closed";
+  return result.reason === "no-active-plan" ? "closed" : "changed";
+}
+
+interface PendingEnd {
+  readonly planId: string;
+  readonly commandId: string;
+  readonly removeChanges: boolean;
 }
 
 export function createDetailsController(deps: {
@@ -72,6 +79,7 @@ export function createDetailsController(deps: {
 }): DetailsController {
   let state: DetailsSheetState = DETAILS_SHEET_CLOSED;
   let generation = 0;
+  let pending: PendingEnd | null = null;
   const publish = (next: DetailsSheetState): void => {
     state = next;
     deps.publish(next);
@@ -133,6 +141,15 @@ export function createDetailsController(deps: {
     },
     startEnd() {
       if (state.kind !== "open" || state.end !== null) return;
+      if (pending !== null && pending.planId === state.details.planId) {
+        withEnd({
+          kind: "failed",
+          reason: "unconfirmed",
+          removeChanges: pending.removeChanges,
+          commandId: pending.commandId,
+        });
+        return;
+      }
       withEnd({ kind: "idle", removeChanges: false, commandId: deps.newCommandId() });
     },
     setRemoveChanges(removeChanges) {
@@ -149,6 +166,8 @@ export function createDetailsController(deps: {
       const { removeChanges, commandId } = state.end;
       withEnd({ kind: "ending", removeChanges, commandId });
       const outcome = await end(details, commandId, removeChanges);
+      pending =
+        outcome === "unconfirmed" ? { planId: details.planId, commandId, removeChanges } : null;
       if (outcome === "closed") {
         publish(DETAILS_SHEET_CLOSED);
         deps.ended();
