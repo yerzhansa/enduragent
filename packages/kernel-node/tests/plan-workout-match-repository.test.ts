@@ -134,6 +134,81 @@ describe("Plan WorkoutMatch repository", () => {
     );
   });
 
+  it("never adds a second confirmed match, or a suggestion, for a workout or ride already confirmed", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    await createPlanRepository(store).replace(plan, [workout, second]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const otherRide = "b".repeat(64);
+    const confirmedAt = { decidedAtMs: 10 };
+    await repository.observe(
+      suggestion({ decision: "confirmed", decidedAtMs: confirmedAt.decidedAtMs }),
+    );
+    await expect(
+      repository.observe(suggestion({ id: `${"0".repeat(25)}6`, activityId: otherRide })),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(suggestion({ id: `${"0".repeat(25)}7`, planWorkoutId: second.id })),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(
+        suggestion({
+          id: `${"0".repeat(25)}8`,
+          planWorkoutId: second.id,
+          source: "platform",
+          providerEventId: 77,
+          decision: "confirmed",
+          decidedAtMs: 10,
+        }),
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(
+        suggestion({ id: `${"0".repeat(25)}9`, planWorkoutId: second.id, activityId: otherRide }),
+      ),
+    ).resolves.toMatchObject({ decision: "suggested" });
+    expect((await repository.readForPlan(PLAN_ID)).map((row) => row.id)).toEqual([
+      MATCH_ID,
+      `${"0".repeat(25)}9`,
+    ]);
+  });
+
+  it("refuses to confirm a ride for a workout another ride has, or a second workout for a ride", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    await createPlanRepository(store).replace(plan, [workout, second]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const otherRide = "b".repeat(64);
+    const otherRideMatch = `${"0".repeat(25)}6`;
+    const secondWorkoutMatch = `${"0".repeat(25)}7`;
+    await repository.observe(suggestion());
+    await repository.observe(suggestion({ id: otherRideMatch, activityId: otherRide }));
+    await repository.observe(suggestion({ id: secondWorkoutMatch, planWorkoutId: second.id }));
+    const decide = (id: string, decision: "confirmed" | "rejected", at: number) =>
+      repository.decide({
+        id,
+        decision,
+        decidedAtMs: at,
+        deviceId: "device-1",
+        hlcPhysicalMs: at,
+        hlcCounter: 0,
+      });
+    await decide(MATCH_ID, "confirmed", 11);
+    await expect(decide(otherRideMatch, "confirmed", 12)).rejects.toEqual(
+      new PlanWorkoutMatchValidationError("already-confirmed"),
+    );
+    await expect(decide(secondWorkoutMatch, "confirmed", 12)).rejects.toEqual(
+      new PlanWorkoutMatchValidationError("already-confirmed"),
+    );
+    expect((await repository.readForPlan(PLAN_ID)).map((row) => [row.id, row.decision])).toEqual([
+      [MATCH_ID, "confirmed"],
+      [otherRideMatch, "suggested"],
+      [secondWorkoutMatch, "suggested"],
+    ]);
+    await decide(MATCH_ID, "rejected", 13);
+    await expect(decide(otherRideMatch, "confirmed", 14)).resolves.toMatchObject({
+      decision: "confirmed",
+    });
+  });
+
   it("reads canonical activities and reports stale Intervals sync honestly", async () => {
     const repository = createPlanWorkoutMatchRepository(store);
     await store.run(

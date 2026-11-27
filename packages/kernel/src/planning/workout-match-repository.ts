@@ -42,7 +42,7 @@ export interface PlanWorkoutMatchSyncStatus {
 }
 
 export interface PlanWorkoutMatchRepository {
-  observe(record: PlanWorkoutMatchRecord): Promise<PlanWorkoutMatchRecord>;
+  observe(record: PlanWorkoutMatchRecord): Promise<PlanWorkoutMatchRecord | null>;
   readForPlan(planId: string): Promise<readonly PlanWorkoutMatchRecord[]>;
   readForWorkout(planWorkoutId: string): Promise<readonly PlanWorkoutMatchRecord[]>;
   decide(input: {
@@ -62,7 +62,7 @@ export interface PlanWorkoutMatchRepository {
 }
 
 export class PlanWorkoutMatchValidationError extends Error {
-  readonly code: "invalid-match" | "missing-match" | "invalid-transition";
+  readonly code: "invalid-match" | "missing-match" | "invalid-transition" | "already-confirmed";
 
   constructor(code: PlanWorkoutMatchValidationError["code"]) {
     super(`plan workout match rejected: ${code}`);
@@ -199,7 +199,13 @@ export function createPlanWorkoutMatchRepository(store: SqlStore): PlanWorkoutMa
       validate(record);
       await store.run(
         `INSERT INTO plan_workout_match (${COLUMNS})
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+WHERE NOT EXISTS (
+  SELECT 1 FROM plan_workout_match other
+  WHERE other.plan_id=? AND other.decision='confirmed'
+    AND NOT (other.plan_workout_id=? AND other.activity_id=?)
+    AND (other.plan_workout_id=? OR other.activity_id=?)
+)
 ON CONFLICT (plan_workout_id, activity_id) DO UPDATE SET
   provider_activity_id=excluded.provider_activity_id,
   provider_event_id=excluded.provider_event_id,
@@ -231,14 +237,18 @@ WHERE plan_workout_match.decision='suggested'`,
           record.deviceId,
           record.hlcPhysicalMs,
           record.hlcCounter,
+          record.planId,
+          record.planWorkoutId,
+          record.activityId,
+          record.planWorkoutId,
+          record.activityId,
         ],
       );
       const stored = await store.get(
         `SELECT ${COLUMNS} FROM plan_workout_match WHERE plan_workout_id=? AND activity_id=?`,
         [record.planWorkoutId, record.activityId],
       );
-      if (stored === undefined) throw new PlanWorkoutMatchValidationError("missing-match");
-      return fromRow(stored);
+      return stored === undefined ? null : fromRow(stored);
     },
     async readForPlan(planId) {
       if (!ULID.test(planId)) throw new PlanWorkoutMatchValidationError("invalid-match");
@@ -292,7 +302,13 @@ WHERE plan_workout_match.decision='suggested'`,
       if (!allowed) throw new PlanWorkoutMatchValidationError("invalid-transition");
       await store.run(
         `UPDATE plan_workout_match SET decision=?, decided_at_ms=?, device_id=?,
-hlc_physical_ms=?, hlc_counter=? WHERE id=?`,
+hlc_physical_ms=?, hlc_counter=? WHERE id=? AND (? <> 'confirmed' OR NOT EXISTS (
+  SELECT 1 FROM plan_workout_match other
+  WHERE other.plan_id=plan_workout_match.plan_id AND other.decision='confirmed'
+    AND other.id<>plan_workout_match.id
+    AND (other.plan_workout_id=plan_workout_match.plan_workout_id
+      OR other.activity_id=plan_workout_match.activity_id)
+))`,
         [
           input.decision,
           input.decidedAtMs,
@@ -300,10 +316,14 @@ hlc_physical_ms=?, hlc_counter=? WHERE id=?`,
           input.hlcPhysicalMs,
           input.hlcCounter,
           input.id,
+          input.decision,
         ],
       );
       const stored = await readById(input.id);
       if (stored === undefined) throw new PlanWorkoutMatchValidationError("missing-match");
+      if (stored.decision !== input.decision) {
+        throw new PlanWorkoutMatchValidationError("already-confirmed");
+      }
       return stored;
     },
     async listActivities(startDateKey, endDateKey) {

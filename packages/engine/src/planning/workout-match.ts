@@ -95,8 +95,8 @@ function qualified(workout: PlanWorkoutRecord, activity: PlanActivityObservation
   ) {
     return false;
   }
-  const difference = durationDifference(workout, activity);
-  return difference === null || difference <= differenceLimit(workout.durationS!);
+  if (workout.durationS === null || activity.durationS === null) return true;
+  return Math.abs(workout.durationS - activity.durationS) <= differenceLimit(workout.durationS);
 }
 
 export async function refreshPlanWorkoutMatches(input: {
@@ -157,7 +157,7 @@ export async function refreshPlanWorkoutMatches(input: {
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     });
-    if (match.decision === "confirmed") {
+    if (match?.decision === "confirmed") {
       usedWorkoutIds.add(match.planWorkoutId);
       usedActivityIds.add(match.activityId);
     }
@@ -208,7 +208,7 @@ export async function refreshPlanWorkoutMatches(input: {
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     });
-    if (match.decision !== "rejected" && match.decision !== "unpaired") {
+    if (match !== null && match.decision !== "rejected" && match.decision !== "unpaired") {
       usedWorkoutIds.add(candidate.workout.id);
       usedActivityIds.add(candidate.activity.activityId);
     }
