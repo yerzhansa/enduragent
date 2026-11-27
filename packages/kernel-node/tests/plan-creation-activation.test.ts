@@ -361,6 +361,28 @@ describe("Plan Creation activation repository", () => {
     ).toEqual([]);
   });
 
+  it("leaves a released hold aimed at the Plan it was released for when that Plan is replaced", async () => {
+    await review();
+    await repository.activate(activationInput());
+    await review("2");
+    await repository.activate(activationInput("2", { planId: id("11"), version: 1 }));
+    await createPlanCleanupHoldRepository(store).release(id("12"), {
+      closedOnDateKey: 19980101,
+      nowMs: nowMs + 25,
+      newId: () => id("62"),
+    });
+    await review("3");
+    await repository.activate(activationInput("3", { planId: id("12"), version: 1 }));
+    expect(
+      await store.all(
+        "SELECT plan_id,replacement_plan_id,released_at_ms FROM plan_cleanup_hold ORDER BY plan_id",
+      ),
+    ).toEqual([
+      { plan_id: id("11"), replacement_plan_id: id("12"), released_at_ms: nowMs + 25 },
+      { plan_id: id("12"), replacement_plan_id: id("13"), released_at_ms: null },
+    ]);
+  });
+
   it.each(["missing", "stale", "version", "empty", "fingerprint"])(
     "rejects %s Draft admission without changing any stored row",
     async (kind) => {

@@ -640,6 +640,57 @@ describe("planning-domain SQLite export round-trip", () => {
     }
   });
 
+  it("restores the hold on a replaced Plan's cleanup", async () => {
+    const source = openSqliteStorage(":memory:");
+    const destination = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(source, MIGRATIONS);
+      await runMigrations(destination, MIGRATIONS);
+      await populatePlanningDomain(source);
+      await source.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = (SELECT MIN(created_at_ms) FROM plan_creation) WHERE singleton = 1",
+      );
+      const replacedPlanId = id(41);
+      await source.run(
+        `INSERT INTO plan (
+          id, origin_id, name, primary_goal, start_date_key, target_date_key, status, kind,
+          total_weeks, week_start_day, structure_json, created_at_ms, updated_at_ms,
+          device_id, hlc_physical_ms, hlc_counter
+        ) VALUES (?, NULL, 'Synthetic replaced Plan', 'Ride steady', 19980810, 19980920, 'ended',
+          'full_plan', 6, 1, '{"schemaVersion":1}', ?, ?, ?, ?, 0)`,
+        [replacedPlanId, BASE_MS, BASE_MS + 1, DEVICE_ID, BASE_MS + 1],
+      );
+      await source.run(
+        `INSERT INTO plan_cleanup_hold (plan_id,replacement_plan_id,held_at_ms,released_at_ms,updated_at_ms)
+        VALUES (?, ?, ?, NULL, ?)`,
+        [replacedPlanId, PLAN_ID, BASE_MS + 4, BASE_MS + 4],
+      );
+      const sourceDump = await dumpStore(source);
+      const built = await buildExport(
+        { source: sqliteExportSource(source), manifest: emptyManifest, ...webCryptoExportEnv },
+        {},
+      );
+      expect(built.tables.find((entry) => entry.table === "plan_cleanup_hold")?.count).toBe(1);
+      await importExport(
+        {
+          sink: createSqliteImportSink(destination),
+          presence: completePresence,
+          targetUserVersion: 36,
+          ...webCryptoExportEnv,
+        },
+        { container: built.container },
+      );
+      expect(await destination.all("SELECT * FROM plan_cleanup_hold")).toEqual(
+        await source.all("SELECT * FROM plan_cleanup_hold"),
+      );
+      expect(await dumpStore(destination)).toBe(sourceDump);
+      expect(await destination.all("PRAGMA foreign_key_check")).toEqual([]);
+    } finally {
+      await source.close();
+      await destination.close();
+    }
+  });
+
   it("rejects a current replacement archive when its cleanup parent is missing", async () => {
     const source = openSqliteStorage(":memory:");
     const destination = openSqliteStorage(":memory:");

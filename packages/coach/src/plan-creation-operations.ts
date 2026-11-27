@@ -1,6 +1,7 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
 import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
+import { closedPlanCalendar } from "./plan-calendar-status.js";
 import { z } from "zod";
 import {
   PlanCloseRpcParamsSchema,
@@ -481,11 +482,10 @@ export function createPlanCreationOperations(input: {
                 ...detail,
                 plan: {
                   ...summarizePlan(detail.plan),
-                  calendar: summarizeCalendar(
-                    await createPlanReconciliationRepository(
-                      transactionStore,
-                    ).readLatestJobByWindow(detail.plan.planId, "cleanup"),
-                  ),
+                  calendar: await closedPlanCalendar(transactionStore, {
+                    planId: detail.plan.planId,
+                    connected: calendarConnected(),
+                  }),
                 },
               },
         );

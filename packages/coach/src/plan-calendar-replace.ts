@@ -87,14 +87,15 @@ export async function releaseReplacedPlans(
           ticked.length === 0 ? { kind: "keep-them" } : { kind: "remove-them", ticked },
       },
     );
-    if (ending.kind !== "closed") continue;
-    closedOnDateKey = ending.closedOnDateKey;
-    await saveCloseChoice(store, {
-      planId: hold.planId,
-      choice: ending.athleteChanges,
-      todayDateKey: input.todayDateKey,
-      nowMs: input.nowMs,
-    });
+    if (ending.kind === "closed") {
+      closedOnDateKey = ending.closedOnDateKey;
+      await saveCloseChoice(store, {
+        planId: hold.planId,
+        choice: ending.athleteChanges,
+        todayDateKey: input.todayDateKey,
+        nowMs: input.nowMs,
+      });
+    }
   }
   await holds.release(input.planId, {
     closedOnDateKey,
@@ -152,18 +153,21 @@ export async function readReplacing(
           : job.status === "pending"
             ? "pending"
             : "running";
-    const ending = await planEndingView(
-      store,
-      hold.planId,
-      job === undefined ? input.todayDateKey : job.windowStartDateKey - 1,
-    );
+    const closedOnDateKey =
+      job === undefined ? input.todayDateKey : addCivilDays(job.windowStartDateKey, -1);
+    const ending = await planEndingView(store, hold.planId, closedOnDateKey);
+    const today =
+      closedOnDateKey === input.todayDateKey
+        ? ending
+        : await planEndingView(store, hold.planId, input.todayDateKey);
     const delivery = job === undefined ? undefined : await mirror.readDelivery(hold.planId);
     const choice: AthleteChangesChoice =
       delivery === undefined ? { kind: "keep-them" } : decodeCloseChoice(delivery.closeChoiceJson);
     const going = chosen(ending.athleteChanges, choice);
     states.push(state);
     removes.push(...ending.removes, ...going.map(removed));
-    staysToday.push(...ending.staysToday);
+    const off = new Set([...ending.removes, ...going].map((entry) => entry.planWorkoutId));
+    staysToday.push(...today.staysToday.filter((entry) => !off.has(entry.planWorkoutId)));
     athleteChanges.push(...ending.athleteChanges.filter((change) => !going.includes(change)));
     const name = (await plans.read(hold.planId))?.name ?? "";
     if (planName === null || ending.removes.length + ending.athleteChanges.length > 0) {

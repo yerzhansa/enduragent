@@ -295,6 +295,87 @@ describe("Plan lifecycle repository", () => {
     expect(await dumpStore(store)).toBe(before);
   });
 
+  it("releases the held cleanup of the Plan it replaced when the waiting Plan is ended", async () => {
+    await activate();
+    await review("2");
+    await repository.activate({
+      ...activationInput("2"),
+      incumbent: { planId: id("11"), version: 1 },
+    });
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      JSON.stringify({ kind: "remove-them", ticked: [], commandId: "another-end" }),
+      id("11"),
+    ]);
+    expect(
+      await store.all("SELECT plan_id FROM plan_reconciliation_job WHERE kind='cleanup'"),
+    ).toEqual([]);
+    await expect(
+      lifecycle.close({
+        command: stamp("close-2", 60),
+        planId: id("12"),
+        expectedVersion: 1,
+        closedAtMs: nowMs + 60,
+        todayDateKey: 19980103,
+        cleanupJobId: id("92"),
+      }),
+    ).resolves.toMatchObject({ status: "closed", cleanupJobId: id("92") });
+    expect(
+      await store.all(
+        `SELECT plan_id,window_start_date_key,window_end_date_key,status FROM plan_reconciliation_job
+        WHERE kind='cleanup' ORDER BY plan_id`,
+      ),
+    ).toEqual([
+      {
+        plan_id: id("11"),
+        window_start_date_key: 19980104,
+        window_end_date_key: 19980114,
+        status: "pending",
+      },
+      {
+        plan_id: id("12"),
+        window_start_date_key: 19980104,
+        window_end_date_key: 19980114,
+        status: "pending",
+      },
+    ]);
+    expect(
+      await store.get("SELECT released_at_ms FROM plan_cleanup_hold WHERE plan_id=?", [id("11")]),
+    ).toEqual({ released_at_ms: nowMs + 60 });
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+      "a choice saved for another End command does not carry over",
+    ).toEqual({ close_choice_json: '{"kind":"keep-them"}' });
+  });
+
+  it("keeps the replaced Plan's choice when the waiting Plan's End is the command it was saved for", async () => {
+    await activate();
+    await review("2");
+    await repository.activate({
+      ...activationInput("2"),
+      incumbent: { planId: id("11"), version: 1 },
+    });
+    const choice = JSON.stringify({ kind: "remove-them", ticked: [], commandId: "close-2" });
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      choice,
+      id("11"),
+    ]);
+    await lifecycle.close({
+      command: stamp("close-2", 60),
+      planId: id("12"),
+      expectedVersion: 1,
+      closedAtMs: nowMs + 60,
+      todayDateKey: 19980103,
+      cleanupJobId: id("92"),
+    });
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+    ).toEqual({ close_choice_json: choice });
+  });
+
   it("bounds cleanup after the final Plan day", async () => {
     await activate();
     await lifecycle.close({ ...closeInput(), todayDateKey: 19980201 });

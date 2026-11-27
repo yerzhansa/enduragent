@@ -1,6 +1,9 @@
 import type { PlanCalendarStatus } from "@enduragent/coach-contract";
-import type { PlanReconciliationJobRecord } from "@enduragent/kernel/planning";
-import type { SqlStore } from "@enduragent/kernel/store";
+import {
+  createPlanReconciliationRepository,
+  type PlanReconciliationJobRecord,
+} from "@enduragent/kernel/planning";
+import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 
 export function dateText(dateKey: number): string {
   const digits = String(dateKey).padStart(8, "0");
@@ -60,4 +63,18 @@ export function planCalendarStatus(input: {
   }
   const status = jobStatus(input.job, input.connected);
   return input.waitingForApprove ? { ...status, waitingForApprove: true } : status;
+}
+
+export async function closedPlanCalendar(
+  store: SqlStore & Pick<MigratorStore, "transaction">,
+  input: { readonly planId: string; readonly connected: boolean },
+): Promise<PlanCalendarStatus> {
+  return planCalendarStatus({
+    job: await createPlanReconciliationRepository(store).readLatestJobByWindow(
+      input.planId,
+      "cleanup",
+    ),
+    connected: input.connected,
+    waitingForApprove: (await plansWaitingForApprove(store)).has(input.planId),
+  });
 }

@@ -94,7 +94,7 @@ WHERE plan_id=? AND released_at_ms IS NULL`,
     async hold({ planId, replacementPlanId, nowMs }) {
       await store.run(
         `UPDATE plan_cleanup_hold SET replacement_plan_id=?,updated_at_ms=MAX(updated_at_ms,?)
-WHERE replacement_plan_id=?`,
+WHERE replacement_plan_id=? AND released_at_ms IS NULL`,
         [replacementPlanId, nowMs, planId],
       );
       await store.run(

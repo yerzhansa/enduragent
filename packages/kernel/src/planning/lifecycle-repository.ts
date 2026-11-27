@@ -150,6 +150,13 @@ export function createPlanLifecycleRepository(
         input.updatedAtMs,
       ],
     );
+    await store.run(
+      `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',updated_at_ms=?
+      WHERE plan_id IN (SELECT plan_id FROM plan_cleanup_hold
+        WHERE replacement_plan_id=? AND released_at_ms IS NULL)
+      AND (? IS NULL OR json_extract(close_choice_json,'$.commandId') IS NOT ?)`,
+      [input.updatedAtMs, input.planId, input.endCommandId, input.endCommandId],
+    );
     await createPlanCleanupHoldRepository(store).release(input.planId, {
       closedOnDateKey: input.todayDateKey,
       nowMs: input.updatedAtMs,
