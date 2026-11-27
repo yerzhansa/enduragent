@@ -709,7 +709,6 @@
     "apps/desktop-renderer/src/ui/chat/PlanChangeCards.tsx": 3,
     "apps/desktop-renderer/src/ui/chat/PlanCreationQuestionCard.tsx": 2,
     "apps/desktop-renderer/src/ui/chat/use-chat-date.ts": 1,
-    "apps/desktop-renderer/src/ui/onboarding/AiRow.tsx": 1,
     "apps/desktop-renderer/src/ui/plan/PlanView.tsx": 6,
     "apps/desktop-renderer/src/ui/training/RideResponseReview.tsx": 2,
     "apps/desktop/scripts/build-self-test-resources.ts": 2,

@@ -11,6 +11,7 @@ import type {
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
+import { SELECT_LIST_FIT_CLASS } from "../select-list";
 import { COACH_SAVE_ERROR_COPY, COACH_VALIDATION_COPY, providerLabelMessage } from "./copy";
 import { settingsStyles as styles } from "./styles";
 
@@ -220,7 +221,7 @@ export function CoachSection(): ReactElement {
                 >
                   <SelectValue placeholder={say("settings.coach.chooseProviderFirst")} />
                 </SelectTrigger>
-                <SelectContent align="end">
+                <SelectContent align="end" className={SELECT_LIST_FIT_CLASS}>
                   {draft === null ? null : (
                     <>
                       {draft.provider.models.map((entry) => (

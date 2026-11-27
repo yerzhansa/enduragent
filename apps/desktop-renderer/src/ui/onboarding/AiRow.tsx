@@ -35,6 +35,7 @@ import {
 } from "../../onboarding/lanes";
 import { llmSelectionFromDraft, type LlmSelectionDraft } from "../../onboarding/selection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
+import { SELECT_LIST_FIT_CLASS } from "../select-list";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -139,12 +140,14 @@ export function AiRow(props: {
     parsedDraft.error === null &&
     configuration?.active?.provider === parsedDraft.selection.provider &&
     configuration.active.model === parsedDraft.selection.model;
-  const activeProviderOutsideCatalogue =
+  const activeOutsideCatalogue =
     configuration?.active !== null &&
     configuration?.active !== undefined &&
-    !configuration.providers.some((entry) => entry.provider === configuration.active?.provider);
+    !configuration.providers.some((entry) => entry.provider === configuration.active?.provider)
+      ? configuration.active
+      : null;
   const showsActiveProviderOutsideCatalogue =
-    surface.readiness.provider && activeProviderOutsideCatalogue && picked === null;
+    surface.readiness.provider && activeOutsideCatalogue !== null && picked === null;
   const idleProviderReady =
     idleProvider !== null &&
     ((surface.readiness.provider && configuration?.active?.provider === idleProvider) ||
@@ -258,7 +261,7 @@ export function AiRow(props: {
     ? { title: msg("setup.ai.title"), subtitle: SETUP_ROW_CHECKING_SUBTITLE }
     : showsActiveProviderOutsideCatalogue
       ? {
-          title: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[configuration.active!.provider]),
+          title: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[activeOutsideCatalogue.provider]),
           subtitle: msg("setup.ai.connected"),
         }
       : aiRowMessageCopy(
@@ -643,7 +646,7 @@ export function AiRow(props: {
                       <SelectTrigger id="onboarding-llm-model" className={SETUP_SELECT_CLASS}>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent align="start">
+                      <SelectContent align="start" className={SELECT_LIST_FIT_CLASS}>
                         {draft.provider.models.map((model) => (
                           <SelectItem key={model.value} value={model.value}>
                             {model.hint === undefined
