@@ -53,23 +53,20 @@ describe("activity review repository", () => {
       replies: 0,
       note: null,
     });
+    const attempt = {
+      for: { kind: "no-workout" },
+      trigger: "asked",
+      usedPlan: false,
+      usedNote: true,
+      startedAtMs: AT,
+    } as const;
     const writing: ActivityReviewRecord = {
       ...kept,
-      verdict: {
-        state: "writing",
-        for: { kind: "no-workout" },
-        trigger: "asked",
-        usedPlan: false,
-        usedNote: true,
-        startedAtMs: AT,
-      },
+      verdict: { state: "writing", ...attempt },
       replies: 2,
     };
-    for (const record of [
-      kept,
-      writing,
-      { ...writing, verdict: { ...writing.verdict, state: "failed" as const } },
-    ]) {
+    const failed: ActivityReviewRecord = { ...writing, verdict: { state: "failed", ...attempt } };
+    for (const record of [kept, writing, failed]) {
       await reviews.save(record, AT + 10_000);
       expect(await reviews.read(ACTIVITY)).toEqual(record);
     }

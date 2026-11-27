@@ -12,6 +12,7 @@ export interface ReviewText extends CalendarText {
   bpm(value: number): string;
   exertion(value: number | null): string;
   load(value: number): string;
+  clock(ms: number): string;
 }
 
 export function useReviewText(): ReviewText {
@@ -85,5 +86,6 @@ export function useReviewText(): ReviewText {
             value: format.number(value, { maximumFractionDigits: 1 }),
           }),
     load: (value) => format.number(value, { maximumFractionDigits: 0 }),
+    clock: (ms) => format.date(new Date(ms), { hour: "numeric", minute: "2-digit" }),
   };
 }

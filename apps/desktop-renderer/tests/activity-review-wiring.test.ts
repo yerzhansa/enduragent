@@ -30,7 +30,10 @@ function started() {
     onConnectionOpen: () => () => undefined,
     close: async () => undefined,
   });
-  const actions = () => call.mock.calls.map(([method, params]) => `${method}:${params.action}`);
+  const actions = () =>
+    call.mock.calls.flatMap(([method, params]) =>
+      params.action === "read-review" ? [] : [`${method}:${params.action}`],
+    );
   const calendarReads = () =>
     call.mock.calls.flatMap(([, params]) => (params.action === "read" ? [params] : []));
   return { dispose, actions, calendarReads };

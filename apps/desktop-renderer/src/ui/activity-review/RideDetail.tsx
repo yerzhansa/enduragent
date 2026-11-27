@@ -3,9 +3,12 @@ import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import type { ReactElement } from "react";
 import type { ReviewChoices, ReviewSaving } from "../../activity-review/controller";
+import type { RideReviewState } from "../../activity-review/review-controller";
 import { rideOutcome, type ActivityReviewRead } from "../../activity-review/rides";
 import type { ActivityReviewActions } from "../../state/activity-review-slice";
+import { CoachVerdict } from "./CoachVerdict";
 import { useReviewText } from "./review-text";
+import { RideNote } from "./RideNote";
 
 interface ChoiceProps {
   readonly ride: PlanCalendarRide;
@@ -296,6 +299,7 @@ export function RideDetail(props: {
   readonly ride: PlanCalendarRide;
   readonly choices: ReviewChoices;
   readonly saving: ReviewSaving;
+  readonly review: RideReviewState;
   readonly actions: ActivityReviewActions | null;
 }): ReactElement {
   const text = useReviewText();
@@ -309,7 +313,9 @@ export function RideDetail(props: {
         <h2 className="m-0 text-xl font-semibold">{text.rideName(props.ride)}</h2>
       </header>
       <MatchSection {...props} />
+      <CoachVerdict state={props.review} actions={props.actions} />
       <Stats ride={props.ride} />
+      <RideNote state={props.review} actions={props.actions} />
     </article>
   );
 }
