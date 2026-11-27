@@ -349,6 +349,7 @@ describe("Plan Intervals calendar adapter", () => {
       calendarConnected: () => true,
       dateKeyOfMs: () => today,
       changed: () => undefined,
+      settled: async () => undefined,
     })["plan.calendar"]({
       action: "approve-weeks",
       planId: plan.id,

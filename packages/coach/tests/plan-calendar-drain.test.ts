@@ -78,6 +78,7 @@ async function harness() {
     calendarConnected: () => connected,
     dateKeyOfMs: (ms) => Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
     changed,
+    settled: () => drain.idle(),
   });
   const approve = (planId: string, week?: number) =>
     calendarOperations["plan.calendar"]({
@@ -413,12 +414,12 @@ describe("Plan calendar drain", () => {
     expect(
       await test.store.get("SELECT count(*) AS n FROM plan_icu_copy WHERE last_write='failed'"),
     ).toEqual({ n: 1 });
-    test.changed.mockClear();
+    test.changed.mockReset();
+    test.changed.mockImplementation(() => void test.drain.kick());
     await expect(
       test.calendarOperations["plan.calendar"]({ action: "send-again" }),
     ).resolves.toEqual({ status: "sending" });
     expect(test.changed).toHaveBeenCalledOnce();
-    await test.drain.kick();
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
     expect(new Set(test.onIcu(planId)).size).toBe(test.onIcu(planId).length);
   });

@@ -32,6 +32,7 @@ import {
 import { createChatPlanOutboxRepository, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
 import { createPlanningRequestDeliveryService } from "../src/planning-request-delivery.js";
@@ -51,6 +52,25 @@ const unusedStore = () => {
 
 const id = (value: string) => `${"0".repeat(26 - value.length)}${value}`;
 const today = "1998-09-02";
+
+async function approveFirstWeeks(
+  store: Parameters<typeof createPlanCalendarOperations>[0]["store"],
+  planId: string | null,
+  on = today,
+): Promise<void> {
+  if (planId === null) throw new Error("Expected an active Plan");
+  const dateKey = Number(on.replaceAll("-", ""));
+  const result = await createPlanCalendarOperations({
+    store,
+    todayDateKey: () => dateKey,
+    now: () => 904_737_600_000,
+    calendarConnected: () => true,
+    dateKeyOfMs: () => dateKey,
+    changed: () => undefined,
+    settled: async () => undefined,
+  })["plan.calendar"]({ action: "approve-weeks", planId, scope: { kind: "first-weeks" } });
+  if (result.status !== "approved") throw new Error(`Approve refused: ${JSON.stringify(result)}`);
+}
 const eventCandidate = {
   candidateId: id("2"),
   name: "Tour",
@@ -1636,6 +1656,13 @@ describe("Plan Creation activation", () => {
   it("projects pending, running, failed and verified mirror work across connection changes", async () => {
     const test = await review();
     const activated = await test.host["plan_creation.activate"](test.request);
+    expect((await test.host["plan.list"]({})).active?.calendar).toEqual({
+      status: "waiting-for-approve",
+      window: null,
+      currentThrough: null,
+      error: null,
+    });
+    await approveFirstWeeks(test.store, activated.planId);
     const repository = createPlanReconciliationRepository(test.store);
     const job = await repository.readLatestJobByWindow(activated.planId, "mirror");
     if (job === undefined) throw new Error("Expected mirror job");
@@ -1712,6 +1739,7 @@ describe("Plan Creation activation", () => {
       const test = await review();
       test.setConnected(true);
       const activated = await test.host["plan_creation.activate"](test.request);
+      await approveFirstWeeks(test.store, activated.planId);
       if (kind === "cleanup") {
         await test.host["plan.close"]({
           commandId: "close-calendar",
@@ -1804,6 +1832,7 @@ describe("Plan Creation activation", () => {
     const test = await review();
     test.setConnected(true);
     const activated = await test.host["plan_creation.activate"](test.request);
+    await approveFirstWeeks(test.store, activated.planId);
     let sequence = 1000;
     const changes = createPlanChangeOperations({
       eventSources: { read: async () => [] },
@@ -1949,8 +1978,8 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
         activatedAt: "1998-01-01",
         creationId: test.request.creationId,
         calendar: {
-          status: "not-connected",
-          window: { start: "1998-01-02", end: "1998-01-18" },
+          status: "waiting-for-approve",
+          window: null,
           currentThrough: null,
           error: null,
         },

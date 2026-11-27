@@ -40,6 +40,7 @@ export interface ApproveControllerDeps {
     readonly scope: ApprovalScope;
   }): Promise<PlanCalendarRpcResult>;
   sendAgain(): Promise<PlanCalendarRpcResult>;
+  approved(): void;
   refresh(): void;
   later(run: () => void): () => void;
   publish(state: ApproveSheetState): void;
@@ -154,6 +155,7 @@ export function createApproveController(deps: ApproveControllerDeps): ApproveCon
         return;
       }
       poll(result.weeks, scope, 0);
+      deps.approved();
       deps.refresh();
     },
     notNow() {

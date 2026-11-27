@@ -199,7 +199,7 @@ import {
 import { createTrainingExportService } from "./training-export.js";
 import { createPlanningOperations } from "./planning-operations.js";
 import { createCyclingPlanDraftBuilder } from "./cycling-plan-draft-builder.js";
-import { createPlanCalendarOperations } from "./plan-calendar-operations.js";
+import { createPlanCalendarOperations, dateKeyOfMsIn } from "./plan-calendar-operations.js";
 import type { LocalCoachOperations } from "./composition-operations.js";
 import { createPlanMirrorCalendarAdapter } from "./planning-calendar.js";
 import { createNodePlanRaceCourseAdapter } from "./planning-race-course.js";
@@ -1998,12 +1998,12 @@ export async function createLocalCoachComposition(
       calendarConnected,
       todayDateKey: planningDateKey,
       now,
-      dateKeyOfMs: (ms: number) =>
-        Number(todayInTZ(planningTimezone, new Date(ms)).replaceAll("-", "")),
+      dateKeyOfMs: dateKeyOfMsIn(() => planningTimezone),
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
       changed: () => closing || void drain.kick(),
+      settled: () => drain.idle(),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
     const kickAfter =

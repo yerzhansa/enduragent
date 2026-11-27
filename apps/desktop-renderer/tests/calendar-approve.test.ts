@@ -127,9 +127,11 @@ function approveHarness(reply: PlanCalendarRpcResult | Error) {
     order.push("send-again");
     return { status: "sending" };
   });
+  const approved = vi.fn();
   const controller = createApproveController({
     approve,
     sendAgain,
+    approved,
     refresh,
     later: (run) => {
       later.push(run);
@@ -145,6 +147,7 @@ function approveHarness(reply: PlanCalendarRpcResult | Error) {
     order,
     refresh,
     approve,
+    approved,
     sendAgain,
     last: () => states.at(-1),
   };
@@ -162,6 +165,7 @@ describe("the Approve controller", () => {
     });
     expect(test.last()).toMatchObject({ kind: "sending", weeks: [1, 2] });
     expect(test.refresh).toHaveBeenCalledOnce();
+    expect(test.approved).toHaveBeenCalledOnce();
     test.controller.observe(sentRead("none"), "idle");
     expect(test.last()).toMatchObject({ kind: "sending", polls: 1 });
     test.later.at(-1)?.();
@@ -223,6 +227,7 @@ describe("the Approve controller", () => {
           answer = resolve;
         }),
       sendAgain: async () => ({ status: "sending" }),
+      approved: vi.fn(),
       refresh: vi.fn(),
       later: () => vi.fn(),
       publish: (state) => states.push(state),
@@ -272,6 +277,7 @@ describe("the Approve controller", () => {
     refused.controller.observe(waitingRead(), "idle");
     await refused.controller.approve();
     expect(refused.last()).toEqual({ kind: "refused", scope: { kind: "first-weeks" } });
+    expect(refused.approved).not.toHaveBeenCalled();
     const offline = approveHarness(new Error("offline"));
     offline.controller.observe(waitingRead(), "idle");
     await offline.controller.approve();

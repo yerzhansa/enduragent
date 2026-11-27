@@ -1,6 +1,6 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
-import { planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
+import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
 import { z } from "zod";
 import {
   PlanCloseRpcParamsSchema,
@@ -282,10 +282,6 @@ export function createPlanCreationOperations(input: {
     await checks.ready();
     const snapshot = await input.repository.readUnfinished();
     return snapshot === undefined ? null : project(snapshot);
-  };
-  const dateText = (dateKey: number): string => {
-    const digits = String(dateKey).padStart(8, "0");
-    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
   };
   const timestampDate = (value: number | null): string | null =>
     value === null ? null : new Date(value).toISOString().slice(0, 10);

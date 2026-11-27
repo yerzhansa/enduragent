@@ -529,6 +529,9 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
       now: () => this.instant,
       changed: () => void this.calendarDrain?.kick(),
+      settled: async () => {
+        await this.calendarDrain?.idle();
+      },
     });
   }
 

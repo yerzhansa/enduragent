@@ -33,6 +33,7 @@ export function startCalendar(
       }),
     sendAgain: async () =>
       (await clients.getClient()).call("plan.calendar", { action: "send-again" }),
+    approved: () => void store.getState().planLibraryActions?.refresh(),
     refresh: () => void controller.refresh(),
     later: (run) => {
       const timer = setTimeout(run, 1_500);
@@ -82,7 +83,9 @@ export function startCalendar(
       activated.calendar.status === "waiting-for-approve" &&
       state.activeView === "chat"
     ) {
-      state.setActiveView("calendar");
+      queueMicrotask(() => {
+        if (store.getState().activeView === "chat") store.getState().setActiveView("calendar");
+      });
     }
   });
   return () => {
