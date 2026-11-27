@@ -326,8 +326,8 @@ export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy
 
 export function icuCopyDeleted(copy: IcuCopy): IcuCopy {
   if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") return copy;
-  if (copy.kind === "moving-by-you") return { kind: "not-sent", owner: copy.baseline.owner };
-  return ICU_COPY_NOT_SENT;
+  if (copy.kind === "not-sent") return copy;
+  return { kind: "not-sent", owner: copy.baseline.owner };
 }
 
 export function icuCopyAllowsMove(copy: IcuCopy): boolean {
