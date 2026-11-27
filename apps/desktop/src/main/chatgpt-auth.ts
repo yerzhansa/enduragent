@@ -310,16 +310,18 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
         reason: classifyLoginFailure(error, attemptController.signal, options.signal),
       };
     }
-    try {
-      signal.throwIfAborted();
-      await storeProfile(options.configDir, credentials);
-    } catch {
-      if (signal.aborted) {
-        return { status: "refused", operationId, reason: "cancelled" };
+    return serializeCredentialMutation(async (): Promise<ChatGptLoginResult> => {
+      try {
+        signal.throwIfAborted();
+        await storeProfile(options.configDir, credentials);
+      } catch {
+        if (signal.aborted) {
+          return { status: "refused", operationId, reason: "cancelled" };
+        }
+        return { status: "refused", operationId, reason: "storage-failed" };
       }
-      return { status: "refused", operationId, reason: "storage-failed" };
-    }
-    return { status: "stored", operationId };
+      return { status: "stored", operationId };
+    });
   };
 
   return {
@@ -339,8 +341,8 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
         return { status: "refused", operationId, reason: "already-in-progress" };
       }
       const controller = new AbortController();
-      const pending = serializeCredentialMutation(() =>
-        Promise.resolve().then(() => performLogin(operationId, controller, onProgress)),
+      const pending = Promise.resolve().then(() =>
+        performLogin(operationId, controller, onProgress),
       );
       activeLogin = { operationId, controller, promise: pending };
       try {
