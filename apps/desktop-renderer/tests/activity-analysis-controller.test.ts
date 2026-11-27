@@ -93,6 +93,7 @@ function setup(call: CoachClient["call"]) {
   const clients: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
   const controller = createRideAnalysisController({

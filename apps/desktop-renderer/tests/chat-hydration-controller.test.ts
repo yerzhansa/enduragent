@@ -165,6 +165,7 @@ function subject(input: {
     clients: {
       getClient: vi.fn(async () => input.client),
       reconnect: vi.fn(async () => input.client),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     },
     view: {

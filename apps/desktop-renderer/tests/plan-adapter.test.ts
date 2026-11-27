@@ -2077,6 +2077,7 @@ describe("Plan library RPC adapters", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: async () => client,
       reconnect: async () => client,
+      onConnectionOpen: () => () => {},
       close: async () => undefined,
     };
     return { clients, call: vi.spyOn(client, "call") };

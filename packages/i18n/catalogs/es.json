@@ -878,7 +878,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Conexión interrumpida. Puede que la sincronización aún esté terminando. {{product}} no la reintentará automáticamente.",
+        "indeterminate": "Conexión interrumpida. {{product}} volverá a comprobar la sincronización cuando se restablezca la conexión.",
         "noChange": "Procesamiento local de los datos de entrenamiento completado.",
         "noChangeRestricted_one": "Procesamiento local de los datos de entrenamiento completado. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluye una actividad.",
         "noChangeRestricted_other": "Procesamiento local de los datos de entrenamiento completado. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluyen {{formattedCount}} actividades.",

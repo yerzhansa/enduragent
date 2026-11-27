@@ -874,7 +874,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "连接中断。同步可能仍在完成中。{{product}} 不会自动重试。",
+        "indeterminate": "连接中断。重新连接后，{{product}} 会再次检查同步。",
         "noChange": "本地训练数据处理已完成。",
         "noChangeRestricted_other": "本地训练数据处理已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "operationFailure": "无法完成训练数据检查。现有数据仍可使用。",

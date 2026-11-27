@@ -719,6 +719,7 @@ function subject(
   const provider: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => first),
     reconnect: vi.fn(async () => reconnected),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
   const controller = createChatController({
@@ -1535,6 +1536,7 @@ describe("chat controller", () => {
     const provider: DesktopCoachClientProvider = {
       getClient: vi.fn(async () => fake),
       reconnect: vi.fn(async () => fake),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     let latestState = EMPTY_CHAT_STATE;

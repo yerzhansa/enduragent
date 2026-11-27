@@ -13,7 +13,7 @@ export const SYNC_PARTIAL_COPY =
 export const SYNC_OPERATION_FAILURE_COPY =
   "We couldn’t complete the training-data check. Your existing data is still available.";
 export const SYNC_INDETERMINATE_COPY =
-  "Connection interrupted. The sync may still be finishing. Enduragent won’t retry it automatically.";
+  "Connection interrupted. Enduragent will check the sync again when it reconnects.";
 export const SYNC_PROTOCOL_COPY =
   "Enduragent couldn’t verify the sync result. Quit and reopen Enduragent.";
 
@@ -173,24 +173,23 @@ export function createManualSyncController(input: {
       const selectedOperation =
         selectedState.status === "idle" ? undefined : selectedState.operation;
       activationTask = task;
-      void task
-        .then(() => {
-          const currentState = input.coordinator.getState();
-          const currentOperation =
-            currentState.status === "idle" ? undefined : currentState.operation;
-          if (
-            !disposed &&
-            selectedActivation === activation &&
-            selectedOperation === currentOperation &&
-            kind === "keyboard"
-          ) {
-            input.view.restoreKeyboardFocus();
-          }
-        })
-        .finally(() => {
-          if (activationTask === task) activationTask = undefined;
-        })
-        .catch(() => {});
+      const focused = task.then(() => {
+        const currentState = input.coordinator.getState();
+        const currentOperation =
+          currentState.status === "idle" ? undefined : currentState.operation;
+        if (
+          !disposed &&
+          selectedActivation === activation &&
+          selectedOperation === currentOperation &&
+          kind === "keyboard"
+        ) {
+          input.view.restoreKeyboardFocus();
+        }
+      });
+      const release = (): void => {
+        if (activationTask === task) activationTask = undefined;
+      };
+      void focused.then(release, release);
       return task;
     },
     dispose() {

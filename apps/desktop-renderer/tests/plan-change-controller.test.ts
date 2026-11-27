@@ -119,6 +119,7 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     clients: {
       getClient: async () => client,
       reconnect: async () => client,
+      onConnectionOpen: () => () => {},
       close: async () => {},
     },
     view: { render },

@@ -2402,7 +2402,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Connection interrupted. The sync may still be finishing. {{product}} won’t retry it automatically.",
+        "indeterminate": "Connection interrupted. {{product}} will check the sync again when it reconnects.",
         "noChange": "Local training-data processing completed.",
         "noChangeRestricted_one": "Local training-data processing completed. {{source}} does not allow third-party AI tools to use data from its API, so one activity isn’t included.",
         "noChangeRestricted_other": "Local training-data processing completed. {{source}} does not allow third-party AI tools to use data from its API, so {{formattedCount}} activities aren’t included.",

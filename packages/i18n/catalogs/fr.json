@@ -878,7 +878,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Connexion interrompue. La synchronisation est peut-être encore en cours. {{product}} ne la relancera pas automatiquement.",
+        "indeterminate": "Connexion interrompue. {{product}} vérifiera à nouveau la synchronisation une fois la connexion rétablie.",
         "noChange": "Traitement local des données d’entraînement terminé.",
         "noChangeRestricted_one": "Traitement local des données d’entraînement terminé. {{source}} n’autorise pas les outils d’IA tiers à utiliser les données de son API, donc une activité n’est pas incluse.",
         "noChangeRestricted_other": "Traitement local des données d’entraînement terminé. {{source}} n’autorise pas les outils d’IA tiers à utiliser les données de son API, donc {{formattedCount}} activités ne sont pas incluses.",

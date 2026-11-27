@@ -878,7 +878,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Yhteys katkesi. Synkronointi saattaa vielä olla valmistumassa. {{product}} ei yritä sitä uudelleen automaattisesti.",
+        "indeterminate": "Yhteys katkesi. {{product}} tarkistaa synkronoinnin uudelleen, kun yhteys palaa.",
         "noChange": "Harjoitustietojen paikallinen käsittely valmistui.",
         "noChangeRestricted_one": "Harjoitustietojen paikallinen käsittely valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten yhtä suoritusta ei ole mukana.",
         "noChangeRestricted_other": "Harjoitustietojen paikallinen käsittely valmistui. {{source}} ei salli kolmansien osapuolten tekoälytyökalujen käyttää API-tietojaan, joten {{formattedCount}} suoritusta ei ole mukana.",

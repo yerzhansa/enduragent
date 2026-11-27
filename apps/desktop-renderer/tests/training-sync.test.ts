@@ -93,6 +93,7 @@ function providerWith(client: CoachClient): DesktopCoachClientProvider {
   return {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
 }
@@ -149,6 +150,7 @@ describe("training sync coordinator", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn(() => clientGate.promise),
       reconnect: vi.fn(async () => client),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const refreshTrainingContext = vi.fn(() => refreshGate.promise);
@@ -347,6 +349,7 @@ describe("training sync coordinator", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn().mockResolvedValueOnce(retired).mockResolvedValueOnce(successor),
       reconnect: vi.fn(async () => successor),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const coordinator = createTrainingSyncCoordinator({
@@ -406,6 +409,7 @@ describe("training sync coordinator", () => {
       reconnect: vi.fn(async () => {
         throw failure;
       }),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const refreshTrainingContext = vi.fn(async () => {});
@@ -436,6 +440,7 @@ describe("training sync coordinator", () => {
         await current?.close();
         return successor;
       }),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const coordinator = createTrainingSyncCoordinator({
@@ -471,6 +476,7 @@ describe("training sync coordinator", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn(async () => failed),
       reconnect: vi.fn(async () => recovered),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const coordinator = createTrainingSyncCoordinator({

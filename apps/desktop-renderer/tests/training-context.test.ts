@@ -61,6 +61,7 @@ function providerWith(call: CoachClient["call"]): DesktopCoachClientProvider {
   return {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
 }
@@ -234,6 +235,7 @@ describe("training context controller", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn(async () => current),
       reconnect: vi.fn(async () => recovered),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const states: TrainingContextViewState[] = [];

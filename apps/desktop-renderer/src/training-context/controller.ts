@@ -52,7 +52,7 @@ export function createTrainingContextController(input: {
   let stateRequest: Promise<void> | undefined;
   let queuedStateRequest: Promise<void> | undefined;
   let unitsRequest: Promise<void> | undefined;
-  let unitsTail = Promise.resolve();
+  let unitsTail: Promise<unknown> = Promise.resolve();
   let hasState = false;
   let stateNeedsReconnect = false;
   let stateFailedClient: DesktopCoachClient | undefined;
@@ -177,6 +177,10 @@ export function createTrainingContextController(input: {
     return pending;
   };
 
+  const stopFollowingConnections = input.clients.onConnectionOpen(() => {
+    if (!disposed && state.status === "refresh-unavailable") void refreshState();
+  });
+
   render();
   return {
     async start() {
@@ -211,12 +215,13 @@ export function createTrainingContextController(input: {
           updateUnits({ ...previous, status: "unavailable" });
         }
       });
-      unitsTail = task.catch(() => {});
+      unitsTail = Promise.allSettled([task]);
       return task;
     },
     dispose() {
       disposed = true;
       generation += 1;
+      stopFollowingConnections();
     },
   };
 }

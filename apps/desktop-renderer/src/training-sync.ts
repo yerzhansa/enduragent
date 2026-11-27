@@ -54,6 +54,10 @@ export interface TrainingSyncCoordinator {
   dispose(): void;
 }
 
+function settled(action: () => unknown): Promise<unknown> {
+  return Promise.allSettled([new Promise((resolve) => resolve(action()))]);
+}
+
 function isIndeterminateFailure(error: unknown): boolean {
   return (
     error instanceof CoachClientDisconnectedError ||
@@ -131,11 +135,7 @@ export function createTrainingSyncCoordinator(input: {
     if (disposed) return;
     if (isSameTrainingSyncState(state, next)) return;
     state = next;
-    for (const listener of listeners) {
-      try {
-        listener(state);
-      } catch {}
-    }
+    for (const listener of listeners) void settled(() => listener(state));
   };
   const publishProtocol = (selectedEpoch: number, selectedOperation: number): void => {
     if (!current(selectedEpoch)) return;
@@ -312,9 +312,7 @@ export function createTrainingSyncCoordinator(input: {
         return;
       }
 
-      try {
-        await input.refreshTrainingContext();
-      } catch {}
+      await settled(() => input.refreshTrainingContext());
       if (!current(selectedEpoch)) return;
       if (protocolFault) {
         publishProtocol(selectedEpoch, selectedOperation);
@@ -370,30 +368,38 @@ export function createTrainingSyncCoordinator(input: {
     })();
 
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    const release = (): void => {
+      if (inFlight === task) inFlight = undefined;
+    };
+    void task.then(release, release);
     return task;
   };
+
+  const request = (): Promise<void> => {
+    if (disposed || (state.status === "failed" && state.kind === "protocol")) {
+      return Promise.resolve();
+    }
+    return inFlight ?? begin();
+  };
+
+  const stopFollowingConnections = input.clients.onConnectionOpen(() => {
+    if (inFlight === undefined && state.status === "failed" && state.kind === "indeterminate") {
+      void request();
+    }
+  });
 
   return {
     getState: () => state,
     subscribe(listener) {
-      if (disposed) return () => {};
+      const unsubscribe = (): void => {
+        listeners.delete(listener);
+      };
+      if (disposed) return unsubscribe;
       listeners.add(listener);
-      try {
-        listener(state);
-      } catch {}
-      return () => listeners.delete(listener);
+      void settled(() => listener(state));
+      return unsubscribe;
     },
-    request() {
-      if (disposed || (state.status === "failed" && state.kind === "protocol")) {
-        return Promise.resolve();
-      }
-      return inFlight ?? begin();
-    },
+    request,
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -402,6 +408,7 @@ export function createTrainingSyncCoordinator(input: {
       needsReconnect = false;
       failedClient = undefined;
       listeners.clear();
+      stopFollowingConnections();
     },
   };
 }
