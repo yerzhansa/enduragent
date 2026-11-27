@@ -279,7 +279,8 @@ function MoveLayer(props: {
   const state = useEnduragentStore((store) => store.calendarMove);
   const actions = useEnduragentStore((store) => store.calendarMoveActions);
   const calendar = useEnduragentStore((store) => store.calendarActions);
-  const pagedFrom = useRef<number | null>(null);
+  const paged = useRef(false);
+  const handled = useRef<number | null>(null);
   const preview =
     state.kind === "closed"
       ? null
@@ -288,17 +289,19 @@ function MoveLayer(props: {
     if (state.kind !== "closed" && state.kind !== "moving" && preview === null) actions?.cancel();
   }, [state.kind, preview, actions]);
   const target = state.kind === "closed" ? null : state.toDateKey;
-  const source = preview?.workout.dateKey ?? null;
-  const { startDateKey, endDateKey } = rangeDates(props.range);
+  const offGrid = target !== null && !inRange(props.range, target);
   useEffect(() => {
     if (target === null) {
-      pagedFrom.current = null;
+      paged.current = false;
+      handled.current = null;
       return;
     }
-    if (target >= startDateKey && target <= endDateKey) return;
-    pagedFrom.current ??= source;
+    if (handled.current === target) return;
+    handled.current = target;
+    if (!offGrid) return;
+    paged.current = true;
     calendar?.showWeekOf(target);
-  }, [target, source, startDateKey, endDateKey, calendar]);
+  }, [target, offGrid, calendar]);
   if (state.kind === "closed" || preview === null) return null;
   return (
     <MoveDialog
@@ -318,13 +321,19 @@ function MoveLayer(props: {
       onSwap={(swap) => actions?.setSwap(swap)}
       onMove={() => actions?.confirm(preview.canSwap)}
       onCancel={() => {
-        const from = pagedFrom.current;
-        pagedFrom.current = null;
+        if (state.kind === "moving") return;
+        const pageBack = paged.current;
+        paged.current = false;
         actions?.cancel();
-        if (from !== null) props.onPageBack(preview.workout.id, from);
+        if (pageBack) props.onPageBack(preview.workout.id, preview.workout.dateKey);
       }}
     />
   );
+}
+
+function inRange(range: CalendarRange, dateKey: number): boolean {
+  const { startDateKey, endDateKey } = rangeDates(range);
+  return dateKey >= startDateKey && dateKey <= endDateKey;
 }
 
 function movingView(read: PlanCalendarRead, move: MoveDialogState): CalendarMoving | null {
@@ -538,7 +547,15 @@ export function CalendarView(): ReactElement {
         {state.kind === "ready" ? (
           <div className="flex min-w-0 flex-col gap-3" data-calendar-state="ready">
             {state.refresh === "failed" ? (
-              <RefreshFailed onRetry={() => actions?.refresh()} />
+              <RefreshFailed
+                onRetry={() => {
+                  if (move.kind !== "closed" && !inRange(state.range, move.toDateKey)) {
+                    actions?.showWeekOf(move.toDateKey);
+                  } else {
+                    actions?.refresh();
+                  }
+                }}
+              />
             ) : null}
             <ChangesBanner read={state.read} />
             <WeekReady read={state.read} clear={() => clearSheets("approve")} />

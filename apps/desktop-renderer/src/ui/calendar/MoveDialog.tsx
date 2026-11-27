@@ -2,6 +2,7 @@ import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactElement } from "react";
+import type { PlanCalendarRead } from "../../calendar/grid";
 import type { MovePreview } from "../../calendar/move";
 import type { MoveDialogState } from "../../calendar/move-controller";
 import { useCalendarText, type CalendarText } from "./calendar-text";
@@ -12,9 +13,9 @@ const STEP = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 const GAP_PX = 12;
 
-function keepTargetClear(frame: HTMLElement, dateKey: number): void {
+function keepTargetClear(frame: HTMLElement, dateKey: number): boolean {
   const cell = document.querySelector<HTMLElement>(`[role="cell"][data-date-key="${dateKey}"]`);
-  if (cell === null) return;
+  if (cell === null) return false;
   cell.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   const scroller = cell.closest<HTMLElement>("[data-page-scroll]");
   const target = cell.getBoundingClientRect();
@@ -25,15 +26,50 @@ function keepTargetClear(frame: HTMLElement, dateKey: number): void {
     target.right > dialog.left &&
     target.left < dialog.right;
   if (scroller !== null && covered) scroller.scrollTop += target.bottom + GAP_PX - dialog.top;
+  return true;
+}
+
+function crossingText(
+  preview: MovePreview,
+  crossing: NonNullable<MovePreview["crossing"]>,
+  text: CalendarText,
+  say: Say,
+): string {
+  const moved =
+    preview.where.kind === "leaves"
+      ? say("plan.calendar.move.movedOff", {
+          name: preview.workout.name,
+          week: preview.where.week,
+        })
+      : say("plan.calendar.move.movedOn", {
+          name: preview.workout.name,
+          date: text.weekdayDayMonth(preview.toDateKey),
+        });
+  const names = text.names(preview.clash.map((workout) => workout.name));
+  const swapped =
+    crossing.swapped.kind === "on"
+      ? say("plan.calendar.move.swappedOn", {
+          count: preview.clash.length,
+          names,
+          date: text.weekdayDayMonth(preview.workout.dateKey),
+        })
+      : say("plan.calendar.move.swappedOff", {
+          count: preview.clash.length,
+          names,
+          week: crossing.swapped.week,
+        });
+  return `${moved} ${swapped}`;
 }
 
 function effect(preview: MovePreview, text: CalendarText, say: Say): string {
   const where =
-    preview.where.kind === "goes"
-      ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
-      : preview.where.kind === "leaves"
-        ? say("plan.calendar.move.leaves", { week: preview.where.week })
-        : say("plan.calendar.move.planOnly");
+    preview.crossing !== null
+      ? crossingText(preview, preview.crossing, text, say)
+      : preview.where.kind === "goes"
+        ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
+        : preview.where.kind === "leaves"
+          ? say("plan.calendar.move.leaves", { week: preview.where.week })
+          : say("plan.calendar.move.planOnly");
   const weeks = preview.weeks;
   if (weeks === null) return where;
   const totals =
@@ -74,7 +110,7 @@ function failure(
 export function MoveDialog(props: {
   readonly state: Exclude<MoveDialogState, { kind: "closed" }>;
   readonly preview: MovePreview;
-  readonly revision: unknown;
+  readonly revision: PlanCalendarRead;
   readonly earlier: number | null;
   readonly later: number | null;
   readonly onDay: (toDateKey: number) => void;
@@ -91,8 +127,10 @@ export function MoveDialog(props: {
     if (frame.current?.contains(document.activeElement) === true) return;
     heading.current?.focus();
   }, [preview.toDateKey]);
+  const cleared = useRef<number | null>(null);
   useLayoutEffect(() => {
-    if (frame.current !== null) keepTargetClear(frame.current, preview.toDateKey);
+    if (frame.current === null || cleared.current === preview.toDateKey) return;
+    if (keepTargetClear(frame.current, preview.toDateKey)) cleared.current = preview.toDateKey;
   }, [preview.toDateKey, props.revision]);
   const title = say("plan.calendar.move.title", {
     name: preview.workout.name,
@@ -115,7 +153,7 @@ export function MoveDialog(props: {
       aria-busy={busy}
       data-move-dialog=""
       onKeyDown={(event) => {
-        if (event.key === "Escape") props.onCancel();
+        if (event.key === "Escape" && !busy) props.onCancel();
       }}
     >
       <div className="flex items-start gap-2">
@@ -154,7 +192,9 @@ export function MoveDialog(props: {
           <ChevronRight aria-hidden="true" />
         </Button>
       </div>
-      <p className="m-0 text-xs text-ink-2">{effect(preview, text, say)}</p>
+      <p className="m-0 text-xs text-ink-2" data-move-effect="">
+        {effect(preview, text, say)}
+      </p>
       {preview.clash.length === 0 ? null : (
         <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
           <legend className="mb-1 p-0 text-xs font-semibold text-ink">

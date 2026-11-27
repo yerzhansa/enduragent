@@ -493,4 +493,56 @@ describe("one Calendar sheet at a time", () => {
     expect(showWeekOf).toHaveBeenLastCalledWith(19980125);
     expect(useEnduragentStore.getState().calendarMove).toEqual(MOVE_DIALOG_CLOSED);
   });
+
+  it("lets the athlete page away while the move dialog is open, and Retry pages back to the target", async () => {
+    const user = userEvent.setup();
+    const longer = calendarRead(
+      TODAY,
+      plan(
+        MONDAY,
+        [week(1, MONDAY), week(2, 19980119), week(3, 19980126)],
+        [workout(1, 19980125, { name: "Long endurance", durationS: 9_000, movable: true })],
+      ),
+    );
+    show(longer);
+    const showWeekOf = vi.fn();
+    const refresh = vi.fn();
+    act(() => {
+      useEnduragentStore.setState({
+        calendarActions: { refresh, previous: vi.fn(), next: vi.fn(), today: vi.fn(), showWeekOf },
+      });
+    });
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    try {
+      render(<CalendarView />);
+      await user.click(gridCard(workoutId(1)));
+      await user.click(screen.getByRole("button", { name: "Move…" }));
+      expect(showWeekOf).toHaveBeenCalledTimes(1);
+      const pageTo = (firstRowStart: number, refreshState: "idle" | "failed" = "idle") =>
+        act(() => {
+          useEnduragentStore.setState({
+            calendar: {
+              kind: "ready",
+              read: { ...longer },
+              range: { firstRowStart, rowCount: 2 },
+              refresh: refreshState,
+            },
+          });
+        });
+      pageTo(19980119);
+      expect(scrolled).toHaveBeenCalledTimes(1);
+      pageTo(19980202);
+      pageTo(19980216);
+      expect(showWeekOf).toHaveBeenCalledTimes(1);
+      pageTo(19980216);
+      expect(scrolled).toHaveBeenCalledTimes(1);
+      pageTo(19980216, "failed");
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+      expect(showWeekOf).toHaveBeenLastCalledWith(19980126);
+      expect(refresh).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
+  });
 });

@@ -2,15 +2,21 @@ import type { PlanCalendarWeek, PlanCalendarWorkout } from "@enduragent/coach-co
 import { addDays } from "./dates";
 import type { PlanCalendarRead } from "./grid";
 
+export type MoveWhere =
+  | { readonly kind: "goes" }
+  | { readonly kind: "leaves"; readonly week: number }
+  | { readonly kind: "plan-only" };
+
 export interface MovePreview {
   readonly workout: PlanCalendarWorkout;
   readonly toDateKey: number;
   readonly clash: readonly PlanCalendarWorkout[];
   readonly canSwap: boolean;
-  readonly where:
-    | { readonly kind: "goes" }
-    | { readonly kind: "leaves"; readonly week: number }
-    | { readonly kind: "plan-only" };
+  readonly where: MoveWhere;
+  readonly crossing: {
+    readonly moved: "on" | "off";
+    readonly swapped: { readonly kind: "on" } | { readonly kind: "off"; readonly week: number };
+  } | null;
   readonly weeks:
     | { readonly kind: "same"; readonly week: PlanCalendarWeek }
     | {
@@ -21,6 +27,35 @@ export interface MovePreview {
         readonly toS: number;
       }
     | null;
+}
+
+function sentCopy(workout: PlanCalendarWorkout): boolean {
+  return workout.copy.kind === "on-intervals" || workout.copy.kind === "moving-by-you";
+}
+
+function whereTo(read: PlanCalendarRead, sent: boolean, dateKey: number): MoveWhere {
+  const to = weekOf(read, dateKey);
+  const out = to !== undefined && (to.status.kind === "on-intervals" || to.status.kind === "due");
+  const inWindow = out || to?.status.kind === "waiting-for-week-approve";
+  if ((sent && inWindow) || (read.calendarConnected && out)) return { kind: "goes" };
+  return sent && to !== undefined ? { kind: "leaves", week: to.index } : { kind: "plan-only" };
+}
+
+function crossingOf(
+  read: PlanCalendarRead,
+  workout: PlanCalendarWorkout,
+  where: MoveWhere,
+  clash: readonly PlanCalendarWorkout[],
+): MovePreview["crossing"] {
+  const clashSent = clash.some(sentCopy);
+  const swapped = whereTo(read, clashSent, workout.dateKey);
+  if (where.kind === "leaves" && swapped.kind === "goes" && !clashSent) {
+    return { moved: "off", swapped: { kind: "on" } };
+  }
+  if (where.kind === "goes" && !sentCopy(workout) && swapped.kind === "leaves") {
+    return { moved: "on", swapped: { kind: "off", week: swapped.week } };
+  }
+  return null;
 }
 
 function weekOf(read: PlanCalendarRead, dateKey: number): PlanCalendarWeek | undefined {
@@ -105,15 +140,7 @@ export function movePreview(
   const canSwap = clash.length > 0 && clash.every((entry) => entry.movable);
   const swapped =
     swap && canSwap ? clash.reduce((total, entry) => total + (entry.durationS ?? 0), 0) : 0;
-  const sent = workout.copy.kind === "on-intervals" || workout.copy.kind === "moving-by-you";
-  const out = to !== undefined && (to.status.kind === "on-intervals" || to.status.kind === "due");
-  const inWindow = out || to?.status.kind === "waiting-for-week-approve";
-  const where =
-    (sent && inWindow) || (read.calendarConnected && out)
-      ? ({ kind: "goes" } as const)
-      : sent && to !== undefined
-        ? ({ kind: "leaves", week: to.index } as const)
-        : ({ kind: "plan-only" } as const);
+  const where = whereTo(read, sentCopy(workout), toDateKey);
   const weeks =
     from === undefined || to === undefined
       ? null
@@ -132,6 +159,7 @@ export function movePreview(
     clash,
     canSwap,
     where,
+    crossing: swap && canSwap ? crossingOf(read, workout, where, clash) : null,
     weeks,
   };
 }

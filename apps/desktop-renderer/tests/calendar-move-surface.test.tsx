@@ -260,4 +260,109 @@ describe("moving a workout on the Calendar", () => {
     expect(cell(19980107).querySelector("[data-move-preview]")).toBeNull();
     expect(card(workoutId(2))).not.toHaveAttribute("aria-label");
   });
+
+  describe("the body across the line between intervals.icu weeks and Plan-only weeks", () => {
+    const JAN_5 = 19980105;
+    function line(sentWeekTwo: boolean) {
+      return calendarRead(
+        JAN_5,
+        plan(
+          JAN_5,
+          [
+            week(1, JAN_5, { plannedS: 6_000 }),
+            week(
+              2,
+              19980112,
+              sentWeekTwo
+                ? { plannedS: 6_000 }
+                : { plannedS: 6_000, status: { kind: "goes-out", onDateKey: JAN_5 } },
+            ),
+          ],
+          [
+            workout(1, 19980107, { name: "Endurance ride", movable: true }),
+            workout(2, 19980117, {
+              name: "Long ride",
+              movable: true,
+              durationS: 6_000,
+              copy: sentWeekTwo ? { kind: "on-intervals", owner: "plan" } : { kind: "plan-only" },
+            }),
+          ],
+        ),
+      );
+    }
+    function open(
+      calendar: ReturnType<typeof line>,
+      moving: string,
+      toDateKey: number,
+      swap: boolean,
+    ) {
+      show({ kind: "open", planId: PLAN_ID, workoutId: moving, toDateKey, swap }, calendar);
+      act(() => {
+        useEnduragentStore.setState({
+          calendar: {
+            kind: "ready",
+            read: calendar,
+            range: { firstRowStart: JAN_5, rowCount: 2 },
+            refresh: "idle",
+          },
+        });
+      });
+      render(<CalendarView />);
+      const body = document.querySelector("[data-move-effect]");
+      if (body === null) throw new Error("No body");
+      return body;
+    }
+
+    it("names both workouts when a sent workout swaps with a Plan-only one", () => {
+      const body = open(line(false), workoutId(1), 19980117, true);
+      expect(body).toHaveTextContent(
+        "Endurance ride comes off intervals.icu until Week 2 goes out. Long ride goes on intervals.icu for Wed 7 Jan. Week 1 becomes",
+      );
+      act(() => {
+        useEnduragentStore.setState({
+          calendarMove: {
+            kind: "open",
+            planId: PLAN_ID,
+            workoutId: workoutId(1),
+            toDateKey: 19980117,
+            swap: false,
+          },
+        });
+      });
+      expect(body).toHaveTextContent(
+        /^It comes off intervals.icu until Week 2 goes out. Week 1 becomes/u,
+      );
+      expect(body).not.toHaveTextContent("Long ride");
+    });
+
+    it("names both workouts the other way round", () => {
+      const body = open(line(false), workoutId(2), 19980107, true);
+      expect(body).toHaveTextContent(
+        "Long ride goes on intervals.icu for Wed 7 Jan. Endurance ride comes off intervals.icu until Week 2 goes out. Week 2 becomes",
+      );
+    });
+
+    it("keeps today's text when both days are already on intervals.icu", () => {
+      const body = open(line(true), workoutId(1), 19980117, true);
+      expect(body).toHaveTextContent(
+        /^It moves on intervals.icu too, so your head unit gets it for Saturday./u,
+      );
+      expect(body).not.toHaveTextContent("Long ride");
+    });
+  });
+
+  it("ignores Escape while the move is saved", async () => {
+    const user = userEvent.setup();
+    const actions = show({
+      kind: "moving",
+      planId: PLAN_ID,
+      workoutId: workoutId(1),
+      toDateKey: 19980116,
+      swap: true,
+    });
+    render(<CalendarView />);
+    screen.getByRole("button", { name: "Later day" }).focus();
+    await user.keyboard("{Escape}");
+    expect(actions.cancel).not.toHaveBeenCalled();
+  });
 });

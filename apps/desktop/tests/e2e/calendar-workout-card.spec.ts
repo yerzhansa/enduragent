@@ -14,12 +14,13 @@ import {
 const MONDAY = 19980105;
 const LAST_DAY = addCivilDays(MONDAY, 27);
 const LAST_SHOWN_DAY = addCivilDays(MONDAY, 20);
+const FIRST_PLAN_ONLY_DAY = addCivilDays(MONDAY, 14);
 
 interface Chosen {
   readonly id: string;
   readonly name: string;
   readonly fromDateKey: number;
-  readonly busy: ReadonlyMap<number, string>;
+  readonly busy: ReadonlyMap<number, { readonly id: string; readonly name: string }>;
 }
 
 function nameOf(structureJson: string): string {
@@ -43,7 +44,12 @@ async function launchWithWorkout(playwright: Playwright): Promise<{
       const workouts = (await backend.physicalWorkouts(seed.planId))
         .filter((workout) => workout.dateKey !== null && workout.dateKey > MONDAY)
         .sort((left, right) => (left.dateKey ?? 0) - (right.dateKey ?? 0));
-      const busy = new Map(workouts.map((workout) => [workout.dateKey ?? 0, workout.id]));
+      const busy = new Map(
+        workouts.map((workout) => [
+          workout.dateKey ?? 0,
+          { id: workout.id, name: nameOf(workout.structureJson) },
+        ]),
+      );
       const found = workouts.find(
         (workout) =>
           workout.dateKey !== null &&
@@ -100,9 +106,15 @@ async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<
   for (let day = addCivilDays(chosen.fromDateKey, 1); day <= LAST_DAY; day = addCivilDays(day, 1))
     days.push(day);
   let swapChecked = false;
+  let crossingChecked = false;
+  const body = dialog.locator("[data-move-effect]");
+  const sourceDay = new Date(Date.UTC(1998, 0, chosen.fromDateKey % 100)).toLocaleDateString(
+    "en-GB",
+    { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" },
+  );
   for (const [index, day] of days.entries()) {
     await expectTargetClear(scenario, day, chosen.id);
-    const clash = chosen.busy.get(day);
+    const clash = chosen.busy.get(day)?.id;
     if (!swapChecked && clash !== undefined && day <= LAST_SHOWN_DAY) {
       swapChecked = true;
       const swapped = cell(scenario, chosen.fromDateKey).locator(`[data-move-preview="${clash}"]`);
@@ -115,9 +127,28 @@ async function stepThroughEveryDay(scenario: Scenario, chosen: Chosen): Promise<
       await expect(swapped).toBeVisible();
       await later.focus();
     }
+    const other = chosen.busy.get(day);
+    if (
+      !crossingChecked &&
+      other !== undefined &&
+      day >= FIRST_PLAN_ONLY_DAY &&
+      day <= LAST_SHOWN_DAY
+    ) {
+      crossingChecked = true;
+      const swap = dialog.getByRole("radio", { name: /^Swap: / });
+      await swap.check();
+      await expect(body, "Swap across the line does not name both workouts").toContainText(
+        `${chosen.name} comes off intervals.icu until Week 3 goes out. ${other.name} goes on intervals.icu for ${sourceDay}.`,
+      );
+      await dialog.getByRole("radio", { name: /^Keep both on / }).check();
+      await expect(body).toContainText("It comes off intervals.icu until Week 3 goes out.");
+      await expect(body, "Keep both names the other workout").not.toContainText(other.name);
+      await later.focus();
+    }
     if (index < days.length - 1) await later.click();
   }
   expect(swapChecked, "no day with another workout was stepped through").toBe(true);
+  expect(crossingChecked, "no Plan-only day with another workout was stepped through").toBe(true);
   await expect(later, "Later day never reaches the Plan's last day").toHaveAttribute(
     "aria-disabled",
     "true",
@@ -157,6 +188,21 @@ test.describe("The workout card", () => {
       const dialog = page.locator("[data-move-dialog]");
       await expect(dialog, "Move… opens no move dialog").toBeVisible();
       await stepThroughEveryDay(scenario, chosen);
+      const firstShown = () =>
+        page.evaluate(() =>
+          Number(
+            document.querySelector<HTMLElement>('[role="cell"][data-date-key]')?.dataset.dateKey,
+          ),
+        );
+      const paged = await firstShown();
+      for (const weeks of [1, 2]) {
+        await page.getByRole("button", { name: "Next week", exact: true }).click();
+        await expect
+          .poll(firstShown, { message: "Next week snaps back while the move dialog is open" })
+          .toBe(addCivilDays(paged, weeks * 7));
+      }
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("button", { name: "Earlier day", exact: true }).focus();
       await page.keyboard.press("Escape");
       await expect(dialog, "Escape no longer closes the move dialog").toBeHidden();
       await expect(source, "Escape does not page back to the workout's week").toBeFocused();
