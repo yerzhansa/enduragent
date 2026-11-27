@@ -1697,10 +1697,8 @@ export async function createLocalCoachComposition(
           });
         return initialRefreshPromise;
       }
-      if (initialRefreshRetryTimer !== undefined) {
-        clearTimeout(initialRefreshRetryTimer);
-        initialRefreshRetryTimer = undefined;
-      }
+      clearTimeout(initialRefreshRetryTimer);
+      initialRefreshRetryTimer = undefined;
       initialRefreshStarted = true;
       const refreshRevision = intervalsConfigRevision;
       let ownerSucceeded = false;
@@ -1738,6 +1736,7 @@ export async function createLocalCoachComposition(
         )
         .then(() => {
           if (!closing) void drain.kick();
+          void resumeHistoryDownload(initialRefreshController.signal);
         })
         .finally(() => {
           if (ownerSucceeded && unapprovedConfig.intervals.apiKey.length > 0) {
@@ -1843,7 +1842,7 @@ export async function createLocalCoachComposition(
       credentials: options.liveIntervals,
       sources: trustedActivitySources,
     });
-    const coachOperations = createCoachOperations(
+    const { resumeHistoryDownload, ...coachOperations } = createCoachOperations(
       {
         languagePreference,
         home: input.home,
