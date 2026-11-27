@@ -107,7 +107,7 @@ describe("the Activity review page", () => {
     const card = screen.getByRole("region", { name: "Plan Workout match" });
     expect(within(card).getByText("Is this Thursday’s Easy endurance?")).toBeInTheDocument();
     expect(card).toHaveTextContent("Plan Workout · Thu 20Easy endurance50m");
-    expect(card).toHaveTextContent("This rideRoad ride · 52m24.1 km and average 181 W");
+    expect(card).toHaveTextContent("This rideRoad ride, 52m24.1 km, average 181 W");
     expect(card).toHaveTextContent(
       "Until you answer, this ride does not count toward the Plan, and the calendar shows Thursday as waiting, not done or missed.",
     );
@@ -131,8 +131,6 @@ describe("the Activity review page", () => {
     view.rerender(<ActivityReviewView />);
     await user.click(screen.getByRole("button", { name: /^Sat 22 · Long endurance · 2h\s30m$/u }));
     expect(bound.rematch).toHaveBeenCalledWith(SATURDAY.planWorkoutId);
-    await user.click(screen.getByRole("button", { name: "Show in calendar" }));
-    expect(bound.showInCalendar).toHaveBeenCalledWith(TODAY);
   });
 
   it("shows a confirmed match with Change, and the same choices once Change is open", async () => {
@@ -145,6 +143,8 @@ describe("the Activity review page", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Plan Workout match" })).toBeNull();
     expect(document.querySelector("dl")).toHaveTextContent("Perceived exertion7 of 10");
+    await user.click(screen.getByRole("button", { name: "Show in calendar" }));
+    expect(bound.showInCalendar).toHaveBeenCalledWith(19980819);
     await user.click(screen.getByRole("button", { name: "Change" }));
     expect(bound.change).toHaveBeenCalledOnce();
     show(withPlan(), { selectedId: rideId("b"), choices: "open", saving: "refused" }, bound);

@@ -88,12 +88,23 @@ function MatchCard(
   const text = useReviewText();
   const busy = props.saving === "saving";
   const weekday = text.weekdayLong(props.workout.dateKey);
-  const facts = [
-    props.ride.distanceM === null ? null : text.distance(props.ride.distanceM),
-    props.ride.averagePowerW === null
-      ? null
-      : say("activity.review.match.averagePower", { power: text.watts(props.ride.averagePowerW) }),
-  ].filter((part): part is string => part !== null);
+  const distance = props.ride.distanceM === null ? null : text.distance(props.ride.distanceM);
+  const power = props.ride.averagePowerW === null ? null : text.watts(props.ride.averagePowerW);
+  const facts =
+    distance === null
+      ? power === null
+        ? null
+        : say("activity.review.match.averagePower", { power })
+      : power === null
+        ? distance
+        : say("activity.review.match.rideFacts", { distance, power });
+  const rideTitle =
+    props.ride.durationS === null
+      ? text.rideName(props.ride)
+      : say("activity.review.match.rideTitle", {
+          name: text.rideName(props.ride),
+          duration: text.duration(props.ride.durationS),
+        });
   return (
     <section
       className="flex flex-col gap-3.5 rounded-card border-2 border-brand bg-surface px-5 py-4.5"
@@ -119,8 +130,8 @@ function MatchCard(
           <span className="text-xs font-semibold text-ink-2 uppercase">
             {say("activity.review.match.thisRide")}
           </span>
-          <strong>{text.rideLength(props.ride)}</strong>
-          {facts.length === 0 ? null : <span>{text.list(facts)}</span>}
+          <strong>{rideTitle}</strong>
+          {facts === null ? null : <span>{facts}</span>}
         </div>
       </div>
       <div className="flex flex-wrap gap-2">

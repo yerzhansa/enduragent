@@ -36,6 +36,8 @@ export type CatalogKey =
   | "activity.review.match.planWorkout"
   | "activity.review.match.question"
   | "activity.review.match.refused"
+  | "activity.review.match.rideFacts"
+  | "activity.review.match.rideTitle"
   | "activity.review.match.saving"
   | "activity.review.match.thisRide"
   | "activity.review.match.waiting"

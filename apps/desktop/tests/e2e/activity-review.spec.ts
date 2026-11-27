@@ -29,7 +29,7 @@ test.describe("Activity review", () => {
         throw new TypeError("Stored Workout has no name");
       workoutName = structure.name;
       rideDateKey = first.dateKey;
-      const today = addCivilDays(first.dateKey, 1);
+      const today = addCivilDays(first.dateKey, 21);
       backend.setCivilDate(isoDay(today));
       const seconds = Math.round(minutesOf(first.structureJson) * 60);
       await backend.seedCalendarRide({
