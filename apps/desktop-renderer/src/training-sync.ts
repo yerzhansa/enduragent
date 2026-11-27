@@ -157,7 +157,7 @@ export function createTrainingSyncCoordinator(input: {
   ): Promise<DesktopCoachClient> =>
     previous === undefined ? input.clients.getClient() : input.clients.reconnect(previous);
 
-  const begin = (): Promise<void> => {
+  const begin = (reasking: boolean): Promise<void> => {
     const selectedEpoch = ++epoch;
     const selectedOperation = ++operation;
     publish({ status: "queued", operation: selectedOperation });
@@ -277,14 +277,15 @@ export function createTrainingSyncCoordinator(input: {
       }
       if (terminal === undefined) {
         if (failure !== undefined && !admitted) {
-          if (isIndeterminateFailure(failure)) {
+          const connectionLost = isIndeterminateFailure(failure);
+          if (connectionLost) {
             needsReconnect = true;
             failedClient = selectedClient;
           }
           publish({
             status: "failed",
             operation: selectedOperation,
-            kind: "operation",
+            kind: reasking && connectionLost ? "indeterminate" : "operation",
             retryable: true,
           });
           return;
@@ -395,7 +396,7 @@ export function createTrainingSyncCoordinator(input: {
     pendingReask = undefined;
     if (!interrupted()) return;
     reasks += 1;
-    void begin();
+    void begin(true);
   };
 
   const request = (): Promise<void> => {
@@ -405,7 +406,7 @@ export function createTrainingSyncCoordinator(input: {
     if (inFlight !== undefined) return inFlight;
     cancelReask();
     reasks = 0;
-    return begin();
+    return begin(false);
   };
 
   const stopFollowingConnections = input.clients.onConnectionOpen(() => {
