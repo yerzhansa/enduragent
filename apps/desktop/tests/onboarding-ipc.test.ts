@@ -38,7 +38,26 @@ import type {
   CredentialWriteInput,
   StoredCredentialRead,
 } from "../src/main/credential-vault.js";
-import { revokeIntervalsAccess, type IntervalsRevokeResult } from "@enduragent/core";
+import {
+  OPENROUTER_KEYS_PAGE_URL,
+  revokeIntervalsAccess,
+  type IntervalsRevokeResult,
+  type OpenRouterSignInOptions,
+} from "@enduragent/core";
+import {
+  DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL,
+  DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL,
+  DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL,
+  DESKTOP_OPENROUTER_SIGN_IN_CANCEL_CHANNEL,
+  DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+  DESKTOP_OPENROUTER_SIGN_IN_PROGRESS_CHANNEL,
+  DESKTOP_OPENROUTER_SIGN_IN_REOPEN_CHANNEL,
+  DESKTOP_OPENROUTER_USE_COPIED_CODE_CHANNEL,
+} from "../src/main/constants.js";
+
+const OPENROUTER_KEY = `sk-or-v1-${"5".repeat(64)}`;
+const OPENROUTER_CODE = "synthetic-code-0001";
+const OPENROUTER_HEADLESS_URL = "https://openrouter.ai/auth?code_challenge=fixture";
 
 const RENDERER_URL = createDesktopRendererUrl("A".repeat(43));
 const CATALOG_REVISION = BUNDLED_MODEL_CATALOG.revision;
@@ -209,6 +228,24 @@ function harness(
     trace.push("revoke");
     return "revoked";
   });
+  const openRouter = {
+    ports: {
+      openExternal: vi.fn(async (_url: string) => undefined),
+      signIn: vi.fn(async (hooks: OpenRouterSignInOptions) => {
+        hooks.onAuthorizeUrl?.("https://openrouter.ai/auth?state=fixture");
+        hooks.onPhase?.("waiting-for-browser");
+        hooks.onPhase?.("completing-sign-in");
+        return OPENROUTER_KEY;
+      }),
+      startCodeSignIn: vi.fn(() => ({
+        authorizeUrl: OPENROUTER_HEADLESS_URL,
+        exchange: vi.fn(async (_text: string, _signal?: AbortSignal) => OPENROUTER_KEY),
+      })),
+      readCreditStatus: vi.fn(async (_key: string, _signal?: AbortSignal) => "never-paid" as const),
+    },
+    clipboard: { readText: vi.fn(async () => OPENROUTER_CODE), clear: vi.fn() },
+    readStoredKey: vi.fn(async (): Promise<string | undefined> => OPENROUTER_KEY),
+  };
   const progressSend = vi.fn();
   const trustedEvent = {
     sender: {
@@ -234,6 +271,7 @@ function harness(
     retryCredentialRecovery,
     resetAllCredentials,
     revokeIntervalsAccess: (credential) => revokeIntervals(credential),
+    openRouter,
   });
   const invoke = (channel: string, event: IpcMainInvokeEvent, ...args: unknown[]) =>
     handlers.get(channel)!(event, ...args);
@@ -256,6 +294,7 @@ function harness(
     deletion,
     trace,
     trustedEvent,
+    openRouter,
     dispose,
     invoke,
   };
@@ -441,6 +480,13 @@ describe("desktop onboarding IPC", () => {
         DESKTOP_CLAUDE_CLI_STATUS_CHANNEL,
         DESKTOP_CLAUDE_CLI_RECHECK_CHANNEL,
         DESKTOP_CHOOSE_IMPORT_FILES_CHANNEL,
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        DESKTOP_OPENROUTER_SIGN_IN_CANCEL_CHANNEL,
+        DESKTOP_OPENROUTER_SIGN_IN_REOPEN_CHANNEL,
+        DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL,
+        DESKTOP_OPENROUTER_USE_COPIED_CODE_CHANNEL,
+        DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL,
+        DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL,
       ].sort(),
     );
     await expect(
@@ -1658,10 +1704,240 @@ describe("desktop onboarding IPC", () => {
     ).resolves.toEqual([]);
   });
 
-  it("disposes only its fifteen handlers", () => {
+  it("disposes only its twenty-two handlers", () => {
     const subject = harness();
     subject.dispose();
     expect(subject.handlers.size).toBe(0);
-    expect(subject.ipcMain.removeHandler).toHaveBeenCalledTimes(15);
+    expect(subject.ipcMain.removeHandler).toHaveBeenCalledTimes(22);
+  });
+});
+
+describe("desktop OpenRouter sign-in IPC", () => {
+  const selection = (endpoint: unknown = { mode: "default" }) => ({
+    catalogRevision: CATALOG_REVISION,
+    provider: "openrouter",
+    model: "athlete-model",
+    endpoint,
+  });
+
+  it("stores a signed-in key through the paste write path with the default endpoint", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    const result = await subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
+      operationId: "or-1",
+      selection: selection(),
+    });
+    expect(result).toEqual({ status: "connected", operationId: "or-1", credit: "never-paid" });
+    expect(subject.vault.writeCredential).toHaveBeenCalledOnce();
+    expect(subject.vault.writeCredential).toHaveBeenCalledWith({
+      slot: "openrouter",
+      value: OPENROUTER_KEY,
+      selection: selection(),
+      catalogSnapshot: LOCAL_CATALOG.snapshot,
+    });
+    expect(subject.progressSend.mock.calls).toEqual([
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_PROGRESS_CHANNEL,
+        { operationId: "or-1", phase: "waiting-for-browser" },
+      ],
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_PROGRESS_CHANNEL,
+        { operationId: "or-1", phase: "completing-sign-in" },
+      ],
+    ]);
+    expect(JSON.stringify([result, subject.progressSend.mock.calls])).not.toContain(OPENROUTER_KEY);
+  });
+
+  it("writes a pasted OpenRouter key and a signed-in one with the same vault call", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    await subject.invoke(DESKTOP_CREDENTIAL_WRITE_CHANNEL, subject.trustedEvent, {
+      slot: "openrouter",
+      value: "sk-or-v1-pasted",
+      selection: selection({ mode: "default" }),
+    });
+    await subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
+      operationId: "or-1",
+      selection: selection(),
+    });
+    const calls = vi.mocked(subject.vault.writeCredential).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.length)).toEqual([1, 1]);
+    expect({ ...calls[0]?.[0], value: "" }).toEqual({ ...calls[1]?.[0], value: "" });
+  });
+
+  it.each([
+    [DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, { mode: "automatic" }],
+    [DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, { mode: "custom", value: "https://elsewhere.example/v1" }],
+    [DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL, { mode: "automatic" }],
+    [
+      DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL,
+      { mode: "custom", value: "https://elsewhere.example/v1" },
+    ],
+  ])("rejects %s with the endpoint %o instead of rewriting it", async (channel, endpoint) => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    await expect(
+      Promise.resolve().then(() =>
+        subject.invoke(channel, subject.trustedEvent, {
+          operationId: "or-1",
+          selection: selection(endpoint),
+        }),
+      ),
+    ).rejects.toBeInstanceOf(TypeError);
+    expect(subject.openRouter.ports.signIn).not.toHaveBeenCalled();
+    expect(subject.openRouter.ports.startCodeSignIn).not.toHaveBeenCalled();
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it("refuses a selection whose catalog was not pinned before opening the browser", async () => {
+    const subject = harness();
+    await expect(
+      subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
+        operationId: "or-1",
+        selection: selection(),
+      }),
+    ).resolves.toEqual({ status: "refused", operationId: "or-1", reason: "invalid-input" });
+    expect(subject.openRouter.ports.signIn).not.toHaveBeenCalled();
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ slot: "openrouter", status: "configured", runtimeReady: false }, "saved-not-active"],
+    [{ slot: "openrouter", status: "refused", reason: "encryption-unavailable" }, "not-saved"],
+    [{ slot: "openrouter", status: "refused", reason: "unsafe-backend" }, "not-saved"],
+    [{ slot: "openrouter", status: "refused", reason: "storage-failed" }, "not-saved"],
+    [{ slot: "openrouter", status: "uncertain", reason: "storage-uncertain" }, "not-saved"],
+  ] as const)("maps the vault result %o to %s", async (written, reason) => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    vi.mocked(subject.vault.writeCredential).mockResolvedValueOnce(written);
+    await expect(
+      subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
+        operationId: "or-1",
+        selection: selection(),
+      }),
+    ).resolves.toEqual({ status: "refused", operationId: "or-1", reason });
+    expect(subject.openRouter.ports.readCreditStatus).not.toHaveBeenCalled();
+  });
+
+  it("signs in with a copied code that main reads and clears", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    expect(
+      subject.invoke(DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL, subject.trustedEvent, {
+        operationId: "or-code",
+        selection: selection(),
+      }),
+    ).toEqual({ status: "awaiting-code", operationId: "or-code" });
+    expect(subject.openRouter.ports.openExternal).toHaveBeenCalledWith(OPENROUTER_HEADLESS_URL);
+    await expect(
+      subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_REOPEN_CHANNEL, subject.trustedEvent, {
+        operationId: "or-code",
+      }),
+    ).resolves.toBe(true);
+    const result = await subject.invoke(
+      DESKTOP_OPENROUTER_USE_COPIED_CODE_CHANNEL,
+      subject.trustedEvent,
+      { operationId: "or-code" },
+    );
+    expect(result).toEqual({ status: "connected", operationId: "or-code", credit: "never-paid" });
+    expect(subject.openRouter.clipboard.clear).toHaveBeenCalledOnce();
+    expect(subject.vault.writeCredential).toHaveBeenCalledWith(
+      expect.objectContaining({ slot: "openrouter", value: OPENROUTER_KEY }),
+    );
+    const sent = JSON.stringify([result, subject.progressSend.mock.calls]);
+    expect(sent).not.toContain(OPENROUTER_KEY);
+    expect(sent).not.toContain(OPENROUTER_CODE);
+  });
+
+  it("returns only the credit status of the stored key and opens fixed pages", async () => {
+    const subject = harness();
+    await expect(
+      subject.invoke(DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL, subject.trustedEvent),
+    ).resolves.toBe("never-paid");
+    expect(subject.openRouter.ports.readCreditStatus).toHaveBeenCalledWith(
+      OPENROUTER_KEY,
+      expect.any(AbortSignal),
+    );
+    await expect(
+      subject.invoke(DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL, subject.trustedEvent, { page: "keys" }),
+    ).resolves.toBe(true);
+    expect(subject.openRouter.ports.openExternal).toHaveBeenLastCalledWith(
+      OPENROUTER_KEYS_PAGE_URL,
+    );
+  });
+
+  it("rejects untrusted senders and widened payloads before dispatch", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    const untrusted = {} as IpcMainInvokeEvent;
+    const rejected: [string, IpcMainInvokeEvent, ...unknown[]][] = [
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        untrusted,
+        { operationId: "or-1", selection: selection() },
+      ],
+      [DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, { operationId: "or-1" }],
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        subject.trustedEvent,
+        { operationId: "or-1", selection: selection(), authorizeUrl: "https://evil.example" },
+      ],
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        subject.trustedEvent,
+        { operationId: "or-1", selection: { ...selection(), provider: "anthropic" } },
+      ],
+      [
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        subject.trustedEvent,
+        { operationId: "../x", selection: selection() },
+      ],
+      [DESKTOP_OPENROUTER_SIGN_IN_CANCEL_CHANNEL, subject.trustedEvent, "or-1"],
+      [
+        DESKTOP_OPENROUTER_USE_COPIED_CODE_CHANNEL,
+        subject.trustedEvent,
+        { operationId: "or-1", code: "x" },
+      ],
+      [DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL, subject.trustedEvent, {}],
+      [DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL, untrusted],
+      [
+        DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL,
+        subject.trustedEvent,
+        { page: "https://evil.example" },
+      ],
+      [DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL, subject.trustedEvent, { page: "keys", url: "x" }],
+    ];
+    for (const [channel, event, ...args] of rejected) {
+      await expect(
+        Promise.resolve().then(() => subject.invoke(channel, event, ...args)),
+      ).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(subject.openRouter.ports.signIn).not.toHaveBeenCalled();
+    expect(subject.openRouter.ports.openExternal).not.toHaveBeenCalled();
+    expect(subject.openRouter.clipboard.readText).not.toHaveBeenCalled();
+  });
+
+  it("aborts a waiting sign-in when the window's handlers are disposed", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    subject.openRouter.ports.signIn.mockImplementationOnce(
+      (hooks: OpenRouterSignInOptions) =>
+        new Promise<string>((_resolve, reject) => {
+          hooks.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    const pending = subject.invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, subject.trustedEvent, {
+      operationId: "or-1",
+      selection: selection(),
+    });
+    subject.dispose();
+    await expect(pending).resolves.toEqual({
+      status: "refused",
+      operationId: "or-1",
+      reason: "cancelled",
+    });
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
   });
 });

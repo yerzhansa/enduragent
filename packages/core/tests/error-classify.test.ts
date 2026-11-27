@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { APICallError } from "@ai-sdk/provider";
 import type { ApiError } from "intervals-icu-api";
 import { classifyAgentError as classifyAgentErrorMessage } from "../src/agent/error-classify.js";
-import { formatRateLimitWait } from "../src/agent/token-utils.js";
+import { classifyFailure, formatRateLimitWait } from "../src/agent/token-utils.js";
 
 const book = await createPhrasebook({ tag: "en", locale: "en-GB" });
 
@@ -159,5 +159,56 @@ describe("classifyAgentError", () => {
 it("returns a message descriptor for provider failures", () => {
   expect(classifyAgentErrorMessage(apiError(500)).athleteMessage).toEqual({
     key: "coach.error.providerDown",
+  });
+});
+
+describe("payment required", () => {
+  function openRouter402(message: string): APICallError {
+    return new APICallError({
+      message,
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      requestBodyValues: {},
+      statusCode: 402,
+      responseBody: JSON.stringify({ error: { code: 402, message } }),
+      data: { error: { code: 402, message } },
+    });
+  }
+
+  it("classifies an HTTP 402 as payment_required", () => {
+    expect(classifyFailure(apiError(402))).toBe("payment_required");
+  });
+
+  it.each([
+    "Insufficient credits. Add more using https://openrouter.ai/settings/credits",
+    "This request requires more credits, or fewer max_tokens. You requested up to 8192 tokens, but can only afford 120.",
+    "Request timed out: rate limit and context window exceeded",
+  ])("keeps a 402 payment_required whatever its message says: %s", (message) => {
+    expect(classifyFailure(openRouter402(message))).toBe("payment_required");
+  });
+
+  it("classifies OpenRouter's mid-stream { code: 402 } error part as payment_required", () => {
+    expect(classifyFailure({ code: 402, message: "Insufficient credits" })).toBe(
+      "payment_required",
+    );
+    expect(classifyFailure({ code: "402", message: "Insufficient credits" })).toBe(
+      "payment_required",
+    );
+    expect(classifyFailure({ code: 400, message: "Insufficient credits" })).toBe("unknown");
+    expect(classifyFailure(Object.assign(new Error("x"), { code: 402 }))).toBe("unknown");
+  });
+
+  it("does not treat other statuses as payment_required", () => {
+    expect(classifyFailure(apiError(400))).toBe("invalid_request");
+    expect(classifyFailure(apiError(401))).toBe("auth");
+    expect(classifyFailure(apiError(429))).toBe("rate_limit");
+    expect(classifyFailure(apiError(500))).toBe("server_error");
+  });
+
+  it("keeps the generic reply outside the desktop Coach", () => {
+    const result = classifyAgentError(openRouter402("Insufficient credits"));
+    expect(result).toEqual({
+      kind: "unknown",
+      athleteMessage: "Sorry, something went wrong. Please try again.",
+    });
   });
 });

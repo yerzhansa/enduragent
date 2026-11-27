@@ -732,6 +732,10 @@
       "sourceHash": "29d17ffd8d6f03f82cb5caf83d6ce762e1bdb54578e74e4620a3b67608495746",
       "translatedBy": "model"
     },
+    "settings.credentials.delete.openrouterDetail": {
+      "sourceHash": "1b7a08a0f09362babaf9b1f3f7f919d6011789e9c0636d50fdeb79f91efcf07c",
+      "translatedBy": "model"
+    },
     "settings.credentials.delete.title": {
       "sourceHash": "80b8a70fc729b760cdeeb7bb4417c51de7ba9393e6f872e9f84e79efaa4290d4",
       "translatedBy": "model"
@@ -1712,6 +1716,10 @@
       "sourceHash": "ef611667d6dea9de99b78c13a920ddf74ceb2b05481d217f37e9a73dfde4dd63",
       "translatedBy": "model"
     },
+    "setup.ai.announcement.openrouter": {
+      "sourceHash": "9fd2742c953c710d69cd805dad8c7e500fffcc0486d142374fdac620ba8f62a8",
+      "translatedBy": "model"
+    },
     "setup.ai.apiKeyHint": {
       "sourceHash": "16a97f17a69fa588f8605686bbf6fd2502e736843b8b9334b99d7c100bb83ee6",
       "translatedBy": "model"
@@ -1876,6 +1884,10 @@
       "sourceHash": "708e0733cf5d74a067f80ca2d525701e3405763056d453274902a7c5802dec4d",
       "translatedBy": "model"
     },
+    "setup.ai.laneHint.openrouter": {
+      "sourceHash": "4ca2913bffe3c6b6ca66c2560612367c4ddc0deedf0fe2c91e97fe5182729de6",
+      "translatedBy": "model"
+    },
     "setup.ai.menuLabel": {
       "sourceHash": "580069f67399658e55363bcb00d9b6cd1c6e7be4b4a857379105fead558fba21",
       "translatedBy": "model"
@@ -1960,6 +1972,10 @@
       "sourceHash": "d9baa068e9a77eba79c7a2fec64079cd1c23a7fbfac794d6e6bf6b51328e9e6d",
       "translatedBy": "model"
     },
+    "setup.ai.pending.openrouterCredits": {
+      "sourceHash": "d1268220a4bdca1b8d578f7291f4584af7e80bff4aace2b1d2bde53b4e0e7450",
+      "translatedBy": "model"
+    },
     "setup.ai.provider": {
       "sourceHash": "472590ae974d4c1f44b3780df0b152d9119f076c61bfb3e8cb6affd7889ac0a8",
       "translatedBy": "model"
@@ -1977,7 +1993,7 @@
       "translatedBy": "model"
     },
     "setup.ai.tooltip.body": {
-      "sourceHash": "717175a30e087e244647bc38ebd165e00298a2580709cc7efdf7ebff2b8d31bd",
+      "sourceHash": "28316a101a45e1b777c06af225d6424abc7ac2a8d2403f9b3f496c4cf2c0f784",
       "translatedBy": "model"
     },
     "setup.ai.tooltip.label": {
@@ -2112,14 +2128,6 @@
       "sourceHash": "4ff35219de041cfb4e0bde37862c4a7344281d2038e2040e255ecd502f7156ae",
       "translatedBy": "model"
     },
-    "setup.error.intakeIncomplete": {
-      "sourceHash": "8eef5b86f6562f8a2fa17b3e17d15a49aa5f6c92b3dfb9c058a5dba6f2f33a7e",
-      "translatedBy": "model"
-    },
-    "setup.error.intakeSaveFailed": {
-      "sourceHash": "ac3742efddd8598f18537f0fd7226d48a338e31203283a9cb0c01265dec8fd90",
-      "translatedBy": "model"
-    },
     "setup.error.intervalsOwnerUnavailable": {
       "sourceHash": "4d2c4a67c154e181bf1449df9516051180b1a503a5d7f657b31fb1cab6d2c5c7",
       "translatedBy": "model"
@@ -2236,32 +2244,112 @@
       "sourceHash": "d75574bb1ff3b2462dcdad5022f87eae18c8e5d15c23508e39385a894f6ec877",
       "translatedBy": "model"
     },
-    "setup.intake.managing": {
-      "sourceHash": "8d0f537df3b8c2c3f4102dc4b63d81edd2003971399eb98aa60f4032ae78fe91",
+    "setup.openrouter.code.expired": {
+      "sourceHash": "cc4c9105604e1ad21d927e56592740edb32ef7dd16b861b5492931c45f07587e",
       "translatedBy": "model"
     },
-    "setup.intake.none": {
-      "sourceHash": "1b846db9cee05524c6166f79bcab13ee7a7138a28b19a0f97ac599e43c28f711",
+    "setup.openrouter.code.heading": {
+      "sourceHash": "7c4cd691e34aaac0ed74cc5573bc108720349553b3e86691950dafc9c725f355",
       "translatedBy": "model"
     },
-    "setup.intake.retrySave": {
-      "sourceHash": "d41214c2be67917c9bc5c14e07bcf4af66e63e680a673ef7e5a8c139525971ec",
+    "setup.openrouter.code.hint": {
+      "sourceHash": "7fe537682e1ca57b5ce01eea61b1218ec38124d263b7619f0f722114cb21c5ee",
       "translatedBy": "model"
     },
-    "setup.intake.returning": {
-      "sourceHash": "edff279d813f08e9886d550c7755e7aeaff55e7bf74c226999d1b244d72d827d",
+    "setup.openrouter.code.newCode": {
+      "sourceHash": "42cc251ca8e5f50c72b238f5192083bccc56bf115d6ffdc76aad67a93ea26943",
       "translatedBy": "model"
     },
-    "setup.intake.select": {
-      "sourceHash": "731fe041ce28da1ba4db11261c0800621008583d171ed41a7ca2177053fe1424",
+    "setup.openrouter.code.noCode": {
+      "sourceHash": "6dd97e863660f2346371869e0fe52c5bd0504b16d24dd44c69ddd8f342e931df",
       "translatedBy": "model"
     },
-    "setup.intake.subtitle": {
-      "sourceHash": "b890cb8a22a0a25e6199609b3d958f7afc6a9b117870a6fc63b04668f8560da8",
+    "setup.openrouter.code.open": {
+      "sourceHash": "d3976936e979be164499768f7baa4965692500bfc5f78042b4f73efd932028ef",
       "translatedBy": "model"
     },
-    "setup.intake.title": {
-      "sourceHash": "4801715f7a4e07782eedaa6b7948d0e62201066f0e938ef9834241761205a440",
+    "setup.openrouter.code.status": {
+      "sourceHash": "11b6b0f0e24f4a3972a18d6914468513faf5c179ae89730572b373ecb6ba13be",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.code.step1": {
+      "sourceHash": "85a126dc2bf2f6552db18cef7ffc9a2f519b6f64453de042b5f5e52165568b39",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.code.step2": {
+      "sourceHash": "d4984dc61db67328f90ce54d9a28936431c8f731d5562e6c7d6de7ee29d66aaa",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.code.step3": {
+      "sourceHash": "ca8f5b0c49946a500edbd6457bc2d84ba5e2afd9eb51288e339572eabf9c11fe",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.code.use": {
+      "sourceHash": "d8f9e4bd87b4243443ef269408f7bbb9a610b26321bc0d29d1b99e6da900ded5",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.completingHint": {
+      "sourceHash": "99cf498a29fd670d8f155e9cdda2615e04963ced8deffdf223129761ea6b2b26",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.enterCode": {
+      "sourceHash": "28d8426e8885a3f827e95ec09296767bc60c63f7f311ded49a79ec5dcb59221e",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.notFinished": {
+      "sourceHash": "38f71d6a0435b43afeed57d07cb24c13c50d435f554ac9358f7ce632180f75c6",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.notSaved": {
+      "sourceHash": "20b46601fa51f5ea77c363d67ef41c6a8e4baae9bff31e9bf6194da44f870f8d",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.openKeys": {
+      "sourceHash": "81e113550ae6af951774b35b6b03629ab784d615bd48ff215c272b4c5f904682",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.savedHint": {
+      "sourceHash": "4899702247b6fbe97bea6af2f8577ae6f1c55fb84220facbfbfe3e91471baaa6",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.savedNotActive": {
+      "sourceHash": "0e60eeb2a0f9462fade892807354206101b3af8eefa08844df6a3098c019eb26",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.failed.unreachable": {
+      "sourceHash": "eb07ae31695e48c648e767a22a92f1860b661eecd5e27e42ae8eae2b4e3c0434",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.hint": {
+      "sourceHash": "f18c43edc2c26cad5126ea3286e830bf03f7821f234498f7ecc82c50a98346ec",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.noCredits.addCredits": {
+      "sourceHash": "d22feb61298be94d7d0c019759aa00a603add7f22d5598356882fb8b4a909346",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.noCredits.hint": {
+      "sourceHash": "f3311f491d9b8e86cf526118182a4667f939317a6cfac7af47a76debd097a5ba",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.noCredits.status": {
+      "sourceHash": "ddb521ef55900bb033a42d4aaf7421cab07bd19e51eccf14834f5b9d9269aac4",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.pasteInstead": {
+      "sourceHash": "097cc33ed5d26170a42a7a7bce2e262fa321abd7e71e2969a15e203f3af3d273",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.signIn": {
+      "sourceHash": "d5cdb9d860e4b6c7a237049401fb0a5a0ab55376f2df3b3e26aef32abad6fa2a",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.signInAgainHint": {
+      "sourceHash": "fd327c8eaffe8b8664dac8448942ce824ad981ba9d9bfbfd6c5054919ebc4def",
+      "translatedBy": "model"
+    },
+    "setup.openrouter.tryAgain": {
+      "sourceHash": "d8b8392e2c542950ca64867168e4ef87d4ad606882d5898f826b51c6d553988f",
       "translatedBy": "model"
     },
     "setup.requiredReady": {
@@ -10066,6 +10154,18 @@
     },
     "sidebar.sync.headline.signInRejected": {
       "sourceHash": "ef5693b67a35f741962ffa928e516b04aaaef3d478356607f80dfb92db7d4627",
+      "translatedBy": "model"
+    },
+    "setup.training.subtitle.savedRides": {
+      "sourceHash": "f2281e78a0163c0d69aa67753aa88a4f601f9e2cc1320306abfee82eeb88fd1a",
+      "translatedBy": "model"
+    },
+    "chat.notice.addCredits": {
+      "sourceHash": "d22feb61298be94d7d0c019759aa00a603add7f22d5598356882fb8b4a909346",
+      "translatedBy": "model"
+    },
+    "coach.error.openRouterCredits": {
+      "sourceHash": "e4928f5da9a7fa07a3b0728c08a13ff7afd51f95db0f91fa18756f4dba5d2e83",
       "translatedBy": "model"
     }
   }

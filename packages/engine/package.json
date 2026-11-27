@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/engine",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "description": "Private coaching engine boundary and sport contract.",
   "type": "module",

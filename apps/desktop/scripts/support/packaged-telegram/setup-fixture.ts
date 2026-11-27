@@ -1,6 +1,6 @@
 import { chmod, mkdir, open, readdir, type FileHandle } from "node:fs/promises";
 import { join } from "node:path";
-import { createIntakeRepository, runMigrations } from "@enduragent/kernel/store";
+import { runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 
@@ -45,17 +45,6 @@ export async function preparePackagedTelegramSetupFixture(athleteHome: string): 
       "INSERT INTO workout (workout_key,start_utc,tz_offset_s,name,notes,is_multisport,dedup_cluster_id) VALUES (?,?,?,?,?,?,?)",
       [WORKOUT_KEY, 0, 0, "Packaged Telegram acceptance ride", null, 0, DEDUP_CLUSTER_ID],
     );
-    await createIntakeRepository(store).replace({
-      id: "00000000000000000000000000",
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      clinician_cleared: null,
-      injury_status: "none",
-      device_id: "packaged-telegram-fixture",
-      hlc_physical_ms: 0,
-      hlc_counter: 0,
-    });
   } finally {
     try {
       await store?.close();

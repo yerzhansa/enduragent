@@ -40,6 +40,11 @@ const FULL_CONFIGURATION: OnboardingLlmConfiguration = {
       defaultModel: "sonnet",
       models: [{ value: "sonnet", label: "Claude Sonnet" }],
     },
+    {
+      provider: "openrouter",
+      defaultModel: "deepseek/deepseek-v4-flash",
+      models: [{ value: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" }],
+    },
   ],
   active: null,
 };
@@ -57,18 +62,19 @@ function stateWith(claudeCli: ClaudeCliState | null): OnboardingState {
 const CLAUDE_CLI_CASES: readonly (ClaudeCliState | null)[] = [null, ...CLAUDE_CLI_STATES];
 
 describe("setup lanes", () => {
-  it("maps providers onto the three setup lanes", () => {
+  it("maps providers onto the four setup lanes", () => {
     expect(laneForProvider("claude-cli")).toBe("claude-cli");
     expect(laneForProvider("openai-codex")).toBe("openai-codex");
     expect(laneForProvider("anthropic")).toBe("api-key");
-    expect(laneForProvider("openrouter")).toBe("api-key");
+    expect(laneForProvider("openrouter")).toBe("openrouter");
     expect(laneForProvider(null)).toBeNull();
     expect(laneForProvider(undefined)).toBeNull();
   });
 
-  it("lists only api-key providers as key-bearing", () => {
+  it("keeps OpenRouter among the providers that take a pasted key", () => {
     expect(apiKeyProviders(FULL_CONFIGURATION).map((entry) => entry.provider)).toEqual([
       "anthropic",
+      "openrouter",
     ]);
     expect(apiKeyProviders(null)).toEqual([]);
   });
@@ -76,7 +82,7 @@ describe("setup lanes", () => {
   it.each(CLAUDE_CLI_CASES)("offers claude-cli before checking readiness: %s", (claudeCli) => {
     const wizard = stateWith(claudeCli);
     const lanes = offeredLanes(FULL_CONFIGURATION, wizard);
-    expect(lanes).toEqual(["claude-cli", "openai-codex", "api-key"]);
+    expect(lanes).toEqual(["claude-cli", "openai-codex", "openrouter", "api-key"]);
   });
 
   it("keeps a selected claude-cli lane listed even after it degrades", () => {
@@ -84,11 +90,13 @@ describe("setup lanes", () => {
     expect(offeredLanes(FULL_CONFIGURATION, wizard, "claude-cli")).toEqual([
       "claude-cli",
       "openai-codex",
+      "openrouter",
       "api-key",
     ]);
     expect(offeredLanes(FULL_CONFIGURATION, wizard, "api-key")).toEqual([
       "claude-cli",
       "openai-codex",
+      "openrouter",
       "api-key",
     ]);
   });
@@ -98,7 +106,11 @@ describe("setup lanes", () => {
   });
 
   it("never offers claude-cli when the daemon does not expose it", () => {
-    expect(offeredLanes(NO_CLAUDE_CLI, stateWith("ready"))).toEqual(["openai-codex", "api-key"]);
+    expect(offeredLanes(NO_CLAUDE_CLI, stateWith("ready"))).toEqual([
+      "openai-codex",
+      "openrouter",
+      "api-key",
+    ]);
   });
 
   it("describes the unset row exactly", () => {
@@ -120,12 +132,15 @@ describe("setup lanes", () => {
     },
     { lane: "openai-codex", ready: false, subtitle: "Powers your coach · sign in to finish" },
     { lane: "api-key", ready: false, subtitle: "Powers your coach · add a key to finish" },
+    { lane: "openrouter", ready: false, subtitle: "Powers your coach · sign in to finish" },
+    { lane: "openrouter", ready: true, subtitle: "Connected · powers your coach" },
     { lane: "openai-codex", ready: true, subtitle: "Connected · powers your coach" },
     { lane: "api-key", ready: true, subtitle: "Connected · powers your coach" },
   ] as const)("describes the $lane row when ready is $ready", ({ lane, ready, subtitle }) => {
     const titles: Readonly<Record<SetupLane, string>> = {
       "claude-cli": "Claude Code",
       "openai-codex": "ChatGPT subscription",
+      openrouter: "OpenRouter",
       "api-key": "API key",
     };
     expect(aiRowCopy(lane, stateWith(null), ready)).toEqual({ title: titles[lane], subtitle });
@@ -190,8 +205,6 @@ describe("setup lanes", () => {
       "intervals-runtime-unavailable": { provider: "training", training: "training" },
       "intervals-runtime-uncertain": { provider: "training", training: "training" },
       "training-data-required": { provider: "training", training: "training" },
-      "intake-incomplete": { provider: "intake", training: "intake" },
-      "intake-save-failed": { provider: "intake", training: "intake" },
       "credential-save-failed": { provider: "provider", training: "training" },
       "invalid-input": { provider: "provider", training: "training" },
       "encryption-unavailable": { provider: "provider", training: "training" },

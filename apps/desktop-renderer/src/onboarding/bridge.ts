@@ -3,15 +3,14 @@ import { CoachClientDisconnectedError, connectCoachClient } from "@enduragent/co
 import {
   ImportFilesRpcParamsSchema,
   PlatformAbsolutePathSchema,
-  SaveIntakeRpcParamsSchema,
   type GetSetupStatusRpcResult,
   type CoachOperationProgressNotificationEnvelope,
   type ImportFilesRpcResult,
   type LlmProvider,
-  type SaveIntakeRpcParams,
 } from "@enduragent/coach-contract";
 import { validateRendererDaemonConnection } from "../daemon-connection";
 import { SUPPORTED_IMPORT_EXTENSIONS, type DesktopCredentialSlot } from "./constants";
+import { openRouterSignInBridge } from "./openrouter-sign-in";
 import type {
   ChatGptCancelLoginResult,
   ChatGptLoginProgress,
@@ -193,7 +192,57 @@ export interface ChatGptLoginInput {
   readonly selection: OnboardingLlmSelection;
 }
 
-export interface OnboardingBridge {
+export type OpenRouterCreditStatus = "paid" | "never-paid" | "unknown";
+
+export type OpenRouterSignInPhase = "waiting-for-browser" | "completing-sign-in";
+
+export type OpenRouterSignInRefusal =
+  | "already-in-progress"
+  | "cancelled"
+  | "not-finished"
+  | "unreachable"
+  | "not-saved"
+  | "saved-not-active"
+  | "clipboard-no-code"
+  | "clipboard-unavailable"
+  | "code-expired"
+  | "invalid-input";
+
+export type OpenRouterSignInResult =
+  | {
+      readonly status: "connected";
+      readonly operationId: string;
+      readonly credit: OpenRouterCreditStatus;
+    }
+  | { readonly status: "awaiting-code"; readonly operationId: string }
+  | {
+      readonly status: "refused";
+      readonly operationId: string;
+      readonly reason: OpenRouterSignInRefusal;
+    };
+
+export interface OpenRouterSignInProgress {
+  readonly operationId: string;
+  readonly phase: OpenRouterSignInPhase;
+}
+
+export interface OpenRouterSignInInput {
+  readonly operationId: string;
+  readonly selection: OnboardingLlmSelection;
+}
+
+export interface OpenRouterSignInBridge {
+  openRouterSignIn(input: OpenRouterSignInInput): Promise<OpenRouterSignInResult>;
+  startOpenRouterCodeSignIn(input: OpenRouterSignInInput): Promise<OpenRouterSignInResult>;
+  useCopiedOpenRouterCode(operationId: string): Promise<OpenRouterSignInResult>;
+  cancelOpenRouterSignIn(operationId: string): Promise<boolean>;
+  reopenOpenRouterSignIn(operationId: string): Promise<boolean>;
+  openRouterCreditStatus(): Promise<OpenRouterCreditStatus>;
+  openOpenRouterPage(page: "credits" | "keys"): Promise<boolean>;
+  onOpenRouterSignInProgress(listener: (progress: OpenRouterSignInProgress) => void): () => void;
+}
+
+export interface OnboardingBridge extends OpenRouterSignInBridge {
   getSetupStatus?(): Promise<GetSetupStatusRpcResult>;
   credentialStatuses(): Promise<readonly CredentialSlotStatus[]>;
   retryFailedCredentials(): Promise<readonly CredentialSlotStatus[]>;
@@ -216,10 +265,9 @@ export interface OnboardingBridge {
     paths: readonly string[],
     onProgress: (event: CoachOperationProgressNotificationEnvelope) => void,
   ): Promise<ImportFilesRpcResult>;
-  saveIntake(input: SaveIntakeRpcParams): Promise<void>;
 }
 
-export interface DesktopOnboardingAuth {
+export interface DesktopOnboardingAuth extends OpenRouterSignInBridge {
   getDaemonConnection(): Promise<{
     readonly url: `ws://127.0.0.1:${number}/rpc`;
     readonly rendererCapability: string;
@@ -294,6 +342,7 @@ export function createOnboardingBridge(
     cancelIntervalsSignIn: () => auth.cancelIntervalsSignIn(),
     reopenIntervalsSignIn: () => auth.reopenIntervalsSignIn(),
     onIntervalsSignInProgress: (listener) => auth.onIntervalsSignInProgress(listener),
+    ...openRouterSignInBridge(auth),
     llmConfiguration: () => auth.llmConfiguration(),
     applyLlmSelection: (input) => auth.applyLlmSelection(input),
     chatGptStatus: () => auth.chatgptStatus(),
@@ -313,16 +362,6 @@ export function createOnboardingBridge(
           { paths: [...parsedPaths] },
           { onNotificationEnvelope: onProgress },
         );
-      } catch (error) {
-        if (error instanceof CoachClientDisconnectedError) clientPromise = undefined;
-        throw error;
-      }
-    },
-    async saveIntake(input) {
-      const connected = await client();
-      try {
-        const result = await connected.call("saveIntake", SaveIntakeRpcParamsSchema.parse(input));
-        if (!result.saved) throw new TypeError();
       } catch (error) {
         if (error instanceof CoachClientDisconnectedError) clientPromise = undefined;
         throw error;

@@ -206,6 +206,7 @@
         "confirmAria": "Vahvista palveluntarjoajan {{provider}} tunnistautumistiedon poisto",
         "credential": "Poista tunnistautumistieto",
         "detail": "Tämä poistaa sen vain tietokoneelta {{computer}}. {{product}} lopettaa sen käytön, jos se on käytössä. Palveluntarjoajan tilisi säilyy ennallaan.",
+        "openrouterDetail": "Tämä poistaa sen vain tietokoneelta {{computer}}. {{product}} lopettaa sen käytön, jos se on käytössä. Avain toimii edelleen palvelussa {{openrouter}}, kunnes poistat sen sieltä.",
         "title": "Poistetaanko palveluntarjoajan {{provider}} tunnistautumistieto?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Lisäasetukset",
       "announcement": {
         "apiKey": "API-avaimen käyttöönotto avautui tämän rivin alle.",
-        "chatgpt": "{{chatgpt}}-kirjautuminen avautui tämän rivin alle."
+        "chatgpt": "{{chatgpt}}-kirjautuminen avautui tämän rivin alle.",
+        "openrouter": "{{openrouter}}-kirjautuminen avautui tämän rivin alle."
       },
       "apiKeyHint": "Luodaan palveluntarjoajan hallintapaneelissa, laskutetaan käytön mukaan. Yleensä muutamia senttejä keskustelulta.",
       "cancelLabel": "Peruuta API-avaimen käyttöönotto",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} palveluntarjoajaa · maksa käytön mukaan",
         "claudeCli": "Tarkistaa {{claude}}-tilauksesi, kun valitset tämän",
-        "openaiCodex": "Käytä tilausta, josta jo maksat"
+        "openaiCodex": "Käytä tilausta, josta jo maksat",
+        "openrouter": "Kirjaudu · maksa käytön mukaan, monta mallia"
       },
       "menuLabel": "Valmentajasi käyttämä tekoäly",
       "model": "Malli",
@@ -646,14 +649,15 @@
         "apiKey": "Valmentajasi tekoäly · viimeistele lisäämällä avain",
         "chatgpt": "Valmentajasi tekoäly · viimeistele kirjautumalla",
         "checkingClaude": "Valmentajasi tekoäly · tarkistetaan {{claudeCode}}-kirjautumista",
-        "claude": "Valmentajasi tekoäly · viimeistele kirjautumalla päätteessä"
+        "claude": "Valmentajasi tekoäly · viimeistele kirjautumalla päätteessä",
+        "openrouterCredits": "Kirjautunut · lisää krediittejä palvelussa {{openrouter}}, niin saat vastauksia"
       },
       "provider": "Palveluntarjoaja",
       "saveLabel": "Tallenna API-avain",
       "subtitle": "Pakollinen · {{product}} ei sisällä omaa tekoälyä",
       "title": "Valmentajasi käyttämä tekoäly",
       "tooltip": {
-        "body": "Se käyttää {{chatgpt}}-tilausta, {{claudeCode}}-kirjautumista tai antamaasi API-avainta. Valitsemasi tunnistautumistiedot säilyvät tietokoneella {{computer}}.",
+        "body": "Se käyttää {{chatgpt}}-tilausta, {{claudeCode}}-kirjautumista, {{openrouter}}-kirjautumista tai antamaasi API-avainta. Valitsemasi tunnistautumistiedot säilyvät tietokoneella {{computer}}.",
         "label": "Tietoa valmentajasi käyttämästä tekoälystä",
         "lead": "Sovelluksella {{product}} ei ole omaa tekoälyä"
       },
@@ -700,8 +704,6 @@
       "credentialSaveFailed": "Avainta ei voitu tallentaa. Yritä antaa se uudelleen.",
       "credentialStatusUnavailable": "Avain tallennettiin, mutta sen tilaa ei voitu päivittää. Tarkista käyttöönotto-osio uudelleen.",
       "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
-      "intakeIncomplete": "Vastaa pakollisiin turvallisuuskysymyksiin jatkaaksesi.",
-      "intakeSaveFailed": "Vastauksiasi ei voitu tallentaa. Yritä uudelleen.",
       "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että tämä {{intervals}}-tili vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
       "intervalsRuntimeUnavailable": "{{intervals}}-kirjautumista ei voitu ottaa käyttöön. Kirjaudu uudelleen.",
       "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kirjautuminen käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
@@ -734,14 +736,40 @@
       "unavailable": "Tuonti paikalliseen kirjastoon: {{imported}} tuotu. {{quarantined}} karanteenissa. Valmentaja ei tilapäisesti voi käyttää suorituksia ja niiden aikasarjoja. Yritä tuontia uudelleen.",
       "unconfirmed": "Tuonti paikalliseen kirjastoon epäonnistui. Tulosta ei voitu vahvistaa. Tarkista kirjasto ennen uutta yritystä."
     },
-    "intake": {
-      "managing": "Minulla on hoidettava vamma",
-      "none": "Ei tämänhetkistä vammaa",
-      "retrySave": "Yritä vastausten tallennusta uudelleen",
-      "returning": "Palaan harjoitteluun vamman jälkeen",
-      "select": "Valitse…",
-      "subtitle": "Tallentaa tiedot tämänhetkisestä vammastasi tai harjoitteluun paluustasi.",
-      "title": "Vammatilanne juuri nyt"
+    "openrouter": {
+      "code": {
+        "expired": "Koodi on vanhentunut tai jo käytetty. Valitse Hae uusi koodi ja kopioi sitten uusi koodi.",
+        "heading": "Kirjaudu koodilla",
+        "hint": "Käytä tätä, kun selain ei pysty palauttamaan kirjautumista sovellukselle {{product}}.",
+        "newCode": "Hae uusi koodi",
+        "noCode": "Leikepöydälläsi ei ole {{openrouter}}-koodia. Kopioi koodi selaimesta ja valitse sitten uudelleen Käytä kopioitua koodia. Tämä kirjautuminen pysyy auki.",
+        "open": "Avaa kirjautumissivu",
+        "status": "Koodi toimii kerran ja vanhenee 10 minuutin kuluttua.",
+        "step1": "Valitse Avaa kirjautumissivu ja hyväksy sitten selaimessasi.",
+        "step2": "Kopioi koodi, jonka {{openrouter}} näyttää.",
+        "step3": "Valitse Käytä kopioitua koodia. {{product}} lukee koodin ja tyhjentää sitten leikepöytäsi.",
+        "use": "Käytä kopioitua koodia"
+      },
+      "completingHint": "Hyväksytty. Tallennetaan avainta tietokoneelle {{computer}}…",
+      "enterCode": "Syötä koodi sen sijaan",
+      "failed": {
+        "notFinished": "Kirjautumista ei viety loppuun selaimessa. Yritä uudelleen, kun olet valmis.",
+        "notSaved": "{{openrouter}} loi avaimen, mutta sitä ei voitu tallentaa tietokoneelle {{computer}}. Yritä uudelleen. Käyttämätön avain säilyy palvelussa {{openrouter}}, kunnes poistat sen sieltä.",
+        "openKeys": "Avaa avaimeni palvelussa {{openrouter}}",
+        "savedHint": "Avain on tallennettu tietokoneelle {{computer}}.",
+        "savedNotActive": "Kirjautuminen onnistui, mutta valmentajaa ei voitu käynnistää. Yritä uudelleen kirjautumatta uudelleen.",
+        "unreachable": "{{openrouter}} ei vastannut, joten mitään ei tallennettu. Yritä uudelleen minuutin kuluttua."
+      },
+      "hint": "Avaa palvelun {{openrouter}} selaimessasi. Hyväksy siellä, niin luotu avain säilyy tietokoneella {{computer}}. Hyväksyntäsivulla tämän sovelluksen nimenä näkyy localhost.",
+      "noCredits": {
+        "addCredits": "Lisää krediittejä",
+        "hint": "Tälle {{openrouter}}-tilille ei ole koskaan ostettu krediittejä. Valmentaja tarvitsee krediittejä vastatakseen, yleensä muutamia senttejä keskustelulta.",
+        "status": "{{product}} tarkistaa uudelleen, kun palaat tähän ikkunaan."
+      },
+      "pasteInstead": "Liitä avain sen sijaan",
+      "signIn": "Kirjaudu palvelulla {{openrouter}}",
+      "signInAgainHint": "Uusi kirjautuminen korvaa avaimen tietokoneella {{computer}}. Vanha avain toimii edelleen palvelussa {{openrouter}}, kunnes poistat sen sieltä.",
+      "tryAgain": "Yritä uudelleen"
     },
     "requiredReady": "{{ready}}/{{total}} pakollista kohtaa valmiina",
     "retrySavedKeys": "Yritä tallennettuja avaimia uudelleen",
@@ -789,7 +817,8 @@
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja.",
-        "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu."
+        "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu.",
+        "savedRides": "Lenkit tallennettu tietokoneelle {{computer}} · yhdistä, niin uudet synkronoidaan"
       },
       "tooltip": {
         "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kirjaudu sitten sisään täällä.",
@@ -1051,7 +1080,8 @@
       "feedbackFailed": "Viestiä ei voitu lähettää. Se on yhä kentässä — yritä uudelleen.",
       "feedbackSent": "Kiitos — vastaanotimme viestisi.",
       "feedbackTooLong": "Pidä viesti enintään 4000 merkin pituisena. Mitään ei lähetetty.",
-      "feedbackUsage": "Lähetä /feedback ja sen perään viestisi."
+      "feedbackUsage": "Lähetä /feedback ja sen perään viestisi.",
+      "addCredits": "Lisää krediittejä"
     },
     "planChange": {
       "activePlan": "Aktiivinen suunnitelma",
@@ -2643,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} hylkäsi pyynnön. Tarkista {{service}}-yhteytesi tai API-avaimesi.",
       "intervalsTransient": "En saanut juuri nyt yhteyttä palveluun {{service}}. Yritä pian uudelleen.",
+      "openRouterCredits": "{{openrouter}}-tililläsi ei ole tarpeeksi krediittejä. Lisää krediittejä palvelussa {{openrouter}} ja lähetä sitten viestisi uudelleen.",
       "providerCredentials": "Mallin palveluntarjoaja hylkäsi API-avaimen. Tarkista palveluntarjoajan tunnistautumistietosi.",
       "providerDown": "Mallin palveluntarjoajalla on ongelmia. Yritä uudelleen muutaman minuutin kuluttua.",
       "rateLimit": "Pyyntöjä on nyt liikaa. Yritä pian uudelleen.",

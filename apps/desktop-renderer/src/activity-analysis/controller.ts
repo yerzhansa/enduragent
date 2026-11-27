@@ -59,7 +59,6 @@ export function createRideAnalysisController(input: {
 }): RideAnalysisController {
   let disposed = false;
   let generation = 0;
-  let operation: AbortController | undefined;
   let failedClient: DesktopCoachClient | undefined;
   let reconnectRequired = false;
   let state: RideAnalysisViewState = EMPTY_RIDE_ANALYSIS;
@@ -86,9 +85,8 @@ export function createRideAnalysisController(input: {
     const requested = [...new Set(sections)];
     if (requested.length === 0) return;
     const selectedGeneration = ++generation;
-    operation?.abort();
-    const controller = new AbortController();
-    operation = controller;
+    const superseded = (): boolean =>
+      disposed || selectedGeneration !== generation || state.activityId !== selectedActivityId;
     render({
       ...state,
       status: "loading",
@@ -98,25 +96,15 @@ export function createRideAnalysisController(input: {
     let client: DesktopCoachClient | undefined;
     try {
       client = await clientAfterFailure();
-      controller.signal.throwIfAborted();
+      if (superseded()) return;
       const result = ActivityAnalysisResultSchema.parse(
-        await client.call(
-          "getActivityAnalysis",
-          {
-            canonicalActivityId: selectedActivityId,
-            sections: requested,
-            ...(refresh ? { refresh: true } : {}),
-          },
-          { signal: controller.signal },
-        ),
+        await client.call("getActivityAnalysis", {
+          canonicalActivityId: selectedActivityId,
+          sections: requested,
+          ...(refresh ? { refresh: true } : {}),
+        }),
       ) as ActivityAnalysisResult;
-      if (
-        disposed ||
-        selectedGeneration !== generation ||
-        state.activityId !== selectedActivityId
-      ) {
-        return;
-      }
+      if (superseded()) return;
       const retain = state.revision === null || state.revision === result.revision;
       const next: RideAnalysisViewState = {
         activityId: selectedActivityId,
@@ -129,13 +117,7 @@ export function createRideAnalysisController(input: {
       cache.set(selectedActivityId, next);
       render(next);
     } catch (error) {
-      if (
-        disposed ||
-        selectedGeneration !== generation ||
-        state.activityId !== selectedActivityId
-      ) {
-        return;
-      }
+      if (superseded()) return;
       if (
         error instanceof CoachClientDisconnectedError ||
         error instanceof CoachClientProtocolError
@@ -149,8 +131,6 @@ export function createRideAnalysisController(input: {
         loadingSections: [],
         failedSections: [...new Set([...state.failedSections, ...requested])],
       });
-    } finally {
-      if (operation === controller) operation = undefined;
     }
   };
 
@@ -160,8 +140,6 @@ export function createRideAnalysisController(input: {
       const selected = activityId === null ? null : CanonicalActivityIdSchema.parse(activityId);
       if (disposed || selected === state.activityId) return;
       generation += 1;
-      operation?.abort();
-      operation = undefined;
       if (selected === null) {
         render(EMPTY_RIDE_ANALYSIS);
         return;
@@ -195,8 +173,6 @@ export function createRideAnalysisController(input: {
     invalidate() {
       const reloadSelectedActivity = state.activityId !== null && state.status !== "idle";
       generation += 1;
-      operation?.abort();
-      operation = undefined;
       cache.clear();
       if (reloadSelectedActivity) void load(DEFAULT_RIDE_ANALYSIS_SECTIONS);
     },
@@ -204,8 +180,6 @@ export function createRideAnalysisController(input: {
       if (disposed) return;
       disposed = true;
       generation += 1;
-      operation?.abort();
-      operation = undefined;
     },
   };
 }

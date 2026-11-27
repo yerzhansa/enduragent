@@ -17,6 +17,7 @@ import {
 } from "../src/onboarding/controller";
 import type { CredentialDraftPort } from "../src/onboarding/credentials";
 import type { OnboardingCompletion } from "../src/onboarding/machine";
+import { openRouterTestBridge } from "./openrouter-test-bridge";
 
 const COLD_START_WINDOW_MS =
   ONBOARDING_STATUS_COLD_START_TIMEOUT_MS * ONBOARDING_STATUS_LOAD_ATTEMPTS +
@@ -27,7 +28,6 @@ const COLD_START_WINDOW_MS =
 const completion = {
   providerConfigured: true,
   trainingDataConfigured: true,
-  intakeSaved: true,
   requiresProviderSync: true,
 } as const;
 
@@ -95,6 +95,7 @@ function activationBridge(
     { slot: "intervals-icu", state: "configured", runtimeState: "active" },
   ] as const;
   return {
+    ...openRouterTestBridge(),
     credentialStatuses: vi.fn<OnboardingBridge["credentialStatuses"]>(async () => statuses),
     retryFailedCredentials: vi.fn<OnboardingBridge["retryFailedCredentials"]>(async () => statuses),
     writeCredential: vi.fn<OnboardingBridge["writeCredential"]>(async ({ slot }) => ({
@@ -145,7 +146,6 @@ function activationBridge(
       },
       publication: { scope: "activities-and-streams", status: "available" },
     })),
-    saveIntake: vi.fn<OnboardingBridge["saveIntake"]>(async () => {}),
   };
 }
 
@@ -179,38 +179,6 @@ function onboardingHarness(
       if (surface === undefined) throw new Error("Onboarding surface was not rendered");
       return surface;
     },
-  };
-}
-
-function authoritativeBridge() {
-  return {
-    ...activationBridge(async () => ({ status: "configured", runtimeReady: true })),
-    getSetupStatus: vi.fn<NonNullable<OnboardingBridge["getSetupStatus"]>>(async () => ({
-      schemaVersion: 1,
-      intake: null,
-      durableTrainingData: true,
-    })),
-  };
-}
-
-function readyAuthoritativeBridge() {
-  const bridge = authoritativeBridge();
-  bridge.getSetupStatus.mockResolvedValue({
-    schemaVersion: 1,
-    intake: expectedIntake("none"),
-    durableTrainingData: true,
-  });
-  return bridge;
-}
-
-function expectedIntake(injuryStatus: "none" | "managing" | "returning") {
-  return {
-    swim_skill_floor: null,
-    continuous_distance_capable: null,
-    open_water_comfort: null,
-    prior_bsi: false,
-    clinician_cleared: null,
-    injury_status: injuryStatus,
   };
 }
 
@@ -344,350 +312,6 @@ describe("onboarding completion", () => {
   });
 });
 
-describe("settings intake persistence", () => {
-  it("keeps a saved Settings edit in Settings while its replacement persists", async () => {
-    const pending = deferred<void>();
-    const bridge = readyAuthoritativeBridge();
-    bridge.saveIntake.mockReturnValueOnce(pending.promise);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    expect(harness.surface().completionRequired).toBe(false);
-
-    harness.controller.setIntake("injuryStatus", "managing", { persistWhenComplete: true });
-
-    expect(harness.surface().readiness.intake).toBe(false);
-    expect(harness.surface().completionRequired).toBe(false);
-    pending.resolve();
-    await vi.waitFor(() => {
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    expect(harness.surface().completionRequired).toBe(false);
-    expect(harness.onReady).not.toHaveBeenCalled();
-    harness.controller.dispose();
-  });
-
-  it("holds an explicit recovery gate until setup completion is acknowledged", async () => {
-    const bridge = readyAuthoritativeBridge();
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.requireCompletion();
-
-    expect(harness.surface().completionRequired).toBe(true);
-    harness.controller.finish();
-    await vi.waitFor(() => {
-      expect(harness.onReady).toHaveBeenCalledOnce();
-    });
-    expect(harness.surface().completionRequired).toBe(false);
-    harness.controller.dispose();
-  });
-
-  it("persists a complete Settings answer without completing or navigating", async () => {
-    const bridge = authoritativeBridge();
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-
-    await vi.waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledOnce();
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    expect(bridge.saveIntake).toHaveBeenCalledWith(expectedIntake("none"));
-    expect(harness.controller.state().busy).toBe(false);
-    expect(harness.onComplete).not.toHaveBeenCalled();
-    expect(harness.onReady).not.toHaveBeenCalled();
-    harness.controller.dispose();
-  });
-
-  it.each(["managing", "returning"] as const)(
-    "persists a %s injury answer without a second question",
-    async (injuryStatus) => {
-      const bridge = authoritativeBridge();
-      const harness = onboardingHarness(bridge);
-      await harness.controller.open();
-
-      harness.controller.setIntake("injuryStatus", injuryStatus, {
-        persistWhenComplete: true,
-      });
-
-      await vi.waitFor(() => {
-        expect(bridge.saveIntake).toHaveBeenCalledOnce();
-      });
-      expect(bridge.saveIntake).toHaveBeenCalledWith(expectedIntake(injuryStatus));
-      expect(harness.onComplete).not.toHaveBeenCalled();
-      expect(harness.onReady).not.toHaveBeenCalled();
-      harness.controller.dispose();
-    },
-  );
-
-  it("leaves Chat answers local until Start coaching saves and completes setup", async () => {
-    const bridge = authoritativeBridge();
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    expect(harness.surface().completionRequired).toBe(true);
-
-    harness.controller.setIntake("injuryStatus", "none");
-    await Promise.resolve();
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
-    expect(harness.surface().completionRequired).toBe(true);
-
-    harness.controller.finish();
-
-    await vi.waitFor(() => {
-      expect(harness.onComplete).toHaveBeenCalledOnce();
-    });
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    expect(bridge.saveIntake).toHaveBeenCalledWith(expectedIntake("none"));
-    expect(harness.surface().completionRequired).toBe(false);
-    expect(harness.onReady).toHaveBeenCalledOnce();
-    harness.controller.dispose();
-  });
-
-  it("serializes rapid complete edits and only accepts the newest successful revision", async () => {
-    const first = deferred<void>();
-    const latest = deferred<void>();
-    const bridge = authoritativeBridge();
-    bridge.saveIntake
-      .mockImplementationOnce(() => first.promise)
-      .mockImplementationOnce(() => latest.promise);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-    harness.controller.setIntake("injuryStatus", "managing", { persistWhenComplete: true });
-    harness.controller.setIntake("injuryStatus", "returning", { persistWhenComplete: true });
-
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    expect(bridge.saveIntake).toHaveBeenNthCalledWith(1, expectedIntake("none"));
-    first.resolve();
-
-    await vi.waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledTimes(2);
-    });
-    expect(harness.surface().readiness.intake).toBe(false);
-    expect(bridge.saveIntake).toHaveBeenNthCalledWith(2, expectedIntake("returning"));
-
-    latest.resolve();
-    await vi.waitFor(() => {
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    harness.controller.dispose();
-  });
-
-  it("does not persist an incomplete replacement queued behind a complete save", async () => {
-    const pending = deferred<void>();
-    const bridge = authoritativeBridge();
-    bridge.saveIntake.mockImplementationOnce(() => pending.promise);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-    harness.controller.setIntake("injuryStatus", null, { persistWhenComplete: true });
-    pending.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    expect(harness.surface().readiness.intake).toBe(false);
-    expect(harness.controller.state().fixedError).toBeNull();
-    harness.controller.dispose();
-  });
-
-  it("suppresses stale failures and retries the current failed revision", async () => {
-    const stale = deferred<void>();
-    const current = deferred<void>();
-    const bridge = authoritativeBridge();
-    bridge.saveIntake
-      .mockImplementationOnce(() => stale.promise)
-      .mockImplementationOnce(() => current.promise)
-      .mockResolvedValueOnce();
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-    harness.controller.setIntake("injuryStatus", "returning", { persistWhenComplete: true });
-    stale.reject(new Error("stale private detail"));
-
-    await vi.waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledTimes(2);
-    });
-    expect(harness.controller.state().fixedError).toBeNull();
-
-    current.reject(new Error("current private detail"));
-    await vi.waitFor(() => {
-      expect(harness.controller.state().fixedError).toBe("intake-save-failed");
-    });
-    expect(harness.surface().readiness.intake).toBe(false);
-
-    harness.controller.retryIntakeSave();
-    await vi.waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledTimes(3);
-      expect(harness.controller.state().fixedError).toBeNull();
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    expect(bridge.saveIntake).toHaveBeenNthCalledWith(3, expectedIntake("returning"));
-    harness.controller.dispose();
-  });
-
-  it("resumes the newest complete Settings save after refresh invalidates an older write", async () => {
-    const stale = deferred<void>();
-    const replacement = deferred<void>();
-    const bridge = authoritativeBridge();
-    bridge.getSetupStatus
-      .mockResolvedValueOnce({ schemaVersion: 1, intake: null, durableTrainingData: true })
-      .mockResolvedValueOnce({
-        schemaVersion: 1,
-        intake: expectedIntake("returning"),
-        durableTrainingData: true,
-      });
-    bridge.saveIntake
-      .mockImplementationOnce(() => stale.promise)
-      .mockImplementationOnce(() => replacement.promise);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-    harness.controller.setIntake("injuryStatus", "returning", { persistWhenComplete: true });
-
-    await harness.controller.refresh();
-
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    expect(harness.controller.state().intake).toEqual({ injuryStatus: "returning" });
-    expect(harness.surface().readiness.intake).toBe(false);
-
-    stale.reject(new Error("stale private detail"));
-    await vi.waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledTimes(2);
-    });
-    expect(harness.controller.state().fixedError).toBeNull();
-    expect(bridge.saveIntake).toHaveBeenNthCalledWith(2, expectedIntake("returning"));
-
-    replacement.resolve();
-    await vi.waitFor(() => {
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    expect(harness.onComplete).not.toHaveBeenCalled();
-    expect(harness.onReady).not.toHaveBeenCalled();
-    harness.controller.dispose();
-  });
-
-  it("accepts an authoritative matching draft on refresh without another write", async () => {
-    const bridge = authoritativeBridge();
-    bridge.getSetupStatus
-      .mockResolvedValueOnce({ schemaVersion: 1, intake: null, durableTrainingData: true })
-      .mockResolvedValueOnce({
-        schemaVersion: 1,
-        intake: expectedIntake("none"),
-        durableTrainingData: true,
-      });
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-    await vi.waitFor(() => {
-      expect(harness.surface().readiness.intake).toBe(true);
-    });
-    await Promise.resolve();
-
-    await harness.controller.refresh();
-
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    expect(harness.surface().readiness.intake).toBe(true);
-    harness.controller.dispose();
-  });
-
-  it("keeps an open selector on its captured revision and adopts a newer revision after reopening", async () => {
-    const bridge = readyAuthoritativeBridge();
-    bridge.llmConfiguration
-      .mockResolvedValueOnce(KEYLESS_CONFIGURATION)
-      .mockResolvedValue({ ...KEYLESS_CONFIGURATION, catalogRevision: 8 });
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-    harness.controller.selectProvider("claude-cli");
-
-    expect(harness.surface().draft).toMatchObject({
-      catalogRevision: 7,
-      provider: { provider: "claude-cli" },
-      modelChoice: "sonnet",
-    });
-
-    await harness.controller.refresh();
-
-    expect(harness.surface().configuration?.catalogRevision).toBe(7);
-    expect(harness.surface().draft).toMatchObject({
-      catalogRevision: 7,
-      provider: { provider: "claude-cli" },
-      modelChoice: "sonnet",
-    });
-
-    harness.controller.close();
-    await harness.controller.open();
-    expect(harness.surface().configuration?.catalogRevision).toBe(8);
-    harness.controller.selectProvider("claude-cli");
-    expect(harness.surface().draft?.catalogRevision).toBe(8);
-    harness.controller.dispose();
-  });
-
-  it.each(["close", "dispose"] as const)(
-    "ignores late settlements and stale intake actions after %s",
-    async (lifecycle) => {
-      const pending = deferred<void>();
-      const bridge = authoritativeBridge();
-      bridge.saveIntake.mockImplementationOnce(() => pending.promise);
-      const harness = onboardingHarness(bridge);
-      await harness.controller.open();
-      harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-
-      harness.controller[lifecycle]();
-      const closedState = harness.controller.state();
-      harness.controller.setIntake("injuryStatus", "returning", {
-        persistWhenComplete: true,
-      });
-      expect(harness.controller.state()).toBe(closedState);
-      expect(bridge.saveIntake).toHaveBeenCalledOnce();
-
-      pending.reject(new Error("late private detail"));
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(harness.controller.state().fixedError).toBeNull();
-      expect(harness.surface().readiness.intake).toBe(false);
-      expect(harness.onComplete).not.toHaveBeenCalled();
-      expect(harness.onReady).not.toHaveBeenCalled();
-      if (lifecycle !== "dispose") harness.controller.dispose();
-    },
-  );
-
-  it("joins Finish to an active Settings save and completes exactly once", async () => {
-    const pending = deferred<void>();
-    const bridge = authoritativeBridge();
-    bridge.saveIntake.mockImplementationOnce(() => pending.promise);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-    harness.controller.setIntake("injuryStatus", "none", { persistWhenComplete: true });
-
-    harness.controller.finish();
-
-    expect(harness.controller.state().busy).toBe(true);
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    pending.resolve();
-    await vi.waitFor(() => {
-      expect(harness.onComplete).toHaveBeenCalledOnce();
-      expect(harness.onReady).toHaveBeenCalledOnce();
-    });
-    expect(bridge.saveIntake).toHaveBeenCalledOnce();
-
-    harness.controller.finish();
-    await Promise.resolve();
-    expect(harness.onComplete).toHaveBeenCalledOnce();
-    expect(harness.onReady).toHaveBeenCalledOnce();
-    harness.controller.dispose();
-  });
-});
-
 describe("onboarding runtime completion gate", () => {
   it("blocks controller mutations after a setup read timeout until a full retry succeeds", async () => {
     vi.useFakeTimers();
@@ -707,14 +331,6 @@ describe("onboarding runtime completion gate", () => {
         ...baseBridge,
         getSetupStatus: vi.fn<NonNullable<OnboardingBridge["getSetupStatus"]>>(async () => ({
           schemaVersion: 1,
-          intake: {
-            swim_skill_floor: null,
-            continuous_distance_capable: null,
-            open_water_comfort: null,
-            prior_bsi: false,
-            clinician_cleared: null,
-            injury_status: "none",
-          },
           durableTrainingData: true,
         })),
       };
@@ -732,7 +348,6 @@ describe("onboarding runtime completion gate", () => {
       harness.controller.setCustomModel("synthetic-model");
       harness.controller.setEndpointMode("default");
       harness.controller.setCustomEndpoint("https://example.test/v1");
-      harness.controller.setIntake("injuryStatus", "none");
       harness.controller.saveModelKey();
       harness.controller.connectTrainingData();
       harness.controller.retrySavedKeys();
@@ -753,7 +368,6 @@ describe("onboarding runtime completion gate", () => {
       expect(bridge.claudeCliRecheck).not.toHaveBeenCalled();
       expect(bridge.chooseImportFiles).not.toHaveBeenCalled();
       expect(bridge.importFiles).not.toHaveBeenCalled();
-      expect(bridge.saveIntake).not.toHaveBeenCalled();
       expect(harness.controller.ownsDroppedImportFiles()).toBe(false);
 
       credentialStatusesHang = false;
@@ -763,7 +377,6 @@ describe("onboarding runtime completion gate", () => {
       expect(harness.surface().readiness).toEqual({
         provider: true,
         trainingData: true,
-        intake: true,
       });
       harness.controller.dispose();
     } finally {
@@ -778,7 +391,6 @@ describe("onboarding runtime completion gate", () => {
     await harness.controller.open();
     expect(harness.controller.state().claudeCliState).toBeNull();
     expect(bridge.claudeCliStatus).not.toHaveBeenCalled();
-    harness.controller.setIntake("injuryStatus", "none");
 
     harness.controller.selectProvider("claude-cli");
 
@@ -793,7 +405,6 @@ describe("onboarding runtime completion gate", () => {
     });
     expect(harness.controller.state().busy).toBe(true);
     harness.controller.finish();
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     expect(harness.onComplete).not.toHaveBeenCalled();
 
     pending.resolve({ status: "configured", runtimeReady: true });
@@ -812,7 +423,7 @@ describe("onboarding runtime completion gate", () => {
       expect(harness.onComplete).toHaveBeenCalledOnce();
     });
     expect(bridge.applyLlmSelection.mock.invocationCallOrder[0]).toBeLessThan(
-      bridge.saveIntake.mock.invocationCallOrder[0]!,
+      harness.onComplete.mock.invocationCallOrder[0]!,
     );
     harness.controller.dispose();
   });
@@ -930,7 +541,6 @@ describe("onboarding runtime completion gate", () => {
     await harness.controller.open();
     expect(harness.controller.state().claudeCliState).toBeNull();
     expect(bridge.claudeCliStatus).not.toHaveBeenCalled();
-    harness.controller.setIntake("injuryStatus", "none");
 
     harness.controller.selectProvider("claude-cli");
 

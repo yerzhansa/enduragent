@@ -1,5 +1,13 @@
 # @enduragent/coach-cli
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [2fd6f2e]
+  - @enduragent/coach-contract@0.1.7
+  - @enduragent/coach-client@0.1.7
+
 ## 0.1.6
 
 ### Patch Changes

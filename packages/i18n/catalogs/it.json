@@ -206,6 +206,7 @@
         "confirmAria": "Conferma l’eliminazione della credenziale di {{provider}}",
         "credential": "Elimina credenziale",
         "detail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. Il tuo account del fornitore rimane invariato.",
+        "openrouterDetail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. La chiave continua a funzionare su {{openrouter}} finché non la elimini lì.",
         "title": "Eliminare la credenziale di {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avanzate",
       "announcement": {
         "apiKey": "Configurazione della chiave API aperta sotto questa riga.",
-        "chatgpt": "Accesso a {{chatgpt}} aperto sotto questa riga."
+        "chatgpt": "Accesso a {{chatgpt}} aperto sotto questa riga.",
+        "openrouter": "Accesso a {{openrouter}} aperto sotto questa riga."
       },
       "apiKeyHint": "Creata nella console del fornitore, con addebito in base all’uso, di solito pochi centesimi per conversazione.",
       "cancelLabel": "Annulla configurazione della chiave API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} fornitori · pagamento in base all’uso",
         "claudeCli": "Verifica il tuo abbonamento {{claude}} quando selezionato",
-        "openaiCodex": "Usa il piano che paghi già"
+        "openaiCodex": "Usa il piano che paghi già",
+        "openrouter": "Accedi · pagamento in base all’uso, molti modelli"
       },
       "menuLabel": "IA che fa funzionare il tuo coach",
       "model": "Modello",
@@ -646,14 +649,15 @@
         "apiKey": "Fa funzionare il tuo coach · aggiungi una chiave per completare",
         "chatgpt": "Fa funzionare il tuo coach · accedi per completare",
         "checkingClaude": "Fa funzionare il tuo coach · verifica dell’accesso a {{claudeCode}}",
-        "claude": "Fa funzionare il tuo coach · accedi da un terminale per completare"
+        "claude": "Fa funzionare il tuo coach · accedi da un terminale per completare",
+        "openrouterCredits": "Accesso effettuato · aggiungi crediti su {{openrouter}} per ricevere risposte"
       },
       "provider": "Fornitore",
       "saveLabel": "Salva chiave API",
       "subtitle": "Obbligatoria. {{product}} non ne include una",
       "title": "IA che fa funzionare il tuo coach",
       "tooltip": {
-        "body": "Funziona con un abbonamento {{chatgpt}}, un accesso a {{claudeCode}} o una chiave API fornita da te. Qualunque opzione scegli rimane su {{computer}}.",
+        "body": "Funziona con un abbonamento {{chatgpt}}, un accesso a {{claudeCode}}, un accesso a {{openrouter}} o una chiave API fornita da te. Qualunque opzione scegli rimane su {{computer}}.",
         "label": "Informazioni sull’IA che fa funzionare il tuo coach",
         "lead": "{{product}} non ha un’IA propria"
       },
@@ -700,8 +704,6 @@
       "credentialSaveFailed": "Impossibile salvare la chiave. Prova a inserirla di nuovo.",
       "credentialStatusUnavailable": "La chiave è stata salvata, ma impossibile aggiornarne lo stato. Controlla di nuovo l’area di configurazione.",
       "endpointInvalid": "Inserisci un endpoint HTTPS valido o un endpoint HTTP di loopback.",
-      "intakeIncomplete": "Rispondi alle domande obbligatorie sulla sicurezza per continuare.",
-      "intakeSaveFailed": "Impossibile salvare le tue risposte. Riprova.",
       "intervalsOwnerUnavailable": "{{product}} non ha potuto confermare che questo account {{intervals}} corrisponda ai dati di allenamento su {{computer}}. Riprova quando i dati di allenamento saranno disponibili.",
       "intervalsRuntimeUnavailable": "Impossibile attivare l’accesso a {{intervals}}. Accedi di nuovo.",
       "intervalsRuntimeUncertain": "{{product}} non ha potuto confermare se l’accesso è attivo. Ricarica lo stato delle credenziali prima di riprovare.",
@@ -734,14 +736,40 @@
       "unavailable": "Importazione nella raccolta locale: {{imported}} importati. {{quarantined}} in quarantena. L’accesso del coach alle attività e alle serie di dati è temporaneamente non disponibile; riprova l’importazione.",
       "unconfirmed": "Importazione nella raccolta locale non riuscita. Impossibile confermare il risultato; controlla la raccolta prima di riprovare."
     },
-    "intake": {
-      "managing": "Ho un infortunio in corso",
-      "none": "Nessun infortunio attuale",
-      "retrySave": "Riprova a salvare le risposte",
-      "returning": "Sto riprendendo dopo un infortunio",
-      "select": "Seleziona…",
-      "subtitle": "Registra il contesto del tuo infortunio attuale o della ripresa.",
-      "title": "Stato attuale degli infortuni"
+    "openrouter": {
+      "code": {
+        "expired": "Questo codice è scaduto o è già stato usato. Scegli Ottieni un nuovo codice, poi copia quello nuovo.",
+        "heading": "Accedi con un codice",
+        "hint": "Usa questa opzione quando il browser non riesce a restituire l’accesso a {{product}}.",
+        "newCode": "Ottieni un nuovo codice",
+        "noCode": "Gli appunti non contengono un codice {{openrouter}}. Copia il codice dal browser, poi scegli di nuovo Usa codice copiato. Questo accesso resta aperto.",
+        "open": "Apri pagina di accesso",
+        "status": "Un codice funziona una sola volta e scade dopo 10 minuti.",
+        "step1": "Scegli Apri pagina di accesso, poi autorizza l’accesso nel browser.",
+        "step2": "Copia il codice mostrato da {{openrouter}}.",
+        "step3": "Scegli Usa codice copiato. {{product}} legge il codice, poi svuota gli appunti.",
+        "use": "Usa codice copiato"
+      },
+      "completingHint": "Autorizzato. Salvataggio della chiave su {{computer}}…",
+      "enterCode": "Inserisci invece un codice",
+      "failed": {
+        "notFinished": "L’accesso non è stato completato nel browser. Riprova quando vuoi.",
+        "notSaved": "{{openrouter}} ha creato una chiave, ma non è stato possibile salvarla su {{computer}}. Riprova. La chiave inutilizzata resta su {{openrouter}} finché non la elimini lì.",
+        "openKeys": "Apri le mie chiavi su {{openrouter}}",
+        "savedHint": "La chiave è salvata su {{computer}}.",
+        "savedNotActive": "Accesso effettuato, ma impossibile avviare il coach. Riprova senza effettuare di nuovo l’accesso.",
+        "unreachable": "{{openrouter}} non ha risposto, quindi non è stato salvato nulla. Riprova tra un minuto."
+      },
+      "hint": "Apre {{openrouter}} nel browser. Autorizza lì l’accesso e la chiave creata resta su {{computer}}. La pagina di autorizzazione chiama questa app localhost.",
+      "noCredits": {
+        "addCredits": "Aggiungi crediti",
+        "hint": "Questo account {{openrouter}} non ha mai acquistato crediti. Il coach ha bisogno di crediti per rispondere, di solito pochi centesimi per conversazione.",
+        "status": "{{product}} controlla di nuovo quando torni su questa finestra."
+      },
+      "pasteInstead": "Incolla invece una chiave",
+      "signIn": "Accedi con {{openrouter}}",
+      "signInAgainHint": "Accedere di nuovo sostituisce la chiave su {{computer}}. La vecchia chiave continua a funzionare su {{openrouter}} finché non la elimini lì.",
+      "tryAgain": "Riprova"
     },
     "requiredReady": "{{ready}} requisiti pronti su {{total}}",
     "retrySavedKeys": "Riprova chiavi salvate",
@@ -789,7 +817,8 @@
         "connected": "Collegato · la fonte delle tue uscite",
         "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
         "missing": "Collega o importa i file delle uscite.",
-        "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione."
+        "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione.",
+        "savedRides": "Uscite salvate su {{computer}} · collega per sincronizzare le nuove"
       },
       "tooltip": {
         "body": "Un sito gratuito per l’allenamento che contiene già le tue uscite. {{product}} le legge da lì anziché comunicare direttamente con il fornitore del tuo orologio o ciclocomputer. Ti serve un account gratuito a cui collegare l’orologio o il ciclocomputer, poi accedi qui.",
@@ -1051,7 +1080,8 @@
       "feedbackFailed": "Impossibile inviare quella nota. Resta nel riquadro: riprova.",
       "feedbackSent": "Grazie: abbiamo ricevuto la tua nota.",
       "feedbackTooLong": "Tieni la nota entro 4000 caratteri. Non è stato inviato nulla.",
-      "feedbackUsage": "Invia /feedback seguito dalla tua nota."
+      "feedbackUsage": "Invia /feedback seguito dalla tua nota.",
+      "addCredits": "Aggiungi crediti"
     },
     "planChange": {
       "activePlan": "Piano attivo",
@@ -2643,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} ha rifiutato la richiesta. Controlla la connessione a {{service}} o la chiave API.",
       "intervalsTransient": "Non riesco a raggiungere {{service}} in questo momento. Riprova tra poco.",
+      "openRouterCredits": "Il tuo account {{openrouter}} non ha crediti sufficienti. Aggiungi crediti su {{openrouter}}, poi invia di nuovo il tuo messaggio.",
       "providerCredentials": "Il fornitore del modello ha rifiutato la chiave API. Controlla le credenziali del fornitore.",
       "providerDown": "Il fornitore del modello sta avendo problemi. Riprova tra qualche minuto.",
       "rateLimit": "Limite di richieste raggiunto. Riprova tra poco.",

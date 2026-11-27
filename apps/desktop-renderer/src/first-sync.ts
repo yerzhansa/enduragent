@@ -28,11 +28,9 @@ function validCompletion(value: unknown): value is OnboardingCompletion {
   const candidate = value as Record<string, unknown>;
   const keys = Object.keys(candidate).sort();
   return (
-    keys.join(",") ===
-      "intakeSaved,providerConfigured,requiresProviderSync,trainingDataConfigured" &&
+    keys.join(",") === "providerConfigured,requiresProviderSync,trainingDataConfigured" &&
     candidate.providerConfigured === true &&
     candidate.trainingDataConfigured === true &&
-    candidate.intakeSaved === true &&
     typeof candidate.requiresProviderSync === "boolean"
   );
 }
@@ -102,11 +100,9 @@ export function createFirstSyncController(ports: FirstSyncPorts): FirstSyncContr
     if (!joining && selected.status !== "idle") composerFocusOperation = selected.operation;
     apply(selected);
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    void Promise.allSettled([task]).then(() => {
+      if (inFlight === task) inFlight = undefined;
+    });
     return task;
   };
 

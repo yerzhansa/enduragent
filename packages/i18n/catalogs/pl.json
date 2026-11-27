@@ -208,6 +208,7 @@
         "confirmAria": "Potwierdź usunięcie danych dostępowych {{provider}}",
         "credential": "Usuń dane dostępowe",
         "detail": "Spowoduje to usunięcie tylko z {{computer}}. {{product}} przestanie z nich korzystać, jeśli są aktywne. Twoje konto u dostawcy pozostanie bez zmian.",
+        "openrouterDetail": "Spowoduje to usunięcie tylko z {{computer}}. {{product}} przestanie z nich korzystać, jeśli są aktywne. Klucz nadal działa w {{openrouter}}, dopóki go tam nie usuniesz.",
         "title": "Usunąć dane dostępowe {{provider}}?"
       },
       "feedback": {
@@ -570,7 +571,8 @@
       "advanced": "Zaawansowane",
       "announcement": {
         "apiKey": "Konfiguracja klucza API została otwarta poniżej tego wiersza.",
-        "chatgpt": "Logowanie do {{chatgpt}} zostało otwarte poniżej tego wiersza."
+        "chatgpt": "Logowanie do {{chatgpt}} zostało otwarte poniżej tego wiersza.",
+        "openrouter": "Logowanie do {{openrouter}} zostało otwarte poniżej tego wiersza."
       },
       "apiKeyHint": "Tworzony w konsoli dostawcy, opłaty za użycie — zwykle kilka centów za rozmowę.",
       "cancelLabel": "Anuluj konfigurację klucza API",
@@ -625,7 +627,8 @@
       "laneHint": {
         "apiKey": "Dostawcy: {{providers}} · opłaty za użycie",
         "claudeCli": "Po wybraniu sprawdza twoją subskrypcję {{claude}}",
-        "openaiCodex": "Użyj planu, za który już płacisz"
+        "openaiCodex": "Użyj planu, za który już płacisz",
+        "openrouter": "Zaloguj się · opłaty za użycie, wiele modeli"
       },
       "menuLabel": "AI obsługujące twojego trenera",
       "model": "Model",
@@ -650,14 +653,15 @@
         "apiKey": "Obsługuje twojego trenera · dodaj klucz, aby zakończyć",
         "chatgpt": "Obsługuje twojego trenera · zaloguj się, aby zakończyć",
         "checkingClaude": "Obsługuje twojego trenera · sprawdzanie logowania {{claudeCode}}",
-        "claude": "Obsługuje twojego trenera · zaloguj się w terminalu, aby zakończyć"
+        "claude": "Obsługuje twojego trenera · zaloguj się w terminalu, aby zakończyć",
+        "openrouterCredits": "Zalogowano · dodaj środki w {{openrouter}}, aby otrzymywać odpowiedzi"
       },
       "provider": "Dostawca",
       "saveLabel": "Zapisz klucz API",
       "subtitle": "Wymagane — {{product}} go nie zawiera",
       "title": "AI obsługujące twojego trenera",
       "tooltip": {
-        "body": "Korzysta z subskrypcji {{chatgpt}}, logowania {{claudeCode}} lub podanego przez ciebie klucza API. Wybrana opcja pozostaje na {{computer}}.",
+        "body": "Korzysta z subskrypcji {{chatgpt}}, logowania {{claudeCode}}, logowania {{openrouter}} lub podanego przez ciebie klucza API. Wybrana opcja pozostaje na {{computer}}.",
         "label": "O AI obsługującym twojego trenera",
         "lead": "{{product}} nie ma własnego AI"
       },
@@ -704,8 +708,6 @@
       "credentialSaveFailed": "Nie udało się zapisać tego klucza. Spróbuj wpisać go ponownie.",
       "credentialStatusUnavailable": "Klucz zapisano, ale nie udało się odświeżyć jego statusu. Sprawdź ponownie sekcję konfiguracji.",
       "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
-      "intakeIncomplete": "Odpowiedz na wymagane pytania dotyczące bezpieczeństwa, aby kontynuować.",
-      "intakeSaveFailed": "Nie udało się zapisać twoich odpowiedzi. Spróbuj ponownie.",
       "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że to konto {{intervals}} odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
       "intervalsRuntimeUnavailable": "Nie udało się aktywować logowania do {{intervals}}. Zaloguj się ponownie.",
       "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy logowanie jest aktywne. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
@@ -740,14 +742,40 @@
       "fileCount_few": "{{formattedCount}} pliki przejazdów",
       "fileCount_many": "{{formattedCount}} plików przejazdów"
     },
-    "intake": {
-      "managing": "Leczę kontuzję",
-      "none": "Obecnie bez kontuzji",
-      "retrySave": "Ponów zapis odpowiedzi",
-      "returning": "Wracam po kontuzji",
-      "select": "Wybierz…",
-      "subtitle": "Zapisuje informacje o obecnej kontuzji lub powrocie po niej.",
-      "title": "Obecny stan kontuzji"
+    "openrouter": {
+      "code": {
+        "expired": "Ten kod wygasł lub został już użyty. Wybierz Pobierz nowy kod, a następnie skopiuj nowy.",
+        "heading": "Zaloguj się za pomocą kodu",
+        "hint": "Użyj tej opcji, gdy przeglądarka nie może przekazać logowania z powrotem do {{product}}.",
+        "newCode": "Pobierz nowy kod",
+        "noCode": "Schowek nie zawiera kodu {{openrouter}}. Skopiuj kod z przeglądarki, a następnie ponownie wybierz Użyj skopiowanego kodu. To logowanie pozostaje otwarte.",
+        "open": "Otwórz stronę logowania",
+        "status": "Kod działa tylko raz i wygasa po 10 minutach.",
+        "step1": "Wybierz Otwórz stronę logowania, a następnie zatwierdź dostęp w przeglądarce.",
+        "step2": "Skopiuj kod wyświetlony przez {{openrouter}}.",
+        "step3": "Wybierz Użyj skopiowanego kodu. {{product}} odczyta kod, a następnie wyczyści schowek.",
+        "use": "Użyj skopiowanego kodu"
+      },
+      "completingHint": "Zatwierdzono. Zapisywanie klucza na {{computer}}…",
+      "enterCode": "Zamiast tego wpisz kod",
+      "failed": {
+        "notFinished": "Logowanie w przeglądarce nie zostało dokończone. Spróbuj ponownie, gdy zechcesz.",
+        "notSaved": "{{openrouter}} utworzył klucz, ale nie udało się go zapisać na {{computer}}. Spróbuj ponownie. Nieużywany klucz pozostaje w {{openrouter}}, dopóki go tam nie usuniesz.",
+        "openKeys": "Otwórz moje klucze w {{openrouter}}",
+        "savedHint": "Klucz jest zapisany na {{computer}}.",
+        "savedNotActive": "Zalogowano, ale nie udało się uruchomić trenera. Spróbuj ponownie bez ponownego logowania.",
+        "unreachable": "{{openrouter}} nie odpowiedział, więc nic nie zostało zapisane. Spróbuj ponownie za minutę."
+      },
+      "hint": "Otwiera {{openrouter}} w przeglądarce. Zatwierdź tam dostęp, a utworzony klucz pozostanie na {{computer}}. Strona zatwierdzania nazywa tę aplikację localhost.",
+      "noCredits": {
+        "addCredits": "Dodaj środki",
+        "hint": "Na tym koncie {{openrouter}} nigdy nie kupiono środków. Trener potrzebuje środków, aby odpowiadać, zwykle kilka centów za rozmowę.",
+        "status": "{{product}} sprawdzi ponownie, gdy wrócisz do tego okna."
+      },
+      "pasteInstead": "Zamiast tego wklej klucz",
+      "signIn": "Zaloguj się przez {{openrouter}}",
+      "signInAgainHint": "Ponowne zalogowanie zastępuje klucz na {{computer}}. Stary klucz nadal działa w {{openrouter}}, dopóki go tam nie usuniesz.",
+      "tryAgain": "Spróbuj ponownie"
     },
     "requiredReady": "Gotowe: {{ready}} z {{total}} wymaganych",
     "retrySavedKeys": "Ponów zapisane klucze",
@@ -795,7 +823,8 @@
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów.",
-        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować."
+        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować.",
+        "savedRides": "Przejazdy zapisane na {{computer}} · połącz, aby synchronizować nowe"
       },
       "tooltip": {
         "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie zaloguj się tutaj.",
@@ -1067,7 +1096,8 @@
       "feedbackFailed": "Nie udało się wysłać tej notatki. Zostaje w polu — spróbuj ponownie.",
       "feedbackSent": "Dzięki — otrzymaliśmy twoją notatkę.",
       "feedbackTooLong": "Zmniejsz notatkę do 4000 znaków lub mniej. Nic nie zostało wysłane.",
-      "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę."
+      "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę.",
+      "addCredits": "Dodaj środki"
     },
     "planChange": {
       "activePlan": "Aktywny plan",
@@ -2717,7 +2747,8 @@
       "rateLimitSeconds_other": "Osiągnięto limit żądań — spróbuj ponownie za ~{{seconds}} sekundy.",
       "reauth": "Twoje logowanie do {{provider}} nie jest już ważne. Zaloguj się ponownie, aby kontynuować.",
       "reauthSetup": "Twoje logowanie do {{provider}} nie jest już ważne. Otwórz Konfigurację i zaloguj się ponownie.",
-      "unknown": "Przepraszam, coś poszło nie tak. Spróbuj ponownie."
+      "unknown": "Przepraszam, coś poszło nie tak. Spróbuj ponownie.",
+      "openRouterCredits": "Na Twoim koncie {{openrouter}} jest za mało środków. Dodaj środki w {{openrouter}}, a potem wyślij wiadomość ponownie."
     },
     "fallback": {
       "stepLimit": "Podczas zbierania danych zabrakło mi kroków — poproś mnie o kontynuację, a wrócę do miejsca, w którym przerwałem.",

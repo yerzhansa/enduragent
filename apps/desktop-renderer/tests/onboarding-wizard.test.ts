@@ -26,7 +26,6 @@ const SETUP_SOURCES = [
   "SetupRow.tsx",
   "AiRow.tsx",
   "TrainingRow.tsx",
-  "IntakeRows.tsx",
   "InfoTip.tsx",
   "../../app/SetupGate.tsx",
   "CredentialField.tsx",
@@ -43,12 +42,13 @@ const BANNED_TRAINING_TERMS = [
 
 const PROVIDER_WORD_ALLOWLIST = [
   "{{providers}} providers · pay per use",
+  "Sign in · pay per use, many models",
   "Created in the provider's console",
 ] as const;
 
 describe("desktop onboarding wizard", () => {
   it("pins the ratified steps and provider catalogue", () => {
-    expect(ONBOARDING_STEP_IDS).toEqual(["coach-keys", "training-data", "safety-intake", "ready"]);
+    expect(ONBOARDING_STEP_IDS).toEqual(["coach-keys", "training-data", "ready"]);
     expect(PRIMARY_MODEL_CREDENTIAL_SLOTS).toEqual([
       { id: "anthropic", label: "Anthropic API key", hint: "Recommended" },
       { id: "openrouter", label: "OpenRouter API key", hint: "Everything else" },
@@ -86,7 +86,7 @@ describe("desktop onboarding wizard", () => {
     expect(() => validateImportPaths([`/synthetic/${"a".repeat(4_090)}.fit`])).toThrow();
   });
 
-  it("uses the authenticated client for exact import and intake methods", async () => {
+  it("uses the authenticated client for exact import methods", async () => {
     const calls: Array<{ readonly method: string; readonly request: unknown }> = [];
     const client = {
       handshake: {},
@@ -118,7 +118,7 @@ describe("desktop onboarding wizard", () => {
             publication: { scope: "activities-and-streams", status: "available" },
           };
         }
-        return { schemaVersion: 1, saved: true };
+        throw new TypeError(`unexpected method ${method}`);
       },
       close: vi.fn(),
     };
@@ -144,28 +144,7 @@ describe("desktop onboarding wizard", () => {
     const bridge = createOnboardingBridge(auth, connect);
     const progress = vi.fn();
     await bridge.importFiles(["/synthetic/ride.fit"], progress);
-    await bridge.saveIntake({
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      prior_bsi: false,
-      clinician_cleared: null,
-      injury_status: "none",
-    });
-    expect(calls).toEqual([
-      { method: "importFiles", request: { paths: ["/synthetic/ride.fit"] } },
-      {
-        method: "saveIntake",
-        request: {
-          swim_skill_floor: null,
-          continuous_distance_capable: null,
-          open_water_comfort: null,
-          prior_bsi: false,
-          clinician_cleared: null,
-          injury_status: "none",
-        },
-      },
-    ]);
+    expect(calls).toEqual([{ method: "importFiles", request: { paths: ["/synthetic/ride.fit"] } }]);
     expect(progress).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledWith({
       url: "ws://127.0.0.1:45001/rpc",

@@ -221,6 +221,7 @@
         "confirmAria": "Confirmar a eliminação da credencial de {{provider}}",
         "credential": "Eliminar credencial",
         "detail": "Isto remove-a apenas de {{computer}}. {{product}} deixa de a usar se estiver ativa. A tua conta do fornecedor mantém-se.",
+        "openrouterDetail": "Isto remove-a apenas de {{computer}}. {{product}} deixa de a usar se estiver ativa. A chave continua a funcionar em {{openrouter}} até a eliminares lá.",
         "title": "Eliminar a credencial de {{provider}}?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avançado",
       "announcement": {
         "apiKey": "A configuração da chave de API foi aberta abaixo desta linha.",
-        "chatgpt": "O início de sessão em {{chatgpt}} foi aberto abaixo desta linha."
+        "chatgpt": "O início de sessão em {{chatgpt}} foi aberto abaixo desta linha.",
+        "openrouter": "O início de sessão em {{openrouter}} foi aberto abaixo desta linha."
       },
       "apiKeyHint": "Criada na consola do fornecedor, com cobrança por utilização, normalmente cêntimos por conversa.",
       "cancelLabel": "Cancelar configuração da chave de API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} fornecedores · pagamento por utilização",
         "claudeCli": "Verifica a tua subscrição {{claude}} quando selecionada",
-        "openaiCodex": "Usa o plano que já pagas"
+        "openaiCodex": "Usa o plano que já pagas",
+        "openrouter": "Inicia sessão · pagamento por utilização, muitos modelos"
       },
       "menuLabel": "IA que faz funcionar o teu treinador",
       "model": "Modelo",
@@ -646,14 +649,15 @@
         "apiKey": "Faz funcionar o teu treinador · adiciona uma chave para concluir",
         "chatgpt": "Faz funcionar o teu treinador · inicia sessão para concluir",
         "checkingClaude": "Faz funcionar o teu treinador · a verificar o início de sessão do {{claudeCode}}",
-        "claude": "Faz funcionar o teu treinador · inicia sessão num terminal para concluir"
+        "claude": "Faz funcionar o teu treinador · inicia sessão num terminal para concluir",
+        "openrouterCredits": "Sessão iniciada · adiciona créditos em {{openrouter}} para receberes respostas"
       },
       "provider": "Fornecedor",
       "saveLabel": "Guardar chave de API",
       "subtitle": "Obrigatória. {{product}} não inclui uma",
       "title": "IA que faz funcionar o teu treinador",
       "tooltip": {
-        "body": "Funciona com uma subscrição {{chatgpt}}, uma sessão iniciada no {{claudeCode}} ou uma chave de API que forneças. A opção que escolheres fica em {{computer}}.",
+        "body": "Funciona com uma subscrição {{chatgpt}}, uma sessão iniciada no {{claudeCode}}, uma sessão iniciada no {{openrouter}} ou uma chave de API que forneças. A opção que escolheres fica em {{computer}}.",
         "label": "Sobre a IA que faz funcionar o teu treinador",
         "lead": "{{product}} não tem IA própria"
       },
@@ -700,8 +704,6 @@
       "credentialSaveFailed": "Não foi possível guardar essa chave. Tenta introduzi-la novamente.",
       "credentialStatusUnavailable": "Essa chave foi guardada, mas não foi possível atualizar o respetivo estado. Verifica novamente a área de configuração.",
       "endpointInvalid": "Introduz um endpoint HTTPS válido ou um endpoint HTTP de loopback.",
-      "intakeIncomplete": "Responde às perguntas de segurança obrigatórias para continuar.",
-      "intakeSaveFailed": "Não foi possível guardar as tuas respostas. Tenta novamente.",
       "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar que esta conta de {{intervals}} corresponde aos dados de treino em {{computer}}. Tenta novamente quando os dados de treino estiverem disponíveis.",
       "intervalsRuntimeUnavailable": "Não foi possível ativar o início de sessão em {{intervals}}. Inicia sessão novamente.",
       "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se o início de sessão está ativo. Recarrega o estado das credenciais antes de tentares novamente.",
@@ -734,14 +736,40 @@
       "unavailable": "Importação da biblioteca local: {{imported}} importados. {{quarantined}} em quarentena. O acesso do treinador às atividades e séries de dados está temporariamente indisponível. Tenta importar novamente.",
       "unconfirmed": "A importação da biblioteca local falhou. Não foi possível confirmar o resultado. Verifica a biblioteca antes de tentares novamente."
     },
-    "intake": {
-      "managing": "A lidar com uma lesão",
-      "none": "Sem lesões atuais",
-      "retrySave": "Tentar guardar respostas novamente",
-      "returning": "A regressar após uma lesão",
-      "select": "Seleciona…",
-      "subtitle": "Regista a tua situação atual de lesão ou regresso ao treino.",
-      "title": "Situação atual de lesões"
+    "openrouter": {
+      "code": {
+        "expired": "Esse código expirou ou já foi usado. Escolhe Obter um novo código e depois copia o novo.",
+        "heading": "Iniciar sessão com um código",
+        "hint": "Usa esta opção quando o navegador não conseguir devolver o início de sessão a {{product}}.",
+        "newCode": "Obter um novo código",
+        "noCode": "A tua área de transferência não contém um código de {{openrouter}}. Copia o código no navegador e escolhe novamente Usar código copiado. Este início de sessão continua em curso.",
+        "open": "Abrir página de início de sessão",
+        "status": "Um código funciona uma única vez e expira ao fim de 10 minutos.",
+        "step1": "Escolhe Abrir página de início de sessão e depois autoriza o acesso no teu navegador.",
+        "step2": "Copia o código que {{openrouter}} mostra.",
+        "step3": "Escolhe Usar código copiado. {{product}} lê o código e depois limpa a tua área de transferência.",
+        "use": "Usar código copiado"
+      },
+      "completingHint": "Autorizado. A guardar a chave em {{computer}}…",
+      "enterCode": "Introduzir um código em alternativa",
+      "failed": {
+        "notFinished": "O início de sessão não foi concluído no navegador. Tenta novamente quando quiseres.",
+        "notSaved": "{{openrouter}} criou uma chave, mas não foi possível guardá-la em {{computer}}. Tenta novamente. A chave não usada fica em {{openrouter}} até a eliminares lá.",
+        "openKeys": "Abrir as minhas chaves em {{openrouter}}",
+        "savedHint": "A chave está guardada em {{computer}}.",
+        "savedNotActive": "Sessão iniciada, mas não foi possível iniciar o treinador. Tenta novamente sem voltares a iniciar sessão.",
+        "unreachable": "{{openrouter}} não respondeu, por isso nada foi guardado. Tenta novamente daqui a um minuto."
+      },
+      "hint": "Abre {{openrouter}} no teu navegador. Autoriza o acesso lá, e a chave criada fica em {{computer}}. A página de autorização chama localhost a esta aplicação.",
+      "noCredits": {
+        "addCredits": "Adicionar créditos",
+        "hint": "Esta conta de {{openrouter}} nunca comprou créditos. O treinador precisa de créditos para responder, normalmente cêntimos por conversa.",
+        "status": "{{product}} volta a verificar quando regressas a esta janela."
+      },
+      "pasteInstead": "Colar uma chave em alternativa",
+      "signIn": "Iniciar sessão com {{openrouter}}",
+      "signInAgainHint": "Iniciar sessão novamente substitui a chave em {{computer}}. A chave antiga continua a funcionar em {{openrouter}} até a eliminares lá.",
+      "tryAgain": "Tentar novamente"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos prontos",
     "retrySavedKeys": "Tentar novamente as chaves guardadas",
@@ -789,7 +817,8 @@
         "connected": "Ligado · de onde vêm as tuas voltas",
         "connectedAs": "Ligado como {{name}} · de onde vêm as tuas voltas",
         "missing": "Liga uma conta ou importa ficheiros de voltas.",
-        "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar."
+        "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar.",
+        "savedRides": "Voltas guardadas em {{computer}} · liga uma conta para sincronizar as novas"
       },
       "tooltip": {
         "body": "Um site de treino gratuito onde já estão as tuas voltas. {{product}} lê-as a partir daí em vez de comunicar diretamente com o fornecedor do teu relógio ou ciclocomputador. Precisas de uma conta gratuita com o teu relógio ou ciclocomputador ligado e, depois, de iniciar sessão aqui.",
@@ -1051,7 +1080,8 @@
       "feedbackFailed": "Não foi possível enviar essa nota. Continua na caixa — tenta novamente.",
       "feedbackSent": "Obrigado — recebemos a tua nota.",
       "feedbackTooLong": "Mantém a nota em 4000 caracteres ou menos. Nada foi enviado.",
-      "feedbackUsage": "Envia /feedback seguido da tua nota."
+      "feedbackUsage": "Envia /feedback seguido da tua nota.",
+      "addCredits": "Adicionar créditos"
     },
     "planChange": {
       "activePlan": "Plano ativo",
@@ -2643,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejeitou o pedido. Verifica a tua ligação a {{service}} ou a chave de API.",
       "intervalsTransient": "Não consegui contactar {{service}} agora. Tenta novamente daqui a pouco.",
+      "openRouterCredits": "A tua conta de {{openrouter}} não tem créditos suficientes. Adiciona créditos em {{openrouter}} e envia a tua mensagem novamente.",
       "providerCredentials": "O fornecedor do modelo rejeitou a chave de API. Verifica as tuas credenciais do fornecedor.",
       "providerDown": "O fornecedor do modelo está com dificuldades. Tenta novamente daqui a uns minutos.",
       "rateLimit": "Limite de pedidos atingido. Tenta novamente daqui a pouco.",

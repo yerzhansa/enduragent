@@ -160,6 +160,7 @@
       "title": "Start a new conversation?"
     },
     "notice": {
+      "addCredits": "Add credits",
       "attachmentFailure": "We couldn’t update that attachment. Your message draft is preserved.",
       "checkingTraining": "Checking your training data…",
       "choiceUnchanged": "No coaching choice was applied.",
@@ -797,6 +798,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejected the request — check your {{service}} connection or API key.",
       "intervalsTransient": "Couldn't reach {{service}} right now — try again shortly.",
+      "openRouterCredits": "Your {{openrouter}} account doesn't have enough credits. Add credits on {{openrouter}}, then send your message again.",
       "providerCredentials": "The model provider rejected the API key — check your provider credentials.",
       "providerDown": "The model provider is having trouble — try again in a few minutes.",
       "rateLimit": "Rate limited — please try again shortly.",
@@ -1743,6 +1745,7 @@
         "confirmAria": "Confirm deletion of the {{provider}} credential",
         "credential": "Delete credential",
         "detail": "This removes it from {{computer}} only. {{product}} will stop using it if it is active. Your provider account is unchanged.",
+        "openrouterDetail": "This removes it from {{computer}} only. {{product}} will stop using it if it is active. The key keeps working on {{openrouter}} until you delete it there.",
         "title": "Delete the {{provider}} credential?"
       },
       "disconnect": {
@@ -2088,7 +2091,8 @@
       "advanced": "Advanced",
       "announcement": {
         "apiKey": "API key setup opened below this row.",
-        "chatgpt": "{{chatgpt}} sign-in opened below this row."
+        "chatgpt": "{{chatgpt}} sign-in opened below this row.",
+        "openrouter": "{{openrouter}} sign-in opened below this row."
       },
       "apiKeyHint": "Created in the provider's console, billed per use — usually cents per conversation.",
       "cancelLabel": "Cancel API key setup",
@@ -2143,7 +2147,8 @@
       "laneHint": {
         "apiKey": "{{providers}} providers · pay per use",
         "claudeCli": "Checks your {{claude}} subscription when selected",
-        "openaiCodex": "Use the plan you already pay for"
+        "openaiCodex": "Use the plan you already pay for",
+        "openrouter": "Sign in · pay per use, many models"
       },
       "menuLabel": "AI that powers your coach",
       "model": "Model",
@@ -2168,14 +2173,15 @@
         "apiKey": "Powers your coach · add a key to finish",
         "chatgpt": "Powers your coach · sign in to finish",
         "checkingClaude": "Powers your coach · checking {{claudeCode}} sign-in",
-        "claude": "Powers your coach · sign in from a terminal to finish"
+        "claude": "Powers your coach · sign in from a terminal to finish",
+        "openrouterCredits": "Signed in · add credits on {{openrouter}} to get replies"
       },
       "provider": "Provider",
       "saveLabel": "Save API key",
       "subtitle": "Required — {{product}} doesn't include one",
       "title": "AI that powers your coach",
       "tooltip": {
-        "body": "It runs on a {{chatgpt}} subscription, a {{claudeCode}} sign-in, or an API key you supply. Whichever you pick stays on {{computer}}.",
+        "body": "It runs on a {{chatgpt}} subscription, a {{claudeCode}} sign-in, an {{openrouter}} sign-in, or an API key you supply. Whichever you pick stays on {{computer}}.",
         "label": "About the AI that powers your coach",
         "lead": "{{product}} has no AI of its own"
       },
@@ -2222,8 +2228,6 @@
       "credentialSaveFailed": "That key could not be saved. Try entering it again.",
       "credentialStatusUnavailable": "That key was saved, but its status could not be refreshed. Check the setup area again.",
       "endpointInvalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
-      "intakeIncomplete": "Answer the required safety questions to continue.",
-      "intakeSaveFailed": "Your answers could not be saved. Please try again.",
       "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that this {{intervals}} account matches the training data on {{computer}}. Try again when training data is available.",
       "intervalsRuntimeUnavailable": "The {{intervals}} sign-in couldn’t be activated. Sign in again.",
       "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the sign-in is active. Reload credential status before trying again.",
@@ -2256,14 +2260,40 @@
       "unavailable": "Local library import: {{imported}} imported. {{quarantined}} quarantined. Coaching access to activities and streams is temporarily unavailable; retry the import.",
       "unconfirmed": "Local library import failed. The result could not be confirmed; check the library before trying again."
     },
-    "intake": {
-      "managing": "Managing an injury",
-      "none": "No current injury",
-      "retrySave": "Retry saving answers",
-      "returning": "Returning after an injury",
-      "select": "Select…",
-      "subtitle": "Records your current injury or return context.",
-      "title": "Injury status right now"
+    "openrouter": {
+      "code": {
+        "expired": "That code expired or was already used. Choose Get a new code, then copy the new one.",
+        "heading": "Sign in with a code",
+        "hint": "Use this when the browser cannot hand the sign-in back to {{product}}.",
+        "newCode": "Get a new code",
+        "noCode": "Your clipboard does not hold an {{openrouter}} code. Copy the code from the browser, then choose Use copied code again. This sign-in stays open.",
+        "open": "Open sign-in page",
+        "status": "A code works once and expires after 10 minutes.",
+        "step1": "Choose Open sign-in page, then approve in your browser.",
+        "step2": "Copy the code {{openrouter}} shows.",
+        "step3": "Choose Use copied code. {{product}} reads the code, then clears your clipboard.",
+        "use": "Use copied code"
+      },
+      "completingHint": "Approved. Saving the key on {{computer}}…",
+      "enterCode": "Enter a code instead",
+      "failed": {
+        "notFinished": "Sign-in was not finished in the browser. Try again when you are ready.",
+        "notSaved": "{{openrouter}} made a key, but {{computer}} could not save it. Try again. The unused key stays on {{openrouter}} until you delete it there.",
+        "openKeys": "Open my keys on {{openrouter}}",
+        "savedHint": "The key is saved on {{computer}}.",
+        "savedNotActive": "Signed in, but the coach could not start. Retry without signing in again.",
+        "unreachable": "{{openrouter}} did not answer, so nothing was saved. Try again in a minute."
+      },
+      "hint": "Opens {{openrouter}} in your browser. Approve there, and the key it makes stays on {{computer}}. The approval page calls this app localhost.",
+      "noCredits": {
+        "addCredits": "Add credits",
+        "hint": "This {{openrouter}} account has never bought credits. The coach needs credits to reply, usually cents per conversation.",
+        "status": "{{product}} checks again when you come back to this window."
+      },
+      "pasteInstead": "Paste a key instead",
+      "signIn": "Sign in with {{openrouter}}",
+      "signInAgainHint": "Signing in again replaces the key on {{computer}}. The old key keeps working on {{openrouter}} until you delete it there.",
+      "tryAgain": "Try again"
     },
     "requiredReady": "{{ready}} of {{total}} required ready",
     "retrySavedKeys": "Retry saved keys",
@@ -2312,7 +2342,8 @@
         "connected": "Connected · where your rides come from",
         "connectedAs": "Connected as {{name}} · where your rides come from",
         "missing": "Connect or import ride files.",
-        "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing."
+        "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing.",
+        "savedRides": "Rides saved on {{computer}} · connect to sync new ones"
       },
       "tooltip": {
         "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then sign in here.",

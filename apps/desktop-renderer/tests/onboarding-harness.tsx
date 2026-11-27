@@ -29,6 +29,7 @@ import { CLOSED_ONBOARDING } from "../src/state/onboarding-slice";
 import { EMPTY_SETTINGS_SURFACE, type TelegramSettingsPort } from "../src/state/settings-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { OnboardingWizard, SetupPanel } from "../src/ui/onboarding/OnboardingWizard";
+import { openRouterTestBridge, type OpenRouterTestBridge } from "./openrouter-test-bridge";
 
 export type UserEvent = ReturnType<typeof userEvent.setup>;
 
@@ -98,6 +99,7 @@ export function mountWizard(input: {
   readonly afterPaint?: (callback: () => void) => () => void;
   readonly placement?: "gate" | "settings";
   readonly codexAgentSupported?: boolean;
+  readonly onActiveSelectionChanged?: () => void;
 }): MountedWizard {
   const focusOpener = vi.fn<() => void>();
   const adapter = createOnboardingViewAdapter({
@@ -123,6 +125,9 @@ export function mountWizard(input: {
     ...(input.codexAgentSupported === undefined
       ? {}
       : { codexAgentSupported: input.codexAgentSupported }),
+    ...(input.onActiveSelectionChanged === undefined
+      ? {}
+      : { onActiveSelectionChanged: input.onActiveSelectionChanged }),
   });
   useEnduragentStore.getState().bindOnboardingActions(controller);
   const rendered = render(
@@ -154,10 +159,6 @@ export function control<T extends HTMLElement>(id: string): T {
 }
 
 const SETUP_OPTION_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  "onboarding-injury-status": {
-    none: "No current injury",
-    returning: "Returning after an injury",
-  },
   "onboarding-llm-provider": {
     anthropic: "Anthropic",
     openrouter: "OpenRouter",
@@ -348,39 +349,41 @@ export const TEST_LLM_CONFIGURATION: OnboardingLlmConfiguration = {
   active: { provider: "openai-codex", model: "gpt-5.5" },
 };
 
-export type TestBridge = OnboardingBridge & {
-  readonly credentialStatuses: ReturnType<typeof vi.fn<OnboardingBridge["credentialStatuses"]>>;
-  readonly retryFailedCredentials: ReturnType<
-    typeof vi.fn<OnboardingBridge["retryFailedCredentials"]>
-  >;
-  readonly llmConfiguration: ReturnType<typeof vi.fn<OnboardingBridge["llmConfiguration"]>>;
-  readonly applyLlmSelection: ReturnType<typeof vi.fn<OnboardingBridge["applyLlmSelection"]>>;
-  readonly chatGptStatus: ReturnType<typeof vi.fn<OnboardingBridge["chatGptStatus"]>>;
-  readonly chatGptLogin: ReturnType<typeof vi.fn<OnboardingBridge["chatGptLogin"]>>;
-  readonly cancelChatGptLogin: ReturnType<typeof vi.fn<OnboardingBridge["cancelChatGptLogin"]>>;
-  readonly onChatGptLoginProgress: ReturnType<
-    typeof vi.fn<OnboardingBridge["onChatGptLoginProgress"]>
-  >;
-  readonly claudeCliStatus: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliStatus"]>>;
-  readonly claudeCliRecheck: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliRecheck"]>>;
-  readonly writeCredential: ReturnType<typeof vi.fn<OnboardingBridge["writeCredential"]>>;
-  readonly signInWithIntervals: ReturnType<typeof vi.fn<OnboardingBridge["signInWithIntervals"]>>;
-  readonly cancelIntervalsSignIn: ReturnType<
-    typeof vi.fn<OnboardingBridge["cancelIntervalsSignIn"]>
-  >;
-  readonly reopenIntervalsSignIn: ReturnType<
-    typeof vi.fn<OnboardingBridge["reopenIntervalsSignIn"]>
-  >;
-  readonly onIntervalsSignInProgress: ReturnType<
-    typeof vi.fn<OnboardingBridge["onIntervalsSignInProgress"]>
-  >;
-  readonly importFiles: ReturnType<typeof vi.fn<OnboardingBridge["importFiles"]>>;
-  readonly chooseImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["chooseImportFiles"]>>;
-  readonly onDroppedImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["onDroppedImportFiles"]>>;
-  readonly saveIntake: ReturnType<typeof vi.fn<OnboardingBridge["saveIntake"]>>;
-  emitChatGptProgress(progress: ChatGptLoginProgress): void;
-  emitIntervalsSignInProgress(phase: IntervalsSignInPhase): void;
-};
+export type TestBridge = OnboardingBridge &
+  OpenRouterTestBridge & {
+    readonly credentialStatuses: ReturnType<typeof vi.fn<OnboardingBridge["credentialStatuses"]>>;
+    readonly retryFailedCredentials: ReturnType<
+      typeof vi.fn<OnboardingBridge["retryFailedCredentials"]>
+    >;
+    readonly llmConfiguration: ReturnType<typeof vi.fn<OnboardingBridge["llmConfiguration"]>>;
+    readonly applyLlmSelection: ReturnType<typeof vi.fn<OnboardingBridge["applyLlmSelection"]>>;
+    readonly chatGptStatus: ReturnType<typeof vi.fn<OnboardingBridge["chatGptStatus"]>>;
+    readonly chatGptLogin: ReturnType<typeof vi.fn<OnboardingBridge["chatGptLogin"]>>;
+    readonly cancelChatGptLogin: ReturnType<typeof vi.fn<OnboardingBridge["cancelChatGptLogin"]>>;
+    readonly onChatGptLoginProgress: ReturnType<
+      typeof vi.fn<OnboardingBridge["onChatGptLoginProgress"]>
+    >;
+    readonly claudeCliStatus: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliStatus"]>>;
+    readonly claudeCliRecheck: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliRecheck"]>>;
+    readonly writeCredential: ReturnType<typeof vi.fn<OnboardingBridge["writeCredential"]>>;
+    readonly signInWithIntervals: ReturnType<typeof vi.fn<OnboardingBridge["signInWithIntervals"]>>;
+    readonly cancelIntervalsSignIn: ReturnType<
+      typeof vi.fn<OnboardingBridge["cancelIntervalsSignIn"]>
+    >;
+    readonly reopenIntervalsSignIn: ReturnType<
+      typeof vi.fn<OnboardingBridge["reopenIntervalsSignIn"]>
+    >;
+    readonly onIntervalsSignInProgress: ReturnType<
+      typeof vi.fn<OnboardingBridge["onIntervalsSignInProgress"]>
+    >;
+    readonly importFiles: ReturnType<typeof vi.fn<OnboardingBridge["importFiles"]>>;
+    readonly chooseImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["chooseImportFiles"]>>;
+    readonly onDroppedImportFiles: ReturnType<
+      typeof vi.fn<OnboardingBridge["onDroppedImportFiles"]>
+    >;
+    emitChatGptProgress(progress: ChatGptLoginProgress): void;
+    emitIntervalsSignInProgress(phase: IntervalsSignInPhase): void;
+  };
 
 type LegacyChatGptLoginResult =
   | ChatGptLoginResult<OnboardingLlmSelection>
@@ -394,6 +397,7 @@ export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): Test
   const progressListeners = new Set<(progress: ChatGptLoginProgress) => void>();
   const intervalsProgressListeners = new Set<(phase: IntervalsSignInPhase) => void>();
   return {
+    ...openRouterTestBridge(),
     credentialStatuses: vi.fn<OnboardingBridge["credentialStatuses"]>(async () => []),
     retryFailedCredentials: vi.fn<OnboardingBridge["retryFailedCredentials"]>(async () => []),
     writeCredential: vi.fn<OnboardingBridge["writeCredential"]>(async ({ slot }) => ({
@@ -461,7 +465,6 @@ export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): Test
       },
       publication: { scope: "activities-and-streams", status: "available" },
     })),
-    saveIntake: vi.fn<OnboardingBridge["saveIntake"]>(async () => {}),
     emitChatGptProgress(progress) {
       for (const listener of progressListeners) listener(progress);
     },

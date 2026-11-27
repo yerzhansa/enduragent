@@ -34,6 +34,18 @@ export const DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL = "desktop:intervals:sign-
 export const DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL = "desktop:intervals:sign-in-reopen" as const;
 export const DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL =
   "desktop:intervals:sign-in-progress" as const;
+export const DESKTOP_OPENROUTER_SIGN_IN_CHANNEL = "desktop:openrouter:sign-in" as const;
+export const DESKTOP_OPENROUTER_SIGN_IN_CANCEL_CHANNEL =
+  "desktop:openrouter:sign-in-cancel" as const;
+export const DESKTOP_OPENROUTER_SIGN_IN_REOPEN_CHANNEL =
+  "desktop:openrouter:sign-in-reopen" as const;
+export const DESKTOP_OPENROUTER_CODE_SIGN_IN_CHANNEL = "desktop:openrouter:code-sign-in" as const;
+export const DESKTOP_OPENROUTER_USE_COPIED_CODE_CHANNEL =
+  "desktop:openrouter:use-copied-code" as const;
+export const DESKTOP_OPENROUTER_CREDIT_STATUS_CHANNEL = "desktop:openrouter:credit-status" as const;
+export const DESKTOP_OPENROUTER_OPEN_PAGE_CHANNEL = "desktop:openrouter:open-page" as const;
+export const DESKTOP_OPENROUTER_SIGN_IN_PROGRESS_CHANNEL =
+  "desktop:openrouter:sign-in-progress" as const;
 export const DESKTOP_TELEGRAM_STATUS_CHANNEL = "desktop:telegram:status" as const;
 export const DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL =
   "desktop:telegram:paste-credential" as const;

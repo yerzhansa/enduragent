@@ -26,17 +26,7 @@ function response(value: unknown): readonly string[] {
   return [JSON.stringify(value)];
 }
 
-interface FixtureIntake {
-  readonly swim_skill_floor: null;
-  readonly continuous_distance_capable: null;
-  readonly open_water_comfort: null;
-  readonly prior_bsi: false;
-  readonly clinician_cleared: null;
-  readonly injury_status: "none";
-}
-
 function makeScript(): DesktopFixtureScript {
-  let savedIntake: FixtureIntake | null = null;
   let durableTrainingData = true;
   let queueRevision = 0;
   let queueItems: Array<{
@@ -103,11 +93,7 @@ function makeScript(): DesktopFixtureScript {
         });
       }
       if (request.method === "getSetupStatus") {
-        return response({ schemaVersion: 1, intake: savedIntake, durableTrainingData });
-      }
-      if (request.method === "saveIntake") {
-        savedIntake = request.params as FixtureIntake;
-        return response({ schemaVersion: 1, saved: true });
+        return response({ schemaVersion: 1, durableTrainingData });
       }
       if (request.method === "sync") {
         durableTrainingData = true;
@@ -280,6 +266,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       fixtures.push(fixture);
       const observed = await fixture.evaluate<{
         readonly trainingSubtitle: string;
+        readonly trainingRowState: string | null;
         readonly readiness: string;
         readonly startEnabled: boolean;
         readonly completionStored: boolean;
@@ -304,6 +291,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const trainingSubtitle = document.querySelector('[data-setup-row="training"] [data-setup-row-subtitle]')?.textContent ?? "";
+      const trainingRowState = document.querySelector('[data-setup-row="training"]')?.getAttribute("data-state") ?? null;
       const page = document.querySelector(setupSelector);
       const present = page !== null;
       const chatSetup = document.querySelector(setupSelector) !== null;
@@ -355,27 +343,6 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
         setter?.call(input, value);
         input.dispatchEvent(new Event("input", { bubbles: true }));
       };
-      const pick = async (id, label) => {
-        const trigger = document.querySelector("#" + id);
-        if (!(trigger instanceof HTMLButtonElement)) {
-          throw new Error("missing select trigger " + id);
-        }
-        trigger.click();
-        const optionsDeadline = Date.now() + 10000;
-        let option;
-        while (option === undefined && Date.now() < optionsDeadline) {
-          option = Array.from(document.querySelectorAll('[role="option"]')).find(
-            (entry) => entry.textContent?.trim() === label,
-          );
-          if (option === undefined) {
-            await new Promise((resolve) => setTimeout(resolve, 20));
-          }
-        }
-        if (!(option instanceof HTMLElement)) {
-          throw new Error("missing select option " + label);
-        }
-        option.click();
-      };
       document.querySelector('[data-setup-trigger="ai"]')?.click();
       await waitFor('[data-lane="api-key"]');
       document.querySelector('[data-lane="api-key"]')?.click();
@@ -392,7 +359,6 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
         throw new Error("unexpected Intervals.icu credential input");
       }
       await waitFor('[data-setup-readiness="2"]');
-      await pick("onboarding-injury-status", "No current injury");
       await new Promise((resolve) => setTimeout(resolve, 60));
       const readiness = document.querySelector("[data-setup-readiness]")?.textContent ?? "";
       const startEnabled = button("Start coaching")?.disabled === false;
@@ -430,6 +396,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       const syncChip = document.querySelector(".sync-chip");
       return {
         trainingSubtitle,
+        trainingRowState,
         readiness,
         startEnabled,
         completionStored: localStorage.getItem("enduragent.desktop.onboarding") === '{"version":1,"completed":true}',
@@ -453,8 +420,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       };
     `);
       expect(observed).toEqual({
-        trainingSubtitle: "Connect or import ride files.",
-        readiness: "3 of 3 required ready",
+        trainingSubtitle: "Rides saved on this Mac · connect to sync new ones",
+        trainingRowState: "ready",
+        readiness: "2 of 2 required ready",
         startEnabled: true,
         completionStored: true,
         present: true,

@@ -1,5 +1,12 @@
 # @enduragent/sync-intervals-icu
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [2fd6f2e]
+  - @enduragent/kernel@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes

@@ -143,6 +143,7 @@ function stubActions(): ChatActions {
     cancelNewConversation: vi.fn(),
     confirmNewConversation: vi.fn(),
     retryFirstSync: vi.fn(),
+    openOpenRouterCredits: vi.fn(),
     answerDecision: vi.fn(),
     skipDecision: vi.fn(),
     retryDecision: vi.fn(),
@@ -676,12 +677,11 @@ describe("shell", () => {
           ...READY_ONBOARDING,
           open: true,
           completionRequired: true,
-          wizard: {
-            ...READY_ONBOARDING.wizard,
-            intake: { injuryStatus: "none" },
-          },
         },
-        onboardingActions: { finish } as unknown as OnboardingController,
+        onboardingActions: {
+          finish,
+          openRouter: { checkCredits: () => undefined, dismiss: () => undefined },
+        } as unknown as OnboardingController,
       });
       await renderWithLanguage(<Shell onReady={() => {}} />);
       const gate = document.querySelector('[data-setup-host="gate"]');
@@ -781,6 +781,7 @@ describe("shell", () => {
     });
     useEnduragentStore.getState().bindOnboardingActions({
       requireCompletion,
+      openRouter: { dismiss: () => undefined },
     } as unknown as OnboardingController);
     await renderWithLanguage(<Shell onReady={() => {}} />);
 

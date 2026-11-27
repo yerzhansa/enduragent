@@ -57,10 +57,6 @@ async function typeInto(user: UserEvent, id: string, value: string) {
   await user.type(element, value);
 }
 
-async function answerIntake(user: UserEvent): Promise<void> {
-  await chooseOption(user, "onboarding-injury-status", "none");
-}
-
 function enableCredentialDeletion(): void {
   useEnduragentStore.setState({
     settingsPorts: {
@@ -1012,7 +1008,6 @@ describe("mounted onboarding", () => {
     }));
     const wizard = mountWizard({ bridge });
     await wizard.open();
-    await answerIntake(user);
     expect(primaryButton()).toBeEnabled();
     await openApiKeyPanel(user);
     const secret = seedSecret("anthropic", randomUUID());
@@ -1046,7 +1041,6 @@ describe("mounted onboarding", () => {
     });
     const wizard = mountWizard({ bridge });
     await wizard.open();
-    await answerIntake(user);
     await openTrainingPanel(user);
 
     await user.click(panelButton("training", "Sign in with Intervals.icu"));
@@ -1222,7 +1216,7 @@ describe("mounted onboarding", () => {
     expect(document.body.textContent).toContain(
       "Local library import: 1 ride file imported. 1 ride file quarantined. Coaching access to activities and streams is available.",
     );
-    expect(rowState("training")).toBe("pending");
+    expect(rowState("training")).toBe("ready");
     expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
 
     act(() => {
@@ -1310,7 +1304,6 @@ describe("mounted onboarding", () => {
           expect(wizard.controller.state().importedRideFileCount).toBe(1);
         });
       }
-      await answerIntake(user);
       await waitFor(() => {
         expect(primaryButton()).toBeEnabled();
       });
@@ -1320,81 +1313,14 @@ describe("mounted onboarding", () => {
       await waitFor(() => {
         expect(onComplete).toHaveBeenCalledOnce();
       });
-      expect(bridge.saveIntake).toHaveBeenCalledWith({
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: false,
-        clinician_cleared: null,
-        injury_status: "none",
-      });
       expect(onComplete).toHaveBeenCalledWith({
         providerConfigured: true,
         trainingDataConfigured: true,
-        intakeSaved: true,
         requiresProviderSync,
       });
       wizard.controller.dispose();
     },
   );
-
-  it("finishes on the injury answer alone once an injury history is recorded", async () => {
-    const user = userEvent.setup();
-    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
-    bridge.credentialStatuses.mockResolvedValue([
-      { slot: "intervals-icu", state: "configured", runtimeState: "active" },
-    ]);
-    const wizard = mountWizard({ bridge });
-    await wizard.open();
-
-    await chooseOption(user, "onboarding-injury-status", "returning");
-
-    expect(document.querySelector("#onboarding-clinician-cleared")).toBeNull();
-
-    await waitFor(() => {
-      expect(primaryButton()).toBeEnabled();
-    });
-    await user.click(primaryButton());
-
-    await waitFor(() => {
-      expect(bridge.saveIntake).toHaveBeenCalledOnce();
-    });
-    expect(bridge.saveIntake).toHaveBeenCalledWith({
-      swim_skill_floor: null,
-      continuous_distance_capable: null,
-      open_water_comfort: null,
-      prior_bsi: false,
-      clinician_cleared: null,
-      injury_status: "returning",
-    });
-    wizard.controller.dispose();
-  });
-
-  it("keeps the athlete on the screen when the intake write fails", async () => {
-    const user = userEvent.setup();
-    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
-    bridge.credentialStatuses.mockResolvedValue([
-      { slot: "intervals-icu", state: "configured", runtimeState: "active" },
-    ]);
-    bridge.saveIntake.mockRejectedValue(new Error("intake detail must stay private"));
-    const onComplete = vi.fn();
-    const wizard = mountWizard({ bridge, onComplete });
-    await wizard.open();
-    await answerIntake(user);
-    await waitFor(() => {
-      expect(primaryButton()).toBeEnabled();
-    });
-
-    await user.click(primaryButton());
-
-    await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intake-save-failed");
-    });
-    expect(errorText()).toBe("Your answers could not be saved. Please try again.");
-    expect(onComplete).not.toHaveBeenCalled();
-    expect(document.body.textContent).not.toContain("intake detail must stay private");
-    wizard.controller.dispose();
-  });
 
   it("refuses to finish while the provider gate is unmet", async () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
@@ -1406,10 +1332,6 @@ describe("mounted onboarding", () => {
     const wizard = mountWizard({ bridge, onComplete });
     await wizard.open();
     act(() => {
-      wizard.controller.setIntake("injuryStatus", "none");
-    });
-
-    act(() => {
       wizard.controller.finish();
     });
 
@@ -1417,7 +1339,6 @@ describe("mounted onboarding", () => {
       expect(wizard.controller.state().fixedError).toBe("credential-required");
     });
     expect(errorText()).toBe("Sign in with ChatGPT or add at least one model key to continue.");
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
@@ -1429,10 +1350,6 @@ describe("mounted onboarding", () => {
     const wizard = mountWizard({ bridge, onComplete });
     await wizard.open();
     act(() => {
-      wizard.controller.setIntake("injuryStatus", "none");
-    });
-
-    act(() => {
       wizard.controller.finish();
     });
 
@@ -1440,12 +1357,11 @@ describe("mounted onboarding", () => {
       expect(wizard.controller.state().fixedError).toBe("training-data-required");
     });
     expect(errorText()).toBe("Connect intervals.icu or import at least one ride file.");
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
 
-  it("refuses to finish while the intake gate is unmet", async () => {
+  it("finishes once the provider and training data are ready without any injury question", async () => {
     const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "intervals-icu", state: "configured", runtimeState: "active" },
@@ -1454,16 +1370,16 @@ describe("mounted onboarding", () => {
     const wizard = mountWizard({ bridge, onComplete });
     await wizard.open();
 
+    expect(document.querySelector('[data-setup-row="injury-status"]')).toBeNull();
+    expect(primaryButton()).toBeEnabled();
     act(() => {
       wizard.controller.finish();
     });
 
     await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intake-incomplete");
+      expect(onComplete).toHaveBeenCalledOnce();
     });
-    expect(errorText()).toBe("Answer the required safety questions to continue.");
-    expect(bridge.saveIntake).not.toHaveBeenCalled();
-    expect(onComplete).not.toHaveBeenCalled();
+    expect(wizard.controller.state().fixedError).toBeNull();
     wizard.controller.dispose();
   });
 

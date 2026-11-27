@@ -39,6 +39,7 @@ import {
   credentialChangesBlocked,
   createCredentialSettingsController,
 } from "../src/settings/credential-controller";
+import { createSettingsPanes } from "../src/settings/panes";
 import { createProviderModelSettingsController } from "../src/settings/provider-model-controller";
 import { createSessionSettingsController } from "../src/settings/session-controller";
 import {
@@ -500,21 +501,13 @@ function createHarness(options: HarnessOptions = {}) {
     },
     view: updateAdapter.view,
   });
+  const panes = createSettingsPanes({
+    coach: coachController,
+    credentials: credentialController,
+    others: [athleteController, conversationController],
+  });
   store.getState().bindSettingsPorts({
-    panes: {
-      activate() {
-        void coachController.activate();
-        void credentialController.activate();
-        void athleteController.activate();
-        void conversationController.activate();
-      },
-      close() {
-        coachController.close();
-        credentialController.close();
-        athleteController.close();
-        conversationController.close();
-      },
-    },
+    panes,
     coach: coachAdapter.port,
     credentials: credentialAdapter.port,
     athlete: athleteAdapter.port,
@@ -546,6 +539,7 @@ function createHarness(options: HarnessOptions = {}) {
     credentialController,
     telegramController,
     spendController,
+    panes,
     startUpdate: () => updateController.start(),
     dispose() {
       coachController.dispose();
@@ -619,6 +613,7 @@ beforeEach(() => {
       setCustomModel() {},
       setEndpointMode() {},
       setCustomEndpoint() {},
+      openRouter: { checkCredits() {}, dismiss() {} },
     } as unknown as OnboardingController,
   });
 });
@@ -991,6 +986,11 @@ describe("settings setup inventory", () => {
     );
 
     await waitFor(() =>
+      expect(document.querySelector('[data-setup-panel="openrouter"]')).not.toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "Sign in with OpenRouter" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Paste a key instead" }));
+    await waitFor(() =>
       expect(document.querySelector('[data-setup-panel="api-key"]')).not.toBeNull(),
     );
     expect(document.querySelector('[data-setup-menu="ai"]')).toBeNull();
@@ -1355,14 +1355,6 @@ describe("settings lifecycle", () => {
     bridge.llmConfiguration.mockImplementation(async () => llmConfiguration());
     bridge.getSetupStatus = vi.fn(async () => ({
       schemaVersion: 1 as const,
-      intake: {
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        prior_bsi: false,
-        clinician_cleared: null,
-        injury_status: "none" as const,
-      },
       durableTrainingData: true,
     }));
     const onboardingView = createOnboardingViewAdapter({
@@ -1532,6 +1524,209 @@ describe("settings lifecycle", () => {
     harness.dispose();
     expect(harness.cancelTelegramPoll).toHaveBeenCalledWith(1);
     harness = undefined;
+  });
+});
+
+describe("settings after a setup change", () => {
+  const OPENROUTER_ACTIVE = { provider: "openrouter", model: "vendor/synthetic" } as const;
+
+  function recordPaneStatuses() {
+    const coach: string[] = [];
+    const credentials: string[] = [];
+    const stop = useEnduragentStore.subscribe((state, previous) => {
+      if (state.settings.coach !== previous.settings.coach) {
+        coach.push(state.settings.coach.status);
+      }
+      if (state.settings.credentials !== previous.settings.credentials) {
+        credentials.push(state.settings.credentials.status);
+      }
+    });
+    return { coach, credentials, stop };
+  }
+
+  async function coachActive(active: OnboardingLlmConfiguration["active"]): Promise<void> {
+    await waitFor(() => {
+      const coach = useEnduragentStore.getState().settings.coach;
+      expect(coach.status === "ready" ? coach.active : null).toEqual(active);
+    });
+  }
+
+  it("reloads the coach route and the credential rows in place once Setup connects a provider", async () => {
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    let statuses: readonly CredentialSlotStatus[] = [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ];
+    const loadCredentialStatuses = vi.fn(async () => statuses);
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      loadCredentialStatuses,
+    });
+    expect(screen.queryByRole("button", { name: "Delete the OpenRouter credential" })).toBeNull();
+
+    active = OPENROUTER_ACTIVE;
+    statuses = [
+      { slot: "anthropic", state: "configured", runtimeState: "stored-inactive" },
+      { slot: "openrouter", state: "configured", runtimeState: "active" },
+    ];
+    const recorded = recordPaneStatuses();
+    act(() => subject.panes.reloadAfterSetup());
+
+    await screen.findByRole("button", { name: "Delete the OpenRouter credential" });
+    await coachActive(active);
+    recorded.stop();
+    expect(recorded.coach).toEqual(["ready"]);
+    expect(recorded.credentials).toEqual(["ready"]);
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
+  });
+
+  it("keeps an unsaved custom model and its focus while Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({ llm: () => ({ ...llmConfiguration(), active }) });
+    await user.click(screen.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: "Other model…" }));
+    const custom = await screen.findByLabelText("Custom model name");
+    await waitFor(() => expect(custom).toHaveFocus());
+    await user.type(custom, "vendor/experimental");
+
+    active = OPENROUTER_ACTIVE;
+    const recorded = recordPaneStatuses();
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    recorded.stop();
+    expect(recorded.coach).not.toContain("loading");
+    expect(recorded.coach).not.toContain("closed");
+    expect(recorded.credentials).not.toContain("loading");
+    expect(screen.getByLabelText("Custom model name")).toHaveValue("vendor/experimental");
+    expect(screen.getByLabelText("Custom model name")).toHaveFocus();
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.getByText("Currently active: OpenRouter · vendor/synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Unsaved")).toBeInTheDocument();
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+  });
+
+  it("clears a credential-required save once Setup connects that provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      applyLlmSelection: async () => ({ status: "refused", reason: "credential-required" }),
+    });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /Provider/u }));
+    await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
+    await coach.findByRole("button", { name: "Review setup" });
+
+    active = OPENROUTER_ACTIVE;
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    expect(coach.queryByRole("button", { name: "Review setup" })).toBeNull();
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+    expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
+  });
+
+  it("reloads a Coach pane that Review setup closed once Setup connects the provider", async () => {
+    const user = userEvent.setup();
+    let active: OnboardingLlmConfiguration["active"] = {
+      provider: "anthropic",
+      model: "synthetic-model",
+    };
+    const subject = await renderSettings({
+      llm: () => ({ ...llmConfiguration(), active }),
+      applyLlmSelection: async () => ({ status: "refused", reason: "credential-required" }),
+    });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /Provider/u }));
+    await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
+    await user.click(await coach.findByRole("button", { name: "Review setup" }));
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+
+    active = OPENROUTER_ACTIVE;
+    act(() => subject.panes.reloadAfterSetup());
+
+    await coachActive(active);
+    expect(coach.getByText("OpenRouter → Vendor synthetic")).toBeInTheDocument();
+  });
+
+  it("reloads the credential rows that Set up again left once Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    let statuses: readonly CredentialSlotStatus[] = [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ];
+    const subject = await renderSettings({
+      loadCredentialStatuses: async () => statuses,
+      credentialRecoveryStatus: async () => ({ state: "ready", unverifiedEnvelopes: 1 }),
+      resetAllCredentials: async () => {
+        statuses = [];
+        return { status: "reset", keyCleanupPending: false };
+      },
+    });
+    await user.click(screen.getByRole("button", { name: "Remove all credentials" }));
+    const confirmation = screen.getByRole("group", { name: "Remove all credentials?" });
+    await user.click(within(confirmation).getByRole("button", { name: "Remove all credentials" }));
+    await waitFor(() => {
+      useEnduragentStore.getState().settingsPorts?.credentials.openSetup();
+      expect(subject.credentialController.state().status).toBe("closed");
+    });
+    expect(subject.openSetup).toHaveBeenCalledOnce();
+
+    statuses = [{ slot: "openrouter", state: "configured", runtimeState: "active" }];
+    act(() => subject.panes.reloadAfterSetup());
+
+    await screen.findByRole("button", { name: "Delete the OpenRouter credential" });
+  });
+
+  it("does not reload Settings panes after Settings closes", async () => {
+    const llm = vi.fn(llmConfiguration);
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);
+    const subject = await renderSettings({ llm, loadCredentialStatuses });
+    act(() => useEnduragentStore.getState().closeSettingsPanes());
+    const loads = llm.mock.calls.length;
+    const credentialLoads = loadCredentialStatuses.mock.calls.length;
+
+    await act(async () => {
+      subject.panes.reloadAfterSetup();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(llm).toHaveBeenCalledTimes(loads);
+    expect(loadCredentialStatuses).toHaveBeenCalledTimes(credentialLoads);
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+  });
+
+  it("leaves closed Settings panes closed when Setup connects a provider", () => {
+    const llm = vi.fn(llmConfiguration);
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => []);
+    harness = createHarness({ llm, loadCredentialStatuses });
+    harness.panes.reloadAfterSetup();
+    expect(llm).not.toHaveBeenCalled();
+    expect(loadCredentialStatuses).not.toHaveBeenCalled();
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+  });
+
+  it("keeps an open delete confirmation when Setup connects a provider", async () => {
+    const user = userEvent.setup();
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+      { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+    ]);
+    const subject = await renderSettings({ loadCredentialStatuses });
+    await user.click(screen.getByRole("button", { name: "Delete the OpenRouter credential" }));
+    act(() => subject.panes.reloadAfterSetup());
+    expect(useEnduragentStore.getState().settings.credentials.status).toBe("confirming");
+    expect(loadCredentialStatuses).toHaveBeenCalledOnce();
   });
 });
 
@@ -1841,6 +2036,12 @@ describe("credential deletion", () => {
     );
     expect(useEnduragentStore.getState().onboarding.readiness.trainingData).toBe(true);
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
+    const trainingRow = document.querySelector<HTMLElement>('[data-setup-row="training"]');
+    expect(trainingRow, "kept rides should leave the training row ready").toHaveAttribute(
+      "data-state",
+      "ready",
+    );
+    expect(trainingRow).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
     expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
       status: "deleted",
       focus: null,
@@ -1858,6 +2059,7 @@ describe("credential deletion", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Change the OpenRouter credential" }));
+    await user.click(await screen.findByRole("button", { name: "Paste a key instead" }));
     const secret = await screen.findByLabelText("OpenRouter API key");
     await user.type(secret, "synthetic-openrouter-secret");
     expect(secret).toHaveValue("synthetic-openrouter-secret");
@@ -2391,7 +2593,11 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Connect Intervals.icu" })).toHaveFocus();
     });
-    expect(trainingRow()).toHaveAttribute("data-state", "pending");
+    expect(trainingRow()).toHaveAttribute("data-state", "ready");
+    expect(trainingRow()).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
+    expect(
+      within(trainingRow()).getByRole("button", { name: "Connect Intervals.icu" }),
+    ).toBeEnabled();
     expect(within(trainingRow()).queryByRole("button", { name: "Sign in again" })).toBeNull();
     expect(
       within(trainingRow()).queryByRole("button", { name: "Disconnect Intervals.icu" }),
@@ -2445,8 +2651,9 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
       setupRefresh.resolve();
     });
     await waitFor(() => {
-      expect(trainingRow()).toHaveAttribute("data-state", "pending");
+      expect(trainingRow()).toHaveAttribute("data-state", "ready");
     });
+    expect(trainingRow()).toHaveTextContent("Rides saved on this Mac · connect to sync new ones");
     expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
     expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
   });

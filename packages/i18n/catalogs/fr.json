@@ -206,6 +206,7 @@
         "confirmAria": "Confirmer la suppression de la donnée d’authentification {{provider}}",
         "credential": "Supprimer la donnée d’authentification",
         "detail": "Cette action la supprime uniquement de {{computer}}. {{product}} cessera de l’utiliser si elle est active. Ton compte chez le fournisseur reste inchangé.",
+        "openrouterDetail": "Cette action la supprime uniquement de {{computer}}. {{product}} cessera de l’utiliser si elle est active. La clé continue de fonctionner sur {{openrouter}} jusqu’à ce que tu la supprimes là-bas.",
         "title": "Supprimer la donnée d’authentification {{provider}} ?"
       },
       "feedback": {
@@ -566,7 +567,8 @@
       "advanced": "Avancé",
       "announcement": {
         "apiKey": "La configuration de la clé API s’est ouverte sous cette ligne.",
-        "chatgpt": "La connexion à {{chatgpt}} s’est ouverte sous cette ligne."
+        "chatgpt": "La connexion à {{chatgpt}} s’est ouverte sous cette ligne.",
+        "openrouter": "La connexion à {{openrouter}} s’est ouverte sous cette ligne."
       },
       "apiKeyHint": "Créée dans la console du fournisseur, facturée à l’usage — généralement quelques centimes par conversation.",
       "cancelLabel": "Annuler la configuration de la clé API",
@@ -621,7 +623,8 @@
       "laneHint": {
         "apiKey": "{{providers}} fournisseurs · paiement à l’usage",
         "claudeCli": "Vérifie ton abonnement {{claude}} à la sélection",
-        "openaiCodex": "Utilise l’abonnement que tu paies déjà"
+        "openaiCodex": "Utilise l’abonnement que tu paies déjà",
+        "openrouter": "Connexion · paiement à l’usage, nombreux modèles"
       },
       "menuLabel": "IA qui fait fonctionner ton coach",
       "model": "Modèle",
@@ -646,14 +649,15 @@
         "apiKey": "Fait fonctionner ton coach · ajoute une clé pour terminer",
         "chatgpt": "Fait fonctionner ton coach · connecte-toi pour terminer",
         "checkingClaude": "Fait fonctionner ton coach · vérification de la connexion {{claudeCode}}",
-        "claude": "Fait fonctionner ton coach · connecte-toi depuis un terminal pour terminer"
+        "claude": "Fait fonctionner ton coach · connecte-toi depuis un terminal pour terminer",
+        "openrouterCredits": "Connecté · ajoute des crédits sur {{openrouter}} pour recevoir des réponses"
       },
       "provider": "Fournisseur",
       "saveLabel": "Enregistrer la clé API",
       "subtitle": "Obligatoire — {{product}} n’en inclut pas",
       "title": "IA qui fait fonctionner ton coach",
       "tooltip": {
-        "body": "Il utilise un abonnement {{chatgpt}}, une connexion {{claudeCode}} ou une clé API que tu fournis. Quel que soit ton choix, ces données restent sur {{computer}}.",
+        "body": "Il utilise un abonnement {{chatgpt}}, une connexion {{claudeCode}}, une connexion {{openrouter}} ou une clé API que tu fournis. Quel que soit ton choix, ces données restent sur {{computer}}.",
         "label": "À propos de l’IA qui fait fonctionner ton coach",
         "lead": "{{product}} n’a pas d’IA propre"
       },
@@ -700,8 +704,6 @@
       "credentialSaveFailed": "Cette clé n’a pas pu être enregistrée. Essaie de la saisir à nouveau.",
       "credentialStatusUnavailable": "Cette clé a été enregistrée, mais son état n’a pas pu être actualisé. Vérifie à nouveau la zone de configuration.",
       "endpointInvalid": "Saisis un point de terminaison HTTPS valide, ou un point de terminaison HTTP de bouclage local.",
-      "intakeIncomplete": "Réponds aux questions de sécurité obligatoires pour continuer.",
-      "intakeSaveFailed": "Tes réponses n’ont pas pu être enregistrées. Réessaie.",
       "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que ce compte {{intervals}} correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
       "intervalsRuntimeUnavailable": "La connexion à {{intervals}} n’a pas pu être activée. Reconnecte-toi.",
       "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la connexion est active. Recharge l’état des données d’authentification avant de réessayer.",
@@ -734,14 +736,40 @@
       "unavailable": "Import dans la bibliothèque locale : {{imported}} importés. {{quarantined}} mis en quarantaine. L’accès du coach aux activités et aux séries de données est temporairement indisponible ; réessaie l’import.",
       "unconfirmed": "L’import dans la bibliothèque locale a échoué. Le résultat n’a pas pu être confirmé ; vérifie la bibliothèque avant de réessayer."
     },
-    "intake": {
-      "managing": "Blessure en cours",
-      "none": "Aucune blessure actuelle",
-      "retrySave": "Réessayer d’enregistrer les réponses",
-      "returning": "Reprise après une blessure",
-      "select": "Sélectionner…",
-      "subtitle": "Enregistre le contexte de ta blessure actuelle ou de ta reprise.",
-      "title": "État actuel des blessures"
+    "openrouter": {
+      "code": {
+        "expired": "Ce code a expiré ou a déjà été utilisé. Choisis Obtenir un nouveau code, puis copie le nouveau.",
+        "heading": "Se connecter avec un code",
+        "hint": "Utilise cette option quand le navigateur ne peut pas renvoyer la connexion à {{product}}.",
+        "newCode": "Obtenir un nouveau code",
+        "noCode": "Ton presse-papiers ne contient pas de code {{openrouter}}. Copie le code depuis le navigateur, puis choisis à nouveau Utiliser le code copié. Cette connexion reste ouverte.",
+        "open": "Ouvrir la page de connexion",
+        "status": "Un code ne fonctionne qu’une fois et expire au bout de 10 minutes.",
+        "step1": "Choisis Ouvrir la page de connexion, puis autorise l’accès dans ton navigateur.",
+        "step2": "Copie le code affiché par {{openrouter}}.",
+        "step3": "Choisis Utiliser le code copié. {{product}} lit le code, puis vide ton presse-papiers.",
+        "use": "Utiliser le code copié"
+      },
+      "completingHint": "Accès autorisé. Enregistrement de la clé sur {{computer}}…",
+      "enterCode": "Saisir plutôt un code",
+      "failed": {
+        "notFinished": "La connexion n’a pas été terminée dans le navigateur. Réessaie quand tu le souhaites.",
+        "notSaved": "{{openrouter}} a créé une clé, mais {{computer}} n’a pas pu l’enregistrer. Réessaie. La clé inutilisée reste sur {{openrouter}} jusqu’à ce que tu la supprimes là-bas.",
+        "openKeys": "Ouvrir mes clés sur {{openrouter}}",
+        "savedHint": "La clé est enregistrée sur {{computer}}.",
+        "savedNotActive": "Connecté, mais le coach n’a pas pu démarrer. Réessaie sans te reconnecter.",
+        "unreachable": "{{openrouter}} n’a pas répondu, donc rien n’a été enregistré. Réessaie dans une minute."
+      },
+      "hint": "Ouvre {{openrouter}} dans ton navigateur. Autorise l’accès là-bas, et la clé créée reste sur {{computer}}. La page d’autorisation appelle cette application localhost.",
+      "noCredits": {
+        "addCredits": "Ajouter des crédits",
+        "hint": "Ce compte {{openrouter}} n’a jamais acheté de crédits. Le coach a besoin de crédits pour répondre, généralement quelques centimes par conversation.",
+        "status": "{{product}} vérifie à nouveau quand tu reviens sur cette fenêtre."
+      },
+      "pasteInstead": "Coller plutôt une clé",
+      "signIn": "Se connecter avec {{openrouter}}",
+      "signInAgainHint": "Te reconnecter remplace la clé sur {{computer}}. L’ancienne clé continue de fonctionner sur {{openrouter}} jusqu’à ce que tu la supprimes là-bas.",
+      "tryAgain": "Réessayer"
     },
     "requiredReady": "{{ready}} éléments obligatoires prêts sur {{total}}",
     "retrySavedKeys": "Réessayer les clés enregistrées",
@@ -789,7 +817,8 @@
         "connected": "Connecté · source de tes sorties",
         "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
         "missing": "Connecte un compte ou importe des fichiers de sortie.",
-        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation."
+        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation.",
+        "savedRides": "Sorties enregistrées sur {{computer}} · connecte-toi pour synchroniser les nouvelles"
       },
       "tooltip": {
         "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu te connectes ici.",
@@ -1051,7 +1080,8 @@
       "feedbackFailed": "Impossible d’envoyer cette note. Elle reste dans le champ — réessaie.",
       "feedbackSent": "Merci — nous avons bien reçu ta note.",
       "feedbackTooLong": "Garde ta note à 4000 caractères ou moins. Rien n’a été envoyé.",
-      "feedbackUsage": "Envoie /feedback suivi de ta note."
+      "feedbackUsage": "Envoie /feedback suivi de ta note.",
+      "addCredits": "Ajouter des crédits"
     },
     "planChange": {
       "activePlan": "Plan actif",
@@ -2800,6 +2830,7 @@
     "error": {
       "intervalsCredentials": "{{service}} a rejeté la demande — vérifie ta connexion à {{service}} ou ta clé API.",
       "intervalsTransient": "Je n’ai pas pu joindre {{service}} pour le moment — réessaie dans un instant.",
+      "openRouterCredits": "Ton compte {{openrouter}} n’a pas assez de crédits. Ajoute des crédits sur {{openrouter}}, puis renvoie ton message.",
       "providerCredentials": "Le fournisseur du modèle a rejeté la clé API — vérifie tes données d’authentification auprès de ce fournisseur.",
       "providerDown": "Le fournisseur du modèle rencontre un problème — réessaie dans quelques minutes.",
       "rateLimit": "Trop de demandes — réessaie dans un instant.",

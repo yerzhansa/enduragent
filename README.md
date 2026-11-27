@@ -21,6 +21,7 @@
 <p align="center">
   <a href="https://enduragent.icu/"><b>enduragent.icu</b></a> ·
   <a href="https://enduragent.icu/download/mac">Download for macOS</a> ·
+  <a href="https://enduragent.icu/download/windows">Download for Windows</a> ·
   <a href="https://enduragent.icu/privacy.html">Privacy</a> ·
   <a href="https://railway.com/deploy/cycling-coach">Deploy the 24/7 bot</a>
 </p>
@@ -28,7 +29,7 @@
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="npm" src="https://img.shields.io/npm/v/cycling-coach?label=cycling-coach">
-  <img alt="Platform" src="https://img.shields.io/badge/desktop-macOS%20arm64-black">
+  <img alt="Platform" src="https://img.shields.io/badge/desktop-macOS%20arm64%20%7C%20Windows%20x64-black">
 </p>
 
 <p align="center">
@@ -96,19 +97,15 @@ around the clock, see below.
 
 ### Windows app
 
-[**Download for Windows**](https://enduragent.icu/download/windows) — available with the first
-signed release, for Windows 11 x64 only. Windows builds ship only with an Authenticode signature
-from `<PUBLISHER_NAME>`. A valid signature under a new publisher identity can still trigger a
-SmartScreen prompt while its reputation builds.
+[**Download for Windows**](https://enduragent.icu/download/windows) — free on the
+[Microsoft Store](https://apps.microsoft.com/detail/9pm18318flrk), for Windows 10 (version 2004 or
+later) and Windows 11, x64. The Store signs the app, so there is no SmartScreen prompt, and the
+Store installs updates for you. The Store version can arrive later than the macOS release, and
+Windows may skip a version; release notes say which platforms shipped.
 
-The per-user one-click installer adds a Start Menu shortcut without asking for administrator
-access; it does not add a desktop shortcut. Closing the main window hides it while Enduragent keeps
-running in the tray; quit it explicitly from the tray menu.
-
-Uninstalling keeps your data in `%LOCALAPPDATA%\Enduragent`; remove that folder by hand to erase
-it. Windows update checks use the same public updater feed as macOS and switch on with the
-first signed release. Windows assets can arrive later than macOS, and Windows may lag or skip a
-version; release notes say which platforms shipped.
+Closing the main window hides it while Enduragent keeps running in the tray; quit it explicitly
+from the tray menu. Uninstalling removes the app's settings and keys; your athlete data in
+`%USERPROFILE%\.enduragent` stays until you delete that folder.
 
 ### Terminal
 

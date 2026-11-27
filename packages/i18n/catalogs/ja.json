@@ -205,6 +205,7 @@
         "confirmAria": "{{provider}}の認証情報の削除を確認",
         "credential": "認証情報を削除",
         "detail": "{{computer}}からのみ削除します。有効な場合、{{product}}はその使用を停止します。プロバイダーのアカウントは変更されません。",
+        "openrouterDetail": "{{computer}}からのみ削除します。有効な場合、{{product}}はその使用を停止します。キーは、{{openrouter}}で削除するまで引き続き使える状態のままです。",
         "title": "{{provider}}の認証情報を削除しますか？"
       },
       "feedback": {
@@ -564,7 +565,8 @@
       "advanced": "詳細設定",
       "announcement": {
         "apiKey": "この行の下にAPIキーのセットアップを開きました。",
-        "chatgpt": "この行の下に{{chatgpt}}のサインインを開きました。"
+        "chatgpt": "この行の下に{{chatgpt}}のサインインを開きました。",
+        "openrouter": "この行の下に{{openrouter}}のサインインを開きました。"
       },
       "apiKeyHint": "プロバイダーの管理画面で作成します。従量課金で、通常は1回の会話につき数セントです。",
       "cancelLabel": "APIキーのセットアップをキャンセル",
@@ -619,7 +621,8 @@
       "laneHint": {
         "apiKey": "プロバイダー: {{providers}} · 従量課金",
         "claudeCli": "選択すると{{claude}}サブスクリプションを確認します",
-        "openaiCodex": "契約済みのプランを使用"
+        "openaiCodex": "契約済みのプランを使用",
+        "openrouter": "サインイン · 従量課金、多数のモデル"
       },
       "menuLabel": "コーチに使用するAI",
       "model": "モデル",
@@ -644,14 +647,15 @@
         "apiKey": "コーチに使用 · キーを追加すると完了します",
         "chatgpt": "コーチに使用 · サインインすると完了します",
         "checkingClaude": "コーチに使用 · {{claudeCode}}のサインイン状態を確認中",
-        "claude": "コーチに使用 · ターミナルからサインインすると完了します"
+        "claude": "コーチに使用 · ターミナルからサインインすると完了します",
+        "openrouterCredits": "サインイン済み · {{openrouter}}でクレジットを追加すると返信を受け取れます"
       },
       "provider": "プロバイダー",
       "saveLabel": "APIキーを保存",
       "subtitle": "必須 — {{product}}には含まれていません",
       "title": "コーチに使用するAI",
       "tooltip": {
-        "body": "{{chatgpt}}サブスクリプション、{{claudeCode}}へのサインイン、またはご自身のAPIキーで動作します。どれを選んでも、認証情報は{{computer}}に保存されます。",
+        "body": "{{chatgpt}}サブスクリプション、{{claudeCode}}へのサインイン、{{openrouter}}へのサインイン、またはご自身のAPIキーで動作します。どれを選んでも、認証情報は{{computer}}に保存されます。",
         "label": "コーチに使用するAIについて",
         "lead": "{{product}}には独自のAIはありません"
       },
@@ -698,8 +702,6 @@
       "credentialSaveFailed": "キーを保存できませんでした。もう一度入力してください。",
       "credentialStatusUnavailable": "キーは保存されましたが、状態を更新できませんでした。セットアップ欄をもう一度確認してください。",
       "endpointInvalid": "有効なHTTPSエンドポイント、またはループバックHTTPエンドポイントを入力してください。",
-      "intakeIncomplete": "続けるには、安全に関する必須の質問に回答してください。",
-      "intakeSaveFailed": "回答を保存できませんでした。もう一度お試しください。",
       "intervalsOwnerUnavailable": "{{product}}は、この{{intervals}}アカウントが{{computer}}のトレーニングデータと一致するか確認できませんでした。トレーニングデータを利用できるようになったら再試行してください。",
       "intervalsRuntimeUnavailable": "{{intervals}}のサインインを有効にできませんでした。もう一度サインインしてください。",
       "intervalsRuntimeUncertain": "{{product}}は、サインインが有効か確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
@@ -731,14 +733,40 @@
       "unavailable": "ローカルライブラリへのインポート: {{imported}}件をインポート、{{quarantined}}件を隔離しました。コーチはアクティビティと時系列データを一時的に利用できません。インポートを再試行してください。",
       "unconfirmed": "ローカルライブラリへのインポートに失敗しました。結果を確認できませんでした。再試行する前にライブラリを確認してください。"
     },
-    "intake": {
-      "managing": "けがに対処中",
-      "none": "現在けがはありません",
-      "retrySave": "回答の保存を再試行",
-      "returning": "けがからの復帰中",
-      "select": "選択…",
-      "subtitle": "現在のけがや復帰の状況を記録します。",
-      "title": "現在のけがの状況"
+    "openrouter": {
+      "code": {
+        "expired": "このコードは有効期限が切れたか、すでに使用されています。「新しいコードを取得」を選び、新しいコードをコピーしてください。",
+        "heading": "コードでサインイン",
+        "hint": "ブラウザから{{product}}にサインインを戻せない場合に使用します。",
+        "newCode": "新しいコードを取得",
+        "noCode": "クリップボードに{{openrouter}}のコードがありません。ブラウザでコードをコピーしてから、もう一度「コピーしたコードを使用」を選んでください。このサインインは開いたままです。",
+        "open": "サインインページを開く",
+        "status": "コードは1回だけ使用でき、10分で有効期限が切れます。",
+        "step1": "「サインインページを開く」を選び、ブラウザで許可してください。",
+        "step2": "{{openrouter}}に表示されたコードをコピーします。",
+        "step3": "「コピーしたコードを使用」を選びます。{{product}}がコードを読み取り、クリップボードを消去します。",
+        "use": "コピーしたコードを使用"
+      },
+      "completingHint": "許可されました。{{computer}}にキーを保存しています…",
+      "enterCode": "代わりにコードを入力",
+      "failed": {
+        "notFinished": "ブラウザでサインインが完了しませんでした。準備ができたら、もう一度お試しください。",
+        "notSaved": "{{openrouter}}でキーが作成されましたが、{{computer}}に保存できませんでした。もう一度お試しください。未使用のキーは、{{openrouter}}で削除するまでそこに残ります。",
+        "openKeys": "{{openrouter}}で自分のキーを開く",
+        "savedHint": "キーは{{computer}}に保存されています。",
+        "savedNotActive": "サインインは完了しましたが、コーチを開始できませんでした。サインインし直さずに再試行してください。",
+        "unreachable": "{{openrouter}}から応答がなかったため、何も保存されていません。1分後にもう一度お試しください。"
+      },
+      "hint": "ブラウザで{{openrouter}}を開きます。そのページで許可すると、作成されたキーは{{computer}}に保存されます。許可ページでは、このアプリはlocalhostと表示されます。",
+      "noCredits": {
+        "addCredits": "クレジットを追加",
+        "hint": "この{{openrouter}}アカウントでは、クレジットを購入したことがありません。コーチが返信するにはクレジットが必要です。通常は1回の会話につき数セントです。",
+        "status": "このウィンドウに戻ると、{{product}}がもう一度確認します。"
+      },
+      "pasteInstead": "代わりにキーを貼り付け",
+      "signIn": "{{openrouter}}でサインイン",
+      "signInAgainHint": "もう一度サインインすると、{{computer}}のキーが置き換えられます。古いキーは、{{openrouter}}で削除するまで引き続き使えます。",
+      "tryAgain": "再試行"
     },
     "requiredReady": "必須{{total}}項目中{{ready}}項目の準備完了",
     "retrySavedKeys": "保存済みのキーを再試行",
@@ -786,7 +814,8 @@
         "connected": "接続済み · ライドの取得元",
         "connectedAs": "{{name}}として接続済み · ライドの取得元",
         "missing": "接続するか、ライドファイルをインポートしてください。",
-        "rejected": "{{intervals}}がサインインを受け付けなくなりました。同期を続けるには、もう一度サインインしてください。"
+        "rejected": "{{intervals}}がサインインを受け付けなくなりました。同期を続けるには、もう一度サインインしてください。",
+        "savedRides": "ライドは{{computer}}に保存済み · 接続すると新しいライドを同期します"
       },
       "tooltip": {
         "body": "ライドを保存できる無料のトレーニングサイトです。{{product}}はウォッチやサイクルコンピュータのメーカーに直接接続せず、このサイトからライドを読み取ります。ウォッチやサイクルコンピュータを接続した無料アカウントが必要です。そのうえで、ここでサインインしてください。",
@@ -1043,7 +1072,8 @@
       "feedbackFailed": "メモを送れませんでした。入力欄に残っています。もう一度お試しください。",
       "feedbackSent": "ありがとうございます。メモを受け取りました。",
       "feedbackTooLong": "メモは4000文字以内にしてください。送信されていません。",
-      "feedbackUsage": "/feedback のあとにメモを送ってください。"
+      "feedbackUsage": "/feedback のあとにメモを送ってください。",
+      "addCredits": "クレジットを追加"
     },
     "planChange": {
       "activePlan": "有効なプラン",
@@ -2613,6 +2643,7 @@
     "error": {
       "intervalsCredentials": "{{service}}がリクエストを拒否しました。{{service}}の接続またはAPIキーを確認してください。",
       "intervalsTransient": "今は{{service}}に接続できません。少し待ってから、もう一度お試しください。",
+      "openRouterCredits": "{{openrouter}}アカウントのクレジットが不足しています。{{openrouter}}でクレジットを追加してから、メッセージをもう一度送信してください。",
       "providerCredentials": "モデルのプロバイダーがAPIキーを拒否しました。プロバイダーの認証情報を確認してください。",
       "providerDown": "モデルのプロバイダーで問題が起きています。数分後に、もう一度お試しください。",
       "rateLimit": "リクエストの上限に達しました。少し待ってから、もう一度お試しください。",

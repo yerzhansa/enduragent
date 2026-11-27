@@ -1,5 +1,29 @@
 # @enduragent/coach
 
+## 0.1.8
+
+### Patch Changes
+
+- 50a36f2: User-facing: After you sign in to intervals.icu again, today's plan now reaches your intervals.icu calendar the next time your plan refreshes. Before, the calendar could keep showing "Calendar sync failed." after you signed in again.
+
+  While intervals.icu rejects the signed-in token, two calls that nobody asked for now wait for a working sign-in. Re-applying the same sign-in to a running coach no longer starts a store refresh, and the plan-calendar push leaves today's job untouched instead of using up its five attempts. Sync now still sends its requests, the first request after a coach start still detects the rejection, and a plain API key works as before.
+
+- 2fd6f2e: User-facing: Setup and Settings no longer ask for your injury status, so you can start coaching as soon as your AI and training data are connected.
+
+  The `injury-status` Setup row, its intake draft and persistence in the onboarding controller, the `saveIntake` RPC, the `intake` field of `getSetupStatus`, the kernel intake repository, and the `setup.intake.*` and intake error catalog keys are removed. Setup now has two required items. `PROTOCOL_VERSION` moves from 36 to 37. The `intake_flags` table and any row an earlier version saved stay in the store untouched; nothing reads or writes them anymore, and no migration runs.
+
+- 72e5255: While intervals.icu rejects the signed-in token, the six-hour store refresh skips its turn and logs `scheduled_store_refresh_skipped`. An owner check that is retried with a token already marked as rejected is refused without a request. That guards a daemon started with a signed-in token in its config or environment; the desktop app does not start its daemon that way. A new sign-in resumes the refresh, and Sync now still sends its requests. A plain API key syncs as before.
+- Updated dependencies [2fd6f2e]
+  - @enduragent/coach-contract@0.1.7
+  - @enduragent/kernel@0.1.4
+  - @enduragent/i18n@0.2.5
+  - @enduragent/coach-cli@0.1.7
+  - @enduragent/core@0.1.11
+  - @enduragent/engine@0.0.9
+  - @enduragent/kernel-node@0.1.4
+  - @enduragent/sport-cycling@0.0.13
+  - @enduragent/sync-intervals-icu@0.1.4
+
 ## 0.1.7
 
 ### Patch Changes

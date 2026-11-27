@@ -15,9 +15,9 @@ import {
 
 export const KEYLESS_SETUP_LANES = ["claude-cli", "openai-codex"] as const;
 
-export type SetupLane = (typeof KEYLESS_SETUP_LANES)[number] | "api-key";
+export type SetupLane = (typeof KEYLESS_SETUP_LANES)[number] | "openrouter" | "api-key";
 
-export type SetupErrorSection = "provider" | "training" | "intake" | "footer";
+export type SetupErrorSection = "provider" | "training" | "footer";
 
 export type SetupCommit = "provider" | "training" | null;
 
@@ -28,6 +28,7 @@ export interface AiRowCopy {
 
 export function laneForProvider(provider: string | null | undefined): SetupLane | null {
   if (provider === null || provider === undefined) return null;
+  if (provider === "openrouter") return "openrouter";
   return KEYLESS_SETUP_LANES.find((lane) => lane === provider) ?? "api-key";
 }
 
@@ -50,7 +51,9 @@ export function apiKeyProviders(
   configuration: OnboardingLlmConfiguration | null,
 ): readonly OnboardingLlmProviderConfiguration[] {
   if (configuration === null) return [];
-  return configuration.providers.filter((entry) => laneForProvider(entry.provider) === "api-key");
+  return configuration.providers.filter(
+    (entry) => !KEYLESS_SETUP_LANES.some((lane) => lane === entry.provider),
+  );
 }
 
 function offersProvider(
@@ -71,6 +74,7 @@ export function offeredLanes(
     lanes.push("claude-cli");
   }
   if (offersProvider(configuration, "openai-codex")) lanes.push("openai-codex");
+  if (offersProvider(configuration, "openrouter")) lanes.push("openrouter");
   if (apiKeyProviders(configuration).length > 0) lanes.push("api-key");
   return lanes;
 }
@@ -130,8 +134,6 @@ const ERROR_SECTIONS: Readonly<Record<OnboardingErrorCode, SectionRule>> = {
   "intervals-runtime-unavailable": "training",
   "intervals-runtime-uncertain": "training",
   "training-data-required": "training",
-  "intake-incomplete": "intake",
-  "intake-save-failed": "intake",
   "credential-save-failed": "commit",
   "invalid-input": "commit",
   "encryption-unavailable": "commit",

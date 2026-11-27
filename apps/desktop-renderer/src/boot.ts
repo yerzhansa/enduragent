@@ -1,5 +1,4 @@
-import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
-import { SaveIntakeRpcParamsSchema } from "@enduragent/coach-contract";
+import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
 import { createRideAnalysisController } from "./activity-analysis/controller";
@@ -37,6 +36,7 @@ import { useEnduragentStore, type EnduragentState } from "./state/store";
 import { setupReady, setupSurfaceOnScreen } from "./state/onboarding-slice";
 import { nonTelegramSettingsMutationActive } from "./state/settings-slice";
 import { validateImportPaths, type OnboardingBridge } from "./onboarding/bridge";
+import { openRouterSignInBridge } from "./onboarding/openrouter-sign-in";
 import { createOnboardingCompletionController } from "./onboarding/completion";
 import {
   createOnboardingController,
@@ -49,6 +49,7 @@ import { createTrainingSyncCoordinator } from "./training-sync";
 import { createSpendMeterController } from "./spend-meter/controller";
 import { createDesktopUpdateController } from "./update/controller";
 import { createProviderModelSettingsController } from "./settings/provider-model-controller";
+import { createSettingsPanes } from "./settings/panes";
 import { createLanguageSettingsController } from "./settings/language-controller";
 import { createAthleteSettingsController } from "./settings/athlete-controller";
 import { createSessionSettingsController } from "./settings/session-controller";
@@ -502,6 +503,8 @@ export function bootRenderer(): Disposer {
     runQueuedCommand: (id) => void chatController.runQueuedCommand(id),
     retryQueuedTurn: (claimId) => void chatController.retryQueuedTurn(claimId),
     retry: () => void chatController.retry(),
+    openOpenRouterCredits: () =>
+      void window.enduragentAuth.openOpenRouterPage("credits").catch(() => false),
     loadEarlier: () => void chatController.loadEarlier(),
     retryHydration: () => void chatController.retryHydration(),
     retryDecision: () => void chatController.retryDecision(),
@@ -536,6 +539,7 @@ export function bootRenderer(): Disposer {
     reopenIntervalsSignIn: () => window.enduragentAuth.reopenIntervalsSignIn(),
     onIntervalsSignInProgress: (listener) =>
       window.enduragentAuth.onIntervalsSignInProgress(listener),
+    ...openRouterSignInBridge(window.enduragentAuth),
     llmConfiguration: () => window.enduragentAuth.llmConfiguration(),
     applyLlmSelection: (value) => window.enduragentAuth.applyLlmSelection(value),
     chatGptStatus: () => window.enduragentAuth.chatgptStatus(),
@@ -555,20 +559,6 @@ export function bootRenderer(): Disposer {
           { paths: [...validateImportPaths(paths)] },
           { onNotificationEnvelope: onProgress },
         );
-      } catch (error) {
-        if (error instanceof CoachClientDisconnectedError) {
-          onboardingNeedsReconnect = true;
-          onboardingFailedClient = client;
-        }
-        throw error;
-      }
-    },
-    async saveIntake(value) {
-      let client: DesktopCoachClient | undefined;
-      try {
-        client = await onboardingClient();
-        const result = await client.call("saveIntake", SaveIntakeRpcParamsSchema.parse(value));
-        if (!result.saved) throw new CoachClientProtocolError();
       } catch (error) {
         if (error instanceof CoachClientDisconnectedError) {
           onboardingNeedsReconnect = true;
@@ -604,17 +594,12 @@ export function bootRenderer(): Disposer {
     onRideImportPresentationChange: (presenting) =>
       store.getState().setRideImportSuppressed(presenting),
     onComplete: (completion) => onboardingCompletion.complete(completion),
+    onActiveSelectionChanged: () => settingsPanes.reloadAfterSetup(),
     ownsDroppedImportFiles: () => setupSurfaceOnScreen(store.getState()),
     credentialMutationsBlocked: () => onboardingCredentialMutationsBlocked(store.getState()),
     codexAgentSupported: platform.capabilities.codexAgent,
   });
   store.getState().bindOnboardingActions(onboarding);
-  const closePanes = (): void => {
-    providerModelSettingsController.close();
-    credentialSettingsController.close();
-    athleteSettingsController.close();
-    sessionSettingsController.close();
-  };
   const openSetupFromSettings = (): void => {
     const heading = document.querySelector<HTMLElement>("#setup-panel-title");
     heading?.scrollIntoView({ block: "start" });
@@ -670,7 +655,7 @@ export function bootRenderer(): Disposer {
   const providerModelSettingsController = createProviderModelSettingsController({
     load: () => window.enduragentAuth.llmConfiguration(),
     apply: (selection) => window.enduragentAuth.applyLlmSelection(selection),
-    onSaved: () => chatController.refreshAttachments(),
+    onSaved: () => void chatController.refreshAttachments(),
     openSetup: openSetupFromSettings,
     beginMutation: () => store.getState().beginSettingsMutation("provider-model"),
     codexAgentSupported: platform.capabilities.codexAgent,
@@ -698,17 +683,14 @@ export function bootRenderer(): Disposer {
       credentialChangesBlocked(store.getState().settings.credentials, false),
     view: telegramAdapter.view,
   });
+  const settingsPanes = createSettingsPanes({
+    coach: providerModelSettingsController,
+    credentials: credentialSettingsController,
+    others: [athleteSettingsController, sessionSettingsController],
+    onActivate: () => void languageSettingsController.refresh(),
+  });
   store.getState().bindSettingsPorts({
-    panes: {
-      activate() {
-        void languageSettingsController.refresh();
-        void providerModelSettingsController.activate();
-        void credentialSettingsController.activate();
-        void athleteSettingsController.activate();
-        void sessionSettingsController.activate();
-      },
-      close: closePanes,
-    },
+    panes: settingsPanes,
     coach: coachAdapter.port,
     credentials: credentialAdapter.port,
     athlete: athleteAdapter.port,

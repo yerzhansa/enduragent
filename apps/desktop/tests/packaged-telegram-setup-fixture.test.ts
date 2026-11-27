@@ -44,16 +44,8 @@ describe("packaged Telegram setup fixture", () => {
         is_multisport: 0,
         dedup_cluster_id: "b".repeat(64),
       });
-      await expect(store.get("SELECT * FROM intake_flags")).resolves.toEqual({
-        id: "00000000000000000000000000",
-        swim_skill_floor: null,
-        continuous_distance_capable: null,
-        open_water_comfort: null,
-        clinician_cleared: null,
-        injury_status: "none",
-        device_id: "packaged-telegram-fixture",
-        hlc_physical_ms: 0,
-        hlc_counter: 0,
+      await expect(store.get("SELECT count(*) AS count FROM intake_flags")).resolves.toEqual({
+        count: 0,
       });
     } finally {
       await store.close();

@@ -21,7 +21,6 @@ it("reads setup headings, actions, and accessible labels from the selected catal
       ai: { title: "Intelligenza del tuo allenatore", trigger: { unset: "Scegli intelligenza" } },
       training: { trigger: { disconnected: "Collega allenamenti" } },
       telegram: { createLabel: "Crea un bot" },
-      intake: { title: "Condizione attuale" },
     },
   });
   expect(screen.getByRole("heading", { name: "Prepara il tuo allenatore" })).toBeInTheDocument();
@@ -29,5 +28,4 @@ it("reads setup headings, actions, and accessible labels from the selected catal
   expect(screen.getByRole("button", { name: "Scegli intelligenza" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Collega allenamenti" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Crea un bot" })).toBeInTheDocument();
-  expect(screen.getByText("Condizione attuale")).toBeInTheDocument();
 });

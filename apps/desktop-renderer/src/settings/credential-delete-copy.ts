@@ -1,8 +1,10 @@
+import { msg, type Message } from "@enduragent/i18n";
 import type {
   CredentialDeleteResult,
   CredentialRecoveryStatus,
   DesktopCredentialId,
 } from "../onboarding/bridge";
+import { PLATFORM_COPY } from "../platform-copy";
 
 type DeletedResult = Extract<CredentialDeleteResult, { readonly status: "deleted" }>;
 type RefusalReason = Extract<CredentialDeleteResult, { readonly status: "refused" }>["reason"];
@@ -58,6 +60,13 @@ export function refusalCopy(reason: RefusalReason): string {
     return "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.";
   }
   return "The coach could not stop using this credential safely. It was not deleted.";
+}
+
+export function deleteDetailMessage(credential: DesktopCredentialId): Message {
+  const values = { product: "Enduragent", computer: PLATFORM_COPY.computer };
+  return credential === "openrouter"
+    ? msg("settings.credentials.delete.openrouterDetail", { ...values, openrouter: "OpenRouter" })
+    : msg("settings.credentials.delete.detail", values);
 }
 
 export function deleteConfirmCopy(credential: DesktopCredentialId, provider: string): string {

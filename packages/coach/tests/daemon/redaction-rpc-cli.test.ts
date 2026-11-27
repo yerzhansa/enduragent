@@ -215,7 +215,6 @@ async function startRpc(coachEngine: CoachEngine): Promise<RunningRpc> {
           recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
         },
       }),
-      saveIntake: async () => ({ schemaVersion: 1, saved: true }),
       getTranscriptPage: async () => ({
         schemaVersion: 1,
         status: "page",

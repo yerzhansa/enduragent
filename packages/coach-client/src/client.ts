@@ -1,7 +1,6 @@
 import {
   AthleteHomeIdentitySchema,
   COACH_RPC_METHOD_REGISTRY,
-  PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
   parseCoachRpcEnvelope,
   serializeCoachRpcEnvelope,
   type AcceptedServerHandshakeFrame,
@@ -18,6 +17,7 @@ import {
   type JsonRpcSuccessResponseEnvelope,
   type PlanProgressEvent,
 } from "@enduragent/coach-contract";
+import { COACH_RPC_CALL_TIMEOUT_MS } from "./call-timeouts.js";
 import {
   CoachClientBackpressureError,
   CoachClientCallAbortedError,
@@ -78,7 +78,6 @@ export interface CoachClientConnection {
 }
 
 export type CoachClientTerminalCause =
-  | CoachClientCallTimeoutError
   | CoachClientCallAbortedError
   | CoachClientProtocolError
   | CoachClientDisconnectedError;
@@ -121,89 +120,6 @@ interface OutboundFrame {
   readonly id: number;
   readonly text: string;
 }
-
-const COACH_RPC_CALL_TIMEOUT_MS: Record<CoachRpcMethodName, number> = {
-  chat: 11 * 60_000,
-  stopChat: 10_000,
-  admitChatAttachment: 120_000,
-  admitPastedChatAttachment: 120_000,
-  getChatAttachmentComposer: 120_000,
-  saveChatAttachmentDraftText: 30_000,
-  removeChatAttachment: 30_000,
-  retryChatAttachment: 120_000,
-  selectChatAttachmentWorkout: 120_000,
-  clearChatAttachmentDraft: 120_000,
-  enqueueChatMessage: 30_000,
-  getChatQueue: 30_000,
-  removeQueuedChatMessage: 30_000,
-  resumeChatQueue: 11 * 60_000,
-  runQueuedCommand: 11 * 60_000,
-  retryQueuedTurn: 11 * 60_000,
-  getCoachDecision: 30_000,
-  answerCoachDecision: 11 * 60_000,
-  skipCoachDecision: 30_000,
-  resumeCoachDecision: 11 * 60_000,
-  resetSession: 11 * 60_000,
-  hasSession: 30_000,
-  getTranscriptPage: 30_000,
-  listArchivedConversations: 30_000,
-  deleteArchivedConversation: 30_000,
-  getArchivedTranscriptPage: 30_000,
-  getAthleteState: 30_000,
-  getPlanningReadModel: 30_000,
-  "plan.list": 30_000,
-  "plan.close": 30_000,
-  "plan_change.preview": PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
-  "plan_change.apply": 30_000,
-  "plan.history": 30_000,
-  getActivityAnalysis: 120_000,
-  exportTrainingFile: 120_000,
-  importFiles: 60 * 60_000,
-  sync: 24 * 60 * 60_000,
-  getSetupStatus: 30_000,
-  saveIntake: 30_000,
-  configureRuntime: 30_000,
-  verify_intervals_credential: 30_000,
-  getRuntimeConfig: 30_000,
-  getLanguagePreference: 30_000,
-  setLanguagePreference: 30_000,
-  getUnitsPreference: 30_000,
-  setUnitsPreference: 30_000,
-  configureTelegram: 30_000,
-  enableTelegram: 30_000,
-  disableTelegram: 30_000,
-  suspendTelegramPolling: 30_000,
-  resumeTelegramPolling: 30_000,
-  drainTelegram: 30_000,
-  replaceTelegram: 30_000,
-  getTelegramStatus: 30_000,
-  reconcileTelegram: 30_000,
-  inspectTelegramCredential: 30_000,
-  deleteTelegramWebhook: 30_000,
-  forgetTelegramCredential: 30_000,
-  resetTelegramAccess: 30_000,
-  beginTelegramPairing: 30_000,
-  cancelTelegramPairing: 30_000,
-  listTelegramAllowedSenders: 30_000,
-  addTelegramAllowedSender: 30_000,
-  removeTelegramAllowedSender: 30_000,
-  getSpendSummary: 30_000,
-  setDailySpendCap: 30_000,
-  selfTest: 2 * 60_000,
-  getPlanState: 30_000,
-  executePlanTransition: 11 * 60_000,
-  createPlanningRequest: 30_000,
-  createWorkoutPlanningRequest: 30_000,
-  getPlanningRequest: 30_000,
-  retryPlanningRequest: 30_000,
-  resumePlanningRequests: 30_000,
-  listPlanningRequests: 30_000,
-  "plan_creation.start": 30_000,
-  "plan_creation.answer": PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
-  "plan_creation.preview": 30_000,
-  "plan_creation.discard": 30_000,
-  "plan_creation.activate": 30_000,
-};
 
 function positiveSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -272,11 +188,18 @@ function validateOptions(options: ConnectCoachClientOptions): ValidatedOptions {
   };
 }
 
+function runIsolated(action: () => void): void {
+  void Promise.allSettled([
+    new Promise<void>((resolve) => {
+      action();
+      resolve();
+    }),
+  ]);
+}
+
 function requestSocketClose(socket: WebSocket, code?: number, reason?: string): void {
   if (socket.readyState === 2 || socket.readyState === 3) return;
-  try {
-    socket.close(code, reason);
-  } catch {}
+  runIsolated(() => socket.close(code, reason));
 }
 
 function openCoachSocket(options: ValidatedOptions): Promise<WebSocket> {
@@ -359,6 +282,7 @@ type CloseLifecycle =
 
 class CoachClientRuntime {
   private readonly pending = new Map<JsonRpcId, PendingCall>();
+  private readonly timedOut = new Set<JsonRpcId>();
   private readonly sendQueue: OutboundFrame[] = [];
   private nextId = 1;
   private idsExhausted = false;
@@ -504,9 +428,9 @@ class CoachClientRuntime {
         planOperationId: undefined,
       };
       this.pending.set(id, pending);
-      signal?.addEventListener("abort", onAbort!, { once: true });
+      if (onAbort !== undefined) signal?.addEventListener("abort", onAbort, { once: true });
       pending.timer = setTimeout(() => {
-        this.latchTerminal(new CoachClientCallTimeoutError(method, timeoutMs));
+        this.timeOut(id, pending, new CoachClientCallTimeoutError(method, timeoutMs));
       }, timeoutMs);
     });
     this.sendQueue.push({ id, text });
@@ -527,7 +451,8 @@ class CoachClientRuntime {
           await this.waitForLowWater();
           if (this.terminalCause !== undefined) break;
         }
-        const frame = this.sendQueue[0]!;
+        const frame = this.sendQueue[0];
+        if (frame === undefined) break;
         try {
           this.socket.send(frame.text);
         } catch {
@@ -573,6 +498,7 @@ class CoachClientRuntime {
 
   private handleNotification(envelope: CoachRpcNotificationEnvelope): void {
     const pending = this.pending.get(envelope.params.requestId);
+    if (pending === undefined && this.timedOut.has(envelope.params.requestId)) return;
     if (pending === undefined || pending.method !== envelope.params.requestMethod) {
       this.failProtocol();
       return;
@@ -601,12 +527,8 @@ class CoachClientRuntime {
 
     const onNotificationEnvelope = pending.onNotificationEnvelope;
     const onEvent = pending.onEvent;
-    try {
-      onNotificationEnvelope?.(envelope);
-    } catch {}
-    try {
-      onEvent?.(event);
-    } catch {}
+    runIsolated(() => onNotificationEnvelope?.(envelope));
+    runIsolated(() => onEvent?.(event));
   }
 
   private handleTerminal(
@@ -614,7 +536,7 @@ class CoachClientRuntime {
   ): void {
     const pending = this.pending.get(envelope.id);
     if (pending === undefined) {
-      this.failProtocol();
+      if (!this.timedOut.delete(envelope.id)) this.failProtocol();
       return;
     }
 
@@ -638,9 +560,7 @@ class CoachClientRuntime {
       }
       this.claimPending(envelope.id, pending);
       const observer = pending.onTerminalEnvelope;
-      try {
-        observer?.(envelope);
-      } catch {}
+      runIsolated(() => observer?.(envelope));
       pending.resolve(result);
       this.scheduleIdleClose();
       return;
@@ -653,9 +573,7 @@ class CoachClientRuntime {
     );
     this.claimPending(envelope.id, pending);
     const observer = pending.onTerminalEnvelope;
-    try {
-      observer?.(envelope);
-    } catch {}
+    runIsolated(() => observer?.(envelope));
     pending.reject(remoteError);
     this.scheduleIdleClose();
   }
@@ -674,6 +592,16 @@ class CoachClientRuntime {
   private claimPending(id: JsonRpcId, pending: PendingCall): void {
     this.pending.delete(id);
     this.cleanupPending(pending);
+  }
+
+  private timeOut(id: number, pending: PendingCall, error: CoachClientCallTimeoutError): void {
+    if (this.pending.get(id) !== pending) return;
+    this.claimPending(id, pending);
+    const unsent = this.sendQueue.findIndex((frame) => frame.id === id);
+    if (unsent === -1) this.timedOut.add(id);
+    else this.sendQueue.splice(unsent, 1);
+    pending.reject(error);
+    this.scheduleIdleClose();
   }
 
   private cleanupPending(pending: PendingCall): void {
@@ -699,6 +627,7 @@ class CoachClientRuntime {
     this.socket.removeEventListener("error", this.onSocketError);
     const pending = [...this.pending.values()];
     this.pending.clear();
+    this.timedOut.clear();
     for (const entry of pending) {
       this.cleanupPending(entry);
       entry.reject(error);
@@ -706,9 +635,7 @@ class CoachClientRuntime {
     requestSocketClose(this.socket, closeCode, closeReason);
     const client = this.publicClient;
     if (client !== undefined) {
-      try {
-        this.options.onTerminal?.(client, error);
-      } catch {}
+      runIsolated(() => this.options.onTerminal?.(client, error));
     }
     this.scheduleIdleClose();
   }

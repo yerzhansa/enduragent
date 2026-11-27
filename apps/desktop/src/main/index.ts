@@ -73,6 +73,8 @@ import {
   installDesktopIntervalsIpc,
 } from "./intervals-ipc.js";
 import { intervalsRevokePort, intervalsSignInPorts } from "./intervals-sign-in-ports.js";
+import { openRouterAuthDependencies } from "./openrouter-sign-in-ports.js";
+import { disableChromiumMediaSessionIntegration } from "./chromium-features.js";
 import {
   applyExplicitCredentialToRuntime,
   createActiveIntervalsCredentialPreflight,
@@ -215,16 +217,6 @@ bindWindowsUserData(app);
 startDesktopCrashReporter({ crashReporter });
 installDesktopCrashTelemetry({ app });
 registerDesktopScheme();
-
-function disableChromiumMediaSessionIntegration(): void {
-  const alreadyDisabled = app.commandLine.getSwitchValue("disable-features");
-  app.commandLine.appendSwitch(
-    "disable-features",
-    [alreadyDisabled, "MediaSessionService", "HardwareMediaKeyHandling"]
-      .filter((feature) => feature.length > 0)
-      .join(","),
-  );
-}
 
 let desktopIsClosing = false;
 let desktopStartedInBackground = false;
@@ -1265,6 +1257,12 @@ async function runDesktop(): Promise<void> {
             revokeIntervalsAccess: intervalsRevokePort(intervalsPortGate),
             isTrusted: (event) =>
               isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),
+            openRouter: openRouterAuthDependencies({
+              ...intervalsPortGate,
+              clipboard,
+              credentialRoot,
+              encryption: credentialEncryption.encryption,
+            }),
           });
           created.once("closed", () => {
             if (window === created) {
@@ -1632,7 +1630,7 @@ if (process.argv.includes("--desktop-keychain-binding-probe")) {
   if (!primaryInstance) {
     void exitSecondaryDesktop();
   } else {
-    disableChromiumMediaSessionIntegration();
+    disableChromiumMediaSessionIntegration(app);
     const runPrimaryDesktop = process.argv.includes("--desktop-runtime-smoke")
       ? runRuntimeSmoke
       : runDesktop;

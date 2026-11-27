@@ -140,14 +140,14 @@
     {
       "id": "settings.setup.inventory",
       "surface": "settings",
-      "expected": "Setup appears first as a full-window gate containing the shipped coach provider, Intervals.icu, optional Telegram and injury status rows, plus the Settings credential rows in the Settings placement.",
+      "expected": "Setup appears first as a full-window gate containing the shipped coach provider, Intervals.icu, and optional Telegram rows, plus the Settings credential rows in the Settings placement.",
       "automation": "deterministic",
-      "test": "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > renders every setup row in order and adds no row for an injury answer"
+      "test": "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > renders every setup row in order without an injury row"
     },
     {
       "id": "settings.setup.readiness-gate",
       "surface": "settings",
-      "expected": "First-run coaching remains blocked until a supported coach provider, durable training data, and the required intake are ready; Telegram never counts toward readiness.",
+      "expected": "First-run coaching remains blocked until a supported coach provider and durable training data are ready; Telegram never counts toward readiness.",
       "automation": "deterministic",
       "test": "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > keeps Start coaching disabled until every requirement is met"
     },

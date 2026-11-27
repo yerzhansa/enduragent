@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { desktopFixtureLaunchArgs } from "./helpers/desktop-fixture-launch-args.js";
+import {
+  desktopFixtureLaunchArgs,
+  desktopFixtureWindowHidden,
+} from "./helpers/desktop-fixture-launch-args.js";
+
+describe("Desktop fixture window", () => {
+  it.each([undefined, "", "0", "console"])("stays hidden with PWDEBUG=%s", (playwrightDebug) => {
+    expect(desktopFixtureWindowHidden(playwrightDebug)).toBe(true);
+  });
+
+  it("shows for the Playwright debugger", () => {
+    expect(desktopFixtureWindowHidden("1")).toBe(false);
+  });
+});
 
 describe("Desktop fixture launch arguments", () => {
   it.each(["true", "1", "false"])("uses sandbox-free basic storage on Linux with CI=%s", (ci) => {

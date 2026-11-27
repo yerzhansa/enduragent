@@ -221,14 +221,6 @@ const athleteState = {
 
 const readySetupStatus = {
   schemaVersion: 1,
-  intake: {
-    swim_skill_floor: null,
-    continuous_distance_capable: null,
-    open_water_comfort: null,
-    prior_bsi: false,
-    clinician_cleared: null,
-    injury_status: "none",
-  },
   durableTrainingData: true,
 } as const;
 
@@ -788,7 +780,6 @@ ${"nonwrapping".repeat(36)}
           publication: { scope: "activities-and-streams", status: "available" },
         });
       }
-      if (request.method === "saveIntake") return response({ schemaVersion: 1, saved: true });
       if (request.method === "configureRuntime") {
         return response({
           schemaVersion: 3,
@@ -1997,6 +1988,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         "beginTelegramPairing",
         "cancelChatgptLogin",
         "cancelIntervalsSignIn",
+        "cancelOpenRouterSignIn",
         "cancelTelegramPairing",
         "chatgptLogin",
         "chatgptStatus",
@@ -2028,9 +2020,13 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         "onDroppedChatAttachments",
         "onDroppedImportFiles",
         "onIntervalsSignInProgress",
+        "onOpenRouterSignInProgress",
         "onOpenSettings",
         "onPlanProgress",
         "onUpdateState",
+        "openOpenRouterPage",
+        "openRouterCreditStatus",
+        "openRouterSignIn",
         "pasteChatAttachment",
         "pasteTelegramTokenFromClipboard",
         "platform",
@@ -2039,14 +2035,17 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         "removeTelegramAllowedSender",
         "removeTelegramWebhook",
         "reopenIntervalsSignIn",
+        "reopenOpenRouterSignIn",
         "resetAllCredentials",
         "restartToUpdate",
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
         "signInWithIntervals",
+        "startOpenRouterCodeSignIn",
         "submitAthleteFeedback",
         "telegramStatus",
+        "useCopiedOpenRouterCode",
         "writeCredential",
       ],
       thread: true,
