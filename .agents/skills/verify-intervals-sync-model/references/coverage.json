@@ -1,5 +1,5 @@
 {
-  "syncCommit": "92e8db57",
+  "syncCommit": "b440289a",
   "fingerprints": {
     "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
     "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
@@ -9,14 +9,14 @@
     "packages/coach-client/src/call-timeouts.ts :: getActivityAnalysis:": "8d0063591c78",
     "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
     "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "924ab5a57b8a",
-    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "2ca585ecef6d",
+    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "6725ea5d04ee",
     "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "931b76f8bbfd",
     "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7397fbac5c44",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
     "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void => #2": "2882b3304fa7",
-    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: follow(coordinator, focusTarget) {": "002ea5bb8417",
+    "apps/desktop-renderer/src/intervals-sign-in-health.ts :: follow(coordinator, focusTarget) {": "a0d0dafa37cc",
     "apps/desktop-renderer/src/intervals-sign-in-health.ts :: const refresh = async (): Promise<void> =>": "baa6d6209480",
-    "apps/desktop-renderer/src/training-context/manual-sync.ts :: export function toManualSyncViewState(": "24dd2203dd35",
+    "apps/desktop-renderer/src/training-context/manual-sync.ts :: export function toManualSyncViewState(": "8efb88e44aa0",
     "apps/desktop-renderer/src/training-context/controller.ts :: const fetchState = (): Promise<void> =>": "3ada0a7093a3",
     "apps/desktop-renderer/src/training-context/controller.ts :: const refreshState = (): Promise<void> =>": "69d619eef155",
     "packages/coach/src/operations.ts :: const CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS =": "c2fa4dfec5f0",
@@ -39,6 +39,6 @@
     "apps/desktop/src/main/credential-vault.ts :: if (shouldClearRuntime) {": "54a20674c22e",
     "apps/desktop/src/main/credential-vault.ts :: if (beforeRemove !== undefined) {": "92648d274e2c",
     "apps/desktop/src/main/index.ts :: await vault.reapplyConfigured();": "272aa6176faf",
-    "apps/desktop/src/main/index.ts :: reapplyCredential(slot, value, ": "ce0e04564169"
+    "apps/desktop/src/main/index.ts :: reapplyCredential(slot, value, ": "82a15092b77b"
   }
 }

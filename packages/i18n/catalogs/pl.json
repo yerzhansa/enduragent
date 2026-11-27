@@ -897,6 +897,7 @@
         "publishedRestricted_other": "Zakończono sprawdzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",
         "queued": "Synchronizacja w kolejce.",
         "running": "Synchronizowanie danych treningowych…",
+        "signInNotInUse": "{{intervals}} nie jest teraz połączony, więc nic nie zostało zsynchronizowane. {{product}} spróbuje ponownie, gdy sieć znów będzie dostępna.",
         "noChangeRestricted_few": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostały uwzględnione.",
         "noChangeRestricted_many": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",
         "publishedRestricted_few": "Zakończono sprawdzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostały uwzględnione.",

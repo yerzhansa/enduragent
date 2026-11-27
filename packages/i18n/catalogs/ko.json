@@ -884,7 +884,8 @@
         "published": "훈련 데이터 확인이 완료되었습니다.",
         "publishedRestricted_other": "훈련 데이터 확인이 완료되었습니다. {{source}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않아 활동 {{formattedCount}}개는 포함되지 않았습니다.",
         "queued": "동기화가 대기열에 추가되었습니다.",
-        "running": "훈련 데이터 동기화 중…"
+        "running": "훈련 데이터 동기화 중…",
+        "signInNotInUse": "지금은 {{intervals}}에 연결되어 있지 않아 아무것도 동기화되지 않았습니다. 네트워크가 다시 연결되면 {{product}}이(가) 다시 시도합니다."
       },
       "restriction": {
         "fixAction": "· 해결 방법",

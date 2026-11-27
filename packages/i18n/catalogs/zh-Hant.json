@@ -884,7 +884,8 @@
         "published": "訓練資料檢查完成。",
         "publishedRestricted_other": "訓練資料檢查完成。{{source}} 不允許第三方 AI 工具使用其 API 資料，因此 {{formattedCount}} 筆活動未納入。",
         "queued": "同步已排入佇列。",
-        "running": "正在同步訓練資料…"
+        "running": "正在同步訓練資料…",
+        "signInNotInUse": "{{intervals}} 目前未連線，因此沒有同步任何內容。網路恢復後，{{product}} 會再次嘗試。"
       },
       "restriction": {
         "fixAction": "· 解決方式",

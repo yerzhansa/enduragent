@@ -890,7 +890,8 @@
         "publishedRestricted_one": "Kontrol af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så én aktivitet er ikke med.",
         "publishedRestricted_other": "Kontrol af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så {{formattedCount}} aktiviteter er ikke med.",
         "queued": "Synkronisering sat i kø.",
-        "running": "Synkroniserer træningsdata…"
+        "running": "Synkroniserer træningsdata…",
+        "signInNotInUse": "{{intervals}} er ikke forbundet lige nu, så intet blev synkroniseret. {{product}} prøver igen, når dit netværk er tilbage."
       },
       "restriction": {
         "fixAction": "· Sådan løser du det",

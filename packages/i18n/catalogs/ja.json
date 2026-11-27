@@ -884,7 +884,8 @@
         "published": "トレーニングデータの確認が完了しました。",
         "publishedRestricted_other": "トレーニングデータの確認が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "queued": "同期待ちです。",
-        "running": "トレーニングデータを同期中…"
+        "running": "トレーニングデータを同期中…",
+        "signInNotInUse": "現在{{intervals}}に接続されていないため、何も同期されませんでした。ネットワークが復旧すると、{{product}}が再試行します。"
       },
       "restriction": {
         "fixAction": "· 対処方法",

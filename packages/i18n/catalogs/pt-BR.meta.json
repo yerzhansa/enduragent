@@ -2696,6 +2696,10 @@
       "sourceHash": "f49e87798f4ec07f7cfad4a621c9c19bc4ef7b22e6828a743749308546aac91a",
       "translatedBy": "model"
     },
+    "sidebar.sync.message.signInNotInUse": {
+      "sourceHash": "a8f97d901c5e6f00a22cd9def03fc6ac0acccc26e82e32092eb3a9cdf2b3e657",
+      "translatedBy": "model"
+    },
     "sidebar.sync.restriction.fixAction": {
       "sourceHash": "b96ff455b2a3a380bee16857e1d77906d6337c633d7a552426be60b816ed8a6d",
       "translatedBy": "model"
