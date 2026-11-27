@@ -1,4 +1,7 @@
-import { writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { TurnEvent } from "@enduragent/coach-contract";
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import {
   launchDesktopFixture,
@@ -27,10 +30,24 @@ interface QueuedMessage {
   readonly restored: false;
 }
 
+type TurnErrorEvent = Extract<TurnEvent, { type: "error" }>;
+
 export interface ScriptedCoach {
   waitForPrompt(expected: string): Promise<void>;
   emitText(delta: string): void;
   finish(finalText: string): void;
+  /**
+   * Fails the turn the way the daemon does: the error frame, then a failed
+   * request. The queued message stays behind a retry-required claim, and the
+   * next run waits for a new prompt.
+   */
+  fail(event: Omit<TurnErrorEvent, "type" | "turnId" | "chatId">): void;
+}
+
+class ScriptedTurnFailure extends Error {
+  constructor() {
+    super("Scripted Coach turn failed");
+  }
 }
 
 interface ScriptedTurn {
@@ -42,6 +59,10 @@ interface ScriptedTurn {
 interface ChatDesktop {
   readonly page: Page;
   readonly coach: ScriptedCoach;
+  /** Coach stream requests in arrival order, such as resumeChatQueue or retryQueuedTurn. */
+  readonly streamRequests: readonly string[];
+  /** URLs the main process opened in the browser; acceptance runs log them instead. */
+  openedExternalUrls(): Promise<readonly string[]>;
 }
 
 interface ChatDesktopFixtures {
@@ -103,13 +124,25 @@ async function bounded<T>(promise: Promise<T>, timeoutMs: number, message: strin
 }
 
 function createScriptedTurn(): ScriptedTurn {
-  const prompt = deferred<string>();
+  let prompt = deferred<string>();
   let emitFrame: ((frame: string) => void) | undefined;
   let outcome: ReturnType<typeof deferred<string>> | undefined;
   let streamedText = "";
   let settled = false;
   return {
     coach: {
+      fail(event) {
+        if (settled || emitFrame === undefined || outcome === undefined) {
+          throw new Error("Coach stream is not active");
+        }
+        emitFrame(JSON.stringify({ ...event, type: "error", turnId, chatId: "desktop" }));
+        const failed = outcome;
+        prompt = deferred<string>();
+        emitFrame = undefined;
+        outcome = undefined;
+        streamedText = "";
+        failed.reject(new ScriptedTurnFailure());
+      },
       async waitForPrompt(expected) {
         const actual = await bounded(prompt.promise, 10_000, "Chat prompt did not reach Coach");
         if (actual !== expected) {
@@ -151,20 +184,35 @@ function createScriptedTurn(): ScriptedTurn {
   };
 }
 
-function createScript(turn: ScriptedTurn): DesktopFixtureScript {
+interface RetryRequiredClaim {
+  readonly claimId: string;
+  readonly queuedMessageIds: readonly string[];
+  readonly turnId: string;
+  readonly status: "retry-required";
+}
+
+function createScript(turn: ScriptedTurn, streamRequests: string[]): DesktopFixtureScript {
   let hasSession = false;
   let queueRevision = 0;
   let queueItems: QueuedMessage[] = [];
+  let retryRequired: RetryRequiredClaim | undefined;
   const queueSnapshot = () => ({
     schemaVersion: 1 as const,
     revision: queueRevision,
     items: queueItems,
+    ...(retryRequired === undefined ? {} : { retryRequired }),
   });
 
   return {
     async onStreamRequest(value, emitFrame) {
       const request = value as ScriptRequest;
-      if (request.method !== "resumeChatQueue") {
+      streamRequests.push(request.method);
+      if (request.method === "retryQueuedTurn") {
+        const claimId = (request.params as { readonly claimId?: unknown }).claimId;
+        if (retryRequired === undefined || claimId !== retryRequired.claimId) {
+          throw new Error("Coach retry does not match the retry-required claim");
+        }
+      } else if (request.method !== "resumeChatQueue" || retryRequired !== undefined) {
         throw new Error(`Unexpected streamed Coach request: ${request.method}`);
       }
       const queued = queueItems[0];
@@ -172,8 +220,23 @@ function createScript(turn: ScriptedTurn): DesktopFixtureScript {
         throw new Error("Coach stream requires one queued prompt");
       }
       hasSession = true;
-      const finalText = await turn.run(queued.text, emitFrame);
+      let finalText: string;
+      try {
+        finalText = await turn.run(queued.text, emitFrame);
+      } catch (error) {
+        if (error instanceof ScriptedTurnFailure) {
+          retryRequired = {
+            claimId: `claim-${queueRevision}`,
+            queuedMessageIds: [queued.queuedMessageId],
+            turnId,
+            status: "retry-required",
+          };
+          queueRevision += 1;
+        }
+        throw error;
+      }
       queueItems = [];
+      retryRequired = undefined;
       queueRevision += 1;
       return JSON.stringify({ snapshot: queueSnapshot(), response: { text: finalText } });
     },
@@ -345,13 +408,16 @@ function capturedLog(fixture: RunningDesktopFixture, messages: readonly string[]
 export const test = base.extend<ChatDesktopFixtures>({
   chatDesktop: async ({ playwright }, use, testInfo) => {
     const turn = createScriptedTurn();
+    const streamRequests: string[] = [];
+    const directory = await mkdtemp(join(tmpdir(), "chat-desktop-e2e-"));
+    const externalUrlLog = join(directory, "external-urls.log");
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
     let page: Page | undefined;
     const messages: string[] = [];
     try {
       fixture = await launchDesktopFixture({
-        script: createScript(turn),
+        script: createScript(turn, streamRequests),
         token,
         width: 1180,
         height: 820,
@@ -359,6 +425,8 @@ export const test = base.extend<ChatDesktopFixtures>({
         reducedMotion: true,
         hidden: desktopFixtureWindowHidden(process.env.PWDEBUG),
         routeChatAttachmentComposer: true,
+        // A hidden window logs external URLs here instead of opening a browser.
+        extraEnv: { ENDURAGENT_ACCEPTANCE_OPENROUTER_AUTHORIZE_LOG: externalUrlLog },
       });
       browser = await playwright.chromium.connectOverCDP(fixture.remoteDebuggingUrl);
       const context = browser.contexts()[0];
@@ -376,7 +444,15 @@ export const test = base.extend<ChatDesktopFixtures>({
       await expect(shell).toHaveAttribute("data-shell", "app");
       await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible();
       await expect(page.getByRole("combobox", { name: "Message your coach" })).toBeEnabled();
-      await use({ page, coach: turn.coach });
+      await use({
+        page,
+        coach: turn.coach,
+        streamRequests,
+        async openedExternalUrls() {
+          const text = await readFile(externalUrlLog, "utf8").catch(() => "");
+          return text.split("\n").filter((line) => line.length > 0);
+        },
+      });
     } finally {
       const failed = testInfo.status !== testInfo.expectedStatus;
       if (page !== undefined) {
@@ -403,6 +479,7 @@ export const test = base.extend<ChatDesktopFixtures>({
       turn.abort();
       await browser?.close().catch(() => {});
       await fixture?.close().catch(() => {});
+      await rm(directory, { recursive: true, force: true });
     }
   },
 });
