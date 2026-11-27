@@ -267,6 +267,7 @@
       "downloadFailed": "Päivityksen lataus epäonnistui. Yritä uudelleen",
       "downloading": "Ladataan päivitystä {{version}}",
       "downloadingAction": "Ladataan…",
+      "downloadingMilestone": "Ladataan päivitystä {{version}} — {{percent}} %",
       "downloadingProgress": "Ladataan päivitystä {{version}} — {{percent}} % ({{transferred}} / {{total}} Mt)",
       "downloadingProgressWithSpeed": "Ladataan päivitystä {{version}} — {{percent}} % ({{transferred}} / {{total}} Mt · {{speed}} Mt/s)",
       "downloadTimedOut": "Päivityksen lataus aikakatkaistiin. Sulje {{product}} ja avaa se uudelleen yrittääksesi uudelleen.",

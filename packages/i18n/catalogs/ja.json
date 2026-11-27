@@ -264,6 +264,7 @@
       "downloadFailed": "アップデートをダウンロードできませんでした。もう一度お試しください",
       "downloading": "アップデート{{version}}をダウンロード中",
       "downloadingAction": "ダウンロード中…",
+      "downloadingMilestone": "アップデート{{version}}をダウンロード中 — {{percent}}%",
       "downloadingProgress": "アップデート{{version}}をダウンロード中 — {{percent}}%（{{transferred}} / {{total}} MB）",
       "downloadingProgressWithSpeed": "アップデート{{version}}をダウンロード中 — {{percent}}%（{{transferred}} / {{total}} MB・{{speed}} MB/s）",
       "downloadTimedOut": "アップデートのダウンロードがタイムアウトしました。{{product}}を終了して開き直し、もう一度お試しください。",

@@ -2097,6 +2097,7 @@
       "downloadFailed": "Update download failed. Try again",
       "downloading": "Downloading update {{version}}",
       "downloadingAction": "Downloading…",
+      "downloadingMilestone": "Downloading update {{version}} — {{percent}}%",
       "downloadingProgress": "Downloading update {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Downloading update {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Update download timed out. Quit and reopen {{product}} to try again.",

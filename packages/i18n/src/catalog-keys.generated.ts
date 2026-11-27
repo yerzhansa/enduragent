@@ -1852,6 +1852,7 @@ export type CatalogKey =
   | "settings.application.downloadTimedOut"
   | "settings.application.downloading"
   | "settings.application.downloadingAction"
+  | "settings.application.downloadingMilestone"
   | "settings.application.downloadingProgress"
   | "settings.application.downloadingProgressWithSpeed"
   | "settings.application.preparing"

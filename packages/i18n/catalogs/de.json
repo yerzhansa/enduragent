@@ -267,6 +267,7 @@
       "downloadFailed": "Update-Download fehlgeschlagen. Versuche es erneut",
       "downloading": "Update {{version}} wird heruntergeladen",
       "downloadingAction": "Wird heruntergeladen…",
+      "downloadingMilestone": "Update {{version}} wird heruntergeladen — {{percent}}%",
       "downloadingProgress": "Update {{version}} wird heruntergeladen — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Update {{version}} wird heruntergeladen — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Zeitlimit beim Herunterladen des Updates überschritten. Beende {{product}} und öffne es erneut, um es noch einmal zu versuchen.",

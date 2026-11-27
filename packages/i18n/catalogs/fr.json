@@ -267,6 +267,7 @@
       "downloadFailed": "Le téléchargement de la mise à jour a échoué. Réessaie",
       "downloading": "Téléchargement de la mise à jour {{version}}",
       "downloadingAction": "Téléchargement…",
+      "downloadingMilestone": "Téléchargement de la mise à jour {{version}} — {{percent}} %",
       "downloadingProgress": "Téléchargement de la mise à jour {{version}} — {{percent}} % ({{transferred}} / {{total}} Mo)",
       "downloadingProgressWithSpeed": "Téléchargement de la mise à jour {{version}} — {{percent}} % ({{transferred}} / {{total}} Mo · {{speed}} Mo/s)",
       "downloadTimedOut": "Le téléchargement de la mise à jour a expiré. Quitte et rouvre {{product}} pour réessayer.",

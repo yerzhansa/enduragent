@@ -277,6 +277,7 @@
       "preparingAction": "Preparando…",
       "downloading": "Baixando atualização {{version}}",
       "downloadingAction": "Baixando…",
+      "downloadingMilestone": "Baixando atualização {{version}} — {{percent}}%",
       "downloadingProgress": "Baixando atualização {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Baixando atualização {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "reset": "Reiniciar conversa",

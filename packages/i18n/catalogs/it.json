@@ -267,6 +267,7 @@
       "downloadFailed": "Download dell’aggiornamento non riuscito. Riprova",
       "downloading": "Download dell’aggiornamento {{version}}",
       "downloadingAction": "Download…",
+      "downloadingMilestone": "Download dell’aggiornamento {{version}} — {{percent}}%",
       "downloadingProgress": "Download dell’aggiornamento {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Download dell’aggiornamento {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Tempo scaduto per il download dell’aggiornamento. Chiudi e riapri {{product}} per riprovare.",

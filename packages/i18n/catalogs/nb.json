@@ -267,6 +267,7 @@
       "downloadFailed": "Kunne ikke laste ned oppdateringen. Prøv igjen",
       "downloading": "Laster ned oppdatering {{version}}",
       "downloadingAction": "Laster ned…",
+      "downloadingMilestone": "Laster ned oppdatering {{version}} — {{percent}}%",
       "downloadingProgress": "Laster ned oppdatering {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Laster ned oppdatering {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Nedlastingen av oppdateringen tok for lang tid. Avslutt og åpne {{product}} igjen for å prøve på nytt.",

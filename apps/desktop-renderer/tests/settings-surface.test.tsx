@@ -493,12 +493,18 @@ function createHarness(options: HarnessOptions = {}) {
     setInterval: (() => 0) as unknown as typeof globalThis.setInterval,
     clearInterval: (() => {}) as unknown as typeof globalThis.clearInterval,
   });
+  let updateListener: ((state: DesktopUpdateState) => void) | undefined;
   const updateController = createDesktopUpdateController({
     bridge: {
       getUpdateState: async () => options.updateState ?? { status: "idle" },
       checkForUpdates,
       restartToUpdate,
-      onUpdateState: () => () => {},
+      onUpdateState: (listener) => {
+        updateListener = listener;
+        return () => {
+          updateListener = undefined;
+        };
+      },
     },
     view: updateAdapter.view,
   });
@@ -542,6 +548,7 @@ function createHarness(options: HarnessOptions = {}) {
     spendController,
     panes,
     startUpdate: () => updateController.start(),
+    publishUpdate: (state: DesktopUpdateState) => updateListener?.(state),
     dispose() {
       coachController.dispose();
       credentialController.dispose();
@@ -3040,33 +3047,96 @@ describe("application section", () => {
     },
   );
 
-  it.each<DesktopUpdateState>([
-    {
-      status: "downloading",
-      version: "1998.7.7",
-      progress: {
-        percent: 42,
-        transferredBytes: 14_000_000,
-        totalBytes: 33_000_000,
-        bytesPerSecond: 4_200_000,
-      },
-    },
-    { status: "preparing", version: "1998.7.7" },
-  ])(
-    "keeps the Application update action busy and disabled during $status",
-    async (updateState) => {
-      const subject = await renderSettings({ updateState });
-      await act(async () => {
-        await subject.startUpdate();
-      });
+  it("renders connecting, live progress, and preparing states with accessible progressbars and calm announcements", async () => {
+    const connecting = await renderSettings({
+      updateState: { status: "downloading", version: "1998.7.7" },
+    });
+    await act(async () => {
+      await connecting.startUpdate();
+    });
 
-      const application = within(screen.getByRole("region", { name: "Application" }));
-      const action = application.getByRole("button", { name: "Downloading update 1998.7.7" });
-      expect(action).toBeDisabled();
-      expect(action).toHaveTextContent("Downloading…");
-      expect(application.queryByRole("button", { name: "Check for updates" })).toBeNull();
-    },
-  );
+    const connectingSection = within(screen.getByRole("region", { name: "Application" }));
+    const connectingButton = connectingSection.getByRole("button", {
+      name: "Downloading update 1998.7.7",
+    });
+    expect(connectingButton).toBeDisabled();
+    expect(connectingButton).toHaveTextContent("Downloading…");
+    const connectingBar = connectingSection.getByRole("progressbar", {
+      name: "Downloading update 1998.7.7",
+    });
+    expect(connectingBar).not.toHaveAttribute("aria-valuenow");
+    expect(connectingSection.getByRole("status")).toHaveTextContent("Downloading update 1998.7.7");
+
+    act(() => {
+      connecting.publishUpdate({
+        status: "downloading",
+        version: "1998.7.7",
+        progress: {
+          percent: 42,
+          transferredBytes: Math.round(14.2 * 1_048_576),
+          totalBytes: Math.round(33.8 * 1_048_576),
+          bytesPerSecond: Math.round(4.8 * 1_048_576),
+        },
+      });
+    });
+
+    const activeSection = within(screen.getByRole("region", { name: "Application" }));
+    expect(
+      activeSection.getByText("Downloading update 1998.7.7 — 42% (14.2 / 33.8 MB · 4.8 MB/s)"),
+    ).toBeInTheDocument();
+    const activeBar = activeSection.getByRole("progressbar", {
+      name: "Downloading update 1998.7.7",
+    });
+    expect(activeBar).toHaveAttribute("aria-valuemin", "0");
+    expect(activeBar).toHaveAttribute("aria-valuemax", "100");
+    expect(activeBar).toHaveAttribute("aria-valuenow", "42");
+    expect(activeSection.getByRole("status")).toHaveTextContent(
+      "Downloading update 1998.7.7 — 25%",
+    );
+
+    act(() => {
+      connecting.publishUpdate({
+        status: "downloading",
+        version: "1998.7.7",
+        progress: {
+          percent: 45,
+          transferredBytes: Math.round(15.2 * 1_048_576),
+          totalBytes: Math.round(33.8 * 1_048_576),
+          bytesPerSecond: Math.round(5.1 * 1_048_576),
+        },
+      });
+    });
+
+    expect(activeSection.getByRole("status")).toHaveTextContent(
+      "Downloading update 1998.7.7 — 25%",
+    );
+
+    act(() => {
+      connecting.publishUpdate({ status: "preparing", version: "1998.7.7" });
+    });
+
+    const preparingSection = within(screen.getByRole("region", { name: "Application" }));
+    const preparingButton = preparingSection.getByRole("button", {
+      name: "Preparing update 1998.7.7…",
+    });
+    expect(preparingButton).toBeDisabled();
+    expect(preparingButton).toHaveTextContent("Preparing…");
+    expect(preparingSection.queryByRole("button", { name: "Check for updates" })).toBeNull();
+    const preparingBar = preparingSection.getByRole("progressbar", {
+      name: "Preparing update 1998.7.7…",
+    });
+    expect(preparingBar).not.toHaveAttribute("aria-valuenow");
+    expect(preparingSection.getByRole("status")).toHaveTextContent("Preparing update 1998.7.7…");
+
+    act(() => {
+      connecting.publishUpdate({ status: "downloaded", version: "1998.7.7" });
+    });
+
+    expect(preparingSection.queryByRole("progressbar")).toBeNull();
+    expect(
+      preparingSection.getByRole("button", { name: "Restart to update to version 1998.7.7" }),
+    ).toBeEnabled();
+  });
 });
 
 describe("spending", () => {

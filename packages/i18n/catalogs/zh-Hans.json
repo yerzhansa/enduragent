@@ -264,6 +264,7 @@
       "downloadFailed": "下载更新失败。请重试",
       "downloading": "正在下载更新 {{version}}",
       "downloadingAction": "正在下载…",
+      "downloadingMilestone": "正在下载更新 {{version}} — {{percent}}%",
       "downloadingProgress": "正在下载更新 {{version}} — {{percent}}%（{{transferred}} / {{total}} MB）",
       "downloadingProgressWithSpeed": "正在下载更新 {{version}} — {{percent}}%（{{transferred}} / {{total}} MB · {{speed}} MB/s）",
       "downloadTimedOut": "下载更新超时。请退出并重新打开 {{product}} 后重试。",

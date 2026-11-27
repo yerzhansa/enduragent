@@ -267,6 +267,7 @@
       "downloadFailed": "Uppdateringen kunde inte hämtas. Försök igen",
       "downloading": "Hämtar uppdatering {{version}}",
       "downloadingAction": "Hämtar…",
+      "downloadingMilestone": "Hämtar uppdatering {{version}} — {{percent}}%",
       "downloadingProgress": "Hämtar uppdatering {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Hämtar uppdatering {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Tidsgränsen för hämtningen av uppdateringen överskreds. Avsluta och öppna {{product}} igen för att försöka på nytt.",

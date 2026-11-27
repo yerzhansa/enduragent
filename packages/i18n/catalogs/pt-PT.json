@@ -274,6 +274,7 @@
       "downloadFailed": "Não foi possível descarregar a atualização. Tenta novamente",
       "downloading": "A descarregar a atualização {{version}}",
       "downloadingAction": "A descarregar…",
+      "downloadingMilestone": "A descarregar a atualização {{version}} — {{percent}}%",
       "downloadingProgress": "A descarregar a atualização {{version}} — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "A descarregar a atualização {{version}} — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "O tempo para descarregar a atualização expirou. Fecha e volta a abrir {{product}} para tentares novamente.",

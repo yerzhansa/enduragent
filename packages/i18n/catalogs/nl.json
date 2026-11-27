@@ -267,6 +267,7 @@
       "downloadFailed": "Update downloaden mislukt. Probeer het opnieuw",
       "downloading": "Update {{version}} downloaden",
       "downloadingAction": "Downloaden…",
+      "downloadingMilestone": "Update {{version}} downloaden — {{percent}}%",
       "downloadingProgress": "Update {{version}} downloaden — {{percent}}% ({{transferred}} / {{total}} MB)",
       "downloadingProgressWithSpeed": "Update {{version}} downloaden — {{percent}}% ({{transferred}} / {{total}} MB · {{speed}} MB/s)",
       "downloadTimedOut": "Het downloaden van de update duurde te lang. Sluit {{product}} af en open het opnieuw om het nogmaals te proberen.",
