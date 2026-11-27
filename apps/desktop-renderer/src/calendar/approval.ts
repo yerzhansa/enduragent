@@ -1,4 +1,8 @@
-import type { PlanCalendarWeek, PlanCalendarWorkout } from "@enduragent/coach-contract";
+import type {
+  PlanCalendarStatus,
+  PlanCalendarWeek,
+  PlanCalendarWorkout,
+} from "@enduragent/coach-contract";
 import type { PlanCalendarRead } from "./grid";
 
 export type ApprovalScope =
@@ -118,4 +122,15 @@ export function approvedWeeks(
 ): PendingApproval | null {
   const chosen = (read.plan?.weeks ?? []).filter((week) => weeks.includes(week.index));
   return approval(read, scope, chosen, "all");
+}
+
+export function opensCalendarAfterActivate(
+  before: { readonly planId: string } | null,
+  activated: { readonly planId: string; readonly calendar: PlanCalendarStatus },
+): boolean {
+  return (
+    before?.planId !== activated.planId &&
+    (activated.calendar.status === "waiting-for-approve" ||
+      activated.calendar.waitingForApprove === true)
+  );
 }

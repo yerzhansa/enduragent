@@ -1,9 +1,10 @@
-import type { PlanCalendarRpcResult } from "@enduragent/coach-contract";
+import { PlanCalendarStatusSchema, type PlanCalendarRpcResult } from "@enduragent/coach-contract";
 import { describe, expect, it, vi } from "vitest";
 import {
   approvalFor,
   approvedWeeks,
   firstApproval,
+  opensCalendarAfterActivate,
   sendingFailures,
   weekApprovals,
 } from "../src/calendar/approval";
@@ -152,6 +153,47 @@ function approveHarness(reply: PlanCalendarRpcResult | Error) {
     last: () => states.at(-1),
   };
 }
+
+describe("opening the Calendar after Activate", () => {
+  const status = (calendar: Record<string, unknown>) => ({
+    window: null,
+    currentThrough: null,
+    error: null,
+    ...calendar,
+  });
+  it.each([
+    ["the new Plan waits for Approve", status({ status: "waiting-for-approve" }), true],
+    [
+      "an old Plan's cleanup failed while the new Plan waits",
+      status({
+        status: "failed",
+        error: "Calendar cleanup failed. Retry available.",
+        waitingForApprove: true,
+      }),
+      true,
+    ],
+    ["the new Plan was already approved", status({ status: "pending" }), false],
+  ] as const)("opens it when %s", (_name, calendar, opens) => {
+    expect(
+      opensCalendarAfterActivate(
+        { planId: "0".repeat(25) + "A" },
+        { planId: "0".repeat(25) + "B", calendar: PlanCalendarStatusSchema.parse(calendar) },
+      ),
+    ).toBe(opens);
+  });
+
+  it("does not open it for the same Plan", () => {
+    expect(
+      opensCalendarAfterActivate(
+        { planId: "0".repeat(25) + "A" },
+        {
+          planId: "0".repeat(25) + "A",
+          calendar: PlanCalendarStatusSchema.parse(status({ status: "waiting-for-approve" })),
+        },
+      ),
+    ).toBe(false);
+  });
+});
 
 describe("the Approve controller", () => {
   it("opens for a new Plan, approves, and closes once both weeks are on intervals.icu", async () => {

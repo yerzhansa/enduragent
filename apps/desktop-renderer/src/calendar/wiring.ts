@@ -1,6 +1,7 @@
 import type { DesktopCoachClientProvider } from "../coach-client";
 import { rendererPlatformProjection } from "../platform-copy";
 import type { useEnduragentStore } from "../state/store";
+import { opensCalendarAfterActivate } from "./approval";
 import { createApproveController } from "./approve-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
@@ -79,8 +80,7 @@ export function startCalendar(
     if (
       before !== null &&
       activated != null &&
-      before.active?.planId !== activated.planId &&
-      activated.calendar.status === "waiting-for-approve" &&
+      opensCalendarAfterActivate(before.active, activated) &&
       state.activeView === "chat"
     ) {
       queueMicrotask(() => {
