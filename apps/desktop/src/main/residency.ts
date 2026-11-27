@@ -1,14 +1,18 @@
 import { desktopPlatformTokens } from "./platform-copy.js";
 import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
+import { resolve } from "node:path";
 import {
   Menu,
   Tray,
   nativeImage,
   type App,
   type BrowserWindow,
+  type IpcMain,
+  type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from "electron";
 import { DESKTOP_OPEN_SETTINGS_CHANNEL } from "./constants.js";
+import { installStartAtLoginIpc } from "./start-at-login-ipc.js";
 import {
   isLoginItemResidencyEnabled,
   loginItemResidencyMatchesRequest,
@@ -36,8 +40,17 @@ export type DesktopResidencyEvent =
   | { readonly type: "login-item-read"; readonly state: LoginItemResidencyState }
   | { readonly type: "login-item-set"; readonly state: LoginItemResidencyState };
 
+export function desktopTrayIconPath(mainDirectory: string, platform: NodeJS.Platform): string {
+  return resolve(
+    mainDirectory,
+    platform === "win32" ? "../../resources/tray.ico" : "../../resources/trayTemplate.png",
+  );
+}
+
 export interface DesktopResidencyInput {
   readonly app: App;
+  readonly ipcMain?: Pick<IpcMain, "handle" | "removeHandler">;
+  readonly isTrusted?: (event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">) => boolean;
   readonly mainWindow: MainWindowResidencyPort;
   readonly trayIconPath: string;
   readonly platform?: NodeJS.Platform;
@@ -52,8 +65,14 @@ export interface DesktopResidencyInput {
   readonly observe?: (event: DesktopResidencyEvent) => void;
 }
 
+export type StartAtLoginState =
+  | { readonly kind: "unavailable" }
+  | { readonly kind: "known"; readonly enabled: boolean };
+
 export interface DesktopResidency {
   start(): Promise<void>;
+  startAtLogin(): StartAtLoginState;
+  setStartAtLogin(enabled: boolean): Promise<StartAtLoginState>;
   showMainWindow(): Promise<void>;
   manageMainWindow(window: BrowserWindow): void;
   quit(): void;
@@ -175,6 +194,13 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
     });
     loginItemMutation = Promise.allSettled([mutation]).then(() => undefined);
   };
+  const startAtLogin = (): StartAtLoginState => {
+    if (!loginItemAvailable || closed) return { kind: "unavailable" };
+    const state = readLoginState();
+    return state === undefined
+      ? { kind: "unavailable" }
+      : { kind: "known", enabled: isLoginItemResidencyEnabled(state, platform) };
+  };
   const startAtLoginItem = (): MenuItemConstructorOptions[] => {
     if (!loginItemAvailable) return [];
     const state = readLoginState();
@@ -240,6 +266,13 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
     },
     showMainWindow,
     manageMainWindow,
+    startAtLogin,
+    async setStartAtLogin(enabled) {
+      if (!loginItemAvailable || closed) return { kind: "unavailable" };
+      setLoginState(enabled);
+      await loginItemMutation;
+      return startAtLogin();
+    },
     quit() {
       if (quitRequested) return;
       quitRequested = true;
@@ -248,6 +281,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
     close() {
       if (closePromise !== undefined) return closePromise;
       closed = true;
+      disposeIpc?.();
       closePromise = loginItemMutation;
       if (tray !== undefined) {
         tray.removeAllListeners();
@@ -258,5 +292,13 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       return closePromise;
     },
   };
+  const disposeIpc =
+    input.ipcMain === undefined || input.isTrusted === undefined
+      ? undefined
+      : installStartAtLoginIpc({
+          ipcMain: input.ipcMain,
+          isTrusted: input.isTrusted,
+          residency: () => (closed ? undefined : residency),
+        });
   return residency;
 }

@@ -18,6 +18,14 @@
       "system": "System",
       "title": "Udseende"
     },
+    "calendar": {
+      "approveEachWeek": "Godkend hver uge",
+      "approveEachWeekDetail": "Hver ny træningsuge venter på din godkendelse i stedet for at blive sendt af sig selv 7 dage før. En uge, du ikke godkender, når aldrig frem til din cykelcomputer.",
+      "startAtLogin": "Start Enduragent ved login",
+      "startAtLoginDetail": "Senere uger sendes kun, mens appen kører; et lukket vindue er fint.",
+      "title": "Kalender",
+      "unavailable": "Kalenderindstillingerne kunne ikke indlæses."
+    },
     "language": {
       "automaticDetail": "Automatisk følger sproget i {{operatingSystem}}. Træneren svarer på det sprog, du skriver på.",
       "explicitDetail": "Appen og træneren bruger dette sprog.",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Ekstra",
         "untitled": "Tur"
+      },
+      "approve": {
+        "approve": "Godkend",
+        "approveCount_one": "Godkend {{count}} træning",
+        "approveCount_other": "Godkend {{count}} træninger",
+        "body_one": "{{count}} træning føjes til din intervals.icu-kalender. Intet af det, der allerede ligger der, ændres eller slettes. Din cykelcomputer henter den fra intervals.icu.",
+        "body_other": "{{count}} træninger føjes til din intervals.icu-kalender. Intet af det, der allerede ligger der, ændres eller slettes. Din cykelcomputer henter hver enkelt fra intervals.icu.",
+        "captionFirst": "Sæt af træningsændringer · fra din nye træningsplan",
+        "captionWeek": "Sæt af træningsændringer · næste træningsuge",
+        "connect": "Forbind intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Sendt: {{sent}} af {{total}}. Mislykkedes: {{days}}, fordi intervals.icu ikke svarede.",
+        "loginBody": "Senere uger sendes kun, mens appen kører; et lukket vindue er fint. Slå dette til, så de sendes til tiden. Det er den samme kontakt som i Indstillinger.",
+        "loginTitle": "Start Enduragent ved login",
+        "notConnected": "intervals.icu er ikke forbundet. Træningsplanen er gemt, og disse træninger venter her, markeret med »kun i træningsplanen«.",
+        "notNow": "Ikke nu",
+        "refused": "Dette sæt af ændringer er forældet. Kalenderen viser nu den nyeste træningsplan.",
+        "retry": "Prøv igen",
+        "sending_one": "Sender {{count}} træning til intervals.icu…",
+        "sending_other": "Sender {{count}} træninger til intervals.icu…",
+        "titleFirstOne": "Send denne træningsuge til intervals.icu?",
+        "titleFirstTwo": "Send de første to træningsuger til intervals.icu?",
+        "titleWeek": "Send uge {{week}} til intervals.icu?",
+        "weekHeader": "Uge {{week}} · {{range}}",
+        "weekHeaderCount_one": "Uge {{week}} · {{range}} · {{count}} træning",
+        "weekHeaderCount_other": "Uge {{week}} · {{range}} · {{count}} træninger"
+      },
+      "banner": {
+        "detail_one": "{{count}} træning, {{duration}}, fra {{date}}. Ugen sendes, når du godkender den.",
+        "detail_other": "{{count}} træninger, {{duration}}, fra {{date}}. Ugen sendes, når du godkender den.",
+        "lead": "Uge {{week}} er klar:",
+        "review": "Gennemse og godkend"
       },
       "column": {
         "trainingWeek": "Træningsuge",

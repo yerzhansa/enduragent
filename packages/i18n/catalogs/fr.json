@@ -18,6 +18,14 @@
       "system": "Système",
       "title": "Apparence"
     },
+    "calendar": {
+      "approveEachWeek": "Approuver chaque semaine",
+      "approveEachWeekDetail": "Chaque nouvelle semaine d’entraînement attend ton approbation au lieu de partir d’elle-même 7 jours à l’avance. Une semaine que tu n’approuves pas n’atteint jamais ton compteur vélo.",
+      "startAtLogin": "Démarrer Enduragent à l’ouverture de session",
+      "startAtLoginDetail": "Les semaines suivantes ne partent que lorsque l’application est ouverte ; une fenêtre fermée ne pose pas de problème.",
+      "title": "Calendrier",
+      "unavailable": "Les paramètres du calendrier n’ont pas pu être chargés."
+    },
     "language": {
       "automaticDetail": "Automatique utilise la langue de {{operatingSystem}}. Le coach répond dans la langue dans laquelle tu écris.",
       "explicitDetail": "L’application et le coach utilisent cette langue.",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Supplémentaire",
         "untitled": "Sortie"
+      },
+      "approve": {
+        "approve": "Approuver",
+        "approveCount_one": "Approuver {{count}} entraînement",
+        "approveCount_other": "Approuver {{count}} entraînements",
+        "body_one": "{{count}} entraînement est ajouté à ton calendrier intervals.icu. Rien de ce qui s’y trouve déjà n’est modifié ni supprimé. Ton compteur vélo le télécharge depuis intervals.icu.",
+        "body_other": "{{count}} entraînements sont ajoutés à ton calendrier intervals.icu. Rien de ce qui s’y trouve déjà n’est modifié ni supprimé. Ton compteur vélo télécharge chacun d’eux depuis intervals.icu.",
+        "captionFirst": "Lot de modifications d’entraînements · depuis ton nouveau plan",
+        "captionWeek": "Lot de modifications d’entraînements · prochaine semaine d’entraînement",
+        "connect": "Connecter intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Envoi : {{sent}} sur {{total}}. Échec : {{days}}, car intervals.icu n’a pas répondu.",
+        "loginBody": "Les semaines suivantes ne partent que lorsque l’application est ouverte ; une fenêtre fermée ne pose pas de problème. Active cette option pour qu’elles partent à temps. C’est le même réglage que dans Paramètres.",
+        "loginTitle": "Démarrer Enduragent à l’ouverture de session",
+        "notConnected": "intervals.icu n’est pas connecté. Le plan est enregistré et ces entraînements attendent ici, marqués « seulement dans le plan ».",
+        "notNow": "Pas maintenant",
+        "refused": "Ce lot de modifications n’est plus à jour. Le calendrier affiche maintenant le plan le plus récent.",
+        "retry": "Réessayer",
+        "sending_one": "Envoi de {{count}} entraînement à intervals.icu…",
+        "sending_other": "Envoi de {{count}} entraînements à intervals.icu…",
+        "titleFirstOne": "Envoyer cette semaine d’entraînement à intervals.icu ?",
+        "titleFirstTwo": "Envoyer les deux premières semaines d’entraînement à intervals.icu ?",
+        "titleWeek": "Envoyer la semaine {{week}} à intervals.icu ?",
+        "weekHeader": "Semaine {{week}} · {{range}}",
+        "weekHeaderCount_one": "Semaine {{week}} · {{range}} · {{count}} entraînement",
+        "weekHeaderCount_other": "Semaine {{week}} · {{range}} · {{count}} entraînements"
+      },
+      "banner": {
+        "detail_one": "{{count}} entraînement, {{duration}}, à partir du {{date}}. Elle part dès que tu l’approuves.",
+        "detail_other": "{{count}} entraînements, {{duration}}, à partir du {{date}}. Elle part dès que tu l’approuves.",
+        "lead": "La semaine {{week}} est prête :",
+        "review": "Vérifier et approuver"
       },
       "column": {
         "trainingWeek": "Semaine d’entraînement",

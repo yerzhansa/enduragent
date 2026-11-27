@@ -87,6 +87,10 @@ interface EnduragentAuth {
   getUpdateState(): Promise<DesktopUpdateState>;
   checkForUpdates(): Promise<DesktopUpdateState>;
   restartToUpdate(): Promise<DesktopUpdateState>;
+  readStartAtLogin(): Promise<import("./calendar/settings-controller").StartAtLoginReply>;
+  setStartAtLogin(
+    enabled: boolean,
+  ): Promise<import("./calendar/settings-controller").StartAtLoginReply>;
   onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
   submitAthleteFeedback(input: {
     readonly text: string;

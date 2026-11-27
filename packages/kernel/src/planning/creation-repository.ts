@@ -634,6 +634,11 @@ VALUES (?,'active',1,1,?,?,?,?,?)`,
           ],
         );
         await store.run(
+          `INSERT INTO plan_week_delivery (plan_id,state_kind,state_json,updated_at_ms)
+VALUES (?,'waiting-for-first-approve','{"kind":"waiting-for-first-approve"}',?)`,
+          [plan.id, command.nowMs],
+        );
+        await store.run(
           `INSERT INTO plan_revision (id,plan_id,revision_number,parent_revision_number,source_kind,source_id,snapshot_json,fingerprint,created_at_ms,device_id,hlc_physical_ms,hlc_counter)
 VALUES (?,?,1,NULL,'activation',?,?,?,?,?,?,?)`,
           [

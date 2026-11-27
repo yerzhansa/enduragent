@@ -5,6 +5,7 @@ import { useEnduragentStore } from "../../state/store";
 import { Page } from "@enduragent/ui";
 import { SetupPanel } from "../onboarding/OnboardingWizard";
 import { ApplicationSection } from "./ApplicationSection";
+import { CalendarSection } from "./CalendarSection";
 import { CoachSection } from "./CoachSection";
 import { ConversationSection } from "./ConversationSection";
 import { PreferencesSection } from "./PreferencesSection";
@@ -46,6 +47,7 @@ export function SettingsView(): ReactElement {
       <TelegramSection />
       <CoachSection />
       <TrainingRestrictionCard restrictionCard={restrictionCard} />
+      <CalendarSection />
       <ConversationSection />
       <SpendSection />
       <PreferencesSection />

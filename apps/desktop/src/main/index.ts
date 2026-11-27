@@ -139,7 +139,7 @@ import {
   type DesktopCredentialRecoveryStatus,
   type DesktopCredentialResetResult,
 } from "./onboarding-ipc.js";
-import { createDesktopResidency, type DesktopResidency } from "./residency.js";
+import { createDesktopResidency, desktopTrayIconPath, type DesktopResidency } from "./residency.js";
 import { adoptDeviceTimezoneAtStart } from "./session-timezone.js";
 import {
   BACKGROUND_AT_LOGIN_PREFERENCE_DIRECTORY_NAME,
@@ -1453,12 +1453,9 @@ async function runDesktop(): Promise<void> {
     residency = createDesktopResidency({
       app,
       mainWindow,
-      trayIconPath: resolve(
-        mainDirectory,
-        process.platform === "win32"
-          ? "../../resources/tray.ico"
-          : "../../resources/trayTemplate.png",
-      ),
+      ipcMain,
+      isTrusted: (event) => isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),
+      trayIconPath: desktopTrayIconPath(mainDirectory, process.platform),
       platform: process.platform,
       loginItemExecutablePath: process.execPath,
       persistLoginPreference: (enabled) => backgroundAtLoginPreference.set(enabled),

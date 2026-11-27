@@ -233,10 +233,16 @@ describe("Training Weeks on intervals.icu", () => {
       kind: "approve-from",
       onDateKey: addCivilDays(MONDAY, 7),
     });
-    expect(
-      weekDeliveryStatus({ ...base, state: WEEK_DELIVERY_START, sentWeeks: new Set(), week: 1 }),
-    ).toEqual({
+    const waiting = { ...base, state: WEEK_DELIVERY_START, sentWeeks: new Set<number>() };
+    expect(weekDeliveryStatus({ ...waiting, week: 1 })).toEqual({
       kind: "waiting-for-first-approve",
+    });
+    expect(weekDeliveryStatus({ ...waiting, week: 2 })).toEqual({
+      kind: "waiting-for-first-approve",
+    });
+    expect(weekDeliveryStatus({ ...waiting, week: 3 })).toEqual({
+      kind: "goes-out",
+      onDateKey: addCivilDays(MONDAY, 7),
     });
     expect(weekDeliveryStatus({ ...base, todayDateKey: addCivilDays(MONDAY, 8), week: 1 })).toEqual(
       { kind: "on-intervals" },

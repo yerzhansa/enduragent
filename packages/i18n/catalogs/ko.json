@@ -18,6 +18,14 @@
       "system": "시스템",
       "title": "화면 모드"
     },
+    "calendar": {
+      "approveEachWeek": "매주 승인",
+      "approveEachWeekDetail": "새 훈련 주차는 7일 전에 자동으로 전송되지 않고 승인을 기다립니다. 승인하지 않은 주차는 사이클링 컴퓨터로 전송되지 않습니다.",
+      "startAtLogin": "로그인 시 Enduragent 시작",
+      "startAtLoginDetail": "이후 주차는 앱이 실행 중일 때만 전송됩니다. 창은 닫혀 있어도 괜찮습니다.",
+      "title": "캘린더",
+      "unavailable": "캘린더 설정을 불러올 수 없습니다."
+    },
     "language": {
       "automaticDetail": "자동은 {{operatingSystem}}의 언어를 따릅니다. 코치는 작성하신 언어로 답변합니다.",
       "explicitDetail": "앱과 코치가 이 언어를 사용합니다.",
@@ -1514,6 +1522,33 @@
       "activity": {
         "extra": "추가",
         "untitled": "라이딩"
+      },
+      "approve": {
+        "approve": "승인",
+        "approveCount_other": "워크아웃 {{count}}개 승인",
+        "body_other": "워크아웃 {{count}}개가 intervals.icu 캘린더에 추가됩니다. 이미 있는 항목은 변경되거나 삭제되지 않습니다. 사이클링 컴퓨터가 intervals.icu에서 각 워크아웃을 내려받습니다.",
+        "captionFirst": "워크아웃 변경 세트 · 새 계획에서",
+        "captionWeek": "워크아웃 변경 세트 · 다음 훈련 주차",
+        "connect": "intervals.icu 연결",
+        "dayRange": "{{first}}~{{last}}",
+        "failed": "{{total}}개 중 {{sent}}개를 전송했습니다. 전송 실패: {{days}}. intervals.icu가 응답하지 않았습니다.",
+        "loginBody": "이후 주차는 앱이 실행 중일 때만 전송됩니다. 창은 닫혀 있어도 괜찮습니다. 제때 전송되도록 이 옵션을 켜세요. 설정에 있는 것과 같은 스위치입니다.",
+        "loginTitle": "로그인 시 Enduragent 시작",
+        "notConnected": "intervals.icu가 연결되지 않았습니다. 계획은 저장되었으며, 이 워크아웃들은 “계획에만 있음”으로 표시되어 여기에서 대기합니다.",
+        "notNow": "나중에",
+        "refused": "이 변경 세트는 최신 상태가 아닙니다. 이제 캘린더에 최신 계획이 표시됩니다.",
+        "retry": "다시 시도",
+        "sending_other": "워크아웃 {{count}}개를 intervals.icu로 전송하는 중…",
+        "titleFirstOne": "이 훈련 주차를 intervals.icu로 보낼까요?",
+        "titleFirstTwo": "처음 두 훈련 주차를 intervals.icu로 보낼까요?",
+        "titleWeek": "{{week}}주차를 intervals.icu로 보낼까요?",
+        "weekHeader": "{{week}}주차 · {{range}}",
+        "weekHeaderCount_other": "{{week}}주차 · {{range}} · 워크아웃 {{count}}개"
+      },
+      "banner": {
+        "detail_other": "워크아웃 {{count}}개, {{duration}}, {{date}}부터. 승인하면 전송됩니다.",
+        "lead": "{{week}}주차가 준비되었습니다:",
+        "review": "검토 및 승인"
       },
       "column": {
         "trainingWeek": "훈련 주차",

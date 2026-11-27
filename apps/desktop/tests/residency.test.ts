@@ -109,7 +109,7 @@ vi.mock("../src/main/onboarding-ipc.js", () => ({
 
 vi.mock("@enduragent/coach-client", () => ({ connectCoachClient: vi.fn() }));
 
-import { createDesktopResidency } from "../src/main/residency.js";
+import { createDesktopResidency, desktopTrayIconPath } from "../src/main/residency.js";
 import {
   BACKGROUND_AT_LOGIN_PREFERENCE_FILE_NAME,
   createBackgroundAtLoginPreferenceStore,
@@ -302,6 +302,33 @@ describe("desktop residency", () => {
     );
     (menu[0]!.click as () => void)();
     await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledOnce());
+  });
+
+  it("reads and sets Start at login for the window through the same durable path as the menu", async () => {
+    const { residency, persistLoginPreference } = setup();
+    mocks.app.getLoginItemSettings.mockReturnValueOnce(
+      loginState("not-registered", false) as never,
+    );
+    expect(residency.startAtLogin()).toEqual({ kind: "known", enabled: false });
+    mocks.app.getLoginItemSettings
+      .mockReturnValueOnce(loginState("not-registered", false) as never)
+      .mockReturnValueOnce(loginState("enabled", true) as never)
+      .mockReturnValueOnce(loginState("enabled", true) as never);
+    await expect(residency.setStartAtLogin(true)).resolves.toEqual({
+      kind: "known",
+      enabled: true,
+    });
+    expect(persistLoginPreference).toHaveBeenCalledWith(true);
+    expect(mocks.app.setLoginItemSettings).toHaveBeenCalledWith({ openAtLogin: true });
+    await residency.close();
+    expect(residency.startAtLogin()).toEqual({ kind: "unavailable" });
+  });
+
+  it("reports Start at login unavailable inside a Store package", async () => {
+    const { residency, persistLoginPreference } = setup({ loginItemAvailable: false });
+    expect(residency.startAtLogin()).toEqual({ kind: "unavailable" });
+    await expect(residency.setStartAtLogin(true)).resolves.toEqual({ kind: "unavailable" });
+    expect(persistLoginPreference).not.toHaveBeenCalled();
   });
 
   it("builds a fresh exact native menu and uses current checkbox truth", async () => {
@@ -799,8 +826,12 @@ describe("desktop residency", () => {
 
   it("anchors the tray icon to the build output instead of the launch-dependent app path", async () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
-    expect(source.replace(/\s+/g, " ")).toContain(
-      'trayIconPath: resolve( mainDirectory, process.platform === "win32" ? "../../resources/tray.ico" : "../../resources/trayTemplate.png"',
+    expect(source).toContain("trayIconPath: desktopTrayIconPath(mainDirectory, process.platform)");
+    expect(desktopTrayIconPath("/synthetic/out/main", "win32")).toBe(
+      resolve("/synthetic/out/main", "../../resources/tray.ico"),
+    );
+    expect(desktopTrayIconPath("/synthetic/out/main", "darwin")).toBe(
+      resolve("/synthetic/out/main", "../../resources/trayTemplate.png"),
     );
     expect(source).not.toContain('join(app.getAppPath(), "resources"');
   });

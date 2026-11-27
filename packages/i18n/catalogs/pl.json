@@ -18,6 +18,14 @@
       "system": "System",
       "title": "Wygląd"
     },
+    "calendar": {
+      "approveEachWeek": "Zatwierdzaj każdy tydzień",
+      "approveEachWeekDetail": "Każdy nowy tydzień treningowy czeka na twoje zatwierdzenie, zamiast wysyłać się sam 7 dni wcześniej. Tydzień, którego nie zatwierdzisz, nigdy nie trafi do twojego licznika rowerowego.",
+      "startAtLogin": "Uruchamiaj Enduragent po zalogowaniu",
+      "startAtLoginDetail": "Kolejne tygodnie są wysyłane tylko wtedy, gdy aplikacja działa; zamknięte okno nie przeszkadza.",
+      "title": "Kalendarz",
+      "unavailable": "Nie udało się wczytać ustawień kalendarza."
+    },
     "language": {
       "automaticDetail": "Automatycznie używa języka systemu {{operatingSystem}}. Trener odpowiada w języku, w którym piszesz.",
       "explicitDetail": "Aplikacja i trener używają tego języka.",
@@ -1553,6 +1561,48 @@
       "activity": {
         "extra": "Dodatkowa",
         "untitled": "Przejazd"
+      },
+      "approve": {
+        "approve": "Zatwierdź",
+        "approveCount_one": "Zatwierdź {{count}} trening",
+        "approveCount_few": "Zatwierdź {{count}} treningi",
+        "approveCount_many": "Zatwierdź {{count}} treningów",
+        "approveCount_other": "Zatwierdź {{count}} treningu",
+        "body_one": "{{count}} trening zostanie dodany do twojego kalendarza intervals.icu. Nic, co już tam jest, nie zostanie zmienione ani usunięte. Twój licznik rowerowy pobierze go z intervals.icu.",
+        "body_few": "{{count}} treningi zostaną dodane do twojego kalendarza intervals.icu. Nic, co już tam jest, nie zostanie zmienione ani usunięte. Twój licznik rowerowy pobierze każdy z nich z intervals.icu.",
+        "body_many": "{{count}} treningów zostanie dodanych do twojego kalendarza intervals.icu. Nic, co już tam jest, nie zostanie zmienione ani usunięte. Twój licznik rowerowy pobierze każdy z nich z intervals.icu.",
+        "body_other": "{{count}} treningu zostanie dodane do twojego kalendarza intervals.icu. Nic, co już tam jest, nie zostanie zmienione ani usunięte. Twój licznik rowerowy pobierze każdy z nich z intervals.icu.",
+        "captionFirst": "Pakiet zmian treningów · z twojego nowego planu",
+        "captionWeek": "Pakiet zmian treningów · następny tydzień treningowy",
+        "connect": "Połącz intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Wysłano {{sent}} z {{total}}. Nie wysłano: {{days}}, bo intervals.icu nie odpowiedział.",
+        "loginBody": "Kolejne tygodnie są wysyłane tylko wtedy, gdy aplikacja działa; zamknięte okno nie przeszkadza. Włącz to, aby były wysyłane na czas. To ten sam przełącznik co w Ustawieniach.",
+        "loginTitle": "Uruchamiaj Enduragent po zalogowaniu",
+        "notConnected": "intervals.icu nie jest połączone. Plan jest zapisany, a te treningi czekają tutaj z oznaczeniem „tylko w planie”.",
+        "notNow": "Nie teraz",
+        "refused": "Ten pakiet zmian jest nieaktualny. Kalendarz pokazuje teraz najnowszy plan.",
+        "retry": "Spróbuj ponownie",
+        "sending_one": "Wysyłanie {{count}} treningu do intervals.icu…",
+        "sending_few": "Wysyłanie {{count}} treningów do intervals.icu…",
+        "sending_many": "Wysyłanie {{count}} treningów do intervals.icu…",
+        "sending_other": "Wysyłanie {{count}} treningu do intervals.icu…",
+        "titleFirstOne": "Wysłać ten tydzień treningowy do intervals.icu?",
+        "titleFirstTwo": "Wysłać dwa pierwsze tygodnie treningowe do intervals.icu?",
+        "titleWeek": "Wysłać tydzień {{week}} do intervals.icu?",
+        "weekHeader": "Tydzień {{week}} · {{range}}",
+        "weekHeaderCount_one": "Tydzień {{week}} · {{range}} · {{count}} trening",
+        "weekHeaderCount_few": "Tydzień {{week}} · {{range}} · {{count}} treningi",
+        "weekHeaderCount_many": "Tydzień {{week}} · {{range}} · {{count}} treningów",
+        "weekHeaderCount_other": "Tydzień {{week}} · {{range}} · {{count}} treningu"
+      },
+      "banner": {
+        "detail_one": "{{count}} trening, {{duration}}, od {{date}}. Tydzień zostanie wysłany po twoim zatwierdzeniu.",
+        "detail_few": "{{count}} treningi, {{duration}}, od {{date}}. Tydzień zostanie wysłany po twoim zatwierdzeniu.",
+        "detail_many": "{{count}} treningów, {{duration}}, od {{date}}. Tydzień zostanie wysłany po twoim zatwierdzeniu.",
+        "detail_other": "{{count}} treningu, {{duration}}, od {{date}}. Tydzień zostanie wysłany po twoim zatwierdzeniu.",
+        "lead": "Tydzień {{week}} jest gotowy:",
+        "review": "Sprawdź i zatwierdź"
       },
       "column": {
         "trainingWeek": "Tydzień treningowy",

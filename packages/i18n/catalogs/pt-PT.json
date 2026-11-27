@@ -116,6 +116,14 @@
       },
       "verificationPending": "A verificar a conta de treino ligada… Os dados de treino ficam em pausa até a verificação terminar."
     },
+    "calendar": {
+      "approveEachWeek": "Aprovar cada semana",
+      "approveEachWeekDetail": "Cada nova semana de treino aguarda a tua aprovação em vez de ser enviada sozinha 7 dias antes. Uma semana que não aproves nunca chega ao teu ciclocomputador.",
+      "startAtLogin": "Iniciar Enduragent ao iniciar sessão",
+      "startAtLoginDetail": "As semanas seguintes só são enviadas enquanto a aplicação está em execução; não faz mal se a janela estiver fechada.",
+      "title": "Calendário",
+      "unavailable": "Não foi possível carregar as definições do calendário."
+    },
     "coach": {
       "active": "Ativo",
       "activeUnavailable": "As definições do treinador ativo estão indisponíveis ou não foram configuradas.",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Extra",
         "untitled": "Volta"
+      },
+      "approve": {
+        "approve": "Aprovar",
+        "approveCount_one": "Aprovar {{count}} treino",
+        "approveCount_other": "Aprovar {{count}} treinos",
+        "body_one": "É adicionado {{count}} treino ao teu calendário do intervals.icu. Nada do que já lá está é alterado ou eliminado. O teu ciclocomputador descarrega-o do intervals.icu.",
+        "body_other": "São adicionados {{count}} treinos ao teu calendário do intervals.icu. Nada do que já lá está é alterado ou eliminado. O teu ciclocomputador descarrega cada um do intervals.icu.",
+        "captionFirst": "Conjunto de alterações de treinos · do teu novo plano",
+        "captionWeek": "Conjunto de alterações de treinos · próxima semana de treino",
+        "connect": "Ligar intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Enviados: {{sent}} de {{total}}. Com falha: {{days}}, porque o intervals.icu não respondeu.",
+        "loginBody": "As semanas seguintes só são enviadas enquanto a aplicação está em execução; não faz mal se a janela estiver fechada. Ativa isto para que sejam enviadas a tempo. É o mesmo interruptor que nas Definições.",
+        "loginTitle": "Iniciar Enduragent ao iniciar sessão",
+        "notConnected": "O intervals.icu não está ligado. O plano está guardado e estes treinos aguardam aqui, marcados como «só no plano».",
+        "notNow": "Agora não",
+        "refused": "Este conjunto de alterações está desatualizado. O calendário mostra agora o plano mais recente.",
+        "retry": "Tentar novamente",
+        "sending_one": "A enviar {{count}} treino para o intervals.icu…",
+        "sending_other": "A enviar {{count}} treinos para o intervals.icu…",
+        "titleFirstOne": "Enviar esta semana de treino para o intervals.icu?",
+        "titleFirstTwo": "Enviar as duas primeiras semanas de treino para o intervals.icu?",
+        "titleWeek": "Enviar a semana {{week}} para o intervals.icu?",
+        "weekHeader": "Semana {{week}} · {{range}}",
+        "weekHeaderCount_one": "Semana {{week}} · {{range}} · {{count}} treino",
+        "weekHeaderCount_other": "Semana {{week}} · {{range}} · {{count}} treinos"
+      },
+      "banner": {
+        "detail_one": "{{count}} treino, {{duration}}, a partir de {{date}}. A semana é enviada quando a aprovares.",
+        "detail_other": "{{count}} treinos, {{duration}}, a partir de {{date}}. A semana é enviada quando a aprovares.",
+        "lead": "A semana {{week}} está pronta:",
+        "review": "Rever e aprovar"
       },
       "column": {
         "trainingWeek": "Semana de treino",

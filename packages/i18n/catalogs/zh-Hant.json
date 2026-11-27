@@ -18,6 +18,14 @@
       "system": "系統",
       "title": "外觀"
     },
+    "calendar": {
+      "approveEachWeek": "每週核准",
+      "approveEachWeekDetail": "每個新的訓練週都會等待核准，而不會提前 7 天自動傳送。未核准的週次不會傳送到自行車碼表。",
+      "startAtLogin": "登入時啟動 Enduragent",
+      "startAtLoginDetail": "後續訓練週只會在應用程式執行時傳送；關閉視窗沒有關係。",
+      "title": "行事曆",
+      "unavailable": "行事曆設定無法載入。"
+    },
     "language": {
       "automaticDetail": "自動會跟隨{{operatingSystem}}的語言。教練會使用您輸入的語言回覆。",
       "explicitDetail": "應用程式和教練會使用此語言。",
@@ -1514,6 +1522,33 @@
       "activity": {
         "extra": "額外",
         "untitled": "騎乘"
+      },
+      "approve": {
+        "approve": "核准",
+        "approveCount_other": "核准 {{count}} 次訓練課表",
+        "body_other": "將有 {{count}} 次訓練課表加入 intervals.icu 行事曆。現有內容不會被變更或刪除。自行車碼表會從 intervals.icu 下載每次訓練課表。",
+        "captionFirst": "訓練課表變更集 · 來自新計畫",
+        "captionWeek": "訓練課表變更集 · 下一個訓練週",
+        "connect": "連結 intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "已傳送 {{sent}}/{{total}}。傳送失敗：{{days}}，intervals.icu 沒有回應。",
+        "loginBody": "後續訓練週只會在應用程式執行時傳送；關閉視窗沒有關係。開啟此選項，確保準時傳送。這與設定中的開關相同。",
+        "loginTitle": "登入時啟動 Enduragent",
+        "notConnected": "intervals.icu 未連線。計畫已儲存，這些訓練課表會標示為「僅在計畫中」並在此等待。",
+        "notNow": "暫不",
+        "refused": "此變更集已過時。行事曆現在顯示最新計畫。",
+        "retry": "重試",
+        "sending_other": "正在將 {{count}} 次訓練課表傳送到 intervals.icu…",
+        "titleFirstOne": "要將這個訓練週傳送到 intervals.icu 嗎？",
+        "titleFirstTwo": "要將前兩個訓練週傳送到 intervals.icu 嗎？",
+        "titleWeek": "要將第 {{week}} 週傳送到 intervals.icu 嗎？",
+        "weekHeader": "第 {{week}} 週 · {{range}}",
+        "weekHeaderCount_other": "第 {{week}} 週 · {{range}} · {{count}} 次訓練課表"
+      },
+      "banner": {
+        "detail_other": "{{count}} 次訓練課表，{{duration}}，{{date}} 起。核准後傳送。",
+        "lead": "第 {{week}} 週已準備就緒：",
+        "review": "檢視並核准"
       },
       "column": {
         "trainingWeek": "訓練週",

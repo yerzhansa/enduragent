@@ -1,11 +1,21 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button, Page } from "@enduragent/ui";
 import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { calendarRows, currentWeek, type PlanCalendarRead } from "../../calendar/grid";
 import { rendererPlatformProjection } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
+import {
+  approvalFor,
+  approvedWeeks,
+  sendingFailures,
+  weekApprovals,
+  type PendingApproval,
+} from "../../calendar/approval";
+import type { ApproveSheetState } from "../../calendar/approve-controller";
+import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
+import { WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
 
@@ -69,10 +79,81 @@ function RefreshFailed(props: { readonly onRetry: () => void }): ReactElement {
   );
 }
 
+function sheetView(
+  read: PlanCalendarRead,
+  sheet: ApproveSheetState,
+): { readonly pending: PendingApproval; readonly phase: ApproveSheetPhase } | null {
+  switch (sheet.kind) {
+    case "closed":
+      return null;
+    case "open":
+    case "approving":
+    case "refused": {
+      const pending = approvalFor(read, sheet.scope);
+      return pending === null ? null : { pending, phase: { kind: sheet.kind } };
+    }
+    case "sending":
+    case "send-failed": {
+      const pending = approvedWeeks(read, sheet.scope, sheet.weeks);
+      if (pending === null) return null;
+      if (sheet.kind === "sending") return { pending, phase: { kind: "sending" } };
+      const progress = sendingFailures(read, sheet.weeks);
+      return {
+        pending,
+        phase: { kind: "send-failed", sent: progress.sent, failed: progress.failed },
+      };
+    }
+  }
+}
+
+const NOTHING_HIGHLIGHTED: ReadonlySet<string> = new Set();
+
+function beingApproved(read: PlanCalendarRead, sheet: ApproveSheetState): ReadonlySet<string> {
+  if (sheet.kind !== "open" && sheet.kind !== "approving") return NOTHING_HIGHLIGHTED;
+  const pending = approvalFor(read, sheet.scope);
+  if (pending === null) return NOTHING_HIGHLIGHTED;
+  return new Set(pending.weeks.flatMap((entry) => entry.workouts.map((workout) => workout.id)));
+}
+
+function ApprovalLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const sheet = useEnduragentStore((store) => store.calendarApproval);
+  const actions = useEnduragentStore((store) => store.calendarApproveActions);
+  const login = useEnduragentStore((store) => store.calendarSettings.startAtLogin);
+  const settingsActions = useEnduragentStore((store) => store.calendarSettingsActions);
+  const open = sheet.kind !== "closed";
+  useEffect(() => {
+    if (open) settingsActions?.load();
+  }, [open, settingsActions]);
+  const view = sheetView(props.read, sheet);
+  if (view === null) return null;
+  return (
+    <ApproveSheet
+      pending={view.pending}
+      phase={view.phase}
+      connected={props.read.calendarConnected}
+      login={login}
+      onApprove={() => actions?.approve()}
+      onNotNow={() => actions?.notNow()}
+      onConnect={() => actions?.connect()}
+      onRetry={() => actions?.retry()}
+      onLogin={(enabled) => settingsActions?.setStartAtLogin(enabled)}
+    />
+  );
+}
+
+function WeekReady(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const sheet = useEnduragentStore((store) => store.calendarApproval);
+  const actions = useEnduragentStore((store) => store.calendarApproveActions);
+  const pending = weekApprovals(props.read)[0];
+  if (pending === undefined || sheet.kind !== "closed") return null;
+  return <WeekReadyBanner pending={pending} onReview={() => actions?.open(pending.scope)} />;
+}
+
 export function CalendarView(): ReactElement {
   const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.calendar);
   const actions = useEnduragentStore((store) => store.calendarActions);
+  const approval = useEnduragentStore((store) => store.calendarApproval);
   const read = state.kind === "ready" ? state.read : null;
   const subtitle = useSubtitle(read);
   const firstDay = rendererPlatformProjection().firstDayOfWeek;
@@ -107,7 +188,7 @@ export function CalendarView(): ReactElement {
       {...(subtitle === undefined ? {} : { subtitle })}
       busy={state.kind === "loading" || (state.kind === "ready" && state.refresh === "refreshing")}
       action={navigation}
-      className="calendar-view"
+      className="calendar-view relative"
       contentMode="workspace"
     >
       <div className="h-full min-h-0 overflow-auto px-5 pt-3.5 pb-6" data-page-scroll="">
@@ -124,6 +205,7 @@ export function CalendarView(): ReactElement {
             {state.refresh === "failed" ? (
               <RefreshFailed onRetry={() => actions?.refresh()} />
             ) : null}
+            <WeekReady read={state.read} />
             {state.read.plan === null ? (
               <NoPlanCard />
             ) : (
@@ -136,10 +218,12 @@ export function CalendarView(): ReactElement {
               read={state.read}
               rows={calendarRows(state.read, state.range)}
               firstDay={firstDay}
+              highlighted={beingApproved(state.read, approval)}
             />
           </div>
         ) : null}
       </div>
+      {state.kind === "ready" ? <ApprovalLayer read={state.read} /> : null}
     </Page>
   );
 }

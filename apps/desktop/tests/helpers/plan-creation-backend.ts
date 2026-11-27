@@ -180,6 +180,7 @@ export class PlanCreationBackend {
     private readonly options: {
       readonly calendar?: PlanMirrorCalendarPort & { readonly mirror: CalendarMirrorPort };
       readonly calendarConnected?: boolean;
+      readonly waitForApprove?: boolean;
       readonly legacy?: LegacyPlanSummary | null;
     } = {},
   ) {
@@ -324,18 +325,10 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
           }
         }
         if (request.method === "plan.calendar") {
-          const civilDate = (ms: number) =>
-            Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", ""));
           return response(
-            await createPlanCalendarOperations({
-              store: this.requireStore(),
-              todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
-              calendarConnected: () =>
-                this.options.calendarConnected ?? this.options.calendar !== undefined,
-              dateKeyOfMs: civilDate,
-              now: () => this.instant,
-              changed: () => void this.calendarDrain?.kick(),
-            })["plan.calendar"](PlanCalendarRpcParamsSchema.parse(request.params)),
+            await this.calendarOperations()["plan.calendar"](
+              PlanCalendarRpcParamsSchema.parse(request.params),
+            ),
           );
         }
         if (request.method === "plan.history") {
@@ -493,6 +486,13 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         ...host,
         "plan_creation.activate": async (input) => {
           const result = await host["plan_creation.activate"](input);
+          if (this.options.waitForApprove !== true && typeof result.planId === "string") {
+            await this.calendarOperations()["plan.calendar"]({
+              action: "approve-weeks",
+              planId: result.planId,
+              scope: { kind: "first-weeks" },
+            });
+          }
           void drain.kick();
           return result;
         },
@@ -517,6 +517,23 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         },
       };
     }
+  }
+
+  private calendarOperations() {
+    return createPlanCalendarOperations({
+      store: this.requireStore(),
+      todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
+      calendarConnected: () =>
+        this.options.calendarConnected ?? this.options.calendar !== undefined,
+      dateKeyOfMs: (ms: number) =>
+        Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
+      now: () => this.instant,
+      changed: () => void this.calendarDrain?.kick(),
+    });
+  }
+
+  async saveWeekDeliverySetting(weekDelivery: "send-each-week" | "approve-each-week") {
+    return this.calendarOperations()["plan.calendar"]({ action: "save-settings", weekDelivery });
   }
 
   async calendarIdle(): Promise<void> {

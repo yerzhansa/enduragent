@@ -18,6 +18,14 @@
       "system": "Järjestelmä",
       "title": "Ulkoasu"
     },
+    "calendar": {
+      "approveEachWeek": "Hyväksy jokainen viikko",
+      "approveEachWeekDetail": "Jokainen uusi harjoitusviikko odottaa hyväksyntääsi sen sijaan, että se lähtisi itsestään 7 päivää etuajassa. Viikko, jota et hyväksy, ei koskaan päädy pyörätietokoneeseesi.",
+      "startAtLogin": "Käynnistä Enduragent sisäänkirjautumisen yhteydessä",
+      "startAtLoginDetail": "Myöhemmät viikot lähetetään vain, kun sovellus on käynnissä; suljettu ikkuna ei haittaa.",
+      "title": "Kalenteri",
+      "unavailable": "Kalenterin asetuksia ei voitu ladata."
+    },
     "language": {
       "automaticDetail": "Automaattinen käyttää käyttöjärjestelmän {{operatingSystem}} kieltä. Valmentaja vastaa sillä kielellä, jolla kirjoitat.",
       "explicitDetail": "Sovellus ja valmentaja käyttävät tätä kieltä.",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Ylimääräinen",
         "untitled": "Lenkki"
+      },
+      "approve": {
+        "approve": "Hyväksy",
+        "approveCount_one": "Hyväksy {{count}} harjoitus",
+        "approveCount_other": "Hyväksy {{count}} harjoitusta",
+        "body_one": "{{count}} harjoitus lisätään intervals.icu-kalenteriisi. Mitään siellä jo olevaa ei muuteta tai poisteta. Pyörätietokoneesi lataa sen intervals.icu-palvelusta.",
+        "body_other": "{{count}} harjoitusta lisätään intervals.icu-kalenteriisi. Mitään siellä jo olevaa ei muuteta tai poisteta. Pyörätietokoneesi lataa jokaisen niistä intervals.icu-palvelusta.",
+        "captionFirst": "Harjoitusten muutoserä · uudesta suunnitelmastasi",
+        "captionWeek": "Harjoitusten muutoserä · seuraava harjoitusviikko",
+        "connect": "Yhdistä intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Lähetetty: {{sent}}/{{total}}. Epäonnistui: {{days}}, koska intervals.icu ei vastannut.",
+        "loginBody": "Myöhemmät viikot lähetetään vain, kun sovellus on käynnissä; suljettu ikkuna ei haittaa. Ota tämä käyttöön, jotta ne lähtevät ajallaan. Se on sama kytkin kuin asetuksissa.",
+        "loginTitle": "Käynnistä Enduragent sisäänkirjautumisen yhteydessä",
+        "notConnected": "intervals.icu ei ole yhdistettynä. Suunnitelma on tallennettu, ja nämä harjoitukset odottavat täällä merkinnällä ”vain suunnitelmassa”.",
+        "notNow": "Ei nyt",
+        "refused": "Tämä muutoserä on vanhentunut. Kalenteri näyttää nyt uusimman suunnitelman.",
+        "retry": "Yritä uudelleen",
+        "sending_one": "Lähetetään {{count}} harjoitus intervals.icu-palveluun…",
+        "sending_other": "Lähetetään {{count}} harjoitusta intervals.icu-palveluun…",
+        "titleFirstOne": "Lähetetäänkö tämä harjoitusviikko intervals.icu-palveluun?",
+        "titleFirstTwo": "Lähetetäänkö kaksi ensimmäistä harjoitusviikkoa intervals.icu-palveluun?",
+        "titleWeek": "Lähetetäänkö viikko {{week}} intervals.icu-palveluun?",
+        "weekHeader": "Viikko {{week}} · {{range}}",
+        "weekHeaderCount_one": "Viikko {{week}} · {{range}} · {{count}} harjoitus",
+        "weekHeaderCount_other": "Viikko {{week}} · {{range}} · {{count}} harjoitusta"
+      },
+      "banner": {
+        "detail_one": "{{count}} harjoitus, {{duration}}, alkaen {{date}}. Viikko lähetetään, kun hyväksyt sen.",
+        "detail_other": "{{count}} harjoitusta, {{duration}}, alkaen {{date}}. Viikko lähetetään, kun hyväksyt sen.",
+        "lead": "Viikko {{week}} on valmis:",
+        "review": "Tarkista ja hyväksy"
       },
       "column": {
         "trainingWeek": "Harjoitusviikko",

@@ -18,6 +18,14 @@
       "system": "Sistema",
       "title": "Aspetto"
     },
+    "calendar": {
+      "approveEachWeek": "Approva ogni settimana",
+      "approveEachWeekDetail": "Ogni nuova settimana di allenamento attende la tua approvazione invece di partire da sola 7 giorni prima. Una settimana che non approvi non arriva mai al tuo ciclocomputer.",
+      "startAtLogin": "Avvia Enduragent all’accesso",
+      "startAtLoginDetail": "Le settimane successive vengono inviate solo mentre l’app è in esecuzione; la finestra può restare chiusa.",
+      "title": "Calendario",
+      "unavailable": "Impossibile caricare le impostazioni del calendario."
+    },
     "language": {
       "automaticDetail": "Automatico usa la lingua di {{operatingSystem}}. Il coach risponde nella lingua in cui scrivi.",
       "explicitDetail": "L’app e il coach usano questa lingua.",
@@ -1527,6 +1535,38 @@
       "activity": {
         "extra": "Extra",
         "untitled": "Uscita"
+      },
+      "approve": {
+        "approve": "Approva",
+        "approveCount_one": "Approva {{count}} allenamento",
+        "approveCount_other": "Approva {{count}} allenamenti",
+        "body_one": "{{count}} allenamento viene aggiunto al tuo calendario intervals.icu. Nulla di ciò che c’è già viene modificato o eliminato. Il tuo ciclocomputer lo scarica da intervals.icu.",
+        "body_other": "{{count}} allenamenti vengono aggiunti al tuo calendario intervals.icu. Nulla di ciò che c’è già viene modificato o eliminato. Il tuo ciclocomputer li scarica uno per uno da intervals.icu.",
+        "captionFirst": "Set di modifiche agli allenamenti · dal tuo nuovo piano",
+        "captionWeek": "Set di modifiche agli allenamenti · prossima settimana di allenamento",
+        "connect": "Collega intervals.icu",
+        "dayRange": "{{first}}–{{last}}",
+        "failed": "Inviati: {{sent}} su {{total}}. Non inviati: {{days}}, perché intervals.icu non ha risposto.",
+        "loginBody": "Le settimane successive vengono inviate solo mentre l’app è in esecuzione; la finestra può restare chiusa. Attiva questa opzione perché vengano inviate in tempo. È lo stesso interruttore delle Impostazioni.",
+        "loginTitle": "Avvia Enduragent all’accesso",
+        "notConnected": "intervals.icu non è connesso. Il piano è salvato e questi allenamenti restano qui, contrassegnati come «solo nel piano».",
+        "notNow": "Non ora",
+        "refused": "Questo set di modifiche non è più aggiornato. Il calendario ora mostra il piano più recente.",
+        "retry": "Riprova",
+        "sending_one": "Invio di {{count}} allenamento a intervals.icu…",
+        "sending_other": "Invio di {{count}} allenamenti a intervals.icu…",
+        "titleFirstOne": "Inviare questa settimana di allenamento a intervals.icu?",
+        "titleFirstTwo": "Inviare le prime due settimane di allenamento a intervals.icu?",
+        "titleWeek": "Inviare la settimana {{week}} a intervals.icu?",
+        "weekHeader": "Settimana {{week}} · {{range}}",
+        "weekHeaderCount_one": "Settimana {{week}} · {{range}} · {{count}} allenamento",
+        "weekHeaderCount_other": "Settimana {{week}} · {{range}} · {{count}} allenamenti"
+      },
+      "banner": {
+        "detail_one": "{{count}} allenamento, {{duration}}, dal {{date}}. Viene inviata quando la approvi.",
+        "detail_other": "{{count}} allenamenti, {{duration}}, dal {{date}}. Viene inviata quando la approvi.",
+        "lead": "La settimana {{week}} è pronta:",
+        "review": "Controlla e approva"
       },
       "column": {
         "trainingWeek": "Settimana di allenamento",
