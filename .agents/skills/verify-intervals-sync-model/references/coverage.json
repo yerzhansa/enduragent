@@ -1,0 +1,33 @@
+{
+  "syncCommit": "0fac1bb6",
+  "fingerprints": {
+    "packages/coach-client/src/client.ts :: private call<": "82a51122d5da",
+    "packages/coach-client/src/client.ts :: pending.timer = setTimeout(": "b513b1452916",
+    "packages/coach-client/src/client.ts :: private timeOut(": "ab02d0edf50c",
+    "packages/coach-client/src/client.ts :: private latchTerminal(": "eb1dbfb9190c",
+    "packages/coach-client/src/client.ts :: private readonly onSocketClose": "6ae659e5e8a9",
+    "packages/coach-client/src/call-timeouts.ts :: getActivityAnalysis:": "8d0063591c78",
+    "packages/coach-client/src/call-timeouts.ts :: configureRuntime:": "55206dd40ea0",
+    "apps/desktop-renderer/src/coach-client.ts :: export function createDesktopCoachClientProvider(": "924ab5a57b8a",
+    "apps/desktop-renderer/src/training-sync.ts :: export function createTrainingSyncCoordinator(": "a9e747946b7c",
+    "apps/desktop-renderer/src/boot.ts :: refreshTrainingContext: async () =>": "931b76f8bbfd",
+    "apps/desktop-renderer/src/activity-analysis/controller.ts :: export function createRideAnalysisController(": "7bf526a88db1",
+    "apps/desktop-renderer/src/chat/controller.ts :: const failProtocol = (): void =>": "2882b3304fa7",
+    "packages/coach/src/store-runtime.ts :: runWindowAfter(": "1536c39ee5a7",
+    "packages/coach/src/store-runtime.ts :: runOutsideWindow<T>(": "6628c524e16b",
+    "packages/coach/src/store-runtime.ts :: private admit<T>(": "55088fc79519",
+    "packages/coach/src/store-runtime.ts :: private enter(": "4632647fcfa9",
+    "packages/coach/src/store-runtime.ts :: private leave(": "a6b8ed7af4be",
+    "packages/coach/src/store-runtime.ts :: private async runScheduledWindow()": "bd0021ebc2f3",
+    "packages/coach/src/operations.ts :: sync(request: SyncRpcParams, onEvent)": "4105b109942b",
+    "packages/coach/src/operations.ts :: ): Promise<ConfigureRuntimeRpcResult> {": "dd0599fe647a",
+    "packages/coach/src/daemon/rpc-server.ts :: case \"sync\":": "2286ad38789b",
+    "packages/coach/src/composition.ts :: pendingOwnerClaim = await assertIntervalsOwner(": "180b55112bf0",
+    "apps/desktop/src/main/credential-runtime.ts :: reapplyStoredCredential(slot, value, storedCredentialSlots) {": "2e8ac15b7400",
+    "apps/desktop/src/main/credential-runtime.ts :: async clearCredential(credential) {": "f57465b65a4e",
+    "apps/desktop/src/main/credential-vault.ts :: const reapplyConfigured = async": "c9f90385d551",
+    "apps/desktop/src/main/credential-vault.ts :: const retryFailed = async": "b97c38e65c8f",
+    "apps/desktop/src/main/credential-vault.ts :: if (shouldClearRuntime) {": "54a20674c22e",
+    "apps/desktop/src/main/index.ts :: await vault.reapplyConfigured();": "272aa6176faf"
+  }
+}
