@@ -941,6 +941,7 @@ describe("engine durable chat queue", () => {
     const result = await engine.resumeChatQueue!({ chatId: "desktop" }, (event) =>
       events.push(event),
     );
+    if (engine.settle === undefined) throw new Error("engine.settle is unavailable");
     await engine.settle({ chatId: "desktop" });
 
     expect(result.response?.text).toBe(
