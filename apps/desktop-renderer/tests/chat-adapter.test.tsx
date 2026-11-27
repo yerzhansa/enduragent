@@ -144,6 +144,7 @@ describe("chat view adapter", () => {
       noticeMessage: undefined,
       noticeTone: "neutral",
       noticeRetry: false,
+      noticeAddCredits: false,
       coachProgress: CHAT_WORKING_COPY,
       interrupted: false,
       workBlocked: true,

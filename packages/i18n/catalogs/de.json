@@ -1080,7 +1080,8 @@
       "feedbackFailed": "Die Notiz konnte nicht gesendet werden. Sie bleibt im Feld — versuch es noch einmal.",
       "feedbackSent": "Danke — wir haben deine Notiz erhalten.",
       "feedbackTooLong": "Halte deine Notiz auf 4000 Zeichen oder weniger. Es wurde nichts gesendet.",
-      "feedbackUsage": "Schick /feedback gefolgt von deiner Notiz."
+      "feedbackUsage": "Schick /feedback gefolgt von deiner Notiz.",
+      "addCredits": "Guthaben aufladen"
     },
     "planChange": {
       "activePlan": "Aktiver Plan",
@@ -2672,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} hat die Anfrage abgelehnt. Prüfe deine Verbindung zu {{service}} oder deinen API-Schlüssel.",
       "intervalsTransient": "Ich kann {{service}} gerade nicht erreichen. Versuche es gleich noch einmal.",
+      "openRouterCredits": "Dein {{openrouter}}-Konto hat nicht genug Guthaben. Lade Guthaben bei {{openrouter}} auf und sende deine Nachricht dann erneut.",
       "providerCredentials": "Der Modellanbieter hat den API-Schlüssel abgelehnt. Prüfe deine Zugangsdaten beim Anbieter.",
       "providerDown": "Der Modellanbieter hat gerade Probleme. Versuche es in ein paar Minuten erneut.",
       "rateLimit": "Anfragelimit erreicht. Versuche es gleich noch einmal.",

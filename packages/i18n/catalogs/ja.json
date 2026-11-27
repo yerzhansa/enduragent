@@ -1072,7 +1072,8 @@
       "feedbackFailed": "メモを送れませんでした。入力欄に残っています。もう一度お試しください。",
       "feedbackSent": "ありがとうございます。メモを受け取りました。",
       "feedbackTooLong": "メモは4000文字以内にしてください。送信されていません。",
-      "feedbackUsage": "/feedback のあとにメモを送ってください。"
+      "feedbackUsage": "/feedback のあとにメモを送ってください。",
+      "addCredits": "クレジットを追加"
     },
     "planChange": {
       "activePlan": "有効なプラン",
@@ -2642,6 +2643,7 @@
     "error": {
       "intervalsCredentials": "{{service}}がリクエストを拒否しました。{{service}}の接続またはAPIキーを確認してください。",
       "intervalsTransient": "今は{{service}}に接続できません。少し待ってから、もう一度お試しください。",
+      "openRouterCredits": "{{openrouter}}アカウントのクレジットが不足しています。{{openrouter}}でクレジットを追加してから、メッセージをもう一度送信してください。",
       "providerCredentials": "モデルのプロバイダーがAPIキーを拒否しました。プロバイダーの認証情報を確認してください。",
       "providerDown": "モデルのプロバイダーで問題が起きています。数分後に、もう一度お試しください。",
       "rateLimit": "リクエストの上限に達しました。少し待ってから、もう一度お試しください。",

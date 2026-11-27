@@ -38,6 +38,7 @@ export interface ChatMessageView {
   readonly retry?: true;
   readonly error?: string;
   readonly errorMessage?: WireMessage;
+  readonly addCredits?: true;
 }
 
 export interface ChatQueuedView {
@@ -106,6 +107,7 @@ export interface ChatSurfaceState {
   readonly noticeMessage?: WireMessage;
   readonly noticeTone: "danger" | "neutral";
   readonly noticeRetry: boolean;
+  readonly noticeAddCredits: boolean;
   readonly coachProgress: string | null;
   readonly interrupted: boolean;
   readonly workBlocked: boolean;
@@ -163,6 +165,7 @@ export interface ChatActions {
   runQueuedCommand(id: string): void;
   retryQueuedTurn(claimId: string): void;
   retry(): void;
+  openOpenRouterCredits(): void;
   loadEarlier(): void;
   retryHydration(): void;
   retryDecision(): void;
@@ -210,6 +213,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   notice: null,
   noticeTone: "neutral",
   noticeRetry: false,
+  noticeAddCredits: false,
   coachProgress: null,
   interrupted: false,
   workBlocked: false,
@@ -339,6 +343,7 @@ export function sameChatMessages(
       message.retry === other.retry &&
       message.error === other.error &&
       JSON.stringify(message.errorMessage) === JSON.stringify(other.errorMessage) &&
+      message.addCredits === other.addCredits &&
       sameAttachments(message.attachments, other.attachments)
     );
   });
@@ -422,6 +427,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     JSON.stringify(left.noticeMessage) === JSON.stringify(right.noticeMessage) &&
     left.noticeTone === right.noticeTone &&
     left.noticeRetry === right.noticeRetry &&
+    left.noticeAddCredits === right.noticeAddCredits &&
     left.coachProgress === right.coachProgress &&
     left.interrupted === right.interrupted &&
     left.retryRequired === right.retryRequired &&

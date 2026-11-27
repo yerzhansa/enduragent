@@ -1072,7 +1072,8 @@
       "feedbackFailed": "未能傳送該備註。內容仍在輸入框中，請再試一次。",
       "feedbackSent": "謝謝，我們已收到你的備註。",
       "feedbackTooLong": "請將備註控制在 4000 個字元以內。未傳送任何內容。",
-      "feedbackUsage": "傳送 /feedback，後接你的備註。"
+      "feedbackUsage": "傳送 /feedback，後接你的備註。",
+      "addCredits": "新增額度"
     },
     "planChange": {
       "activePlan": "目前啟用的計畫",
@@ -2642,6 +2643,7 @@
     "error": {
       "intervalsCredentials": "{{service}} 拒絕了請求。請檢查 {{service}} 連線或 API 金鑰。",
       "intervalsTransient": "暫時無法連線至 {{service}}，請稍後重試。",
+      "openRouterCredits": "{{openrouter}} 帳號額度不足。請在 {{openrouter}} 新增額度，然後重新傳送訊息。",
       "providerCredentials": "模型服務供應商拒絕了 API 金鑰，請檢查服務供應商憑證。",
       "providerDown": "模型服務供應商遇到了問題，請過幾分鐘再試。",
       "rateLimit": "請求過於頻繁，請稍後重試。",

@@ -1072,7 +1072,8 @@
       "feedbackFailed": "메모를 보내지 못했습니다. 입력란에 그대로 있습니다. 다시 시도하세요.",
       "feedbackSent": "감사합니다. 메모를 받았습니다.",
       "feedbackTooLong": "메모는 4000자 이하로 적어 주세요. 아무것도 전송되지 않았습니다.",
-      "feedbackUsage": "/feedback 다음에 메모를 보내세요."
+      "feedbackUsage": "/feedback 다음에 메모를 보내세요.",
+      "addCredits": "크레딧 추가"
     },
     "planChange": {
       "activePlan": "활성 계획",
@@ -2642,6 +2643,7 @@
     "error": {
       "intervalsCredentials": "{{service}}에서 요청을 거부했습니다. {{service}} 연결이나 API 키를 확인해 주세요.",
       "intervalsTransient": "지금은 {{service}}에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      "openRouterCredits": "{{openrouter}} 계정에 크레딧이 부족합니다. {{openrouter}}에서 크레딧을 추가한 후 메시지를 다시 보내 주세요.",
       "providerCredentials": "모델 제공업체가 API 키를 거부했습니다. 제공업체 인증 정보를 확인해 주세요.",
       "providerDown": "모델 제공업체에 문제가 있습니다. 몇 분 후 다시 시도해 주세요.",
       "rateLimit": "요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",

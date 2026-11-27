@@ -1072,7 +1072,8 @@
       "feedbackFailed": "未能发送该备注。内容仍在输入框中，请再试一次。",
       "feedbackSent": "谢谢，我们已收到你的备注。",
       "feedbackTooLong": "请将备注控制在 4000 个字符以内。未发送任何内容。",
-      "feedbackUsage": "发送 /feedback，后接你的备注。"
+      "feedbackUsage": "发送 /feedback，后接你的备注。",
+      "addCredits": "添加额度"
     },
     "planChange": {
       "activePlan": "当前启用的计划",
@@ -2642,6 +2643,7 @@
     "error": {
       "intervalsCredentials": "{{service}} 拒绝了请求。请检查 {{service}} 连接或 API 密钥。",
       "intervalsTransient": "暂时无法连接 {{service}}，请稍后重试。",
+      "openRouterCredits": "{{openrouter}} 账号额度不足。请在 {{openrouter}} 添加额度，然后重新发送消息。",
       "providerCredentials": "模型服务商拒绝了 API 密钥，请检查服务商凭据。",
       "providerDown": "模型服务商遇到了问题，请过几分钟再试。",
       "rateLimit": "请求过于频繁，请稍后重试。",

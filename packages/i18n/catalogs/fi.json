@@ -1080,7 +1080,8 @@
       "feedbackFailed": "Viestiä ei voitu lähettää. Se on yhä kentässä — yritä uudelleen.",
       "feedbackSent": "Kiitos — vastaanotimme viestisi.",
       "feedbackTooLong": "Pidä viesti enintään 4000 merkin pituisena. Mitään ei lähetetty.",
-      "feedbackUsage": "Lähetä /feedback ja sen perään viestisi."
+      "feedbackUsage": "Lähetä /feedback ja sen perään viestisi.",
+      "addCredits": "Lisää krediittejä"
     },
     "planChange": {
       "activePlan": "Aktiivinen suunnitelma",
@@ -2672,6 +2673,7 @@
     "error": {
       "intervalsCredentials": "{{service}} hylkäsi pyynnön. Tarkista {{service}}-yhteytesi tai API-avaimesi.",
       "intervalsTransient": "En saanut juuri nyt yhteyttä palveluun {{service}}. Yritä pian uudelleen.",
+      "openRouterCredits": "{{openrouter}}-tililläsi ei ole tarpeeksi krediittejä. Lisää krediittejä palvelussa {{openrouter}} ja lähetä sitten viestisi uudelleen.",
       "providerCredentials": "Mallin palveluntarjoaja hylkäsi API-avaimen. Tarkista palveluntarjoajan tunnistautumistietosi.",
       "providerDown": "Mallin palveluntarjoajalla on ongelmia. Yritä uudelleen muutaman minuutin kuluttua.",
       "rateLimit": "Pyyntöjä on nyt liikaa. Yritä pian uudelleen.",

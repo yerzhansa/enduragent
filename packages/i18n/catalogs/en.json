@@ -160,6 +160,7 @@
       "title": "Start a new conversation?"
     },
     "notice": {
+      "addCredits": "Add credits",
       "attachmentFailure": "We couldn’t update that attachment. Your message draft is preserved.",
       "checkingTraining": "Checking your training data…",
       "choiceUnchanged": "No coaching choice was applied.",
@@ -797,6 +798,7 @@
     "error": {
       "intervalsCredentials": "{{service}} rejected the request — check your {{service}} connection or API key.",
       "intervalsTransient": "Couldn't reach {{service}} right now — try again shortly.",
+      "openRouterCredits": "Your {{openrouter}} account doesn't have enough credits. Add credits on {{openrouter}}, then send your message again.",
       "providerCredentials": "The model provider rejected the API key — check your provider credentials.",
       "providerDown": "The model provider is having trouble — try again in a few minutes.",
       "rateLimit": "Rate limited — please try again shortly.",
