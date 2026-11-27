@@ -62,7 +62,7 @@ export {
   projectPowerCurveDelta,
 } from "./reference/index.js";
 
-export { buildCreationDraft } from "./creation-draft-builder.js";
+export { buildCreationDraft, creationStart, pickedStart } from "./creation-draft-builder.js";
 export {
   applyScheduleIntent,
   applySupportingEventIntent,

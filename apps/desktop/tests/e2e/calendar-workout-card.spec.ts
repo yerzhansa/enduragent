@@ -61,6 +61,23 @@ test.describe("The workout card", () => {
       await expect(card).toBeHidden();
       const dialog = page.locator("[data-move-dialog]");
       await expect(dialog, "Move… opens no move dialog").toBeVisible();
+      const later = dialog.getByRole("button", { name: "Later day", exact: true });
+      for (let press = 0; press < 40; press += 1) {
+        if ((await later.getAttribute("aria-disabled")) === "true") break;
+        await later.click();
+      }
+      await expect(later, "Later day never reaches the Plan's last day").toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      await expect(later, "the last Later day press drops focus").toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(dialog, "Escape no longer closes the move dialog").toBeHidden();
+      await expect(source).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: "Move…", exact: true }).click();
+      await expect(dialog).toBeVisible();
       await expect(cell(scenario, toDateKey).locator("[data-move-preview]")).toBeVisible();
       await snap(scenario, "workout-card-move-light");
       await dialog.getByRole("button", { name: "Move", exact: true }).click();
@@ -81,12 +98,18 @@ test.describe("The workout card", () => {
       await snap(scenario, "workout-card-moved-light");
       await page.keyboard.press("Enter");
       await expect(card).toBeVisible();
+      const previews = () =>
+        scenario.backend.creationRequests.filter(
+          (request) => request.method === "plan_change.preview",
+        ).length;
+      const previewsBefore = previews();
       await card.getByRole("button", { name: "Ask the coach to change it", exact: true }).click();
       const composer = page.locator("#message");
       await expect(composer).toBeVisible();
       await expect(composer).toHaveValue(new RegExp(`^Please change ${workoutName} on `, "u"));
       await snap(scenario, "workout-card-ask-light");
       expect(scenario.backend.chatSubmissions, "asking the coach sent a message").toBe(0);
+      expect(previews(), "asking the coach asked for a Plan change").toBe(previewsBefore);
     } finally {
       await close(scenario);
     }

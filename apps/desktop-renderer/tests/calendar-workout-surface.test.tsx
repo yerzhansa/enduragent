@@ -1,9 +1,13 @@
 import { renderLocalized as render } from "./language-harness";
-import type { PlanCalendarRpcResult, PlanCalendarWorkout } from "@enduragent/coach-contract";
-import { act, screen, within } from "@testing-library/react";
+import type {
+  PlanCalendarRpcResult,
+  PlanCalendarWeek,
+  PlanCalendarWorkout,
+} from "@enduragent/coach-contract";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHANGE_SHEET_CLOSED } from "../src/calendar/change-controller";
+import { CHANGE_SHEET_CLOSED, type ChangeDetail } from "../src/calendar/change-controller";
 import { CALENDAR_START } from "../src/calendar/controller";
 import type { PlanCalendarRead } from "../src/calendar/grid";
 import { createMoveController, MOVE_DIALOG_CLOSED } from "../src/calendar/move-controller";
@@ -19,7 +23,13 @@ import { calendarRead, PLAN_ID, plan, week, workout, workoutId } from "./calenda
 const MONDAY = 19980112;
 const TODAY = 19980114;
 
-function read(extra: { readonly second?: Partial<PlanCalendarWorkout> } = {}): PlanCalendarRead {
+function read(
+  extra: {
+    readonly second?: Partial<PlanCalendarWorkout>;
+    readonly weekTwo?: Partial<PlanCalendarWeek>;
+    readonly withoutSecond?: boolean;
+  } = {},
+): PlanCalendarRead {
   return calendarRead(
     TODAY,
     plan(
@@ -29,16 +39,21 @@ function read(extra: { readonly second?: Partial<PlanCalendarWorkout> } = {}): P
         week(2, 19980119, {
           plannedS: 3_600,
           status: { kind: "goes-out", onDateKey: 19980112 },
+          ...extra.weekTwo,
         }),
       ],
       [
         workout(1, TODAY, { name: "Long endurance", durationS: 9_000, movable: true }),
-        workout(2, 19980120, {
-          name: "Tempo",
-          copy: { kind: "plan-only" },
-          movable: true,
-          ...extra.second,
-        }),
+        ...(extra.withoutSecond === true
+          ? []
+          : [
+              workout(2, 19980120, {
+                name: "Tempo",
+                copy: { kind: "plan-only" },
+                movable: true,
+                ...extra.second,
+              }),
+            ]),
         workout(3, MONDAY, {
           name: "Endurance",
           movable: false,
@@ -53,7 +68,7 @@ function show(calendar = read()) {
   const prefillComposer = vi.fn();
   const openChangeInChat = vi.fn();
   const card = createWorkoutCardController({
-    composerText: () => "",
+    composerEmpty: () => true,
     prefillComposer,
     openChangeInChat,
     publish: (next) => useEnduragentStore.getState().setCalendarWorkout(next),
@@ -65,6 +80,7 @@ function show(calendar = read()) {
     publish: (next) => useEnduragentStore.getState().setCalendarMove(next),
   });
   const changeOpen = vi.fn();
+  const approveOpen = vi.fn();
   const exportWorkoutArchive = vi.fn(async () => undefined);
   act(() => {
     useEnduragentStore.setState({
@@ -87,9 +103,17 @@ function show(calendar = read()) {
       },
       calendarChangeActions: { open: changeOpen, keep: vi.fn(), putBack: vi.fn(), close: vi.fn() },
       trainingExportActions: { exportActivity: vi.fn(), exportWorkoutArchive },
+      calendarApproveActions: {
+        open: approveOpen,
+        setRemoveChanges: vi.fn(),
+        approve: vi.fn(),
+        notNow: vi.fn(),
+        retry: vi.fn(),
+        connect: vi.fn(),
+      },
     });
   });
-  return { prefillComposer, openChangeInChat, call, changeOpen, exportWorkoutArchive };
+  return { prefillComposer, openChangeInChat, call, changeOpen, approveOpen, exportWorkoutArchive };
 }
 
 const gridCard = (id: string) => {
@@ -108,6 +132,7 @@ afterEach(() => {
       calendarMoveActions: null,
       calendarChange: CHANGE_SHEET_CLOSED,
       calendarChangeActions: null,
+      calendarApproveActions: null,
       trainingExport: IDLE_TRAINING_EXPORT,
       trainingExportActions: null,
     });
@@ -131,7 +156,7 @@ describe("the workout card on the Calendar", () => {
       within(card)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Move…", "Ask the coach to change it", "Export", "Close"]);
+    ).toEqual(["Close", "Move…", "Ask the coach to change it", "Export this day’s workouts"]);
     expect(gridCard(workoutId(1))).toHaveAttribute("aria-expanded", "true");
     expect(document.querySelector("[data-calendar-state]")).toBeInTheDocument();
   });
@@ -169,11 +194,13 @@ describe("the workout card on the Calendar", () => {
     expect(tempo.querySelector('[data-workout-copy="plan-only"]')).toHaveTextContent(
       "In the Plan only, goes out Mon 12 Jan",
     );
-    expect(within(tempo).queryByRole("button", { name: "Export" })).toBeNull();
+    expect(within(tempo).queryByRole("button", { name: "Export this day’s workouts" })).toBeNull();
     await user.click(gridCard(workoutId(3)));
     const done = screen.getByRole("dialog", { name: "Endurance" });
     expect(within(done).queryByRole("button", { name: "Move…" })).toBeNull();
-    expect(within(done).getByRole("button", { name: "Export" })).toBeInTheDocument();
+    expect(
+      within(done).getByRole("button", { name: "Export this day’s workouts" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps opening the change sheet for a workout changed in intervals.icu", async () => {
@@ -207,11 +234,11 @@ describe("the workout card on the Calendar", () => {
     const dialog = screen.getByRole("dialog", { name: "Move Long endurance to Thu 15 Jan?" });
     const earlier = within(dialog).getByRole("button", { name: "Earlier day" });
     const later = within(dialog).getByRole("button", { name: "Later day" });
-    expect(earlier).toBeDisabled();
+    expect(earlier).toHaveAttribute("aria-disabled", "true");
     await user.click(later);
     expect(screen.getByRole("dialog", { name: "Move Long endurance to Fri 16 Jan?" })).toBe(dialog);
     expect(later).toHaveFocus();
-    expect(earlier).toBeEnabled();
+    expect(earlier).toHaveAttribute("aria-disabled", "false");
     await user.click(earlier);
     expect(dialog).toHaveAccessibleName("Move Long endurance to Thu 15 Jan?");
     await user.click(within(dialog).getByRole("button", { name: "Move" }));
@@ -255,7 +282,7 @@ describe("the workout card on the Calendar", () => {
     render(<CalendarView />);
     await user.click(gridCard(workoutId(1)));
     const card = screen.getByRole("dialog", { name: "Long endurance" });
-    const toggle = within(card).getByRole("button", { name: "Export" });
+    const toggle = within(card).getByRole("button", { name: "Export this day’s workouts" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -296,5 +323,138 @@ describe("the workout card on the Calendar", () => {
     });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(useEnduragentStore.getState().calendarWorkout).toEqual(WORKOUT_CARD_CLOSED);
+  });
+
+  it("keeps focus on a step button at the last day, and Escape still closes the dialog", async () => {
+    const user = userEvent.setup();
+    show();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    const dialog = screen.getByRole("dialog", { name: "Move Long endurance to Thu 15 Jan?" });
+    const later = within(dialog).getByRole("button", { name: "Later day" });
+    expect(within(dialog).getByRole("button", { name: "Earlier day" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    for (let press = 0; press < 12; press += 1) await user.click(later);
+    expect(dialog).toHaveAccessibleName("Move Long endurance to Sun 25 Jan?");
+    expect(later).toHaveAttribute("aria-disabled", "true");
+    expect(later).toHaveFocus();
+    expect(within(dialog).getByRole("heading")).toHaveAttribute("aria-live", "polite");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(gridCard(workoutId(1))).toHaveFocus();
+  });
+});
+
+describe("one Calendar sheet at a time", () => {
+  function transfer() {
+    return { setData: vi.fn(), getData: vi.fn(), effectAllowed: "", dropEffect: "" };
+  }
+
+  it("closes the card when a workout is dragged to another day", async () => {
+    const user = userEvent.setup();
+    show();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    const dataTransfer = transfer();
+    const target = document.querySelector('[role="cell"][data-date-key="19980116"]');
+    if (target === null) throw new Error("No Friday");
+    fireEvent.dragStart(gridCard(workoutId(1)), { dataTransfer });
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+    expect(screen.queryByRole("dialog", { name: "Long endurance" })).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Move Long endurance to Fri 16 Jan?" }),
+    ).toBeVisible();
+  });
+
+  it("cancels the move dialog when another workout is opened", async () => {
+    const user = userEvent.setup();
+    show();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    await user.click(gridCard(workoutId(2)));
+    expect(useEnduragentStore.getState().calendarMove).toEqual(MOVE_DIALOG_CLOSED);
+    expect(screen.getByRole("dialog", { name: "Tempo" })).toBeVisible();
+  });
+
+  it("opens nothing while a change from intervals.icu is being kept", async () => {
+    const user = userEvent.setup();
+    show();
+    const detail: ChangeDetail = {
+      status: "change-detail",
+      planWorkoutId: workoutId(2),
+      basis: "7@19980120:seen",
+      change: "edited",
+      plan: { dateKey: 19980120, name: "Tempo", durationS: 3_600, description: null },
+      intervals: { dateKey: 19980120, name: "Tempo", durationS: 2_700, description: null },
+      editedAt: null,
+    };
+    act(() => {
+      useEnduragentStore.setState({
+        calendarChange: { kind: "working", planId: PLAN_ID, detail, choice: "keep" },
+      });
+    });
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    expect(useEnduragentStore.getState().calendarWorkout).toEqual(WORKOUT_CARD_CLOSED);
+    expect(screen.getByRole("button", { name: "Plan details" })).toBeDisabled();
+  });
+
+  it("closes the card before Review opens the Approve sheet", async () => {
+    const user = userEvent.setup();
+    const bound = show(read({ weekTwo: { status: { kind: "waiting-for-week-approve" } } }));
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Review and approve" }));
+    expect(useEnduragentStore.getState().calendarWorkout).toEqual(WORKOUT_CARD_CLOSED);
+    expect(bound.approveOpen).toHaveBeenCalledWith({ kind: "week", week: 2 });
+  });
+
+  it("marks the workout whose change sheet is open, without calling it a dialog", () => {
+    show(
+      read({
+        second: {
+          copy: {
+            kind: "changed-in-intervals",
+            change: "edited",
+            toDateKey: null,
+            name: "Tempo",
+            durationS: 1_800,
+          },
+        },
+      }),
+    );
+    act(() => {
+      useEnduragentStore.setState({
+        calendarChange: { kind: "loading", planId: PLAN_ID, planWorkoutId: workoutId(2) },
+      });
+    });
+    render(<CalendarView />);
+    expect(gridCard(workoutId(2))).toHaveAttribute("aria-expanded", "true");
+    expect(gridCard(workoutId(2))).not.toHaveAttribute("aria-haspopup");
+    expect(gridCard(workoutId(1))).toHaveAttribute("aria-haspopup", "dialog");
+  });
+
+  it("gives focus to the grid when a refresh removes the open workout", async () => {
+    const user = userEvent.setup();
+    show();
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(2)));
+    act(() => {
+      useEnduragentStore.setState({
+        calendar: {
+          kind: "ready",
+          read: read({ withoutSecond: true }),
+          range: { firstRowStart: MONDAY, rowCount: 2 },
+          refresh: "idle",
+        },
+      });
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.querySelector("[data-calendar-grid]")).toHaveFocus();
   });
 });

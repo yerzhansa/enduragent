@@ -1429,7 +1429,6 @@
       "staleDetail": "Dette utkastet bevarer de tidligere svarene og treningsøktene. Lag det på nytt før aktivering.",
       "startDateMinimum": "Velg en dato på eller etter {{date}}.",
       "startLabel": "Starttidspunkt",
-      "startTimingRequired": "Velg når denne planen kan starte.",
       "submittedLabel": "Sendt inn",
       "successLabel": "Hva det vil si å lykkes",
       "successLabelShort": "Suksess",

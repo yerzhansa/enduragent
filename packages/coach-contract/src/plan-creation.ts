@@ -425,6 +425,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
       step: PlanCreationQuestionStepSchema,
       prompt: z.string().min(1).max(240),
       earliestAllowed: PlanCreationCivilDateSchema,
+      latestAllowed: PlanCreationCivilDateSchema.optional(),
       options: z
         .array(
           z
@@ -436,11 +437,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
             .strict(),
         )
         .length(2)
-        .refine(
-          (options) =>
-            new Set(options.map((option) => option.timing)).size === 2 &&
-            options.some((option) => option.timing === "earliest"),
-        ),
+        .refine((options) => options.filter((option) => option.timing === "earliest").length === 1),
       dateLabel: z.string().min(1).max(128),
     })
     .strict(),

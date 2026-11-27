@@ -1429,7 +1429,6 @@
       "staleDetail": "Ce brouillon conserve les réponses et les entraînements précédents. Recrée-le avant d’activer le plan.",
       "startDateMinimum": "Choisis le {{date}} ou une date ultérieure.",
       "startLabel": "Moment du début",
-      "startTimingRequired": "Choisis quand ce plan peut commencer.",
       "submittedLabel": "Envoyé",
       "successLabel": "Critère de réussite",
       "successLabelShort": "Réussite",

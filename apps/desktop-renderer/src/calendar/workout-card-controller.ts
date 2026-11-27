@@ -11,7 +11,7 @@ export interface WorkoutCardController {
 }
 
 export function createWorkoutCardController(deps: {
-  composerText(): string;
+  composerEmpty(): boolean;
   prefillComposer(text: string): void;
   openChangeInChat(): void;
   publish(state: WorkoutCardState): void;
@@ -35,7 +35,7 @@ export function createWorkoutCardController(deps: {
     askCoach(draft) {
       if (state.kind !== "open") return;
       publish(WORKOUT_CARD_CLOSED);
-      if (deps.composerText().trim().length === 0) deps.prefillComposer(draft);
+      if (deps.composerEmpty()) deps.prefillComposer(draft);
       deps.openChangeInChat();
     },
   };

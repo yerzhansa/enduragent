@@ -1429,7 +1429,6 @@
       "staleDetail": "Denne kladde bevarer de tidligere svar og træninger. Opret den igen før aktivering.",
       "startDateMinimum": "Vælg en dato på eller efter {{date}}.",
       "startLabel": "Starttidspunkt",
-      "startTimingRequired": "Vælg, hvornår denne træningsplan kan starte.",
       "submittedLabel": "Indsendt",
       "successLabel": "Hvad succes betyder",
       "successLabelShort": "Succes",

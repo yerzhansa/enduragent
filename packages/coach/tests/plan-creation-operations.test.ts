@@ -619,6 +619,78 @@ describe("Plan Creation operations", () => {
     );
   });
 
+  it("never lets the start fall after the event, so Build Draft is not dead-ended", async () => {
+    const test = harness();
+    await answered(test.submit(eventGoal));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      earliestAllowed: today,
+      latestAllowed: eventCandidate.date,
+    });
+    await expect(
+      test.submit({ kind: "start-timing", timing: { kind: "earliest", date: "1998-10-19" } }),
+    ).resolves.toMatchObject({
+      status: "rejected",
+      reason: "invalid-answer",
+      planCreation: { openQuestion: { kind: "start-timing-question" } },
+    });
+    await answered(
+      test.submit({
+        kind: "start-timing",
+        timing: { kind: "earliest", date: eventCandidate.date },
+      }),
+    );
+  });
+
+  it("asks a Fitness Goal start with no latest day", async () => {
+    const test = harness();
+    await answered(test.submit(fitnessGoal));
+    await answered(test.submit({ kind: "plan-length", weeks: 4 }));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion?.kind).toBe("start-timing-question");
+    expect(asked.openQuestion).not.toHaveProperty("latestAllowed");
+  });
+
+  it("states the start the Draft will use when a picked day has already passed", () => {
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, eventGoal),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-08-31" } }),
+      ]),
+      { today },
+    );
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 7 Sept 1998" }),
+    );
+  });
+
+  it("states the start the Draft will use when the first picked week has no day to train", () => {
+    const card = projectPlanCreationCard(
+      snapshot(
+        [
+          eventGoal,
+          fixedMode,
+          fixedAvailability,
+          { kind: "start-timing", timing: { kind: "earliest", date: "1998-09-07" } },
+          noCommitments,
+          regularBaseline,
+          eventSuccess,
+          { kind: "restriction", restriction: { kind: "no-training", endDate: "1998-09-13" } },
+        ].map((answer, index) => stored(index + 1, answer as PlanCreationAnswerInput)),
+      ),
+      { today },
+    );
+    expect(card.readiness).toBe("ready");
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 14 Sept 1998" }),
+    );
+  });
+
   it("rejects an earliest start before the host civil date", async () => {
     const test = harness();
     await answered(test.submit(eventGoal));

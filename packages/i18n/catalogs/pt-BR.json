@@ -1429,7 +1429,6 @@
       "staleDetail": "Este rascunho mantém as respostas e os treinos anteriores. Recrie-o antes de ativar.",
       "startDateMinimum": "Escolha uma data igual ou posterior a {{date}}.",
       "startLabel": "Momento de início",
-      "startTimingRequired": "Escolha quando este plano pode começar.",
       "submittedLabel": "Enviado",
       "successLabel": "O que significa ter sucesso",
       "successLabelShort": "Sucesso",

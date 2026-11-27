@@ -1418,7 +1418,6 @@
       "staleDetail": "이 초안에는 이전 답변과 워크아웃이 유지되어 있습니다. 활성화하기 전에 다시 생성하세요.",
       "startDateMinimum": "{{date}} 또는 그 이후 날짜를 선택하세요.",
       "startLabel": "시작 시점",
-      "startTimingRequired": "이 계획을 시작할 수 있는 시점을 선택하세요.",
       "submittedLabel": "제출됨",
       "successLabel": "성공의 의미",
       "successLabelShort": "성공",

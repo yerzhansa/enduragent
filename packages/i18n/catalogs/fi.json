@@ -1429,7 +1429,6 @@
       "staleDetail": "Tämä luonnos säilyttää aiemmat vastaukset ja harjoitukset. Luo se uudelleen ennen aktivointia.",
       "startDateMinimum": "Valitse {{date}} tai sitä myöhempi päivämäärä.",
       "startLabel": "Aloitusajankohta",
-      "startTimingRequired": "Valitse, milloin tämä suunnitelma voi alkaa.",
       "submittedLabel": "Lähetetty",
       "successLabel": "Mitä onnistuminen tarkoittaa",
       "successLabelShort": "Onnistuminen",

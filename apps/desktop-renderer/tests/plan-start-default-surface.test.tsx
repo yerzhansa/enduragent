@@ -99,6 +99,45 @@ describe("the default Plan start", () => {
     expect(screen.queryByLabelText("Plan starts")).toBeNull();
   });
 
+  it("starts today when the event comes before the next first day of the week", async () => {
+    const user = userEvent.setup();
+    const onAnswer = show(null, { ...question, latestAllowed: "1998-10-03" });
+    const today = screen.getByRole("button", { name: "Thu 1 Oct" });
+    expect(today).toHaveTextContent("Today, before your event");
+    expect(screen.queryByRole("button", { name: "Mon 5 Oct" })).toBeNull();
+    await user.click(today);
+    expect(onAnswer).toHaveBeenCalledWith({
+      kind: "start-timing",
+      timing: { kind: "earliest", date: THURSDAY },
+    });
+  });
+
+  it("keeps a picked day on or before the event", async () => {
+    const user = userEvent.setup();
+    const onAnswer = show(null, { ...question, latestAllowed: "1998-10-03" });
+    await user.click(screen.getByRole("button", { name: "Pick another day" }));
+    const day = screen.getByLabelText("Plan starts");
+    expect(day).toHaveAttribute("max", "1998-10-03");
+    await user.type(day, "1998-10-04");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose a date on or before 3 Oct 1998.");
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+
+  it("shows only one start as chosen once the athlete picks another day", async () => {
+    const user = userEvent.setup();
+    show({ kind: "start-timing", timing: { kind: "earliest", date: "1998-10-05" } });
+    await user.click(screen.getByRole("button", { name: "Pick another day" }));
+    expect(screen.getByRole("button", { name: "Mon 5 Oct" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "Pick another day" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
   it("still shows a start question stored before the first-day option existed", () => {
     show(null, {
       ...question,

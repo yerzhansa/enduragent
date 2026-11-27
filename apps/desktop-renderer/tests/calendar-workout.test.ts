@@ -15,7 +15,7 @@ function harness(composer = "") {
   const prefillComposer = vi.fn();
   const openChangeInChat = vi.fn();
   const controller = createWorkoutCardController({
-    composerText: () => composer,
+    composerEmpty: () => composer.trim().length === 0,
     prefillComposer,
     openChangeInChat,
     publish: (state) => states.push(state),

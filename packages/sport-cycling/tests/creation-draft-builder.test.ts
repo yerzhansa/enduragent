@@ -7,7 +7,12 @@ import {
   weekdayForDateKey,
 } from "@enduragent/kernel/planning";
 import { describe, expect, it } from "vitest";
-import { buildCreationDraft, type CreationDraftInput } from "../src/creation-draft-builder.js";
+import {
+  buildCreationDraft,
+  creationStart,
+  pickedStart,
+  type CreationDraftInput,
+} from "../src/creation-draft-builder.js";
 import type { CommitmentRule } from "../src/commitments.js";
 
 function input(): CreationDraftInput {
@@ -234,7 +239,25 @@ describe("creation draft builder", () => {
     value.answers.startTiming = { kind: "earliest", date: "1998-09-01" };
     expect(build(value).start).toBe("1998-09-01");
     value.answers.startTiming = { kind: "earliest", date: "1998-08-01" };
-    expect(build(value).start).toBe("1998-08-24");
+    expect(build(value).start).toBe("1998-08-29");
+  });
+
+  it("keeps a picked weekday when the Draft is built after the picked day", () => {
+    const value = input();
+    value.today = "1998-09-08";
+    value.answers.startTiming = { kind: "earliest", date: "1998-09-07" };
+    const draft = build(value);
+    expect(draft.start).toBe("1998-09-14");
+    expect(draft.weeks.map((week) => week.start)).toEqual([
+      "1998-09-14",
+      "1998-09-21",
+      "1998-09-28",
+      "1998-10-05",
+    ]);
+    expect(creationStart(value)).toBe("1998-09-14");
+    expect(pickedStart("1998-09-07", "1998-09-07")).toBe("1998-09-07");
+    expect(pickedStart("1998-09-07", "1998-09-14")).toBe("1998-09-14");
+    expect(pickedStart("1998-09-07", "1998-09-15")).toBe("1998-09-21");
   });
 
   it.each([

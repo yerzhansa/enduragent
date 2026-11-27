@@ -1451,7 +1451,6 @@
       "staleDetail": "Ta wersja robocza zachowuje wcześniejsze odpowiedzi i treningi. Utwórz ją ponownie przed aktywacją.",
       "startDateMinimum": "Wybierz datę {{date}} lub późniejszą.",
       "startLabel": "Termin rozpoczęcia",
-      "startTimingRequired": "Wybierz, kiedy ten plan może się rozpocząć.",
       "submittedLabel": "Przesłano",
       "successLabel": "Co oznacza sukces",
       "successLabelShort": "Sukces",

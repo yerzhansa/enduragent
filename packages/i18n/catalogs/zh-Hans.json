@@ -1418,7 +1418,6 @@
       "staleDetail": "此草稿保留了之前的回答和训练课程。启用前请重新生成。",
       "startDateMinimum": "请选择 {{date}} 当天或之后的日期。",
       "startLabel": "开始时间",
-      "startTimingRequired": "请选择此计划何时可以开始。",
       "submittedLabel": "已提交",
       "successLabel": "成功的标准",
       "successLabelShort": "成功",

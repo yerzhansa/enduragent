@@ -120,7 +120,12 @@ export function WorkoutSheet(props: {
         }
       }}
     >
-      <span className="text-xs text-ink-2">{caption}</span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="pt-1.5 text-xs text-ink-2">{caption}</span>
+        <Button type="button" variant="outline" onClick={props.onClose}>
+          {say("plan.calendar.workout.close")}
+        </Button>
+      </div>
       <h2
         ref={heading}
         id={headingId}
@@ -170,9 +175,6 @@ export function WorkoutSheet(props: {
           />
         </div>
       ) : null}
-      <Button type="button" variant="ghost" onClick={props.onClose}>
-        {say("plan.calendar.workout.close")}
-      </Button>
     </div>
   );
 }

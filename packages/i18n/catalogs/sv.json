@@ -1429,7 +1429,6 @@
       "staleDetail": "Utkastet innehåller de tidigare svaren och träningspassen. Skapa om det innan du aktiverar.",
       "startDateMinimum": "Välj ett datum tidigast {{date}}.",
       "startLabel": "Starttidpunkt",
-      "startTimingRequired": "Välj när planen kan börja.",
       "submittedLabel": "Inskickat",
       "successLabel": "Vad det innebär att lyckas",
       "successLabelShort": "Framgång",

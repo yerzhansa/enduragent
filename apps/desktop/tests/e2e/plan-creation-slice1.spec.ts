@@ -103,10 +103,10 @@ async function answerThroughFitnessSuccess(scenario: Scenario): Promise<void> {
   await scenario.page.locator('[data-parity="availability.longest"]').fill("2");
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
   await waitForVersion(scenario.backend, 5);
-  await scenario.page.locator('[data-answer="earliest"]').click();
-  await scenario.page.getByLabel("Plan starts", { exact: true }).fill("1998-01-01");
-  await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-  await waitForVersion(scenario.backend, 6);
+  await expect(scenario.page.locator('[data-answer="first-day"]')).toContainText(
+    "First day of your week",
+  );
+  await choose(scenario.page, scenario.backend, 6, "first-day");
   await choose(scenario.page, scenario.backend, 7, "none");
   await choose(scenario.page, scenario.backend, 8, "regular");
   await choose(scenario.page, scenario.backend, 9, "train-consistently");
@@ -146,6 +146,22 @@ test("persists the Fitness success choice and restores the Restriction Card", as
         { command_name: "plan_creation.start", status: "succeeded" },
         { command_name: "plan_creation.answer", status: "succeeded" },
       ]),
+    );
+    const firstDay = await scenario.page.evaluate(
+      () =>
+        (window as unknown as { enduragentAuth: { platform: { firstDayOfWeek: number } } })
+          .enduragentAuth.platform.firstDayOfWeek,
+    );
+    const weekStart = `1998-01-0${1 + ((firstDay - 4 + 7) % 7)}`;
+    await choose(scenario.page, scenario.backend, 10, "none");
+    await scenario.page.getByRole("button", { name: "Build Draft", exact: true }).click();
+    await expect.poll(async () => (await scenario.backend.card())?.draft?.start).toBe(weekStart);
+    expect((await scenario.backend.card())?.draft?.weeks.map((week) => week.start)).toEqual(
+      [0, 7, 14, 21, 28, 35, 42, 49].map((days) =>
+        new Date(Date.parse(`${weekStart}T00:00:00Z`) + days * 86_400_000)
+          .toISOString()
+          .slice(0, 10),
+      ),
     );
   } finally {
     await close(scenario);

@@ -1418,7 +1418,6 @@
       "staleDetail": "この下書きには以前の回答とワークアウトが残っています。有効にする前に作り直してください。",
       "startDateMinimum": "{{date}}以降の日付を選んでください。",
       "startLabel": "開始時期",
-      "startTimingRequired": "このプランを開始できる時期を選んでください。",
       "submittedLabel": "送信済み",
       "successLabel": "成功の基準",
       "successLabelShort": "成功",

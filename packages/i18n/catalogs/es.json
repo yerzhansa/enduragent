@@ -1429,7 +1429,6 @@
       "staleDetail": "Este borrador conserva las respuestas y los entrenamientos anteriores. Vuelve a crearlo antes de activarlo.",
       "startDateMinimum": "Elige una fecha a partir del {{date}}.",
       "startLabel": "Momento de inicio",
-      "startTimingRequired": "Elige cuándo puede empezar este plan.",
       "submittedLabel": "Enviado",
       "successLabel": "Qué significa tener éxito",
       "successLabelShort": "Éxito",

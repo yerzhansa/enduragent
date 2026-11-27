@@ -16,6 +16,12 @@ import {
   type PlanCreationOpenQuestion,
 } from "@enduragent/coach-contract";
 import { type CreationDraftInput } from "@enduragent/sport-cycling";
+import {
+  goalEventDate,
+  startTimingDetail,
+  startTimingQuestion,
+  validStartTiming,
+} from "./plan-creation-start.js";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   PlanCreationStoreError,
@@ -347,6 +353,9 @@ const requireGoal = (flow: PlanCreationAnswerFlow): PlanCreationGoal => {
   return answer.kind === "goal" ? answer.goal : corrupt();
 };
 
+const eventDateOf = (snapshot: PlanCreationSnapshot, flow: PlanCreationAnswerFlow) =>
+  goalEventDate(requireGoal(flow), snapshot.seed?.eventCandidates ?? []);
+
 const hours = (value: number): string => `${value} h`;
 
 const baselineDetail = (baseline: "regular" | "occasional" | "starting-again"): string => {
@@ -419,6 +428,7 @@ function answerSummary(
   snapshot: PlanCreationSnapshot,
   stored: StoredPlanCreationAnswer,
   question: PlanCreationOpenQuestion,
+  today: string,
 ): PlanCreationAnswerSummary {
   const answer = stored.answer;
   const shared = { answerKey: answer.kind, question, answer, source: stored.source };
@@ -433,10 +443,7 @@ function answerSummary(
       return {
         ...shared,
         title: "Start timing",
-        detail:
-          answer.timing.kind === "as-soon-as-possible"
-            ? "As soon as possible"
-            : `Starts ${formatCivilDate(answer.timing.date)}`,
+        detail: startTimingDetail(answer.timing, today, resolvePlanCreationDraftAnswers(snapshot)),
       };
     case "schedule-mode":
       return {
@@ -573,25 +580,7 @@ function questionForKey(
         ],
       };
     case "start-timing":
-      return {
-        kind: "start-timing-question",
-        step,
-        prompt: "When should this Plan start?",
-        earliestAllowed: context.today,
-        options: [
-          {
-            timing: "first-day-of-week",
-            label: "First day of your week",
-            detail: "One calendar row is one Training Week.",
-          },
-          {
-            timing: "earliest",
-            label: "Pick another day",
-            detail: "The Plan starts on the day you pick.",
-          },
-        ],
-        dateLabel: "Plan starts",
-      };
+      return startTimingQuestion(step, context.today, eventDateOf(snapshot, flow));
     case "schedule-mode":
       return {
         kind: "schedule-mode-question",
@@ -730,7 +719,14 @@ export function projectPlanCreationAnswerSummaries(
     const stored = flow.valid.get(key);
     return stored === undefined
       ? []
-      : [answerSummary(snapshot, stored, questionForKey(snapshot, flow, context, key))];
+      : [
+          answerSummary(
+            snapshot,
+            stored,
+            questionForKey(snapshot, flow, context, key),
+            context.today,
+          ),
+        ];
   });
 }
 
@@ -803,7 +799,7 @@ export function validPlanCreationAnswer(
   }
   if (answer.kind === "plan-length") return requireGoal(flow).kind === "fitness";
   if (answer.kind === "start-timing") {
-    return answer.timing.kind === "as-soon-as-possible" || answer.timing.date >= today;
+    return validStartTiming(answer.timing, today, eventDateOf(snapshot, flow));
   }
   if (answer.kind === "availability") {
     const scheduleMode = flow.valid.get("schedule-mode")?.answer;

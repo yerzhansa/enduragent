@@ -8,6 +8,8 @@ import { useCalendarText, type CalendarText } from "./calendar-text";
 
 type Say = ReturnType<typeof usePhrasebook>["say"];
 
+const STEP = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+
 function effect(preview: MovePreview, text: CalendarText, say: Say): string {
   const where =
     preview.where.kind === "goes"
@@ -99,6 +101,7 @@ export function MoveDialog(props: {
         <h2
           ref={heading}
           tabIndex={-1}
+          aria-live="polite"
           className="m-0 min-w-0 flex-1 text-base font-semibold text-ink"
         >
           {title}
@@ -107,10 +110,11 @@ export function MoveDialog(props: {
           type="button"
           variant="outline"
           size="icon-sm"
+          className={STEP}
           aria-label={say("plan.calendar.move.earlier")}
-          disabled={busy || earlier === null}
+          aria-disabled={busy || earlier === null}
           onClick={() => {
-            if (earlier !== null) props.onDay(earlier);
+            if (!busy && earlier !== null) props.onDay(earlier);
           }}
         >
           <ChevronLeft aria-hidden="true" />
@@ -119,10 +123,11 @@ export function MoveDialog(props: {
           type="button"
           variant="outline"
           size="icon-sm"
+          className={STEP}
           aria-label={say("plan.calendar.move.later")}
-          disabled={busy || later === null}
+          aria-disabled={busy || later === null}
           onClick={() => {
-            if (later !== null) props.onDay(later);
+            if (!busy && later !== null) props.onDay(later);
           }}
         >
           <ChevronRight aria-hidden="true" />

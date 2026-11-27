@@ -306,7 +306,7 @@ function WorkoutCard(props: {
     <button
       type="button"
       {...shared}
-      aria-haspopup="dialog"
+      aria-haspopup={look.opens ? undefined : "dialog"}
       aria-expanded={props.selected}
       onClick={() => props.onOpen(props.workout.id)}
     >
@@ -319,6 +319,7 @@ function WorkoutCard(props: {
 
 function MovedInCard(props: {
   readonly workout: PlanCalendarWorkout;
+  readonly selected: boolean;
   readonly text: CalendarText;
   readonly onOpen: (planWorkoutId: string) => void;
 }): ReactElement {
@@ -338,8 +339,14 @@ function MovedInCard(props: {
   return (
     <button
       type="button"
-      className={cn(CARD, FRAME.changed, OPENS)}
+      className={cn(
+        CARD,
+        FRAME.changed,
+        OPENS,
+        props.selected && "outline-2 outline-offset-1 outline-brand",
+      )}
       data-moved-in={workout.id}
+      aria-expanded={props.selected}
       onClick={() => props.onOpen(workout.id)}
     >
       <CardBody
@@ -620,7 +627,13 @@ function DayCell(props: {
         />
       )}
       {day.movedIn.map((workout) => (
-        <MovedInCard key={`in-${workout.id}`} workout={workout} text={text} onOpen={props.onOpen} />
+        <MovedInCard
+          key={`in-${workout.id}`}
+          workout={workout}
+          selected={props.selected === workout.id}
+          text={text}
+          onOpen={props.onOpen}
+        />
       ))}
       {day.activities.map((activity) => (
         <ActivityCard
@@ -676,6 +689,8 @@ export function CalendarGrid(props: {
         className="grid min-w-205 grid-cols-[128px_repeat(7,minmax(0,1fr))] overflow-hidden rounded-card border border-line bg-surface"
         role="table"
         aria-label={say("sidebar.views.calendar")}
+        tabIndex={-1}
+        data-calendar-grid=""
       >
         <div className="bg-surface-2 px-2 py-1.5 text-xs text-ink-2" role="columnheader">
           {props.read.plan === null
