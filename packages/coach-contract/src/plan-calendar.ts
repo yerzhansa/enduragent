@@ -32,6 +32,12 @@ export const PlanCalendarRideDecisionSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCalendarRideDecision = z.infer<typeof PlanCalendarRideDecisionSchema>;
 
+export const PlanCalendarRideExpectedSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("none") }).strict(),
+  z.object({ kind: z.enum(["suggested", "confirmed"]), planWorkoutId: UlidSchema }).strict(),
+]);
+export type PlanCalendarRideExpected = z.infer<typeof PlanCalendarRideExpectedSchema>;
+
 export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
   z
     .object({
@@ -45,6 +51,7 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       action: z.literal("decide-ride"),
       planId: UlidSchema,
       activityId: ActivityIdSchema,
+      expected: PlanCalendarRideExpectedSchema,
       decision: PlanCalendarRideDecisionSchema,
     })
     .strict(),

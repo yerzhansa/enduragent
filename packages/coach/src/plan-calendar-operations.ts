@@ -73,7 +73,10 @@ export function createPlanCalendarOperations(
             request,
           );
         case "rides":
-          return readRides({ store: deps.store, todayDateKey: deps.todayDateKey() }, request);
+          return readRides(
+            { store: deps.store, identity: deps.identity, todayDateKey: deps.todayDateKey() },
+            request,
+          );
         case "decide-ride":
           return decideRide(deps, request);
         case "send-again":

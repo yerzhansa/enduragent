@@ -1,13 +1,21 @@
 import type {
   PlanCalendarRide,
   PlanCalendarRideDecision,
+  PlanCalendarRideExpected,
   PlanCalendarRideMatch,
   PlanCalendarRideWorkout,
   PlanCalendarRpcResult,
 } from "@enduragent/coach-contract";
-import { trainingWeeks, workoutOutcome } from "@enduragent/engine/calendar";
+import { isRacePlanWorkout, refreshPlanWorkoutMatches } from "@enduragent/engine";
+import {
+  readIcuCopies,
+  storedIcuCopy,
+  trainingWeeks,
+  workoutOutcome,
+} from "@enduragent/engine/calendar";
 import {
   addCivilDays,
+  createPlanCalendarMirrorRepository,
   createPlanWorkoutMatchRepository,
   type PlanRecord,
   type PlanWorkoutMatchDecision,
@@ -23,15 +31,17 @@ import {
 } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import type { PlanCalendarEditDeps } from "./plan-calendar-edit.js";
-import { boundedRange, isoOf } from "./plan-calendar-read.js";
+import { isoOf, latestRange } from "./plan-calendar-read.js";
 
 export type PlanCalendarRidesRead = Extract<PlanCalendarRpcResult, { status: "rides" }>;
 
 type RideStore = SqlStore & Pick<MigratorStore, "transaction">;
 
+type Identity = PlanCalendarEditDeps["identity"];
+
 export interface PlanCalendarRidesDeps {
   readonly store: RideStore;
-  readonly identity: PlanCalendarEditDeps["identity"];
+  readonly identity: Identity;
   readonly todayDateKey: () => number;
   readonly changed: () => Promise<void>;
 }
@@ -45,6 +55,8 @@ interface ActivePlan {
   readonly plan: PlanRecord;
   readonly workouts: ReadonlyMap<string, PlanWorkoutRecord>;
   readonly records: readonly PlanWorkoutMatchRecord[];
+  readonly confirmedBy: ReadonlyMap<string, string>;
+  readonly removed: ReadonlySet<string>;
 }
 
 const NEARBY_DAYS = 3;
@@ -78,18 +90,60 @@ function rounded(fact: RecordedFact<number>, max: number): number | null {
   return value === null ? null : Math.round(value);
 }
 
-async function activePlan(store: RideStore): Promise<ActivePlan | null> {
+async function activePlanRecord(store: RideStore): Promise<PlanRecord | null> {
   const active = await store.get("SELECT plan_id FROM planning_plan WHERE status='active'");
   if (typeof active?.plan_id !== "string") return null;
-  const plans = createLegacyPlanRepository(store);
-  const plan = await plans.read(active.plan_id);
-  if (plan === undefined) return null;
-  const workouts = await plans.readWorkouts(plan.id);
+  return (await createLegacyPlanRepository(store).read(active.plan_id)) ?? null;
+}
+
+async function activePlan(store: RideStore): Promise<ActivePlan | null> {
+  const plan = await activePlanRecord(store);
+  if (plan === null) return null;
+  const workouts = await createLegacyPlanRepository(store).readWorkouts(plan.id);
+  const records = await createPlanWorkoutMatchRepository(store).readForPlan(plan.id);
+  const copies = await readIcuCopies(createPlanCalendarMirrorRepository(store), plan.id);
   return {
     plan,
     workouts: new Map(workouts.map((workout) => [workout.id, workout])),
-    records: await createPlanWorkoutMatchRepository(store).readForPlan(plan.id),
+    records,
+    confirmedBy: new Map(
+      records
+        .filter((record) => record.decision === "confirmed")
+        .map((record) => [record.planWorkoutId, record.activityId]),
+    ),
+    removed: new Set(
+      workouts
+        .filter((workout) => storedIcuCopy(copies.get(workout.id)).kind === "removed-by-you")
+        .map((workout) => workout.id),
+    ),
   };
+}
+
+async function refreshSuggestions(
+  store: RideStore,
+  identity: Identity,
+  range: DateRange,
+): Promise<void> {
+  const plan = await activePlanRecord(store);
+  if (plan === null) return;
+  const startDateKey = Math.max(range.startDateKey, plan.startDateKey);
+  const endDateKey = Math.min(
+    range.endDateKey,
+    addCivilDays(plan.startDateKey, plan.totalWeeks * 7 - 1),
+  );
+  if (endDateKey < startDateKey) return;
+  await refreshPlanWorkoutMatches({
+    planId: plan.id,
+    workouts: await createLegacyPlanRepository(store).readWorkouts(plan.id),
+    startDateKey,
+    endDateKey,
+    repository: createPlanWorkoutMatchRepository(store),
+    identity: {
+      newId: () => identity.newUlid(),
+      deviceId: () => identity.deviceId(),
+      stamp: () => identity.hlcStamp(),
+    },
+  });
 }
 
 function workoutView(workout: PlanWorkoutRecord): PlanCalendarRideWorkout {
@@ -101,16 +155,22 @@ function workoutView(workout: PlanWorkoutRecord): PlanCalendarRideWorkout {
   };
 }
 
+function freeFor(context: ActivePlan, planWorkoutId: string, activityId: string): boolean {
+  const owner = context.confirmedBy.get(planWorkoutId);
+  return owner === undefined || owner === activityId;
+}
+
 function rideMatch(
-  records: readonly PlanWorkoutMatchRecord[],
-  workouts: ReadonlyMap<string, PlanWorkoutRecord>,
+  activityId: string,
+  context: ActivePlan,
   todayDateKey: number,
 ): PlanCalendarRideMatch {
-  const confirmed = records.find(
-    (record) => record.decision === "confirmed" && workouts.has(record.planWorkoutId),
+  const mine = context.records.filter((record) => record.activityId === activityId);
+  const confirmed = mine.find(
+    (record) => record.decision === "confirmed" && context.workouts.has(record.planWorkoutId),
   );
   const confirmedWorkout =
-    confirmed === undefined ? undefined : workouts.get(confirmed.planWorkoutId);
+    confirmed === undefined ? undefined : context.workouts.get(confirmed.planWorkoutId);
   if (confirmed !== undefined && confirmedWorkout !== undefined) {
     const outcome = workoutOutcome({
       workout: {
@@ -135,34 +195,42 @@ function rideMatch(
       by: confirmed.source === "platform" ? "intervals" : "you",
     };
   }
-  const suggested = records.find(
-    (record) => record.decision === "suggested" && workouts.has(record.planWorkoutId),
+  const suggested = mine.find(
+    (record) =>
+      record.decision === "suggested" &&
+      context.workouts.has(record.planWorkoutId) &&
+      freeFor(context, record.planWorkoutId, activityId),
   );
   const suggestedWorkout =
-    suggested === undefined ? undefined : workouts.get(suggested.planWorkoutId);
+    suggested === undefined ? undefined : context.workouts.get(suggested.planWorkoutId);
   return suggestedWorkout === undefined
     ? { kind: "none" }
     : { kind: "suggested", ...workoutView(suggestedWorkout) };
 }
 
+function eligible(
+  workout: PlanWorkoutRecord,
+  ride: { readonly activityId: string; readonly dateKey: number },
+  context: ActivePlan,
+): boolean {
+  return (
+    workout.dateKey >= addCivilDays(ride.dateKey, -NEARBY_DAYS) &&
+    workout.dateKey <= addCivilDays(ride.dateKey, NEARBY_DAYS) &&
+    !isRacePlanWorkout(workout) &&
+    !context.removed.has(workout.id) &&
+    freeFor(context, workout.id, ride.activityId)
+  );
+}
+
 function otherWorkouts(
-  dateKey: number,
+  ride: { readonly activityId: string; readonly dateKey: number },
   match: PlanCalendarRideMatch,
   context: ActivePlan,
 ): PlanCalendarRideWorkout[] {
-  const first = addCivilDays(dateKey, -NEARBY_DAYS);
-  const last = addCivilDays(dateKey, NEARBY_DAYS);
-  const taken = new Set(
-    context.records
-      .filter((record) => record.decision === "confirmed")
-      .map((record) => record.planWorkoutId),
-  );
   return [...context.workouts.values()]
     .filter(
       (workout) =>
-        workout.dateKey >= first &&
-        workout.dateKey <= last &&
-        !taken.has(workout.id) &&
+        eligible(workout, ride, context) &&
         (match.kind === "none" || workout.id !== match.planWorkoutId),
     )
     .sort((left, right) => left.dateKey - right.dateKey || left.id.localeCompare(right.id))
@@ -190,14 +258,8 @@ function rideView(
 ): PlanCalendarRide {
   const dateKey = Number(row.localDate.replaceAll("-", ""));
   const seconds = row.movingSeconds ?? row.elapsedSeconds;
-  const match =
-    context === null
-      ? ({ kind: "none" } as const)
-      : rideMatch(
-          context.records.filter((record) => record.activityId === row.id),
-          context.workouts,
-          todayDateKey,
-        );
+  const match: PlanCalendarRideMatch =
+    context === null ? { kind: "none" } : rideMatch(row.id, context, todayDateKey);
   return {
     activityId: row.id,
     dateKey,
@@ -214,7 +276,8 @@ function rideView(
     averageHeartRateBpm: rounded(row.averageHeartRateBpm, 500),
     perceivedExertion: recorded(row.perceivedExertion, 10),
     match,
-    otherWorkouts: context === null ? [] : otherWorkouts(dateKey, match, context),
+    otherWorkouts:
+      context === null ? [] : otherWorkouts({ activityId: row.id, dateKey }, match, context),
   };
 }
 
@@ -241,12 +304,16 @@ async function ridesInside(
 }
 
 export async function readRides(
-  deps: { readonly store: RideStore; readonly todayDateKey: number },
-  range: DateRange,
+  deps: { readonly store: RideStore; readonly identity: Identity; readonly todayDateKey: number },
+  requested: DateRange,
 ): Promise<PlanCalendarRidesRead> {
+  const range = latestRange(requested);
   return deps.store.transaction(async () => {
+    if (range.endDateKey >= range.startDateKey) {
+      await refreshSuggestions(deps.store, deps.identity, range);
+    }
     const context = await activePlan(deps.store);
-    const rides = await ridesInside(deps.store, deps.todayDateKey, boundedRange(range), context);
+    const rides = await ridesInside(deps.store, deps.todayDateKey, range, context);
     return {
       status: "rides",
       todayDateKey: deps.todayDateKey,
@@ -284,11 +351,34 @@ function releaseDecision(
   return record.source === "platform" ? "unpaired" : "rejected";
 }
 
+function sameMatch(expected: PlanCalendarRideExpected, current: PlanCalendarRideMatch): boolean {
+  if (expected.kind === "none" || current.kind === "none") return expected.kind === current.kind;
+  return expected.kind === current.kind && expected.planWorkoutId === current.planWorkoutId;
+}
+
+function decisionFits(
+  decision: PlanCalendarRideDecision,
+  current: PlanCalendarRideMatch,
+  target: PlanWorkoutRecord | null,
+  ride: { readonly activityId: string; readonly dateKey: number },
+  context: ActivePlan,
+): boolean {
+  switch (decision.kind) {
+    case "extra":
+      return true;
+    case "confirm":
+      return current.kind !== "none" && current.planWorkoutId === decision.planWorkoutId;
+    case "rematch":
+      return target !== null && eligible(target, ride, context);
+  }
+}
+
 export async function decideRide(
   deps: PlanCalendarRidesDeps,
   request: {
     readonly planId: string;
     readonly activityId: string;
+    readonly expected: PlanCalendarRideExpected;
     readonly decision: PlanCalendarRideDecision;
   },
 ): Promise<PlanCalendarRpcResult> {
@@ -309,24 +399,16 @@ export async function decideRide(
     const targetId = targetOf(request.decision);
     const target = targetId === null ? null : context.workouts.get(targetId);
     if (target === undefined) return refused("match-changed");
-    const mine = context.records.filter((record) => record.activityId === request.activityId);
-    const current = target === null ? undefined : mine.find((r) => r.planWorkoutId === target.id);
+    const ride = { activityId: request.activityId, dateKey };
+    const shown = rideMatch(request.activityId, context, deps.todayDateKey());
     if (
-      request.decision.kind === "confirm" &&
-      current?.decision !== "suggested" &&
-      current?.decision !== "confirmed"
+      !sameMatch(request.expected, shown) ||
+      !decisionFits(request.decision, shown, target, ride, context)
     ) {
       return refused("match-changed");
     }
-    const takenByOther =
-      target !== null &&
-      context.records.some(
-        (record) =>
-          record.planWorkoutId === target.id &&
-          record.decision === "confirmed" &&
-          record.activityId !== request.activityId,
-      );
-    if (takenByOther) return refused("match-changed");
+    const mine = context.records.filter((record) => record.activityId === request.activityId);
+    const current = target === null ? undefined : mine.find((r) => r.planWorkoutId === target.id);
     const deviceId = await deps.identity.deviceId();
     const decide = async (
       record: PlanWorkoutMatchRecord,
@@ -348,6 +430,15 @@ export async function decideRide(
       if (release !== null) await decide(record, release);
     }
     if (target === null) return null;
+    for (const record of context.records) {
+      if (
+        record.planWorkoutId === target.id &&
+        record.activityId !== request.activityId &&
+        record.decision === "suggested"
+      ) {
+        await decide(record, "rejected");
+      }
+    }
     if (current === undefined) {
       const stamp = deps.identity.hlcStamp();
       await matches.observe({
@@ -373,15 +464,6 @@ export async function decideRide(
       });
     } else if (current.decision !== "confirmed") {
       await decide(current, "confirmed");
-    }
-    for (const record of context.records) {
-      if (
-        record.planWorkoutId === target.id &&
-        record.activityId !== request.activityId &&
-        record.decision === "suggested"
-      ) {
-        await decide(record, "rejected");
-      }
     }
     return null;
   });

@@ -145,6 +145,25 @@ function validDateKey(dateKey: number): boolean {
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === iso;
 }
 
+function civilShift(dateKey: number, days: number): number {
+  return Number(
+    new Date(Date.parse(`${isoOf(dateKey)}T00:00:00Z`) + days * 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+      .replaceAll("-", ""),
+  );
+}
+
+export function latestRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+  if (!validDateKey(range.startDateKey) || !validDateKey(range.endDateKey)) {
+    return { startDateKey: range.endDateKey, endDateKey: range.endDateKey - 1 };
+  }
+  return {
+    startDateKey: Math.max(range.startDateKey, civilShift(range.endDateKey, 1 - RANGE_LIMIT_DAYS)),
+    endDateKey: range.endDateKey,
+  };
+}
+
 export function boundedRange(range: {
   readonly startDateKey: number;
   readonly endDateKey: number;
