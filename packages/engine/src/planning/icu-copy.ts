@@ -30,7 +30,8 @@ export type IcuCopy =
       readonly baseline: IcuBaseline;
       readonly shown: IcuSighting;
     }
-  | { readonly kind: "removed-by-you" };
+  | { readonly kind: "removed-by-you" }
+  | { readonly kind: "kept-as-yours"; readonly eventId: number };
 
 export type IcuPlanSide =
   | { readonly kind: "send"; readonly planFingerprint: string }
@@ -79,6 +80,8 @@ export type ChangeSetTargetApproval =
 
 export const ICU_COPY_NOT_SENT: IcuCopy = Object.freeze({ kind: "not-sent" });
 
+export const UNKNOWN_PLAN_FINGERPRINT = "unknown";
+
 const NONE: IcuCopyEffect = Object.freeze({ kind: "none" });
 
 function decision(copy: IcuCopy, effect: IcuCopyEffect = NONE): IcuCopyDecision {
@@ -87,13 +90,18 @@ function decision(copy: IcuCopy, effect: IcuCopyEffect = NONE): IcuCopyDecision 
 
 export function sameSighting(left: IcuSighting, right: IcuSighting): boolean {
   if (left.kind === "absent" || right.kind === "absent") return left.kind === right.kind;
-  return left.eventId === right.eventId && left.version.fingerprint === right.version.fingerprint;
+  return (
+    left.eventId === right.eventId &&
+    left.dateKey === right.dateKey &&
+    left.version.fingerprint === right.version.fingerprint
+  );
 }
 
 function matchesBaseline(baseline: IcuBaseline, sighting: IcuSighting): boolean {
   return (
     sighting.kind === "present" &&
     sighting.eventId === baseline.eventId &&
+    sighting.dateKey === baseline.dateKey &&
     sighting.version.fingerprint === baseline.readBack.fingerprint
   );
 }
@@ -107,6 +115,11 @@ function withFreshToken(baseline: IcuBaseline, sighting: IcuSighting): IcuBaseli
 
 function decideInSync(baseline: IcuBaseline, plan: IcuPlanSide): IcuCopyDecision {
   const copy: IcuCopy = { kind: "on-icu", baseline };
+  if (baseline.owner === "athlete-edit") {
+    return plan.kind === "withdraw"
+      ? decision({ kind: "kept-as-yours", eventId: baseline.eventId })
+      : decision(copy);
+  }
   if (plan.kind === "withdraw") {
     return decision(copy, {
       kind: "delete",
@@ -128,23 +141,17 @@ function decideNotSent(plan: IcuPlanSide, sighting: IcuSighting): IcuCopyDecisio
       ? decision(ICU_COPY_NOT_SENT, { kind: "create" })
       : decision(ICU_COPY_NOT_SENT);
   }
-  if (plan.kind === "withdraw") {
-    return decision(ICU_COPY_NOT_SENT, {
-      kind: "delete",
-      eventId: sighting.eventId,
-      expected: sighting.version,
-    });
-  }
-  return decision({
-    kind: "on-icu",
-    baseline: {
+  if (plan.kind === "withdraw") return decision(ICU_COPY_NOT_SENT);
+  return decideInSync(
+    {
       eventId: sighting.eventId,
       dateKey: sighting.dateKey,
-      planFingerprint: plan.planFingerprint,
+      planFingerprint: UNKNOWN_PLAN_FINGERPRINT,
       readBack: sighting.version,
       owner: "plan",
     },
-  });
+    plan,
+  );
 }
 
 export function icuCopyOnRun(
@@ -154,6 +161,7 @@ export function icuCopyOnRun(
 ): IcuCopyDecision {
   switch (copy.kind) {
     case "removed-by-you":
+    case "kept-as-yours":
       return decision(copy);
     case "not-sent":
       return decideNotSent(plan, sighting);
@@ -169,6 +177,9 @@ export function icuCopyOnRun(
     case "changed-in-icu": {
       if (matchesBaseline(copy.baseline, sighting)) {
         return icuCopyOnRun({ kind: "on-icu", baseline: copy.baseline }, plan, sighting);
+      }
+      if (sighting.kind === "absent" && plan.kind === "withdraw") {
+        return decision(ICU_COPY_NOT_SENT);
       }
       if (sameSighting(copy.shown, sighting)) return decision(copy);
       return decision({ ...copy, shown: sighting });
@@ -195,11 +206,22 @@ function recheck(
 export function icuCopyKeep(
   copy: IcuCopy,
   current: IcuSighting,
+  plan: IcuPlanSide,
   adoptedPlanFingerprint: string,
 ): IcuCopyChoiceResult {
   const checked = recheck(copy, current);
   if (checked.kind !== "ready") return checked;
   const shown = checked.card.shown;
+  if (plan.kind === "withdraw") {
+    return {
+      kind: "done",
+      ...decision(
+        shown.kind === "absent"
+          ? ICU_COPY_NOT_SENT
+          : { kind: "kept-as-yours", eventId: shown.eventId },
+      ),
+    };
+  }
   if (shown.kind === "absent") {
     return { kind: "done", ...decision({ kind: "removed-by-you" }, { kind: "remove-from-plan" }) };
   }
@@ -226,10 +248,25 @@ export function icuCopyKeep(
   };
 }
 
-export function icuCopyPutBack(copy: IcuCopy, current: IcuSighting): IcuCopyChoiceResult {
+export function icuCopyPutBack(
+  copy: IcuCopy,
+  current: IcuSighting,
+  plan: IcuPlanSide,
+): IcuCopyChoiceResult {
   const checked = recheck(copy, current);
   if (checked.kind !== "ready") return checked;
   const shown = checked.card.shown;
+  if (plan.kind === "withdraw") {
+    if (shown.kind === "absent") return { kind: "done", ...decision(ICU_COPY_NOT_SENT) };
+    return {
+      kind: "done",
+      ...decision(checked.card, {
+        kind: "delete",
+        eventId: shown.eventId,
+        expected: shown.version,
+      }),
+    };
+  }
   if (shown.kind === "absent")
     return { kind: "done", ...decision(checked.card, { kind: "create" }) };
   return {
@@ -239,7 +276,7 @@ export function icuCopyPutBack(copy: IcuCopy, current: IcuSighting): IcuCopyChoi
 }
 
 export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy {
-  if (copy.kind === "removed-by-you") return copy;
+  if (copy.kind === "removed-by-you" || copy.kind === "kept-as-yours") return copy;
   return {
     kind: "on-icu",
     baseline: {
@@ -253,11 +290,23 @@ export function icuCopyWritten(copy: IcuCopy, receipt: IcuWriteReceipt): IcuCopy
 }
 
 export function icuCopyDeleted(copy: IcuCopy): IcuCopy {
-  return copy.kind === "removed-by-you" ? copy : ICU_COPY_NOT_SENT;
+  return copy.kind === "removed-by-you" || copy.kind === "kept-as-yours" ? copy : ICU_COPY_NOT_SENT;
 }
 
 export function icuCopyAllowsMove(copy: IcuCopy): boolean {
-  return copy.kind !== "changed-in-icu" && copy.kind !== "removed-by-you";
+  return copy.kind === "not-sent" || copy.kind === "on-icu";
+}
+
+export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCopy {
+  if (mark !== "replaces-your-edit") return copy;
+  if (copy.kind === "removed-by-you") return ICU_COPY_NOT_SENT;
+  if (
+    (copy.kind === "on-icu" || copy.kind === "changed-in-icu") &&
+    copy.baseline.owner === "athlete-edit"
+  ) {
+    return { ...copy, baseline: { ...copy.baseline, owner: "plan" } };
+  }
+  return copy;
 }
 
 export function icuCopyIsAthleteChange(copy: IcuCopy): boolean {
@@ -267,15 +316,23 @@ export function icuCopyIsAthleteChange(copy: IcuCopy): boolean {
   );
 }
 
+function sightingKey(sighting: IcuSighting): string {
+  return sighting.kind === "absent"
+    ? "absent"
+    : `${sighting.eventId}@${sighting.dateKey}:${sighting.version.fingerprint}`;
+}
+
 function basis(copy: IcuCopy, planFingerprint: string): string {
   switch (copy.kind) {
     case "not-sent":
     case "removed-by-you":
       return `${copy.kind}|${planFingerprint}`;
+    case "kept-as-yours":
+      return `${copy.kind}|${copy.eventId}|${planFingerprint}`;
     case "on-icu":
-      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${copy.baseline.readBack.fingerprint}`;
+      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${copy.baseline.eventId}@${copy.baseline.dateKey}:${copy.baseline.readBack.fingerprint}`;
     case "changed-in-icu":
-      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${copy.shown.kind === "present" ? copy.shown.version.fingerprint : "absent"}`;
+      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${sightingKey(copy.shown)}`;
   }
 }
 
@@ -283,8 +340,9 @@ export function changeSetTargetView(copy: IcuCopy, planFingerprint: string): Cha
   return {
     basis: basis(copy, planFingerprint),
     mark:
-      (copy.kind === "on-icu" || copy.kind === "changed-in-icu") &&
-      copy.baseline.owner === "athlete-edit"
+      copy.kind === "removed-by-you" ||
+      ((copy.kind === "on-icu" || copy.kind === "changed-in-icu") &&
+        copy.baseline.owner === "athlete-edit")
         ? "replaces-your-edit"
         : "plain",
   };

@@ -6,6 +6,7 @@ import {
   type CoachText,
   type CoachTextBasis,
   type CoachTextEvent,
+  type CoachTextMatch,
 } from "../../src/planning/coach-text.js";
 import { walk, type Step } from "./state-walk.js";
 
@@ -20,8 +21,16 @@ interface World {
   readonly model: "up" | "down";
 }
 
+const THURSDAY: CoachTextMatch = { kind: "workout", planWorkoutId: "thu" };
+const NO_WORKOUT: CoachTextMatch = { kind: "no-workout" };
+
 function basis(match: Match): CoachTextBasis {
-  return match === "pending" ? { kind: "waiting-for-match" } : { kind: "decided", key: match };
+  if (match === "pending") return { kind: "waiting-for-match" };
+  return { kind: "decided", match: match === "no-workout" ? NO_WORKOUT : THURSDAY };
+}
+
+function matchName(match: CoachTextMatch): Match {
+  return match.kind === "no-workout" ? "no-workout" : "workout:thu";
 }
 
 function apply(world: World, event: CoachTextEvent, asked: "asked" | "not-asked"): World {
@@ -57,13 +66,11 @@ function next(world: World): readonly Step<World>[] {
     for (const decided of ["workout:thu", "no-workout"] as const) {
       steps.push([
         `the athlete decides the match: ${decided}`,
-        {
-          ...apply(
-            { ...world, match: decided },
-            { type: "match-decided", basis: basis(decided), page: world.page },
-            "not-asked",
-          ),
-        },
+        apply(
+          { ...world, match: decided },
+          { type: "match-decided", basis: basis(decided), page: world.page },
+          "not-asked",
+        ),
       ]);
     }
   } else {
@@ -76,6 +83,10 @@ function next(world: World): readonly Step<World>[] {
         ? ["the coach finishes", apply(world, { type: "writing-finished" }, "not-asked")]
         : ["the coach fails", apply(world, { type: "writing-failed" }, "not-asked")],
     );
+    steps.push([
+      "the app quits while the coach writes",
+      { ...apply(world, { type: "writing-abandoned" }, "not-asked"), page: "closed" },
+    ]);
   }
   steps.push([
     "the model goes up or down",
@@ -87,11 +98,17 @@ function next(world: World): readonly Step<World>[] {
 const RULES = {
   NoReplyWithoutAsking: (world: World) => world.replies <= world.asks,
   NoTextBeforeTheMatch: (world: World) =>
-    world.text.kind !== "writing" || world.text.startedFor !== "pending",
+    world.text.kind !== "writing" || world.match !== "pending",
   KeptTextIsHonest: (world: World) =>
     world.text.kind !== "kept" ||
-    world.text.writtenFor === world.match ||
+    matchName(world.text.writtenFor) === world.match ||
     coachTextMarker(world.text, basis(world.match)).kind === "written-for-another-match",
+  NeverStuckWriting: (world: World) =>
+    world.page !== "closed" ||
+    world.text.kind !== "failed" ||
+    world.match === "pending" ||
+    coachTextStep(world.text, { type: "athlete-opens", basis: basis(world.match) }).effect.kind ===
+      "write",
 };
 
 const STARTS: readonly World[] = (["pending", "no-workout"] as const).flatMap((match) =>
@@ -122,67 +139,70 @@ describe("the coach's text for an Activity or a missed workout", () => {
   it("says which match a kept review was written for after the match changes", () => {
     const opened = coachTextStep(COACH_TEXT_NOT_WRITTEN, {
       type: "athlete-opens",
-      basis: { kind: "decided", key: "no-workout" },
+      basis: basis("no-workout"),
     });
-    expect(opened.effect).toEqual({ kind: "write", for: "no-workout" });
+    expect(opened.effect).toEqual({ kind: "write", for: NO_WORKOUT });
     const kept = coachTextStep(opened.text, { type: "writing-finished" }).text;
-    expect(coachTextMarker(kept, { kind: "decided", key: "no-workout" })).toEqual({
-      kind: "current",
-    });
-    expect(coachTextMarker(kept, { kind: "decided", key: "workout:thu" })).toEqual({
+    expect(coachTextMarker(kept, basis("no-workout"))).toEqual({ kind: "current" });
+    expect(coachTextMarker(kept, basis("workout:thu"))).toEqual({
       kind: "written-for-another-match",
-      writtenFor: "no-workout",
+      writtenFor: NO_WORKOUT,
     });
   });
 
   it("waits for Confirm or Not this one before writing", () => {
     const opened = coachTextStep(COACH_TEXT_NOT_WRITTEN, {
       type: "athlete-opens",
-      basis: { kind: "waiting-for-match" },
+      basis: basis("pending"),
     });
     expect(opened.effect).toEqual({ kind: "none" });
     const decided = coachTextStep(opened.text, {
       type: "match-decided",
-      basis: { kind: "decided", key: "workout:thu" },
+      basis: basis("workout:thu"),
       page: "open",
     });
-    expect(decided.effect).toEqual({ kind: "write", for: "workout:thu" });
+    expect(decided.effect).toEqual({ kind: "write", for: THURSDAY });
   });
 
   it("never rewrites a kept text by itself", () => {
-    const kept: CoachText = { kind: "kept", writtenFor: "no-workout" };
+    const kept: CoachText = { kind: "kept", writtenFor: NO_WORKOUT };
     expect(
-      coachTextStep(kept, { type: "athlete-opens", basis: { kind: "decided", key: "workout:thu" } })
+      coachTextStep(kept, { type: "athlete-opens", basis: basis("workout:thu") }).effect,
+    ).toEqual({ kind: "none" });
+    expect(
+      coachTextStep(kept, { type: "match-decided", basis: basis("workout:thu"), page: "open" })
+        .effect,
+    ).toEqual({ kind: "none" });
+  });
+
+  it("tries a failed text again only when the athlete opens it or asks", () => {
+    const failed: CoachText = { kind: "failed", startedFor: NO_WORKOUT };
+    expect(
+      coachTextStep(failed, { type: "match-decided", basis: basis("no-workout"), page: "open" })
         .effect,
     ).toEqual({
       kind: "none",
     });
     expect(
-      coachTextStep(kept, {
-        type: "match-decided",
-        basis: { kind: "decided", key: "workout:thu" },
-        page: "open",
-      }).effect,
-    ).toEqual({ kind: "none" });
-  });
-
-  it("tries a failed text again only when the athlete opens it or asks", () => {
-    const failed: CoachText = { kind: "failed", startedFor: "no-workout" };
-    expect(
-      coachTextStep(failed, {
-        type: "match-decided",
-        basis: { kind: "decided", key: "no-workout" },
-        page: "open",
-      }).effect,
-    ).toEqual({ kind: "none" });
-    expect(
-      coachTextStep(failed, {
-        type: "athlete-opens",
-        basis: { kind: "decided", key: "no-workout" },
-      }).effect,
+      coachTextStep(failed, { type: "athlete-opens", basis: basis("no-workout") }).effect,
     ).toEqual({
       kind: "write",
-      for: "no-workout",
+      for: NO_WORKOUT,
+    });
+  });
+
+  it("recovers a text left writing when the app quit, on the next open", () => {
+    const writing = coachTextStep(COACH_TEXT_NOT_WRITTEN, {
+      type: "athlete-opens",
+      basis: basis("no-workout"),
+    }).text;
+    const recovered = coachTextStep(writing, { type: "writing-abandoned" }).text;
+    expect(recovered).toEqual({ kind: "failed", startedFor: NO_WORKOUT });
+    expect(
+      coachTextStep(recovered, { type: "athlete-opens", basis: basis("no-workout") }).effect,
+    ).toEqual({
+      kind: "write",
+      for: NO_WORKOUT,
     });
   });
 });

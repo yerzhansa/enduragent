@@ -1,8 +1,9 @@
 import { addCivilDays } from "@enduragent/kernel/planning";
-
-export const OUTCOME_AS_PLANNED_RATIO = 0.1;
-export const OUTCOME_AS_PLANNED_MIN_SECONDS = 5 * 60;
-export const OUTCOME_AS_PLANNED_MAX_SECONDS = 15 * 60;
+import {
+  WORKOUT_MATCH_AS_PLANNED_MAX_SECONDS,
+  WORKOUT_MATCH_AS_PLANNED_MIN_SECONDS,
+  WORKOUT_MATCH_AS_PLANNED_RATIO,
+} from "./workout-match.js";
 
 export type SyncCoverage =
   | { readonly kind: "never" }
@@ -56,8 +57,8 @@ export type OutcomeCount = "counts-done" | "counts-missed" | "not-counted";
 
 function asPlannedLimit(plannedS: number): number {
   return Math.min(
-    OUTCOME_AS_PLANNED_MAX_SECONDS,
-    Math.max(OUTCOME_AS_PLANNED_MIN_SECONDS, plannedS * OUTCOME_AS_PLANNED_RATIO),
+    WORKOUT_MATCH_AS_PLANNED_MAX_SECONDS,
+    Math.max(WORKOUT_MATCH_AS_PLANNED_MIN_SECONDS, plannedS * WORKOUT_MATCH_AS_PLANNED_RATIO),
   );
 }
 

@@ -4,6 +4,7 @@ import {
   calendarRowStart,
   currentTrainingWeekIndex,
   firstDayOfWeek,
+  firstDayOfWeekFromWeekday,
   nextFirstDayOfWeek,
   thisTrainingWeekAndNext,
   trainingWeek,
@@ -199,6 +200,9 @@ describe("Training Weeks on intervals.icu", () => {
     });
     expect(weeksToSend({ ...waiting, state: third.state })).toEqual([3]);
     expect(
+      weekDeliveryStep(PLAN, third.state, { type: "approve-week", week: 3, todayDateKey: weekTwo }),
+    ).toMatchObject({ kind: "refused", reason: "already-approved" });
+    expect(
       weekDeliveryStep(PLAN, approved, { type: "approve-week", week: 3, todayDateKey: MONDAY }),
     ).toMatchObject({
       kind: "refused",
@@ -255,6 +259,8 @@ describe("Training Weeks and calendar rows", () => {
     expect(calendarRowStart(THURSDAY, firstDayOfWeek(6))).toBe(19980711);
     expect(calendarRowStart(MONDAY, firstDayOfWeek(1))).toBe(MONDAY);
     expect(() => firstDayOfWeek(0)).toThrow("invalid-first-day");
+    expect(firstDayOfWeekFromWeekday(0)).toBe(7);
+    expect(firstDayOfWeekFromWeekday(1)).toBe(1);
   });
 
   it("defaults a new Plan to the next first day of the week", () => {

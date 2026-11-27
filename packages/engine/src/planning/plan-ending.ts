@@ -1,7 +1,15 @@
 import { addCivilDays } from "@enduragent/kernel/planning";
-import { icuCopyIsAthleteChange, type IcuCopy } from "./icu-copy.js";
+import { icuCopyIsAthleteChange, type IcuCopy, type IcuVersion } from "./icu-copy.js";
 
-export type AthleteChangesChoice = "keep-them" | "remove-them";
+export interface TickedChange {
+  readonly planWorkoutId: string;
+  readonly eventId: number;
+  readonly fingerprint: string;
+}
+
+export type AthleteChangesChoice =
+  | { readonly kind: "keep-them" }
+  | { readonly kind: "remove-them"; readonly ticked: readonly TickedChange[] };
 
 export type PlanCleanup =
   | { readonly kind: "not-needed" }
@@ -53,10 +61,20 @@ export interface PlanCopyOnIcu {
   readonly copy: IcuCopy;
 }
 
+export interface AthleteChangeOnIcu extends PlanCopyOnIcu {
+  readonly tick: TickedChange;
+}
+
 export interface PlanEndingSummary {
   readonly removes: readonly PlanCopyOnIcu[];
   readonly staysToday: readonly PlanCopyOnIcu[];
-  readonly athleteChanges: readonly PlanCopyOnIcu[];
+  readonly athleteChanges: readonly AthleteChangeOnIcu[];
+}
+
+export interface CleanupDelete {
+  readonly planWorkoutId: string;
+  readonly eventId: number;
+  readonly expected: IcuVersion;
 }
 
 export const PLAN_ENDING_START: PlanEnding = Object.freeze({ kind: "running" });
@@ -128,7 +146,7 @@ export function planEndingStep(ending: PlanEnding, event: PlanEndingEvent): Plan
         kind: "closed",
         reason: "completed",
         closedOnDateKey: event.todayDateKey,
-        athleteChanges: "keep-them",
+        athleteChanges: { kind: "keep-them" },
         cleanup: { kind: "not-needed" },
         replacement: { kind: "no-replacement" },
       };
@@ -143,32 +161,88 @@ export function replacementMaySend(ending: PlanEnding): boolean {
   return ending.kind === "closed" && ending.replacement.kind === "may-send";
 }
 
+function onIcuVersion(
+  copy: IcuCopy,
+): { readonly eventId: number; readonly dateKey: number; readonly version: IcuVersion } | null {
+  if (copy.kind === "on-icu") {
+    return {
+      eventId: copy.baseline.eventId,
+      dateKey: copy.baseline.dateKey,
+      version: copy.baseline.readBack,
+    };
+  }
+  if (copy.kind === "changed-in-icu" && copy.shown.kind === "present") {
+    return {
+      eventId: copy.shown.eventId,
+      dateKey: copy.shown.dateKey,
+      version: copy.shown.version,
+    };
+  }
+  return null;
+}
+
 export function planEndingSummary(
   copies: readonly PlanCopyOnIcu[],
   todayDateKey: number,
 ): PlanEndingSummary {
   const tomorrow = addCivilDays(todayDateKey, 1);
-  const onIcu = copies.filter(
-    (entry) => entry.copy.kind === "on-icu" || entry.copy.kind === "changed-in-icu",
-  );
-  return {
-    removes: onIcu.filter(
-      (entry) => entry.dateKey >= tomorrow && !icuCopyIsAthleteChange(entry.copy),
-    ),
-    staysToday: onIcu.filter((entry) => entry.dateKey === todayDateKey),
-    athleteChanges: onIcu.filter(
-      (entry) => entry.dateKey >= tomorrow && icuCopyIsAthleteChange(entry.copy),
-    ),
-  };
+  const removes: PlanCopyOnIcu[] = [];
+  const staysToday: PlanCopyOnIcu[] = [];
+  const athleteChanges: AthleteChangeOnIcu[] = [];
+  for (const entry of copies) {
+    const there = onIcuVersion(entry.copy);
+    if (there === null) continue;
+    if (there.dateKey === todayDateKey) staysToday.push(entry);
+    if (there.dateKey < tomorrow) continue;
+    if (!icuCopyIsAthleteChange(entry.copy)) {
+      removes.push(entry);
+      continue;
+    }
+    athleteChanges.push({
+      ...entry,
+      tick: {
+        planWorkoutId: entry.planWorkoutId,
+        eventId: there.eventId,
+        fingerprint: there.version.fingerprint,
+      },
+    });
+  }
+  return { removes, staysToday, athleteChanges };
 }
 
 export function cleanupDeletes(
   copies: readonly PlanCopyOnIcu[],
-  todayDateKey: number,
-  athleteChanges: AthleteChangesChoice,
-): readonly PlanCopyOnIcu[] {
-  const summary = planEndingSummary(copies, todayDateKey);
-  return athleteChanges === "remove-them"
-    ? [...summary.removes, ...summary.athleteChanges]
-    : summary.removes;
+  ending: PlanEnding,
+): readonly CleanupDelete[] {
+  if (ending.kind !== "closed" || ending.cleanup.kind === "not-needed") return [];
+  const summary = planEndingSummary(copies, ending.closedOnDateKey);
+  const ticked = ending.athleteChanges.kind === "remove-them" ? ending.athleteChanges.ticked : [];
+  const deletes: CleanupDelete[] = [];
+  for (const entry of summary.removes) {
+    const there = onIcuVersion(entry.copy);
+    if (there !== null) {
+      deletes.push({
+        planWorkoutId: entry.planWorkoutId,
+        eventId: there.eventId,
+        expected: there.version,
+      });
+    }
+  }
+  for (const entry of summary.athleteChanges) {
+    const chosen = ticked.some(
+      (tick) =>
+        tick.planWorkoutId === entry.tick.planWorkoutId &&
+        tick.eventId === entry.tick.eventId &&
+        tick.fingerprint === entry.tick.fingerprint,
+    );
+    const there = onIcuVersion(entry.copy);
+    if (chosen && there !== null) {
+      deletes.push({
+        planWorkoutId: entry.planWorkoutId,
+        eventId: there.eventId,
+        expected: there.version,
+      });
+    }
+  }
+  return deletes;
 }

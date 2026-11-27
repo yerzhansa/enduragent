@@ -3,6 +3,8 @@ import {
   changeSetTargetApproval,
   changeSetTargetView,
   icuCopyAllowsMove,
+  icuCopyChangeApproved,
+  icuCopyDeleted,
   icuCopyKeep,
   icuCopyOnRun,
   icuCopyPutBack,
@@ -11,26 +13,39 @@ import {
   type ChangeSetTargetView,
   type IcuCopy,
   type IcuCopyEffect,
+  type IcuPlanSide,
   type IcuSighting,
 } from "../../src/planning/icu-copy.js";
 import { walk, type Step } from "./state-walk.js";
 
 const EVENT_ID = 4_101;
-const DAY = 19980822;
+const THURSDAY = 19980820;
+const SATURDAY = 19980822;
 
 type Content = "P" | "Q" | "E" | "F";
-type IcuContent = "Pn" | "Qn" | "E" | "F" | "gone";
+type IcuContent = "Pn" | "Qn" | "E" | "F";
+
+type Icu =
+  | { readonly kind: "gone" }
+  | { readonly kind: "there"; readonly content: IcuContent; readonly day: number };
+
+type PlanWorkout =
+  | { readonly kind: "workout"; readonly content: Content; readonly day: number }
+  | { readonly kind: "withdrawn" }
+  | { readonly kind: "removed-by-you" };
+
+type Proposal = { readonly kind: "change-to-q" } | { readonly kind: "withdraw" };
 
 interface World {
-  readonly plan: Content | "removed";
-  readonly icu: IcuContent;
+  readonly plan: PlanWorkout;
+  readonly icu: Icu;
   readonly version: number;
   readonly copy: IcuCopy;
   readonly proposal:
     | { readonly kind: "none" }
-    | { readonly kind: "open"; readonly view: ChangeSetTargetView };
-  readonly agreed: IcuContent;
-  readonly kept: IcuContent | "none";
+    | { readonly kind: "open"; readonly change: Proposal; readonly view: ChangeSetTargetView };
+  readonly agreed: Icu;
+  readonly kept: Icu | { readonly kind: "none" };
   readonly approvedOverEdit: "yes" | "no";
   readonly lost: boolean;
   readonly lostKept: boolean;
@@ -43,63 +58,84 @@ function norm(content: Content): IcuContent {
   return content;
 }
 
-function planFingerprint(content: Content): string {
-  return `plan:${content}`;
+function sameIcu(left: Icu | { readonly kind: "none" }, right: Icu): boolean {
+  if (left.kind !== "there" || right.kind !== "there") return left.kind === right.kind;
+  return left.content === right.content && left.day === right.day;
 }
 
-function sighting(icu: IcuContent, version: number): IcuSighting {
-  if (icu === "gone") return { kind: "absent" };
+function planFingerprint(plan: PlanWorkout): string {
+  return plan.kind === "workout" ? `plan:${plan.content}@${plan.day}` : `plan:${plan.kind}`;
+}
+
+function sighting(icu: Icu, version: number): IcuSighting {
+  if (icu.kind === "gone") return { kind: "absent" };
   return {
     kind: "present",
     eventId: EVENT_ID,
-    dateKey: DAY,
-    version: { fingerprint: icu, updated: `v${version}` },
+    dateKey: icu.day,
+    version: { fingerprint: icu.content, updated: `v${version}` },
   };
 }
 
-function planSide(world: World) {
-  return world.plan === "removed"
-    ? ({ kind: "withdraw" } as const)
-    : ({ kind: "send", planFingerprint: planFingerprint(world.plan) } as const);
+function planSide(world: World): IcuPlanSide {
+  return world.plan.kind === "workout"
+    ? { kind: "send", planFingerprint: planFingerprint(world.plan) }
+    : { kind: "withdraw" };
+}
+
+function written(world: World, after: Icu, copy: IcuCopy, agreedTo: Icu): World {
+  return {
+    ...world,
+    icu: after,
+    version: world.version + 1,
+    agreed: after,
+    copy,
+    lost: world.lost || !sameIcu(agreedTo, world.icu),
+    lostKept:
+      world.lostKept ||
+      (sameIcu(world.kept, world.icu) &&
+        world.kept.kind !== "none" &&
+        world.approvedOverEdit === "no"),
+    needless: world.needless || sameIcu(after, world.icu),
+    kept: { kind: "none" },
+    approvedOverEdit: "no",
+  };
 }
 
 function execute(
   world: World,
   copy: IcuCopy,
   effect: IcuCopyEffect,
-  agreedTo: IcuContent = world.agreed,
+  agreedTo: Icu = world.agreed,
 ): World {
-  if (effect.kind !== "update" && effect.kind !== "create") return { ...world, copy };
-  if (world.plan === "removed") return { ...world, copy };
   const current = sighting(world.icu, world.version);
+  if (effect.kind === "delete") {
+    if (current.kind !== "present" || current.version.fingerprint !== effect.expected.fingerprint) {
+      return { ...world, copy: icuCopyOnRun(copy, planSide(world), current).copy };
+    }
+    return written(world, { kind: "gone" }, icuCopyDeleted(copy), agreedTo);
+  }
+  if (effect.kind !== "update" && effect.kind !== "create") return { ...world, copy };
+  if (world.plan.kind !== "workout") return { ...world, copy };
   const stillAsSeen =
     effect.kind === "create"
       ? current.kind === "absent"
       : current.kind === "present" && current.version.fingerprint === effect.expected.fingerprint;
   if (!stillAsSeen) return { ...world, copy: icuCopyOnRun(copy, planSide(world), current).copy };
-  const written = norm(world.plan);
-  const version = world.version + 1;
-  const readBack = sighting(written, version);
+  const after: Icu = { kind: "there", content: norm(world.plan.content), day: world.plan.day };
+  const readBack = sighting(after, world.version + 1);
   if (readBack.kind !== "present") throw new Error("write lost");
-  return {
-    ...world,
-    icu: written,
-    version,
-    agreed: written,
-    copy: icuCopyWritten(copy, {
+  return written(
+    world,
+    after,
+    icuCopyWritten(copy, {
       eventId: EVENT_ID,
-      dateKey: DAY,
+      dateKey: after.day,
       planFingerprint: planFingerprint(world.plan),
       readBack: readBack.version,
     }),
-    lost: world.lost || world.icu !== agreedTo,
-    lostKept:
-      world.lostKept ||
-      (world.kept !== "none" && world.icu === world.kept && world.approvedOverEdit === "no"),
-    needless: world.needless || world.icu === written,
-    kept: "none",
-    approvedOverEdit: "no",
-  };
+    agreedTo,
+  );
 }
 
 function appRuns(world: World): World {
@@ -107,160 +143,191 @@ function appRuns(world: World): World {
   return execute(world, decided.copy, decided.effect);
 }
 
-function athleteChanges(world: World, to: IcuContent): World {
+function athleteChanges(world: World, to: Icu): World {
   return { ...world, icu: to, version: world.version + 1 };
+}
+
+function shownIcu(copy: IcuCopy): Icu | { readonly kind: "none" } {
+  if (copy.kind !== "changed-in-icu") return { kind: "none" };
+  if (copy.shown.kind === "absent") return { kind: "gone" };
+  const content = copy.shown.version.fingerprint;
+  if (content === "Pn" || content === "Qn" || content === "E" || content === "F") {
+    return { kind: "there", content, day: copy.shown.dateKey };
+  }
+  return { kind: "none" };
+}
+
+function planContent(content: IcuContent): Content {
+  if (content === "Pn") return "P";
+  if (content === "Qn") return "Q";
+  return content;
 }
 
 function keep(world: World): World {
   const current = sighting(world.icu, world.version);
-  const adopted: Content | "removed" =
-    current.kind === "absent" ? "removed" : current.version.fingerprint === "F" ? "F" : "E";
-  const result = icuCopyKeep(
-    world.copy,
-    current,
-    planFingerprint(adopted === "removed" ? "E" : adopted),
-  );
+  const adopted: PlanWorkout =
+    world.icu.kind === "gone"
+      ? { kind: "removed-by-you" }
+      : { kind: "workout", content: planContent(world.icu.content), day: world.icu.day };
+  const result = icuCopyKeep(world.copy, current, planSide(world), planFingerprint(adopted));
   if (result.kind !== "done") return { ...world, copy: result.copy };
-  return {
-    ...world,
-    copy: result.copy,
-    plan: adopted,
-    agreed: world.icu,
-    kept: world.icu,
-  };
-}
-
-function shownContent(copy: IcuCopy): IcuContent | "none" {
-  if (copy.kind !== "changed-in-icu") return "none";
-  if (copy.shown.kind === "absent") return "gone";
-  const shown = copy.shown.version.fingerprint;
-  if (shown === "Pn" || shown === "Qn" || shown === "E" || shown === "F") return shown;
-  return "none";
+  if (world.plan.kind !== "workout") return { ...world, copy: result.copy, agreed: world.icu };
+  return { ...world, copy: result.copy, plan: adopted, agreed: world.icu, kept: world.icu };
 }
 
 function putBack(world: World): World {
-  const onCard = shownContent(world.copy);
-  const result = icuCopyPutBack(world.copy, sighting(world.icu, world.version));
-  if (result.kind !== "done" || onCard === "none") return { ...world, copy: result.copy };
+  const onCard = shownIcu(world.copy);
+  const result = icuCopyPutBack(world.copy, sighting(world.icu, world.version), planSide(world));
+  if (result.kind !== "done" || onCard.kind === "none") return { ...world, copy: result.copy };
   return execute(world, result.copy, result.effect, onCard);
 }
 
-function coachProposes(world: World): World {
-  if (world.plan === "removed") return world;
+function coachProposes(world: World, change: Proposal): World {
   return {
     ...world,
-    proposal: { kind: "open", view: changeSetTargetView(world.copy, planFingerprint(world.plan)) },
+    proposal: {
+      kind: "open",
+      change,
+      view: changeSetTargetView(world.copy, planFingerprint(world.plan)),
+    },
   };
 }
 
 function approve(world: World): World {
-  if (world.proposal.kind !== "open" || world.plan === "removed") return world;
+  if (world.proposal.kind !== "open") return world;
   const approval = changeSetTargetApproval(
     world.proposal.view,
     world.copy,
     planFingerprint(world.plan),
   );
   if (approval.kind === "refresh") {
-    return { ...world, proposal: { kind: "open", view: approval.view } };
+    return { ...world, proposal: { ...world.proposal, view: approval.view } };
   }
+  const plan: PlanWorkout =
+    world.proposal.change.kind === "withdraw"
+      ? { kind: "withdrawn" }
+      : {
+          kind: "workout",
+          content: "Q",
+          day: world.plan.kind === "workout" ? world.plan.day : THURSDAY,
+        };
   return {
     ...world,
-    plan: "Q",
+    plan,
+    copy: icuCopyChangeApproved(world.copy, approval.mark),
     proposal: { kind: "none" },
-    approvedOverEdit: approval.mark === "replaces-your-edit" ? "yes" : "no",
+    approvedOverEdit: approval.mark === "replaces-your-edit" ? "yes" : world.approvedOverEdit,
   };
 }
 
-function approveKeepMine(world: World): World {
-  return { ...world, proposal: { kind: "none" } };
+function athleteOptions(world: World): readonly Icu[] {
+  if (world.icu.kind === "gone") return [];
+  const { day } = world.icu;
+  const options: Icu[] = [
+    { kind: "there", content: "E", day },
+    { kind: "there", content: "F", day },
+    { kind: "there", content: world.icu.content, day: day === THURSDAY ? SATURDAY : THURSDAY },
+    { kind: "gone" },
+  ];
+  if (world.agreed.kind === "there") options.push(world.agreed);
+  return options.filter((option) => !sameIcu(option, world.icu));
 }
 
 function next(world: World): readonly Step<World>[] {
   const steps: Step<World>[] = [["the app runs", appRuns(world)]];
-  for (const to of ["E", "F", "gone", world.agreed] as const) {
-    if (to !== world.icu)
-      steps.push([`the athlete changes it in intervals.icu to ${to}`, athleteChanges(world, to)]);
+  for (const to of athleteOptions(world)) {
+    steps.push([
+      `the athlete changes it in intervals.icu to ${JSON.stringify(to)}`,
+      athleteChanges(world, to),
+    ]);
   }
   if (world.copy.kind === "changed-in-icu") {
     steps.push(["the athlete presses Keep", keep(world)]);
     steps.push(["the athlete presses Put back", putBack(world)]);
   }
-  if (world.proposal.kind === "none" && world.plan !== "Q" && world.plan !== "removed") {
-    steps.push(["the coach proposes a change", coachProposes(world)]);
+  if (world.proposal.kind === "none" && world.plan.kind !== "withdrawn") {
+    if (world.plan.kind !== "workout" || world.plan.content !== "Q") {
+      steps.push(["the coach proposes a change", coachProposes(world, { kind: "change-to-q" })]);
+    }
+    steps.push(["the coach proposes removing it", coachProposes(world, { kind: "withdraw" })]);
   }
   if (world.proposal.kind === "open") {
     steps.push(["the athlete approves the change", approve(world)]);
     if (world.proposal.view.mark === "replaces-your-edit") {
-      steps.push(["the athlete approves, keeping their edit", approveKeepMine(world)]);
+      steps.push([
+        "the athlete approves, keeping their edit",
+        { ...world, proposal: { kind: "none" } },
+      ]);
     }
   }
   return steps;
 }
 
-function written(content: Content): World {
-  const start: World = {
-    plan: content,
-    icu: "gone",
+function start(): World {
+  const world: World = {
+    plan: { kind: "workout", content: "P", day: THURSDAY },
+    icu: { kind: "gone" },
     version: 0,
     copy: ICU_COPY_NOT_SENT,
     proposal: { kind: "none" },
-    agreed: "gone",
-    kept: "none",
+    agreed: { kind: "gone" },
+    kept: { kind: "none" },
     approvedOverEdit: "no",
     lost: false,
     lostKept: false,
     needless: false,
   };
-  return appRuns(start);
+  return appRuns(world);
 }
 
 const RULES = {
   NeverUndoneByItself: (world: World) => !world.lost,
   KeptEditReplacedOnlyWhenFlagged: (world: World) => !world.lostKept,
-  CardOnlyForRealChanges: (world: World) =>
-    world.copy.kind !== "changed-in-icu" ||
-    (world.copy.shown.kind === "absent" ? "gone" : world.copy.shown.version.fingerprint) !==
-      world.agreed,
+  CardOnlyForRealChanges: (world: World) => {
+    const shown = shownIcu(world.copy);
+    return (
+      world.copy.kind !== "changed-in-icu" ||
+      (shown.kind !== "none" && !sameIcu(shown, world.agreed))
+    );
+  },
   NoRewriteOfSameWorkout: (world: World) => !world.needless,
 };
 
-function key(world: World): string {
-  return JSON.stringify({ ...world, version: undefined, copy: copyKey(world.copy) });
-}
-
 function copyKey(copy: IcuCopy): unknown {
-  if (copy.kind === "on-icu")
+  if (copy.kind === "on-icu") {
     return {
       ...copy,
       baseline: { ...copy.baseline, readBack: copy.baseline.readBack.fingerprint },
     };
+  }
   if (copy.kind === "changed-in-icu") {
     return {
-      kind: copy.kind,
-      owner: copy.baseline.owner,
-      base: copy.baseline.readBack.fingerprint,
-      plan: copy.baseline.planFingerprint,
-      shown: copy.shown.kind === "absent" ? "absent" : copy.shown.version.fingerprint,
+      ...copy,
+      baseline: { ...copy.baseline, readBack: copy.baseline.readBack.fingerprint },
+      shown:
+        copy.shown.kind === "absent"
+          ? "absent"
+          : [copy.shown.dateKey, copy.shown.version.fingerprint],
     };
   }
   return copy;
 }
 
+function key(world: World): string {
+  return JSON.stringify({ ...world, version: undefined, copy: copyKey(world.copy) });
+}
+
+const P_THURSDAY: Icu = { kind: "there", content: "Pn", day: THURSDAY };
+
 describe("a Plan Workout's copy on intervals.icu", () => {
-  it("keeps every rule on every path of up to nine steps", () => {
-    const result = walk({
-      initial: [written("P")],
-      next,
-      key,
-      rules: RULES,
-      maxDepth: 9,
-    });
+  it("keeps every rule on every path of up to eight steps", () => {
+    const result = walk({ initial: [start()], next, key, rules: RULES, maxDepth: 8 });
     expect(result.broken).toEqual([]);
-    expect(result.states).toBeGreaterThan(100);
+    expect(result.states).toBeGreaterThan(1_000);
   });
 
   it("does not send the Plan's version over an edit made in intervals.icu", () => {
-    const edited = athleteChanges(written("P"), "E");
+    const edited = athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY });
     const decided = icuCopyOnRun(
       edited.copy,
       planSide(edited),
@@ -272,8 +339,8 @@ describe("a Plan Workout's copy on intervals.icu", () => {
   });
 
   it("does not open the card when intervals.icu only stored our write in its own format", () => {
-    const world = written("P");
-    expect(world.icu).toBe("Pn");
+    const world = start();
+    expect(world.icu).toEqual(P_THURSDAY);
     const again = appRuns(world);
     expect(again.copy.kind).toBe("on-icu");
     expect(
@@ -282,66 +349,135 @@ describe("a Plan Workout's copy on intervals.icu", () => {
   });
 
   it("refreshes the card instead of putting back over a newer edit", () => {
-    const card = appRuns(athleteChanges(written("P"), "E"));
+    const card = appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY }));
     expect(card.copy.kind).toBe("changed-in-icu");
-    const editedAgain = athleteChanges(card, "F");
-    const pressed = putBack(editedAgain);
-    expect(pressed.icu).toBe("F");
+    const pressed = putBack(athleteChanges(card, { kind: "there", content: "F", day: THURSDAY }));
+    expect(pressed.icu).toEqual({ kind: "there", content: "F", day: THURSDAY });
     expect(pressed.lost).toBe(false);
     expect(pressed.copy).toMatchObject({
       kind: "changed-in-icu",
-      shown: { kind: "present", version: { fingerprint: "F" } },
+      shown: { version: { fingerprint: "F" } },
     });
   });
 
   it("marks a coach change shown before a Keep as replacing the athlete's edit", () => {
-    const card = appRuns(athleteChanges(written("P"), "E"));
-    const proposed = coachProposes(card);
+    const card = appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY }));
+    const proposed = coachProposes(card, { kind: "change-to-q" });
     expect(proposed.proposal).toMatchObject({ view: { mark: "plain" } });
     const kept = keep(proposed);
     expect(kept.copy).toMatchObject({ kind: "on-icu", baseline: { owner: "athlete-edit" } });
     const refreshed = approve(kept);
-    expect(refreshed.plan).toBe("E");
+    expect(refreshed.plan).toEqual({ kind: "workout", content: "E", day: THURSDAY });
     expect(refreshed.proposal).toMatchObject({ view: { mark: "replaces-your-edit" } });
     const approved = appRuns(approve(refreshed));
-    expect(approved.icu).toBe("Qn");
+    expect(approved.icu).toEqual({ kind: "there", content: "Qn", day: THURSDAY });
     expect(approved.lostKept).toBe(false);
   });
 
+  it("never rewrites a kept edit for an unmarked Plan change", () => {
+    const kept = keep(
+      appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
+    );
+    const changedUnmarked: World = {
+      ...kept,
+      plan: { kind: "workout", content: "Q", day: THURSDAY },
+    };
+    const decided = icuCopyOnRun(
+      changedUnmarked.copy,
+      planSide(changedUnmarked),
+      sighting(kept.icu, kept.version),
+    );
+    expect(decided.effect).toEqual({ kind: "none" });
+  });
+
+  it("sees a move made in intervals.icu and keeps it through a later coach change", () => {
+    const moved = appRuns(athleteChanges(start(), { kind: "there", content: "Pn", day: SATURDAY }));
+    expect(moved.copy).toMatchObject({ kind: "changed-in-icu", shown: { dateKey: SATURDAY } });
+    const kept = keep(moved);
+    expect(kept.plan).toMatchObject({ day: SATURDAY });
+    const changed = appRuns(approve(approve(coachProposes(kept, { kind: "change-to-q" }))));
+    expect(changed.icu).toEqual({ kind: "there", content: "Qn", day: SATURDAY });
+    expect(changed.lost).toBe(false);
+  });
+
   it("closes the card when the athlete changes the workout back", () => {
-    const card = appRuns(athleteChanges(written("P"), "E"));
-    const back = appRuns(athleteChanges(card, "Pn"));
-    expect(back.copy.kind).toBe("on-icu");
+    const card = appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY }));
+    expect(appRuns(athleteChanges(card, P_THURSDAY)).copy.kind).toBe("on-icu");
+  });
+
+  it("closes the card when the athlete deleted a workout the coach then removed", () => {
+    const card = appRuns(athleteChanges(start(), { kind: "gone" }));
+    const withdrawn: World = { ...card, plan: { kind: "withdrawn" } };
+    expect(appRuns(withdrawn).copy).toEqual(ICU_COPY_NOT_SENT);
+  });
+
+  it("deletes an edited workout on Put back once the coach removed it from the Plan", () => {
+    const card = appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY }));
+    const withdrawn: World = { ...card, plan: { kind: "withdrawn" } };
+    const result = icuCopyPutBack(
+      withdrawn.copy,
+      sighting(withdrawn.icu, withdrawn.version),
+      planSide(withdrawn),
+    );
+    expect(result).toMatchObject({
+      kind: "done",
+      effect: { kind: "delete", expected: { fingerprint: "E" } },
+    });
+    expect(
+      icuCopyKeep(
+        withdrawn.copy,
+        sighting(withdrawn.icu, withdrawn.version),
+        planSide(withdrawn),
+        "x",
+      ),
+    ).toMatchObject({
+      kind: "done",
+      copy: { kind: "kept-as-yours", eventId: EVENT_ID },
+    });
   });
 
   it("refuses a drag while the card is open", () => {
-    const card = appRuns(athleteChanges(written("P"), "E"));
+    const card = appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY }));
     expect(icuCopyAllowsMove(card.copy)).toBe(false);
     expect(icuCopyAllowsMove(keep(card).copy)).toBe(true);
   });
 
   it("keeps a deletion made in intervals.icu as Removed by you", () => {
-    const card = appRuns(athleteChanges(written("P"), "gone"));
-    const kept = keep(card);
+    const kept = keep(appRuns(athleteChanges(start(), { kind: "gone" })));
     expect(kept.copy.kind).toBe("removed-by-you");
-    expect(kept.plan).toBe("removed");
-    expect(appRuns(kept).icu).toBe("gone");
+    expect(kept.plan).toEqual({ kind: "removed-by-you" });
+    expect(appRuns(kept).icu).toEqual({ kind: "gone" });
+    expect(changeSetTargetView(kept.copy, "plan:Q").mark).toBe("replaces-your-edit");
+    expect(icuCopyChangeApproved(kept.copy, "replaces-your-edit")).toEqual(ICU_COPY_NOT_SENT);
   });
 
   it("puts a deleted workout back with a new event", () => {
-    const card = appRuns(athleteChanges(written("P"), "gone"));
-    const restored = putBack(card);
-    expect(restored.icu).toBe("Pn");
+    const restored = putBack(appRuns(athleteChanges(start(), { kind: "gone" })));
+    expect(restored.icu).toEqual(P_THURSDAY);
     expect(restored.copy.kind).toBe("on-icu");
   });
 
   it("takes a fresh updated time without opening the card", () => {
-    const world = written("P");
-    const decided = icuCopyOnRun(world.copy, planSide(world), sighting("Pn", 40));
+    const world = start();
+    const decided = icuCopyOnRun(world.copy, planSide(world), sighting(P_THURSDAY, 40));
     expect(decided.effect).toEqual({ kind: "none" });
     expect(decided.copy).toMatchObject({
       kind: "on-icu",
       baseline: { readBack: { updated: "v40" } },
+    });
+  });
+
+  it("sends one update for an event found without a receipt, and leaves an unknown one alone", () => {
+    const found = sighting({ kind: "there", content: "Pn", day: THURSDAY }, 3);
+    expect(
+      icuCopyOnRun(ICU_COPY_NOT_SENT, { kind: "send", planFingerprint: "plan:P" }, found),
+    ).toMatchObject({
+      copy: { kind: "on-icu", baseline: { planFingerprint: "unknown" } },
+      effect: { kind: "update", expected: { fingerprint: "Pn" } },
+    });
+    expect(icuCopyOnRun(ICU_COPY_NOT_SENT, { kind: "withdraw" }, found)).toEqual({
+      copy: ICU_COPY_NOT_SENT,
+      effect: { kind: "none" },
     });
   });
 });

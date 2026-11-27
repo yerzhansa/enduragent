@@ -1,4 +1,9 @@
-import { addCivilDays, inclusiveCivilDays, weekdayForDateKey } from "@enduragent/kernel/planning";
+import {
+  addCivilDays,
+  planWeekIndex,
+  planWeekRange,
+  weekdayForDateKey,
+} from "@enduragent/kernel/planning";
 
 export type FirstDayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -38,8 +43,12 @@ export function firstDayOfWeek(value: number): FirstDayOfWeek {
   throw new TrainingWeekError("invalid-first-day");
 }
 
+export function firstDayOfWeekFromWeekday(weekday: number): FirstDayOfWeek {
+  return firstDayOfWeek(weekday === 0 ? 7 : weekday);
+}
+
 function isoWeekday(dateKey: number): FirstDayOfWeek {
-  return firstDayOfWeek(((weekdayForDateKey(dateKey) + 6) % 7) + 1);
+  return firstDayOfWeekFromWeekday(weekdayForDateKey(dateKey));
 }
 
 export function calendarRowStart(dateKey: number, firstDay: FirstDayOfWeek): number {
@@ -65,12 +74,12 @@ export function trainingWeek(plan: TrainingWeekPlan, index: number): TrainingWee
   if (!Number.isSafeInteger(index) || index < 1 || index > checked.totalWeeks) {
     throw new TrainingWeekError("invalid-week-index");
   }
-  const startDateKey = addCivilDays(checked.startDateKey, (index - 1) * TRAINING_WEEK_DAYS);
+  const range = planWeekRange(checked, index);
   return {
     index,
-    startDateKey,
-    endDateKey: addCivilDays(startDateKey, TRAINING_WEEK_DAYS - 1),
-    sendDateKey: addCivilDays(startDateKey, -TRAINING_WEEK_LEAD_DAYS),
+    startDateKey: range.startDateKey,
+    endDateKey: range.endDateKey,
+    sendDateKey: addCivilDays(range.startDateKey, -TRAINING_WEEK_LEAD_DAYS),
   };
 }
 
@@ -86,11 +95,13 @@ export function trainingWeekPosition(
   dateKey: number,
 ): TrainingWeekPosition {
   const checked = validPlan(plan);
-  const offset = inclusiveCivilDays(checked.startDateKey, dateKey) - 1;
-  if (offset < 0) return { kind: "before-plan", firstWeek: trainingWeek(checked, 1) };
-  const index = Math.floor(offset / TRAINING_WEEK_DAYS) + 1;
-  if (index > checked.totalWeeks) return { kind: "after-plan" };
-  return { kind: "inside", week: trainingWeek(checked, index) };
+  const position = planWeekIndex(checked, dateKey);
+  if (position.kind === "inside") {
+    return { kind: "inside", week: trainingWeek(checked, position.weekIndex) };
+  }
+  return position.side === "before"
+    ? { kind: "before-plan", firstWeek: trainingWeek(checked, 1) }
+    : { kind: "after-plan" };
 }
 
 export function currentTrainingWeekIndex(

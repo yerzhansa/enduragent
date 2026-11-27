@@ -280,13 +280,14 @@ async function main(): Promise<void> {
       check.expect,
       got,
       run.states,
+      check.test,
     ]);
     if (options.trace && run.broken)
       process.stdout.write(
         `\n${check.model}/${check.variant} ${check.rule}:\n${traceOf(run.output)}\n`,
       );
   }
-  const header = ["", "model", "variant", "rule", "expected", "result", "states"];
+  const header = ["", "model", "variant", "rule", "expected", "result", "states", "engine test"];
   const widths = header.map((_, column) =>
     Math.max(...[header, ...rows].map((row) => (row[column] ?? "").length)),
   );

@@ -26,29 +26,38 @@ Each rule is a TLA+ invariant with the same name. The test's walk checks it as a
 
 | Rule | What breaks for the athlete | Named test |
 |---|---|---|
-| `NeverUndoneByItself` | An edit made in intervals.icu is replaced without the athlete pressing Put back on that version. | `refreshes the card instead of putting back over a newer edit`, `does not send the Plan's version over an edit made in intervals.icu` |
-| `KeptEditReplacedOnlyWhenFlagged` | A kept edit is replaced by a coach change not marked "Replaces your intervals.icu edit". | `marks a coach change shown before a Keep as replacing the athlete's edit` |
+| `NeverUndoneByItself` | An edit, move or delete made in intervals.icu is replaced without the athlete pressing Put back on that version. | `refreshes the card instead of putting back over a newer edit`, `does not send the Plan's version over an edit made in intervals.icu`, `sees a move made in intervals.icu and keeps it through a later coach change`, `closes the card when the athlete deleted a workout the coach then removed`, `deletes an edited workout on Put back once the coach removed it from the Plan` |
+| `KeptEditReplacedOnlyWhenFlagged` | A kept edit is replaced by a coach change not marked "Replaces your intervals.icu edit". | `marks a coach change shown before a Keep as replacing the athlete's edit`, `never rewrites a kept edit for an unmarked Plan change` |
 | `CardOnlyForRealChanges` | "Changed in intervals.icu" appears though nobody changed anything. | `does not open the card when intervals.icu only stored our write in its own format` |
-| `NoRewriteOfSameWorkout` | The app rewrites a workout that already matches. | `keeps every rule on every path of up to nine steps` (icu-copy) |
+| `NoRewriteOfSameWorkout` | The app rewrites a workout that already matches. | `keeps every rule on every path of up to eight steps` (icu-copy), `sends one update for an event found without a receipt, and leaves an unknown one alone` |
 | `MissedIsTrue` | Missed shows before a sync covered the day. | `says Not synced yet, not Missed, the morning after when no sync has run`, `corrects a Missed by itself when a late sync brings the ride` |
 | `RemovedIsNeverMissed` | A workout removed by the athlete shows Missed. | `never counts Removed by you as Missed or as planned time` |
 | `OnlyConfirmedCounts` | An unconfirmed ride counts as done. | `does not count an unconfirmed ride` |
 | `RideOnTheDayIsSuggested` | A ride on the day a kept move set gets no "Is this it?". | `suggests a ride on the day a kept intervals.icu move set` |
 | `NoReplyWithoutAsking` | The coach spends a reply nobody asked for. | `never rewrites a kept text by itself`, `tries a failed text again only when the athlete opens it or asks` |
+| `NeverStuckWriting` (engine only) | A text left half-written when the app quit can never be written. | `recovers a text left writing when the app quit, on the next open` |
 | `NoTextBeforeTheMatch` | The coach writes before the athlete confirms the match. | `waits for Confirm or Not this one before writing` |
 | `KeptTextIsHonest` | A kept review describes a match that changed, and nothing says so. | `says which match a kept review was written for after the match changes` |
 | `OneFtp` | The coach and the head unit use different FTPs. | `uses only intervals.icu's FTP, the indoor one for indoor rides` |
 | `NeverOverwriteAnUnseenFtp` | The app writes over an FTP the confirm did not show. | `shows a number set in intervals.icu while the confirm is open before writing` |
-| `NoProposalFromOneRide` | One ride makes the coach propose a new FTP. | `keeps every rule on every path of up to nine steps` (ftp-proposal), `finds drift only after 14 days at least 3% away` |
+| `NoProposalFromOneRide` | One ride makes the coach propose a new FTP. | `keeps every rule on every path of up to nine steps` (ftp-proposal), `finds drift only after 14 days at least 3% away since the FTP was set` |
 | `PlannedTestIsAnswered` | A planned FTP test gets no answer inside the 4 weeks after Keep. | `answers a planned test within four weeks of Keep` |
+| `AnsweredTestIsNotAskedAgain` (engine only) | The coach asks again about a planned test the athlete already answered. | `does not ask again about a planned test the athlete already answered` |
 | `NothingWithoutConsent` | A week reaches intervals.icu without the athlete's Approve. | `sends nothing before the first Approve`, `waits for each later week's Approve when the setting asks` |
 | `ThisWeekAndNextAreThere` | This Training Week or next is missing from intervals.icu after a run. | `sends this week and next when the first Change Set is approved late`, `sends every due week after the app was closed for more than seven days` |
-| `TodayIsKept` | End or Replace deletes today's workout. | `keeps today's workout when the Plan ends` |
+| `TodayIsKept` | End or Replace deletes today's workout, or keeps the next day's when the cleanup retries a day later. | `keeps today's workout when the Plan ends`, `removes from the day after the Plan closed, even when the cleanup retries a day later` |
 | `NeverTwoPlansOnIntervals` | The new Plan's weeks go out while the old ones are still there. | `sends the new Plan's weeks only after the old ones are removed and checked` |
 | `LocalFirst` | A failed cleanup reopens the old Plan. | `closes the Plan locally before any cleanup runs` |
-| `YourChangesAreNotDeletedByItself` | End or Replace deletes a workout the athlete changed in intervals.icu. | `lists the workouts the athlete changed apart and keeps them unless ticked` |
+| `YourChangesAreNotDeletedByItself` | End or Replace deletes a workout the athlete changed in intervals.icu, or one changed again after the confirm. | `lists the workouts the athlete changed apart and removes only the ticked version` |
 
-Each machine's walk test (`keeps every rule on every path…`) checks all of that machine's rules at once.
+Each machine's walk test (`keeps every rule on every path…`) checks all of that machine's rules at once. The two rules marked "engine only" have no TLA+ invariant: the models clear their evidence and text state in ways the engine cannot, so only the walks see these cases.
+
+The walks are wider than the models in four places:
+
+- The icu walk has two days, so the athlete can move a workout, and the coach can remove one.
+- The End walk lets a day pass before the cleanup and lets the athlete edit again after the confirm.
+- The FTP walk keeps a planned test as evidence after Keep, as intervals.icu does.
+- The coach text walk lets the app quit mid-write.
 
 ## Run the models
 

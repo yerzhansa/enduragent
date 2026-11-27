@@ -73,7 +73,7 @@ export function weekDeliveryStep(
     return { kind: "refused", reason: "week-not-due", state };
   }
   if (state.approvedWeeks.includes(event.week) || state.firstSetWeeks.includes(event.week)) {
-    return { kind: "changed", state };
+    return { kind: "refused", reason: "already-approved", state };
   }
   return {
     kind: "changed",
