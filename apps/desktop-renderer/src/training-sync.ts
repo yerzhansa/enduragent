@@ -41,7 +41,7 @@ export type TrainingSyncState =
   | {
       readonly status: "failed";
       readonly operation: number;
-      readonly kind: "partial" | "operation" | "indeterminate" | "protocol";
+      readonly kind: "partial" | "operation" | "indeterminate" | "not-in-use" | "protocol";
       readonly retryable: boolean;
     };
 
@@ -116,6 +116,7 @@ function isSameTrainingSyncState(left: TrainingSyncState, right: TrainingSyncSta
 export function createTrainingSyncCoordinator(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly refreshTrainingContext: () => Promise<void>;
+  readonly intervalsSignInSaved?: () => boolean;
 }): TrainingSyncCoordinator {
   let state: TrainingSyncState = { status: "idle" };
   let operation = 0;
@@ -134,7 +135,9 @@ export function createTrainingSyncCoordinator(input: {
     for (const listener of listeners) {
       try {
         listener(state);
-      } catch {}
+      } catch {
+        console.error("desktop-training-sync-listener-failed");
+      }
     }
   };
   const publishProtocol = (selectedEpoch: number, selectedOperation: number): void => {
@@ -314,7 +317,9 @@ export function createTrainingSyncCoordinator(input: {
 
       try {
         await input.refreshTrainingContext();
-      } catch {}
+      } catch {
+        console.error("desktop-training-sync-refresh-failed");
+      }
       if (!current(selectedEpoch)) return;
       if (protocolFault) {
         publishProtocol(selectedEpoch, selectedOperation);
@@ -336,6 +341,16 @@ export function createTrainingSyncCoordinator(input: {
           status: "failed",
           operation: selectedOperation,
           kind: "operation",
+          retryable: true,
+        });
+      } else if (
+        result.backfill === "skipped-no-credential" &&
+        input.intervalsSignInSaved?.() === true
+      ) {
+        publish({
+          status: "failed",
+          operation: selectedOperation,
+          kind: "not-in-use",
           retryable: true,
         });
       } else if (result.published && result.referenceSucceeded) {
@@ -370,23 +385,25 @@ export function createTrainingSyncCoordinator(input: {
     })();
 
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    const settle = (): void => {
+      if (inFlight === task) inFlight = undefined;
+    };
+    void task.then(settle, settle);
     return task;
   };
 
   return {
     getState: () => state,
     subscribe(listener) {
-      if (disposed) return () => {};
+      const unsubscribe = (): boolean => listeners.delete(listener);
+      if (disposed) return unsubscribe;
       listeners.add(listener);
       try {
         listener(state);
-      } catch {}
-      return () => listeners.delete(listener);
+      } catch {
+        console.error("desktop-training-sync-listener-failed");
+      }
+      return unsubscribe;
     },
     request() {
       if (disposed || (state.status === "failed" && state.kind === "protocol")) {

@@ -15,6 +15,10 @@
     "./sport": {
       "types": "./dist/sport.d.ts",
       "import": "./dist/sport.js"
+    },
+    "./calendar": {
+      "types": "./dist/calendar.d.ts",
+      "import": "./dist/calendar.js"
     }
   },
   "scripts": {

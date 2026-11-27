@@ -16,6 +16,8 @@ export interface CreateWallClockSchedulerInput {
   readonly dependencies?: Partial<WallClockSchedulerDependencies>;
 }
 
+const MAX_WAIT_MS = 60_000;
+
 export function createWallClockScheduler(input: CreateWallClockSchedulerInput): WallClockScheduler {
   if (!Number.isSafeInteger(input.cadenceMs) || input.cadenceMs <= 0) {
     throw new RangeError("cadenceMs must be a positive safe integer");
@@ -25,32 +27,30 @@ export function createWallClockScheduler(input: CreateWallClockSchedulerInput): 
     setTimeout: input.dependencies?.setTimeout ?? globalThis.setTimeout,
     clearTimeout: input.dependencies?.clearTimeout ?? globalThis.clearTimeout,
   };
-  const onError = input.onError ?? (() => {});
   let started = false;
   let closed = false;
   let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
   let activeRun: Promise<void> | undefined;
   let closePromise: Promise<void> | undefined;
 
-  const schedule = (): void => {
+  const schedule = (now: number): void => {
     if (closed) return;
-    const now = dependencies.nowEpochMs();
     const deadline = (Math.floor(now / input.cadenceMs) + 1) * input.cadenceMs;
-    const delay = Math.max(0, deadline - dependencies.nowEpochMs());
+    const delay = Math.min(deadline - now, MAX_WAIT_MS);
     timer = dependencies.setTimeout(() => {
       timer = undefined;
       if (closed) return;
-      const task = Promise.resolve().then(input.run);
-      activeRun = task;
-      void task
-        .catch((error) => {
-          try {
-            onError(error);
-          } catch {}
-        })
+      const firedAt = dependencies.nowEpochMs();
+      if (firedAt < deadline) {
+        schedule(firedAt);
+        return;
+      }
+      activeRun = Promise.resolve()
+        .then(input.run)
+        .catch((error: unknown) => input.onError?.(error))
         .finally(() => {
-          if (activeRun === task) activeRun = undefined;
-          schedule();
+          activeRun = undefined;
+          schedule(dependencies.nowEpochMs());
         });
     }, delay);
     timer.unref?.();
@@ -60,7 +60,7 @@ export function createWallClockScheduler(input: CreateWallClockSchedulerInput): 
     start() {
       if (started || closed) return;
       started = true;
-      schedule();
+      schedule(dependencies.nowEpochMs());
     },
     close() {
       closePromise ??= (async () => {
@@ -69,9 +69,7 @@ export function createWallClockScheduler(input: CreateWallClockSchedulerInput): 
           dependencies.clearTimeout(timer);
           timer = undefined;
         }
-        try {
-          await activeRun;
-        } catch {}
+        await activeRun;
       })();
       return closePromise;
     },

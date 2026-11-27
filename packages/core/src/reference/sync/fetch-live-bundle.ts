@@ -151,6 +151,10 @@ function throwIfRateLimited(endpoint: string, result: FetchResult<unknown>): voi
   );
 }
 
+function isRefusedSignIn(error: unknown): boolean {
+  return error !== null && typeof error === "object" && "status" in error && error.status === 401;
+}
+
 function shiftedDate(value: string, days: number): string {
   const instant = new Date(`${value}T00:00:00.000Z`);
   instant.setUTCDate(instant.getUTCDate() + days);
@@ -368,6 +372,9 @@ async function fetchStreams(
       continue;
     }
     if (!result.ok) {
+      if (isRefusedSignIn(result.error)) {
+        throw new Error(`activities.getStreams failed: ${renderEndpointError(result.error)}`);
+      }
       log(`Reference: streams fetch failed for an activity: ${renderEndpointError(result.error)}`);
       continue;
     }

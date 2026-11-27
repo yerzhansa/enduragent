@@ -817,6 +817,7 @@
         "connected": "Verbonden · de bron van je ritten",
         "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
         "missing": "Verbind of importeer ritbestanden.",
+        "notWorking": "Aangemeld, maar werkt nog niet",
         "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren.",
         "savedRides": "Ritten opgeslagen op {{computer}} · verbind om nieuwe te synchroniseren"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Controle van trainingsgegevens voltooid. {{source}} staat niet toe dat AI-tools van derden gegevens uit de API gebruiken, dus één activiteit is niet opgenomen.",
         "publishedRestricted_other": "Controle van trainingsgegevens voltooid. {{source}} staat niet toe dat AI-tools van derden gegevens uit de API gebruiken, dus {{formattedCount}} activiteiten zijn niet opgenomen.",
         "queued": "Synchronisatie in de wachtrij.",
-        "running": "Trainingsgegevens synchroniseren…"
+        "running": "Trainingsgegevens synchroniseren…",
+        "signInNotInUse": "{{intervals}} is nu niet verbonden, dus er is niets gesynchroniseerd. {{product}} probeert het opnieuw zodra je netwerk terug is."
       },
       "restriction": {
         "fixAction": "· Zo los je dit op",

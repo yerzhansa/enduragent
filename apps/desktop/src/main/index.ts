@@ -5,7 +5,7 @@ import { bindDevelopmentUserData } from "./development-user-data.js";
 import { bindWindowsUserData } from "./windows-user-data.js";
 import {
   createAcceptanceKeychainTransport,
-  resolveAcceptanceCredentialBackend,
+  acceptanceCredentialBackendForApp,
 } from "./acceptance-credential-backend.js";
 import { realpath, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -53,6 +53,7 @@ import {
   shouldReleaseInitialRefreshAfterLoadRejection,
   shouldReleaseInitialRefreshForWindowEvent,
 } from "./initial-refresh.js";
+import { createIntervalsSignInRetry } from "./intervals-sign-in-retry.js";
 import { bindDesktopAppUserModelId, createDesktopActivationRelay } from "./desktop-lifecycle.js";
 import { installDesktopAppearanceIpc } from "./appearance-ipc.js";
 import { installDesktopExternalLinkIpc } from "./external-link-ipc.js";
@@ -544,15 +545,10 @@ async function runDesktop(): Promise<void> {
     );
     const serializeCredentialMutation = createCredentialMutationLock();
     const serializeCredentialEnvelopeMutation = createCredentialEnvelopeMutationLock();
-    const acceptanceCredentialBackend = resolveAcceptanceCredentialBackend({
-      isPackaged: app.isPackaged,
+    const acceptanceCredentialBackend = acceptanceCredentialBackendForApp({
+      app,
       hidden: desktopAcceptanceHidden,
-      backend: environment.ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND,
-      appName: app.getName(),
-      appPath: app.getAppPath(),
-      userDataPath: app.getPath("userData"),
-      disposableContext:
-        environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
+      environment,
     });
     traceDesktopStartupStage("prepare-credential-encryption");
     const credentialEncryption = await prepareDesktopCredentialEncryption({
@@ -957,25 +953,23 @@ async function runDesktop(): Promise<void> {
           throw new TypeError();
         }
       },
-      async reapplyCredential(slot, value, storedCredentialSlots) {
-        const binding = activeRuntimeBinding;
-        const lifecycleState = daemonLifecycle?.snapshot();
-        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
-        const status = await binding.credentials.reapplyStoredCredential(
-          slot,
-          value,
-          storedCredentialSlots,
-        );
-        const currentLifecycleState = daemonLifecycle?.snapshot();
-        if (
-          activeRuntimeBinding !== binding ||
-          currentLifecycleState?.status !== "ready" ||
-          currentLifecycleState.generation !== lifecycleState.generation
-        ) {
-          if (slot !== "intervals-icu") failModelCredentialRuntimeStates();
-          throw new TypeError();
-        }
-        return status;
+      reapplyCredential(slot, value, stored) {
+        return signInRetry.observe(slot, async () => {
+          const binding = activeRuntimeBinding;
+          const lifecycleState = daemonLifecycle?.snapshot();
+          if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
+          const status = await binding.credentials.reapplyStoredCredential(slot, value, stored);
+          const currentLifecycleState = daemonLifecycle?.snapshot();
+          if (
+            activeRuntimeBinding !== binding ||
+            currentLifecycleState?.status !== "ready" ||
+            currentLifecycleState.generation !== lifecycleState.generation
+          ) {
+            if (slot !== "intervals-icu") failModelCredentialRuntimeStates();
+            throw new TypeError();
+          }
+          return status;
+        });
       },
       async clearCredential(slot) {
         const binding = activeRuntimeBinding;
@@ -994,6 +988,7 @@ async function runDesktop(): Promise<void> {
         return result;
       },
     });
+    const signInRetry = createIntervalsSignInRetry({ vault, net, powerMonitor }, controller.signal);
     const reapplyCredentials = async (
       connection: DesktopDaemonConnection,
       signal: AbortSignal,

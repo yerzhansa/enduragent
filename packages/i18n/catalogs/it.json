@@ -817,6 +817,7 @@
         "connected": "Collegato · la fonte delle tue uscite",
         "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
         "missing": "Collega o importa i file delle uscite.",
+        "notWorking": "Accesso effettuato, ma non funziona ancora",
         "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione.",
         "savedRides": "Uscite salvate su {{computer}} · collega per sincronizzare le nuove"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Verifica dei dati di allenamento completata. {{source}} non consente agli strumenti di IA di terze parti di usare i dati della sua API, quindi un’attività non è inclusa.",
         "publishedRestricted_other": "Verifica dei dati di allenamento completata. {{source}} non consente agli strumenti di IA di terze parti di usare i dati della sua API, quindi {{formattedCount}} attività non sono incluse.",
         "queued": "Sincronizzazione in coda.",
-        "running": "Sincronizzazione dei dati di allenamento…"
+        "running": "Sincronizzazione dei dati di allenamento…",
+        "signInNotInUse": "{{intervals}} non è connesso in questo momento, quindi non è stato sincronizzato nulla. {{product}} riproverà quando la tua rete tornerà disponibile."
       },
       "restriction": {
         "fixAction": "· Come risolvere",
