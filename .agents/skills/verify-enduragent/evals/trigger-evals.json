@@ -16,6 +16,10 @@
     "should_trigger": true
   },
   {
+    "query": "The Enduragent desktop composer shows an error notice after sending. Reproduce it live in the built app, then prove the fix in the running app with before and after screenshots.",
+    "should_trigger": true
+  },
+  {
     "query": "Implement the new Settings connections recovery banner in the Enduragent desktop renderer and add its component tests; do not run broader UI verification.",
     "should_trigger": false
   },

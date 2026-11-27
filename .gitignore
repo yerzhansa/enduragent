@@ -11,7 +11,10 @@ workers/
 .cursor/
 .nvmrc
 /scripts/
-.claude
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/verify-enduragent
 .codex/
 CLAUDE.local.md
 AGENTS.override.md
