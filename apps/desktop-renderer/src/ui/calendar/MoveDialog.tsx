@@ -8,9 +8,12 @@ import { useCalendarText, type CalendarText } from "./calendar-text";
 type Say = ReturnType<typeof usePhrasebook>["say"];
 
 function effect(preview: MovePreview, text: CalendarText, say: Say): string {
-  const where = preview.onIntervals
-    ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
-    : say("plan.calendar.move.planOnly");
+  const where =
+    preview.where.kind === "goes"
+      ? say("plan.calendar.move.onIntervals", { weekday: text.weekdayLong(preview.toDateKey) })
+      : preview.where.kind === "leaves"
+        ? say("plan.calendar.move.leaves", { week: preview.where.week })
+        : say("plan.calendar.move.planOnly");
   const weeks = preview.weeks;
   if (weeks === null) return where;
   const totals =
@@ -34,7 +37,7 @@ function failure(
   switch (state.reason) {
     case "card-open":
       return say("plan.calendar.move.cardOpen", {
-        day: text.weekdayDayMonth(preview.workout.dateKey),
+        day: text.weekdayDayMonth(preview.toDateKey),
       });
     case "refused":
       return say("plan.calendar.move.refused");
@@ -58,7 +61,7 @@ export function MoveDialog(props: {
   const { state, preview } = props;
   useEffect(() => {
     heading.current?.focus();
-  }, []);
+  }, [preview.toDateKey]);
   const title = say("plan.calendar.move.title", {
     name: preview.workout.name,
     day: text.weekdayDayMonth(preview.toDateKey),
@@ -94,27 +97,29 @@ export function MoveDialog(props: {
               workouts: clashNames,
             })}
           </legend>
+          {preview.canSwap ? (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="move-clash"
+                className="mt-0.5 accent-brand"
+                checked={state.swap}
+                disabled={busy}
+                onChange={() => props.onSwap(true)}
+              />
+              {say("plan.calendar.move.swap", {
+                count: preview.clash.length,
+                names: text.names(preview.clash.map((workout) => workout.name)),
+                weekday: text.weekdayLong(preview.workout.dateKey),
+              })}
+            </label>
+          ) : null}
           <label className="flex items-start gap-2 text-sm">
             <input
               type="radio"
               name="move-clash"
               className="mt-0.5 accent-brand"
-              checked={state.swap}
-              disabled={busy}
-              onChange={() => props.onSwap(true)}
-            />
-            {say("plan.calendar.move.swap", {
-              count: preview.clash.length,
-              names: text.names(preview.clash.map((workout) => workout.name)),
-              weekday: text.weekdayLong(preview.workout.dateKey),
-            })}
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="radio"
-              name="move-clash"
-              className="mt-0.5 accent-brand"
-              checked={!state.swap}
+              checked={!state.swap || !preview.canSwap}
               disabled={busy}
               onChange={() => props.onSwap(false)}
             />
@@ -126,7 +131,7 @@ export function MoveDialog(props: {
       )}
       {state.kind === "failed" ? (
         <p
-          className="m-0 rounded-card border border-danger bg-danger/10 px-3 py-2 text-xs"
+          className="m-0 rounded-ctl border border-danger bg-danger/10 px-3 py-2 text-xs"
           role="alert"
         >
           {failure(state, preview, text, say)}

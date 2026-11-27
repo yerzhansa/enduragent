@@ -1586,6 +1586,7 @@
         "confirm": "移动",
         "failed": "应用没有响应，因此未移动任何内容。请重试。",
         "keepBoth": "两个都保留在{{weekday}}",
+        "leaves": "在第 {{week}} 周发送之前，它会从 intervals.icu 中移除。",
         "notMovable": "此训练课程无法移到那一天，因此未移动任何内容。",
         "onIntervals": "它在 intervals.icu 中也会移动，码表会按{{weekday}}收到。",
         "planOnly": "它会在计划中移动。intervals.icu 会在该周发送时收到。",

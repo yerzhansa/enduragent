@@ -85,9 +85,9 @@ function edited(
     into.workouts = [...into.workouts, changed].sort((left, right) =>
       (left.date ?? "").localeCompare(right.date ?? ""),
     );
-    if (into.workouts.length > 6) return null;
     diff.push({ workoutId: draftId, before, after: changed });
   }
+  if (after.weeks.some((week) => week.workouts.length > 6)) return null;
   return { after, diff };
 }
 

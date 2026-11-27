@@ -78,7 +78,8 @@ export function startCalendar(
     publish: (next) => store.getState().setCalendarMove(next),
   });
   store.getState().bindCalendarMoveActions({
-    request: (planId, workoutId, toDateKey) => move.request(planId, workoutId, toDateKey),
+    request: (planId, workoutId, toDateKey, swap) =>
+      move.request(planId, workoutId, toDateKey, swap),
     setSwap: (swap) => move.setSwap(swap),
     confirm: () => void move.confirm(),
     cancel: () => move.cancel(),

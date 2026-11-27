@@ -6,7 +6,11 @@ export interface MovePreview {
   readonly workout: PlanCalendarWorkout;
   readonly toDateKey: number;
   readonly clash: readonly PlanCalendarWorkout[];
-  readonly onIntervals: boolean;
+  readonly canSwap: boolean;
+  readonly where:
+    | { readonly kind: "goes" }
+    | { readonly kind: "leaves"; readonly week: number }
+    | { readonly kind: "plan-only" };
   readonly weeks:
     | { readonly kind: "same"; readonly week: PlanCalendarWeek }
     | {
@@ -71,7 +75,18 @@ export function movePreview(
   const from = weekOf(read, workout.dateKey);
   const to = weekOf(read, toDateKey);
   const length = workout.durationS ?? 0;
-  const swapped = swap ? clash.reduce((total, entry) => total + (entry.durationS ?? 0), 0) : 0;
+  const canSwap = clash.length > 0 && clash.every((entry) => entry.movable);
+  const swapped =
+    swap && canSwap ? clash.reduce((total, entry) => total + (entry.durationS ?? 0), 0) : 0;
+  const sent = workout.copy.kind === "on-intervals" || workout.copy.kind === "moving-by-you";
+  const targetSent =
+    to !== undefined && (to.status.kind === "on-intervals" || to.status.kind === "due");
+  const where =
+    read.calendarConnected && targetSent
+      ? ({ kind: "goes" } as const)
+      : sent && to !== undefined
+        ? ({ kind: "leaves", week: to.index } as const)
+        : ({ kind: "plan-only" } as const);
   const weeks =
     from === undefined || to === undefined
       ? null
@@ -88,7 +103,8 @@ export function movePreview(
     workout,
     toDateKey,
     clash,
-    onIntervals: workout.copy.kind === "on-intervals" || workout.copy.kind === "moving-by-you",
+    canSwap,
+    where,
     weeks,
   };
 }

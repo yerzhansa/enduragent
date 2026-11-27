@@ -1586,6 +1586,7 @@
         "confirm": "移動",
         "failed": "應用程式沒有回應，因此未移動任何內容。請重試。",
         "keepBoth": "兩個都保留在{{weekday}}",
+        "leaves": "在第 {{week}} 週傳送之前，它會從 intervals.icu 中移除。",
         "notMovable": "此訓練課表無法移到那一天，因此未移動任何內容。",
         "onIntervals": "它在 intervals.icu 中也會移動，自行車碼表會依{{weekday}}收到。",
         "planOnly": "它會在計畫中移動。intervals.icu 會在該週傳送時收到。",

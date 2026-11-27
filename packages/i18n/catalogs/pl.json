@@ -1640,6 +1640,7 @@
         "confirm": "Przenieś",
         "failed": "Aplikacja nie odpowiedziała, więc nic nie zostało przeniesione. Spróbuj ponownie.",
         "keepBoth": "Zostaw oba w tym samym dniu ({{weekday}})",
+        "leaves": "Trening zostanie usunięty z intervals.icu do czasu wysłania tygodnia {{week}}.",
         "notMovable": "Tego treningu nie można przenieść na ten dzień, więc nic nie zostało przeniesione.",
         "onIntervals": "Trening przenosi się też w intervals.icu, więc twój licznik rowerowy otrzyma go na właściwy dzień ({{weekday}}).",
         "planOnly": "Trening przenosi się w planie. intervals.icu otrzyma go, gdy zostanie wysłany jego tydzień.",

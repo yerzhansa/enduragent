@@ -1,13 +1,23 @@
-import type { PlanCalendarRpcResult } from "@enduragent/coach-contract";
+import {
+  AthletePlanChangeIntentSchema,
+  type PlanCalendarRpcResult,
+} from "@enduragent/coach-contract";
 import {
   icuCopyAllowsMove,
   icuCopyDrag,
+  icuCopyIsAthleteChange,
   planWorkoutFingerprint,
   readIcuCopies,
   saveIcuCopy,
   storedIcuCopy,
+  type IcuCopy,
 } from "@enduragent/engine/calendar";
-import { addCivilDays, createPlanCalendarMirrorRepository } from "@enduragent/kernel/planning";
+import {
+  addCivilDays,
+  createPlanCalendarMirrorRepository,
+  createPlanWorkoutMatchRepository,
+  type PlanWorkoutRecord,
+} from "@enduragent/kernel/planning";
 import type { SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import { z } from "zod";
@@ -24,27 +34,44 @@ export interface MovedByYou {
   readonly toDateKey: number;
 }
 
-const MOVE_INTENT = "move-by-you";
-
-const MoveIntentSchema = z.object({
-  kind: z.literal(MOVE_INTENT),
-  moves: z.array(
-    z.object({
-      planWorkoutId: z.string(),
-      fromDateKey: z.number().int(),
-      toDateKey: z.number().int(),
-    }),
-  ),
-});
-
 const EnvelopeIntentSchema = z.object({ intent: z.unknown() });
+const PinnedSchema = z.object({ pinned: z.boolean().optional() });
+
+function pinned(workout: PlanWorkoutRecord): boolean {
+  try {
+    const parsed = PinnedSchema.safeParse(JSON.parse(workout.structureJson));
+    return parsed.success && parsed.data.pinned === true;
+  } catch {
+    return false;
+  }
+}
+
+function showsOnItsDay(copy: IcuCopy): boolean {
+  return copy.kind !== "removed-by-you" && copy.kind !== "kept-as-yours";
+}
+
+export function workoutMovable(input: {
+  readonly workout: PlanWorkoutRecord;
+  readonly copy: IcuCopy;
+  readonly planned: boolean;
+  readonly todayDateKey: number;
+}): boolean {
+  return (
+    input.planned &&
+    input.workout.dateKey >= input.todayDateKey &&
+    input.workout.origin === "coach" &&
+    !pinned(input.workout) &&
+    icuCopyAllowsMove(input.copy) &&
+    !icuCopyIsAthleteChange(input.copy)
+  );
+}
 
 export async function movesByYou(
   store: Pick<SqlStore, "all">,
   planId: string,
 ): Promise<ReadonlyMap<string, MovedByYou>> {
   const rows = await store.all(
-    "SELECT diff_json FROM plan_change WHERE plan_id=? AND status='applied' ORDER BY result_revision_number",
+    "SELECT diff_json FROM plan_change WHERE plan_id=? AND status='applied' AND diff_json LIKE '%move-by-you%' ORDER BY result_revision_number",
     [planId],
   );
   const moves = new Map<string, MovedByYou>();
@@ -57,8 +84,10 @@ export async function movesByYou(
       continue;
     }
     const envelope = EnvelopeIntentSchema.safeParse(parsed);
-    const intent = envelope.success ? MoveIntentSchema.safeParse(envelope.data.intent) : null;
-    if (intent?.success !== true) continue;
+    const intent = envelope.success
+      ? AthletePlanChangeIntentSchema.safeParse(envelope.data.intent)
+      : null;
+    if (intent?.success !== true || intent.data.kind !== "move-by-you") continue;
     for (const move of intent.data.moves) {
       moves.set(move.planWorkoutId, { fromDateKey: move.fromDateKey, toDateKey: move.toDateKey });
     }
@@ -88,21 +117,38 @@ export async function moveWorkout(
   if (plan === undefined || plan.status !== "active") return refused("no-active-plan");
   const today = deps.todayDateKey();
   const lastDay = addCivilDays(plan.startDateKey, plan.totalWeeks * 7 - 1);
-  if (request.toDateKey < today || request.toDateKey > lastDay) return refused("outside-plan");
+  if (
+    request.toDateKey < today ||
+    request.toDateKey < plan.startDateKey ||
+    request.toDateKey > lastDay
+  ) {
+    return refused("outside-plan");
+  }
   const workouts = await plans.readWorkouts(request.planId);
   const moved = workouts.find((workout) => workout.id === request.planWorkoutId);
-  if (moved === undefined || moved.dateKey < today || moved.dateKey === request.toDateKey) {
-    return refused("workout-not-movable");
-  }
+  if (moved === undefined) return refused("workout-not-movable");
+  if (moved.dateKey === request.toDateKey) return { status: "moved" };
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const copies = await readIcuCopies(mirror, request.planId);
+  const copyOf = (workout: PlanWorkoutRecord) => storedIcuCopy(copies.get(workout.id));
   const others = request.swap
-    ? workouts.filter((workout) => workout.dateKey === request.toDateKey)
+    ? workouts.filter(
+        (workout) =>
+          workout.id !== moved.id &&
+          workout.dateKey === request.toDateKey &&
+          showsOnItsDay(copyOf(workout)),
+      )
     : [];
+  const matches = createPlanWorkoutMatchRepository(deps.store);
   for (const workout of [moved, ...others]) {
-    const copy = storedIcuCopy(copies.get(workout.id));
+    const copy = copyOf(workout);
     if (copy.kind === "changed-in-icu") return refused("change-card-open");
-    if (!icuCopyAllowsMove(copy)) return refused("workout-not-movable");
+    const decided = (await matches.readForWorkout(workout.id)).some(
+      (match) => match.decision === "confirmed" || match.decision === "suggested",
+    );
+    if (!workoutMovable({ workout, copy, planned: !decided, todayDateKey: today })) {
+      return refused("workout-not-movable");
+    }
   }
   const moves = [
     { planWorkoutId: moved.id, fromDateKey: moved.dateKey, toDateKey: request.toDateKey },
@@ -115,13 +161,14 @@ export async function moveWorkout(
   const applied = await applyWorkoutEdits(deps, {
     planId: request.planId,
     title: `Moved ${moved.name}`,
-    intent: { kind: MOVE_INTENT, moves },
+    intent: { kind: "move-by-you", moves },
     edits: moves.map((move) => ({ planWorkoutId: move.planWorkoutId, dateKey: move.toDateKey })),
   });
   if (applied === "refused") return refused("plan-change-refused");
   const updated = await plans.readWorkouts(request.planId);
+  const fresh = await readIcuCopies(mirror, request.planId);
   for (const move of moves) {
-    const stored = copies.get(move.planWorkoutId);
+    const stored = fresh.get(move.planWorkoutId);
     const workout = updated.find((entry) => entry.id === move.planWorkoutId);
     if (stored === undefined || workout === undefined) continue;
     const dragged = icuCopyDrag(storedIcuCopy(stored), planWorkoutFingerprint(workout));

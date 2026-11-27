@@ -10859,6 +10859,10 @@
     "plan.calendar.move.weekStays": {
       "sourceHash": "6fe0a28e017d93b5f528a5de0274834fe31174544b7b9f7503d90762e72f7dc3",
       "translatedBy": "model"
+    },
+    "plan.calendar.move.leaves": {
+      "sourceHash": "d359cdab5f108d46d752a75430ebf10cb5e1e8d26a2219e6fe4bdf6e254c2259",
+      "translatedBy": "model"
     }
   }
 }

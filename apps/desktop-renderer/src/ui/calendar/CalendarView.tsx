@@ -206,9 +206,14 @@ function ChangeLayer(props: { readonly read: PlanCalendarRead }): ReactElement |
 function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
   const state = useEnduragentStore((store) => store.calendarMove);
   const actions = useEnduragentStore((store) => store.calendarMoveActions);
-  if (state.kind === "closed") return null;
-  const preview = movePreview(props.read, state.workoutId, state.toDateKey, state.swap);
-  if (preview === null) return null;
+  const preview =
+    state.kind === "closed"
+      ? null
+      : movePreview(props.read, state.workoutId, state.toDateKey, state.swap);
+  useEffect(() => {
+    if (state.kind !== "closed" && state.kind !== "moving" && preview === null) actions?.cancel();
+  }, [state.kind, preview, actions]);
+  if (state.kind === "closed" || preview === null) return null;
   return (
     <MoveDialog
       state={state}
@@ -314,7 +319,10 @@ export function CalendarView(): ReactElement {
               }
               onMove={(workoutId, toDateKey) => {
                 const planId = state.read.plan?.planId;
-                if (planId !== undefined) moveActions?.request(planId, workoutId, toDateKey);
+                const preview = movePreview(state.read, workoutId, toDateKey, true);
+                if (planId !== undefined) {
+                  moveActions?.request(planId, workoutId, toDateKey, preview?.canSwap === true);
+                }
               }}
             />
           </div>

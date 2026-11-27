@@ -1971,6 +1971,7 @@
         "confirm": "Flytta",
         "failed": "Appen svarade inte, så inget flyttades. Försök igen.",
         "keepBoth": "Behåll båda på {{weekday}}",
+        "leaves": "Det tas bort från intervals.icu tills vecka {{week}} skickas.",
         "notMovable": "Det här träningspasset kan inte flyttas till den dagen, så inget flyttades.",
         "onIntervals": "Det flyttas även i intervals.icu, så din cykeldator får det till {{weekday}}.",
         "planOnly": "Det flyttas i planen. intervals.icu får det när veckan skickas.",

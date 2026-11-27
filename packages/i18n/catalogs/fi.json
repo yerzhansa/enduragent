@@ -1604,6 +1604,7 @@
         "confirm": "Siirrä",
         "failed": "Sovellus ei vastannut, joten mitään ei siirretty. Yritä uudelleen.",
         "keepBoth": "Pidä molemmat samana päivänä ({{weekday}})",
+        "leaves": "Se poistetaan intervals.icu-palvelusta, kunnes viikko {{week}} lähetetään.",
         "notMovable": "Tätä harjoitusta ei voi siirtää sille päivälle, joten mitään ei siirretty.",
         "onIntervals": "Se siirtyy myös intervals.icu-palvelussa, joten pyörätietokoneesi saa sen oikealle päivälle ({{weekday}}).",
         "planOnly": "Se siirtyy suunnitelmassa. intervals.icu saa sen, kun sen viikko lähetetään.",

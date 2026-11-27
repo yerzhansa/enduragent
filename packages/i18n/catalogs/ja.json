@@ -1586,6 +1586,7 @@
         "confirm": "移動",
         "failed": "アプリから応答がなかったため、何も移動していません。もう一度お試しください。",
         "keepBoth": "両方とも{{weekday}}のままにする",
+        "leaves": "第{{week}}週が送信されるまで、intervals.icuからは削除されます。",
         "notMovable": "このワークアウトはその日に移動できないため、何も移動していません。",
         "onIntervals": "intervals.icuでも移動するため、サイクルコンピュータには{{weekday}}の予定として届きます。",
         "planOnly": "プラン内で移動します。intervals.icuには、その週が送信されるときに届きます。",

@@ -41,19 +41,48 @@ describe("where a workout can be dropped", () => {
     const read = moving();
     expect(movePreview(read, workoutId(1), 19980116, true)).toMatchObject({
       clash: [],
-      onIntervals: true,
+      canSwap: false,
+      where: { kind: "goes" },
       weeks: { kind: "same" },
     });
     const clash = movePreview(read, workoutId(1), 19980117, true);
     expect(clash?.clash.map((entry) => entry.id)).toEqual([workoutId(2)]);
     expect(movePreview(read, workoutId(4), 19980117, true)).toMatchObject({
-      onIntervals: false,
+      canSwap: true,
       weeks: { kind: "across", fromS: 7_200 - 3_600 + 2_700, toS: 10_800 + 3_600 - 2_700 },
     });
     expect(movePreview(read, workoutId(4), 19980117, false)).toMatchObject({
       weeks: { kind: "across", fromS: 3_600, toS: 14_400 },
     });
     expect(movePreview(read, "missing", 19980117, false)).toBeNull();
+  });
+
+  it("offers no swap when a workout on that day cannot move, and says when a move leaves intervals.icu", () => {
+    const read = moving();
+    const planned = read.plan;
+    if (planned === null) throw new Error("fixture");
+    const stuck = {
+      ...read,
+      plan: {
+        ...planned,
+        weeks: planned.weeks.map((entry) =>
+          entry.index === 2
+            ? { ...entry, status: { kind: "goes-out" as const, onDateKey: 19980119 } }
+            : entry,
+        ),
+        workouts: planned.workouts.map((entry) =>
+          entry.id === workoutId(2) ? { ...entry, movable: false } : entry,
+        ),
+      },
+    };
+    expect(movePreview(stuck, workoutId(1), 19980117, true)).toMatchObject({
+      canSwap: false,
+      weeks: { kind: "same", week: { index: 1 } },
+    });
+    expect(movePreview(stuck, workoutId(1), 19980121, false)?.where).toEqual({
+      kind: "leaves",
+      week: 2,
+    });
   });
 });
 
@@ -71,7 +100,7 @@ function harness(reply: PlanCalendarRpcResult | Error) {
 describe("the move dialog controller", () => {
   it("opens with Swap chosen, sends the move, then closes and refreshes", async () => {
     const test = harness({ status: "moved" });
-    test.controller.request(PLAN_ID, workoutId(1), 19980117);
+    test.controller.request(PLAN_ID, workoutId(1), 19980117, true);
     expect(test.last()).toEqual({
       kind: "open",
       planId: PLAN_ID,
@@ -102,10 +131,10 @@ describe("the move dialog controller", () => {
     "keeps the dialog and says nothing moved when the move comes back %j",
     async (reply, reason) => {
       const test = harness(reply);
-      test.controller.request(PLAN_ID, workoutId(1), 19980117);
+      test.controller.request(PLAN_ID, workoutId(1), 19980117, true);
       await test.controller.confirm();
       expect(test.last()).toMatchObject({ kind: "failed", reason, workoutId: workoutId(1) });
-      expect(test.refresh).not.toHaveBeenCalled();
+      expect(test.refresh).toHaveBeenCalledOnce();
     },
   );
 
@@ -120,10 +149,10 @@ describe("the move dialog controller", () => {
       refresh: vi.fn(),
       publish: (state) => states.push(state),
     });
-    controller.request(PLAN_ID, workoutId(1), 19980117);
+    controller.request(PLAN_ID, workoutId(1), 19980117, true);
     const saving = controller.confirm();
     controller.cancel();
-    controller.request(PLAN_ID, workoutId(2), 19980118);
+    controller.request(PLAN_ID, workoutId(2), 19980118, true);
     expect(states.at(-1)).toMatchObject({ kind: "moving", workoutId: workoutId(1) });
     answer({ status: "moved" });
     await saving;

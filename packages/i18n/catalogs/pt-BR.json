@@ -1604,6 +1604,7 @@
         "confirm": "Mover",
         "failed": "O aplicativo não respondeu, então nada foi movido. Tente novamente.",
         "keepBoth": "Manter os dois no mesmo dia ({{weekday}})",
+        "leaves": "Ele sai do intervals.icu até a semana {{week}} ser enviada.",
         "notMovable": "Este treino não pode ser movido para esse dia, então nada foi movido.",
         "onIntervals": "Ele também é movido no intervals.icu, para que seu ciclocomputador o receba para {{weekday}}.",
         "planOnly": "Ele é movido no plano. O intervals.icu recebe o treino quando a semana for enviada.",

@@ -230,11 +230,25 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
 
+export const AthleteMoveSchema = z
+  .object({
+    planWorkoutId: z.string().min(1).max(64),
+    fromDateKey: z.number().int(),
+    toDateKey: z.number().int(),
+  })
+  .strict();
+
 export const AthletePlanChangeIntentSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("keep-intervals-change"),
       planWorkoutId: z.string().min(1).max(64),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("move-by-you"),
+      moves: z.array(AthleteMoveSchema).min(1).max(8),
     })
     .strict(),
 ]);

@@ -97,7 +97,7 @@ describe("moving a workout on the Calendar", () => {
     expect(later).toBe(false);
     expect(cell(19980116)).toHaveAttribute("data-drop-target");
     fireEvent.drop(cell(19980116), { dataTransfer });
-    expect(actions.request).toHaveBeenCalledWith(PLAN_ID, workoutId(1), 19980116);
+    expect(actions.request).toHaveBeenCalledWith(PLAN_ID, workoutId(1), 19980116, false);
   });
 
   it("labels a workout the athlete moved with the day it came from", () => {
@@ -150,7 +150,7 @@ describe("moving a workout on the Calendar", () => {
   });
 
   it.each([
-    ["card-open", "Wed 14 Jan was changed in intervals.icu. Keep or Put back first, then move it."],
+    ["card-open", "Fri 16 Jan was changed in intervals.icu. Keep or Put back first, then move it."],
     ["refused", "The Plan could not take this move, so nothing moved."],
     ["not-movable", "This workout can’t move to that day, so nothing moved."],
     ["unavailable", "The app did not answer, so nothing moved. Try again."],

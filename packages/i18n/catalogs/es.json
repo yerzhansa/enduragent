@@ -1604,6 +1604,7 @@
         "confirm": "Mover",
         "failed": "La aplicación no respondió, así que no se movió nada. Inténtalo de nuevo.",
         "keepBoth": "Mantener los dos el {{weekday}}",
+        "leaves": "Se quita de intervals.icu hasta que se envíe la semana {{week}}.",
         "notMovable": "Este entrenamiento no se puede mover a ese día, así que no se movió nada.",
         "onIntervals": "También se mueve en intervals.icu, así que tu ciclocomputador lo recibe para el {{weekday}}.",
         "planOnly": "Se mueve en el plan. intervals.icu lo recibe cuando se envíe su semana.",

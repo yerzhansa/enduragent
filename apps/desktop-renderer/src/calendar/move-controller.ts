@@ -18,7 +18,7 @@ export type MoveDialogState =
 export const MOVE_DIALOG_CLOSED: MoveDialogState = Object.freeze({ kind: "closed" });
 
 export interface MoveController {
-  request(planId: string, workoutId: string, toDateKey: number): void;
+  request(planId: string, workoutId: string, toDateKey: number, swap: boolean): void;
   setSwap(swap: boolean): void;
   confirm(): Promise<void>;
   cancel(): void;
@@ -56,9 +56,9 @@ export function createMoveController(deps: {
     deps.publish(next);
   };
   return {
-    request(planId, workoutId, toDateKey) {
+    request(planId, workoutId, toDateKey, swap) {
       if (state.kind === "moving") return;
-      publish({ kind: "open", planId, workoutId, toDateKey, swap: true });
+      publish({ kind: "open", planId, workoutId, toDateKey, swap });
     },
     setSwap(swap) {
       if (state.kind !== "open" && state.kind !== "failed") return;
@@ -90,6 +90,7 @@ export function createMoveController(deps: {
         });
       } catch {
         publish({ kind: "failed", reason: "unavailable", ...target });
+        deps.refresh();
         return;
       }
       if (result.status === "moved") {
@@ -98,6 +99,7 @@ export function createMoveController(deps: {
         return;
       }
       publish({ kind: "failed", reason: failureOf(result), ...target });
+      deps.refresh();
     },
     cancel() {
       if (state.kind === "moving") return;

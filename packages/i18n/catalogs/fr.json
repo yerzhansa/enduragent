@@ -1604,6 +1604,7 @@
         "confirm": "Déplacer",
         "failed": "L’application n’a pas répondu, donc rien n’a été déplacé. Réessaie.",
         "keepBoth": "Garder les deux {{weekday}}",
+        "leaves": "Il est retiré d’intervals.icu jusqu’à l’envoi de la semaine {{week}}.",
         "notMovable": "Cet entraînement ne peut pas être déplacé à ce jour, donc rien n’a été déplacé.",
         "onIntervals": "Il est aussi déplacé dans intervals.icu, donc ton compteur vélo le reçoit pour {{weekday}}.",
         "planOnly": "Il est déplacé dans le plan. intervals.icu le reçoit quand sa semaine part.",

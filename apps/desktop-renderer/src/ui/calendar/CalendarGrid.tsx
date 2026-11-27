@@ -7,7 +7,7 @@ import type {
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { cn } from "@enduragent/ui";
 import { useState, type DragEvent, type ReactElement } from "react";
-import { weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
+import { daysBetween, weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
 import {
   rowLabel,
   weekTiming,
@@ -134,7 +134,10 @@ function plannedLook(
         : {
             tone: "muted",
             text: say("plan.calendar.copy.movedByYou", {
-              weekday: text.weekday(text.isoWeekdayOf(moved.fromDateKey)),
+              weekday:
+                Math.abs(daysBetween(moved.fromDateKey, workout.dateKey)) > 6
+                  ? text.weekdayDay(moved.fromDateKey)
+                  : text.weekday(text.isoWeekdayOf(moved.fromDateKey)),
             }),
           },
     opens: false,

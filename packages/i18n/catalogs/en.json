@@ -1073,6 +1073,7 @@
         "confirm": "Move",
         "failed": "The app did not answer, so nothing moved. Try again.",
         "keepBoth": "Keep both on {{weekday}}",
+        "leaves": "It comes off intervals.icu until Week {{week}} goes out.",
         "notMovable": "This workout can’t move to that day, so nothing moved.",
         "onIntervals": "It moves on intervals.icu too, so your head unit gets it for {{weekday}}.",
         "planOnly": "It moves in the Plan. intervals.icu gets it when its week goes out.",

@@ -1604,6 +1604,7 @@
         "confirm": "Flyt",
         "failed": "Appen svarede ikke, så intet blev flyttet. Prøv igen.",
         "keepBoth": "Behold begge på {{weekday}}",
+        "leaves": "Den fjernes fra intervals.icu, indtil uge {{week}} sendes.",
         "notMovable": "Denne træning kan ikke flyttes til den dag, så intet blev flyttet.",
         "onIntervals": "Den flyttes også i intervals.icu, så din cykelcomputer får den til {{weekday}}.",
         "planOnly": "Den flyttes i træningsplanen. intervals.icu får den, når dens uge sendes.",

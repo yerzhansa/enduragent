@@ -888,14 +888,14 @@ describe("Plan calendar drain", () => {
     expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
       status: "moved",
     });
-    expect((await test.plans.readWorkouts(planId)).find((row) => row.id === first.id)).toMatchObject(
-      { dateKey: free, durationS: first.durationS, name: first.name },
-    );
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id),
+    ).toMatchObject({ dateKey: free, durationS: first.durationS, name: first.name });
     await test.drain.kick();
     expect(test.calendar.events.find((entry) => entry.id === event.id)?.dateKey).toBe(free);
-    expect(test.calendar.creates.filter((entry) => entry.externalId?.endsWith(first.id))).toHaveLength(
-      1,
-    );
+    expect(
+      test.calendar.creates.filter((entry) => entry.externalId?.endsWith(first.id)),
+    ).toHaveLength(1);
     const read = await test.calendarOperations["plan.calendar"]({
       action: "read",
       startDateKey: test.today(),
@@ -948,9 +948,108 @@ describe("Plan calendar drain", () => {
     expect(
       await move(test, { planId, planWorkoutId: second.id, toDateKey: addCivilDays(free, 400) }),
     ).toEqual({ status: "refused", reason: "outside-plan" });
-    expect((await test.plans.readWorkouts(planId)).find((row) => row.id === first.id)?.dateKey).toBe(
-      first.dateKey,
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id)?.dateKey,
+    ).toBe(first.dateKey);
+  });
+
+  it("will not move a workout the athlete kept as their own edit", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    const event = test.calendar.events.find((entry) => entry.externalId?.endsWith(first.id));
+    if (event === undefined) throw new Error("Expected the workout on intervals.icu");
+    test.calendar.editByAthlete(event.id, { description: "My notes" });
+    await test.drain.kick();
+    expect(await choose(test, "keep-change", { planId, planWorkoutId: first.id })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    const read = await test.calendarOperations["plan.calendar"]({
+      action: "read",
+      startDateKey: test.today(),
+      endDateKey: addCivilDays(test.today(), 27),
+    });
+    if (read.status !== "calendar") throw new Error("Expected the calendar");
+    expect(read.plan?.workouts.find((workout) => workout.id === first.id)?.movable).toBe(false);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "refused",
+      reason: "workout-not-movable",
+    });
+    expect(test.calendar.events.find((entry) => entry.id === event.id)?.description).toBe(
+      "My notes",
     );
+  });
+
+  it("takes a workout moved past next week off intervals.icu until its week goes out", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first } = await movable(test, planId);
+    const plan = await test.legacyPlans.read(planId);
+    if (plan === undefined) throw new Error("Expected the Plan");
+    const third = trainingWeek(plan, 3);
+    const busy = new Set((await test.plans.readWorkouts(planId)).map((row) => row.dateKey));
+    let target = third.startDateKey;
+    while (busy.has(target)) target = addCivilDays(target, 1);
+    const event = test.calendar.events.find((entry) => entry.externalId?.endsWith(first.id));
+    if (event === undefined) throw new Error("Expected the workout on intervals.icu");
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: target })).toEqual({
+      status: "moved",
+    });
+    await test.drain.kick();
+    expect(test.calendar.events.some((entry) => entry.id === event.id)).toBe(false);
+    expect(
+      (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id)?.dateKey,
+    ).toBe(target);
+  });
+
+  it("swaps only with workouts still shown on the target day", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, second } = await movable(test, planId);
+    const removed = test.calendar.events.find((entry) => entry.externalId?.endsWith(second.id));
+    if (removed === undefined) throw new Error("Expected the second workout on intervals.icu");
+    test.calendar.deleteByAthlete(removed.id);
+    await test.drain.kick();
+    expect(await choose(test, "keep-change", { planId, planWorkoutId: second.id })).toEqual({
+      status: "change-resolved",
+      outcome: "kept",
+    });
+    expect(
+      await move(test, { planId, planWorkoutId: first.id, toDateKey: second.dateKey, swap: true }),
+    ).toEqual({ status: "moved" });
+    const after = await test.plans.readWorkouts(planId);
+    expect(after.find((row) => row.id === first.id)?.dateKey).toBe(second.dateKey);
+    expect(after.find((row) => row.id === second.id)?.dateKey).toBe(second.dateKey);
+  });
+
+  it("keeps the Plan library readable after a move, and labels only the latest move", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    const listed = await test.creation["plan.list"]({});
+    expect(listed.changes.find((change) => change.intent.kind === "move-by-you")).toMatchObject({
+      status: "applied",
+      undo: { eligible: false, reason: "athlete-change" },
+    });
+    let next = addCivilDays(free, 1);
+    const busy = new Set((await test.plans.readWorkouts(planId)).map((row) => row.dateKey));
+    while (busy.has(next)) next = addCivilDays(next, 1);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: next })).toEqual({
+      status: "moved",
+    });
+    const read = await test.calendarOperations["plan.calendar"]({
+      action: "read",
+      startDateKey: test.today(),
+      endDateKey: addCivilDays(test.today(), 27),
+    });
+    if (read.status !== "calendar") throw new Error("Expected the calendar");
+    expect(read.plan?.workouts.find((workout) => workout.id === first.id)?.movedByYou).toEqual({
+      fromDateKey: free,
+    });
   });
 
   it("does nothing when the calendar is disconnected", async () => {

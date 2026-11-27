@@ -1586,6 +1586,7 @@
         "confirm": "이동",
         "failed": "앱이 응답하지 않아 아무것도 이동되지 않았습니다. 다시 시도하세요.",
         "keepBoth": "둘 다 {{weekday}}에 두기",
+        "leaves": "{{week}}주차가 전송될 때까지 intervals.icu에서 제거됩니다.",
         "notMovable": "이 워크아웃은 해당 날짜로 이동할 수 없어 아무것도 이동되지 않았습니다.",
         "onIntervals": "intervals.icu에서도 이동되므로 사이클링 컴퓨터가 {{weekday}} 일정으로 받습니다.",
         "planOnly": "계획에서 이동됩니다. intervals.icu에는 해당 주가 전송될 때 반영됩니다.",

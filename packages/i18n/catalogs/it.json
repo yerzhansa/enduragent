@@ -1604,6 +1604,7 @@
         "confirm": "Sposta",
         "failed": "L’app non ha risposto, quindi non è stato spostato nulla. Riprova.",
         "keepBoth": "Mantieni entrambi nello stesso giorno ({{weekday}})",
+        "leaves": "Viene tolto da intervals.icu finché non viene inviata la settimana {{week}}.",
         "notMovable": "Questo allenamento non può essere spostato in quel giorno, quindi non è stato spostato nulla.",
         "onIntervals": "Viene spostato anche su intervals.icu, così il tuo ciclocomputer lo riceve per {{weekday}}.",
         "planOnly": "Viene spostato nel piano. intervals.icu lo riceve quando viene inviata la sua settimana.",

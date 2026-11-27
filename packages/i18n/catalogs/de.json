@@ -1604,6 +1604,7 @@
         "confirm": "Verschieben",
         "failed": "Die App hat nicht geantwortet, daher wurde nichts verschoben. Versuche es erneut.",
         "keepBoth": "Beide am {{weekday}} behalten",
+        "leaves": "Es wird aus intervals.icu entfernt, bis Woche {{week}} gesendet wird.",
         "notMovable": "Dieses Training kann nicht auf diesen Tag verschoben werden, daher wurde nichts verschoben.",
         "onIntervals": "Es wird auch in intervals.icu verschoben, damit dein Radcomputer es für {{weekday}} erhält.",
         "planOnly": "Es wird im Plan verschoben. intervals.icu erhält es, wenn seine Woche gesendet wird.",

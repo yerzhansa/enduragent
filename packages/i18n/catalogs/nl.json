@@ -1604,6 +1604,7 @@
         "confirm": "Verplaatsen",
         "failed": "De app reageerde niet, dus er is niets verplaatst. Probeer het opnieuw.",
         "keepBoth": "Beide op {{weekday}} houden",
+        "leaves": "De training wordt uit intervals.icu gehaald totdat week {{week}} wordt verzonden.",
         "notMovable": "Deze training kan niet naar die dag, dus er is niets verplaatst.",
         "onIntervals": "De training wordt ook in intervals.icu verplaatst, zodat je fietscomputer die voor {{weekday}} krijgt.",
         "planOnly": "De training wordt in het trainingsschema verplaatst. intervals.icu krijgt die zodra de week wordt verzonden.",

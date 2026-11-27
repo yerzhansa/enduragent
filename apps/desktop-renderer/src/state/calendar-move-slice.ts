@@ -3,7 +3,7 @@ import { MOVE_DIALOG_CLOSED, type MoveDialogState } from "../calendar/move-contr
 import type { EnduragentState } from "./store";
 
 export interface CalendarMoveActions {
-  request(planId: string, workoutId: string, toDateKey: number): void;
+  request(planId: string, workoutId: string, toDateKey: number, swap: boolean): void;
   setSwap(swap: boolean): void;
   confirm(): void;
   cancel(): void;
@@ -16,12 +16,9 @@ export interface CalendarMoveSlice {
   bindCalendarMoveActions: (actions: CalendarMoveActions | null) => void;
 }
 
-export const createCalendarMoveSlice: StateCreator<
-  EnduragentState,
-  [],
-  [],
-  CalendarMoveSlice
-> = (set) => ({
+export const createCalendarMoveSlice: StateCreator<EnduragentState, [], [], CalendarMoveSlice> = (
+  set,
+) => ({
   calendarMove: MOVE_DIALOG_CLOSED,
   calendarMoveActions: null,
   setCalendarMove(next) {

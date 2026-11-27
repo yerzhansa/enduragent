@@ -953,6 +953,7 @@ export type CatalogKey =
   | "plan.calendar.move.confirm"
   | "plan.calendar.move.failed"
   | "plan.calendar.move.keepBoth"
+  | "plan.calendar.move.leaves"
   | "plan.calendar.move.notMovable"
   | "plan.calendar.move.onIntervals"
   | "plan.calendar.move.planOnly"
