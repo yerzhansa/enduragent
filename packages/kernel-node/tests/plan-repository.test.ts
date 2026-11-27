@@ -167,6 +167,29 @@ describe("Plan repository", () => {
     );
   });
 
+  it("keeps the athlete's intervals.icu changes when an old-Plan End closes the Plan", async () => {
+    const repository = createPlanRepository(store);
+    await repository.replace(plan({ status: "active" }), [workout()]);
+    await store.run(
+      `INSERT INTO plan_week_delivery (plan_id,state_kind,state_json,close_choice_json,updated_at_ms)
+      VALUES (?,'approved','{}',?,1)`,
+      [PLAN_ID, JSON.stringify({ kind: "remove-them", ticked: [], commandId: "end-that-failed" })],
+    );
+    await repository.endActive({
+      planId: PLAN_ID,
+      cleanupJobId: CLEANUP_JOB_ID,
+      windowStartDateKey: 20260710,
+      windowEndDateKey: 20260930,
+      updatedAtMs: 10,
+      deviceId: "device-1",
+      hlcPhysicalMs: 10,
+      hlcCounter: 0,
+    });
+    expect(await store.get("SELECT close_choice_json FROM plan_week_delivery")).toEqual({
+      close_choice_json: '{"kind":"keep-them"}',
+    });
+  });
+
   it("ends locally and creates one durable cleanup job atomically", async () => {
     const repository = createPlanRepository(store);
     await repository.replace(plan({ status: "active" }), [workout()]);

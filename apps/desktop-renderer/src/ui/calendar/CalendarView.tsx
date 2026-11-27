@@ -22,7 +22,9 @@ import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
 import { ChangeSheet } from "./ChangeSheet";
 import { MoveDialog } from "./MoveDialog";
+import { PlanDetailsSheet } from "./PlanDetailsSheet";
 import { movePreview } from "../../calendar/move";
+import { detailsEnding } from "../../calendar/details-controller";
 import { WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
@@ -203,6 +205,24 @@ function ChangeLayer(props: { readonly read: PlanCalendarRead }): ReactElement |
   );
 }
 
+function DetailsLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
+  const state = useEnduragentStore((store) => store.calendarDetails);
+  const actions = useEnduragentStore((store) => store.calendarDetailsActions);
+  if (state.kind === "closed") return null;
+  return (
+    <PlanDetailsSheet
+      state={state}
+      read={props.read}
+      onClose={() => actions?.close()}
+      onReplace={() => actions?.replace()}
+      onStartEnd={() => actions?.startEnd()}
+      onRemoveChanges={(remove) => actions?.setRemoveChanges(remove)}
+      onConfirmEnd={() => actions?.confirmEnd()}
+      onCancelEnd={() => actions?.cancelEnd()}
+    />
+  );
+}
+
 function MoveLayer(props: { readonly read: PlanCalendarRead }): ReactElement | null {
   const state = useEnduragentStore((store) => store.calendarMove);
   const actions = useEnduragentStore((store) => store.calendarMoveActions);
@@ -241,6 +261,8 @@ export function CalendarView(): ReactElement {
   const change = useEnduragentStore((store) => store.calendarChange);
   const changeActions = useEnduragentStore((store) => store.calendarChangeActions);
   const move = useEnduragentStore((store) => store.calendarMove);
+  const details = useEnduragentStore((store) => store.calendarDetails);
+  const detailsActions = useEnduragentStore((store) => store.calendarDetailsActions);
   const moveActions = useEnduragentStore((store) => store.calendarMoveActions);
   const read = state.kind === "ready" ? state.read : null;
   const subtitle = useSubtitle(read);
@@ -259,6 +281,19 @@ export function CalendarView(): ReactElement {
       <Button type="button" variant="outline" onClick={() => actions?.today()}>
         {say("plan.calendar.today")}
       </Button>
+      {read === null || read.plan === null ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={detailsEnding(details)}
+          onClick={() => {
+            const planId = read.plan?.planId;
+            if (planId !== undefined) detailsActions?.open(planId);
+          }}
+        >
+          {say("plan.calendar.details.open")}
+        </Button>
+      )}
       <Button
         type="button"
         variant="outline"
@@ -328,10 +363,14 @@ export function CalendarView(): ReactElement {
           </div>
         ) : null}
       </div>
-      {state.kind === "ready" && change.kind === "closed" && move.kind === "closed" ? (
+      {state.kind === "ready" &&
+      change.kind === "closed" &&
+      move.kind === "closed" &&
+      details.kind === "closed" ? (
         <ApprovalLayer read={state.read} />
       ) : null}
       {state.kind === "ready" ? <MoveLayer read={state.read} /> : null}
+      {state.kind === "ready" ? <DetailsLayer read={state.read} /> : null}
       {state.kind === "ready" ? <ChangeLayer read={state.read} /> : null}
     </Page>
   );

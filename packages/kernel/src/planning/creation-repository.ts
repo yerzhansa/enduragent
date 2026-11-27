@@ -529,6 +529,10 @@ version=version+1,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WH
             ],
           );
           await store.run(
+            `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',updated_at_ms=? WHERE plan_id=?`,
+            [command.nowMs, closedPlanId],
+          );
+          await store.run(
             `UPDATE plan SET status='ended',updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE id=?`,
             [
               command.nowMs,
