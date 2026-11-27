@@ -11175,6 +11175,82 @@
     "plan.calendar.change.weekGrows": {
       "sourceHash": "30e07dfb81734771a0ec8918b89c99771a26a70064e0c96aa71d4d8bf95ff901",
       "translatedBy": "model"
+    },
+    "plan.calendar.copy.movedByYou": {
+      "sourceHash": "68144b024a1b2914a7485595911f4241c6dc75f1a1c2ab5d3753cf91d04ac140",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.beingMoved": {
+      "sourceHash": "de3ff53d9b3081da8d911e8bfa3b1a71ef17eddc76112d0d2d0e85d69417b2a2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.cardOpen": {
+      "sourceHash": "1640109890e52a27e6114efa167dee5c6c8abe2e104c7a37bee81689c0ab5af1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.clash": {
+      "sourceHash": "f463d4496ffc165c921259e6bd8bfe3e604f6fd83c7fe171bca08efc504bf326",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.confirm": {
+      "sourceHash": "6ecc3df6bffdd06c58cd4f6e276929e119c8f653c53f5a6a5a5e66dfa1c3fc93",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.failed": {
+      "sourceHash": "f4461e6b2fcdcf1c0738698a7a4040417a9845a00c39d8de471e74ceaf9128d2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.keepBoth": {
+      "sourceHash": "a66e051630abe9d02393f86eefda5231878b536b5ca37c32990ae5e0df9c0fd6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.notMovable": {
+      "sourceHash": "1bc0726a0a7bf135a6532c7caf6a368410b16fc581252ca84708f8b0564d8add",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.onIntervals": {
+      "sourceHash": "c4acbc56a6f4e86a3e41f92d605098b313f2113b0ac4a97114ab019f5ec1907f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.planOnly": {
+      "sourceHash": "ec2f0841603713fe01c68997091060c5d03241a41778dab1bf34dd50ff9a9dd8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.refused": {
+      "sourceHash": "ac910271e618d02cd7ee916074c179b3d94f4744bda22eb6482145664eb05df5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_one": {
+      "sourceHash": "f4b6c848a09b028c595ae963161536c18753dbb05d77d016c26b68cb460da3f0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_few": {
+      "sourceHash": "1d136aee0a74ed448425f332650de1b0c798f987c7d7ac239ccb9f63cc33f34e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_many": {
+      "sourceHash": "1d136aee0a74ed448425f332650de1b0c798f987c7d7ac239ccb9f63cc33f34e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_other": {
+      "sourceHash": "1d136aee0a74ed448425f332650de1b0c798f987c7d7ac239ccb9f63cc33f34e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.title": {
+      "sourceHash": "ee29e5aa83d7699af708f970ecee75f8ed3f68fdcd7ebd3f8c868ddaca71b97c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.weeksChange": {
+      "sourceHash": "f1586d22638297d927ea02ef068368d084ddace1c4ad95a19955dc1c9e8d5e16",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.weekStays": {
+      "sourceHash": "6fe0a28e017d93b5f528a5de0274834fe31174544b7b9f7503d90762e72f7dc3",
+      "translatedBy": "model"
     }
   }
 }

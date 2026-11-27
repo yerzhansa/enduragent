@@ -1558,6 +1558,7 @@
         "changed": "已在 intervals.icu 中更改",
         "deleted": "已在 intervals.icu 中删除",
         "moved": "已在 intervals.icu 中移至 {{date}}",
+        "movedByYou": "已由你从{{weekday}}移来",
         "notSent": "未发送：intervals.icu 没有响应",
         "editedLength": "此处 {{intervals}}，计划中 {{plan}}",
         "movedFrom": "原为 {{date}}",
@@ -1576,6 +1577,23 @@
       "duration": {
         "hoursMinutes": "{{hours}}小时 {{minutes}}分钟",
         "minutes": "{{minutes}}分钟"
+      },
+      "move": {
+        "beingMoved": "{{name}}，正在移动",
+        "cancel": "取消",
+        "cardOpen": "{{day}} 的训练课程已在 intervals.icu 中更改。请先选择“保留”或“恢复”，然后再移动。",
+        "clash": "{{weekday}}已有 {{workouts}}",
+        "confirm": "移动",
+        "failed": "应用没有响应，因此未移动任何内容。请重试。",
+        "keepBoth": "两个都保留在{{weekday}}",
+        "notMovable": "此训练课程无法移到那一天，因此未移动任何内容。",
+        "onIntervals": "它在 intervals.icu 中也会移动，码表会按{{weekday}}收到。",
+        "planOnly": "它会在计划中移动。intervals.icu 会在该周发送时收到。",
+        "refused": "计划无法接受此次移动，因此未移动任何内容。",
+        "swap_other": "互换：{{names}} 移到{{weekday}}",
+        "title": "要将 {{name}} 移到 {{day}} 吗？",
+        "weeksChange": "第 {{from}} 周变为 {{fromTotal}}，第 {{to}} 周变为 {{toTotal}}。",
+        "weekStays": "本周总时长仍为 {{total}}。"
       },
       "next": "下周",
       "noPlan": {

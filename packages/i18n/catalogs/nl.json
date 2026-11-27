@@ -1576,6 +1576,7 @@
         "changed": "Gewijzigd in intervals.icu",
         "deleted": "Verwijderd in intervals.icu",
         "moved": "Verplaatst naar {{date}} in intervals.icu",
+        "movedByYou": "Door jou verplaatst van {{weekday}}",
         "notSent": "Niet verzonden: intervals.icu reageerde niet",
         "editedLength": "{{intervals}} hier, {{plan}} in het trainingsschema",
         "movedFrom": "van {{date}}",
@@ -1594,6 +1595,24 @@
       "duration": {
         "hoursMinutes": "{{hours}}u {{minutes}}m",
         "minutes": "{{minutes}}m"
+      },
+      "move": {
+        "beingMoved": "{{name}}, wordt verplaatst",
+        "cancel": "Annuleren",
+        "cardOpen": "De training van {{day}} is gewijzigd in intervals.icu. Kies eerst 'Behouden' of 'Terugzetten' en verplaats de training daarna.",
+        "clash": "Op {{weekday}} staat al {{workouts}}",
+        "confirm": "Verplaatsen",
+        "failed": "De app reageerde niet, dus er is niets verplaatst. Probeer het opnieuw.",
+        "keepBoth": "Beide op {{weekday}} houden",
+        "notMovable": "Deze training kan niet naar die dag, dus er is niets verplaatst.",
+        "onIntervals": "De training wordt ook in intervals.icu verplaatst, zodat je fietscomputer die voor {{weekday}} krijgt.",
+        "planOnly": "De training wordt in het trainingsschema verplaatst. intervals.icu krijgt die zodra de week wordt verzonden.",
+        "refused": "Het trainingsschema kon deze verplaatsing niet overnemen, dus er is niets verplaatst.",
+        "swap_one": "Wisselen: {{names}} gaat naar {{weekday}}",
+        "swap_other": "Wisselen: {{names}} gaan naar {{weekday}}",
+        "title": "{{name}} naar {{day}} verplaatsen?",
+        "weeksChange": "Week {{from}} wordt {{fromTotal}} en week {{to}} wordt {{toTotal}}.",
+        "weekStays": "De week blijft {{total}}."
       },
       "next": "Volgende week",
       "noPlan": {

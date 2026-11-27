@@ -1576,6 +1576,7 @@
         "changed": "Alterado no intervals.icu",
         "deleted": "Eliminado no intervals.icu",
         "moved": "Movido para {{date}} no intervals.icu",
+        "movedByYou": "Movido por ti, vindo de {{weekday}}",
         "notSent": "Não enviado: o intervals.icu não respondeu",
         "editedLength": "{{intervals}} aqui, {{plan}} no plano",
         "movedFrom": "vindo de {{date}}",
@@ -1594,6 +1595,24 @@
       "duration": {
         "hoursMinutes": "{{hours}}h {{minutes}}min",
         "minutes": "{{minutes}}min"
+      },
+      "move": {
+        "beingMoved": "{{name}}, a ser movido",
+        "cancel": "Cancelar",
+        "cardOpen": "O treino de {{day}} foi alterado no intervals.icu. Escolhe primeiro «Manter» ou «Repor» e depois move-o.",
+        "clash": "Já está previsto para {{weekday}}: {{workouts}}",
+        "confirm": "Mover",
+        "failed": "A aplicação não respondeu, por isso nada foi movido. Tenta novamente.",
+        "keepBoth": "Manter os dois no mesmo dia ({{weekday}})",
+        "notMovable": "Este treino não pode ser movido para esse dia, por isso nada foi movido.",
+        "onIntervals": "Também é movido no intervals.icu, para que o teu ciclocomputador o receba para {{weekday}}.",
+        "planOnly": "É movido no plano. O intervals.icu recebe-o quando a semana for enviada.",
+        "refused": "O plano não conseguiu aceitar esta mudança, por isso nada foi movido.",
+        "swap_one": "Trocar: {{names}} passa para {{weekday}}",
+        "swap_other": "Trocar: {{names}} passam para {{weekday}}",
+        "title": "Mover {{name}} para {{day}}?",
+        "weeksChange": "A semana {{from}} passa a {{fromTotal}} e a semana {{to}} a {{toTotal}}.",
+        "weekStays": "A semana mantém-se em {{total}}."
       },
       "next": "Semana seguinte",
       "noPlan": {
