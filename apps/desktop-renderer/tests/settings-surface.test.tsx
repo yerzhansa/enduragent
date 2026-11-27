@@ -328,6 +328,7 @@ function createHarness(options: HarnessOptions = {}) {
   const directClients: DesktopCoachClientProvider = {
     getClient: async () => client,
     reconnect: async () => client,
+    onConnectionOpen: () => () => {},
     close: async () => {},
   };
   const clients = options.wrapClients?.(directClients) ?? directClients;

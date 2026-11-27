@@ -885,7 +885,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Połączenie przerwane. Synchronizacja może jeszcze dobiegać końca. {{product}} nie ponowi jej automatycznie.",
+        "indeterminate": "Połączenie przerwane. {{product}} ponownie sprawdzi synchronizację po przywróceniu połączenia.",
         "noChange": "Zakończono lokalne przetwarzanie danych treningowych.",
         "noChangeRestricted_one": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc jedna aktywność nie została uwzględniona.",
         "noChangeRestricted_other": "Zakończono lokalne przetwarzanie danych treningowych. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API, więc {{formattedCount}} aktywności nie zostało uwzględnionych.",

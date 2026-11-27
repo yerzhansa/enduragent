@@ -53,6 +53,7 @@ function provider(call: CoachClient["call"]): DesktopCoachClientProvider {
   return {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
 }
@@ -74,6 +75,7 @@ function reconnectingProvider(
   return {
     getClient: vi.fn(async () => initial),
     reconnect: vi.fn(async () => reconnected),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
 }

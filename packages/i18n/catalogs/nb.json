@@ -879,7 +879,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Tilkoblingen ble avbrutt. Synkroniseringen kan fortsatt være i ferd med å fullføres. {{product}} prøver ikke igjen automatisk.",
+        "indeterminate": "Tilkoblingen ble avbrutt. {{product}} sjekker synkroniseringen på nytt når tilkoblingen er tilbake.",
         "noChange": "Lokal behandling av treningsdata er fullført.",
         "noChangeRestricted_one": "Lokal behandling av treningsdata er fullført. {{source}} tillater ikke at AI-verktøy fra tredjeparter bruker data fra API-et, så én aktivitet er ikke inkludert.",
         "noChangeRestricted_other": "Lokal behandling av treningsdata er fullført. {{source}} tillater ikke at AI-verktøy fra tredjeparter bruker data fra API-et, så {{formattedCount}} aktiviteter er ikke inkludert.",

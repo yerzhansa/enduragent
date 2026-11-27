@@ -101,6 +101,7 @@ function providerWith(client: CoachClient): DesktopCoachClientProvider {
   return {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
 }
@@ -344,6 +345,7 @@ describe("conversation and time settings controller", () => {
     const clients: DesktopCoachClientProvider = {
       getClient: vi.fn(async () => first),
       reconnect: vi.fn(async () => second),
+      onConnectionOpen: () => () => {},
       close: vi.fn(async () => {}),
     };
     const { controller, subject } = createSubject({ clients });

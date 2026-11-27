@@ -13,7 +13,7 @@ export const SYNC_PARTIAL_COPY =
 export const SYNC_OPERATION_FAILURE_COPY =
   "We couldn’t complete the training-data check. Your existing data is still available.";
 export const SYNC_INDETERMINATE_COPY =
-  "Connection interrupted. The sync may still be finishing. Enduragent won’t retry it automatically.";
+  "Connection interrupted. Enduragent will check the sync again when it reconnects.";
 export const SYNC_NOT_IN_USE_COPY =
   "Intervals.icu isn’t connected right now, so nothing was synced. Enduragent will try again when your network is back.";
 export const SYNC_PROTOCOL_COPY =

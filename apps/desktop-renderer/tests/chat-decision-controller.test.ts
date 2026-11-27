@@ -181,6 +181,7 @@ function subject(
   const provider: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: () => () => {},
     close: vi.fn(async () => {}),
   };
   const controller = createChatController({

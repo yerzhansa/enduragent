@@ -336,6 +336,7 @@ describe("intervals.icu sign-in after a launch without network", () => {
         getClient: async () => client,
         reconnect: async () => client,
         close: async () => {},
+        onConnectionOpen: () => () => {},
       },
       refreshTrainingContext: async () => {},
       intervalsSignInSaved: () => status?.state === "configured",

@@ -88,6 +88,7 @@ export function createIntervalsSignInHealth(
           failedClient === undefined ? undefined : (originals.get(failedClient) ?? failedClient),
         )
         .then(watch),
+    onConnectionOpen: (listener) => provider.onConnectionOpen(listener),
     close: () => provider.close(),
   };
 

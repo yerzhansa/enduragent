@@ -879,7 +879,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Forbindelsen blev afbrudt. Synkroniseringen er muligvis stadig ved at blive afsluttet. {{product}} prøver ikke automatisk igen.",
+        "indeterminate": "Forbindelsen blev afbrudt. {{product}} kontrollerer synkroniseringen igen, når forbindelsen er genoprettet.",
         "noChange": "Lokal behandling af træningsdata fuldført.",
         "noChangeRestricted_one": "Lokal behandling af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så én aktivitet er ikke med.",
         "noChangeRestricted_other": "Lokal behandling af træningsdata fuldført. {{source}} tillader ikke, at tredjeparts-AI-værktøjer bruger data fra API’en, så {{formattedCount}} aktiviteter er ikke med.",
