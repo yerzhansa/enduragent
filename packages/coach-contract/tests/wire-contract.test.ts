@@ -1293,6 +1293,7 @@ describe("coach request and event projection", () => {
       }),
       "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
       "plan.history": async () => null,
+      "plan.calendar": async () => ({ status: "settings", weekDelivery: "send-each-week" }),
       getActivityAnalysis: async () => {
         throw new Error("not exercised by registry exhaustiveness");
       },

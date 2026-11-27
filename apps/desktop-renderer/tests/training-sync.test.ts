@@ -287,6 +287,55 @@ describe("training sync coordinator", () => {
     expect(refreshTrainingContext).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a keyless sync as not in use while an intervals.icu sign-in is saved", async () => {
+    const keyless: SyncRpcResult = {
+      ...published,
+      backfill: "skipped-no-credential",
+      published: false,
+      requests: { store: 0, reference: 1, total: 1 },
+    };
+    const client = clientWith((options) => exactCall(options, keyless));
+    let saved = true;
+    const coordinator = createTrainingSyncCoordinator({
+      clients: providerWith(client),
+      refreshTrainingContext: vi.fn(async () => {}),
+      intervalsSignInSaved: () => saved,
+    });
+
+    await coordinator.request();
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: 1,
+      kind: "not-in-use",
+      retryable: true,
+    });
+
+    saved = false;
+    await coordinator.request();
+    expect(coordinator.getState()).toEqual({
+      status: "succeeded",
+      operation: 2,
+      kind: "no-change",
+      droppedActivities: published.droppedActivities,
+    });
+  });
+
+  it("keeps a keyless sync as no change when nothing tells it a sign-in is saved", async () => {
+    const keyless: SyncRpcResult = {
+      ...published,
+      backfill: "skipped-no-credential",
+      published: false,
+      requests: { store: 0, reference: 1, total: 1 },
+    };
+    const coordinator = createTrainingSyncCoordinator({
+      clients: providerWith(clientWith((options) => exactCall(options, keyless))),
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+
+    await coordinator.request();
+    expect(coordinator.getState()).toMatchObject({ status: "succeeded", kind: "no-change" });
+  });
+
   it("treats an authoritative remote terminal as a fixed operation failure and refreshes once", async () => {
     const client = clientWith(async (options) => {
       options.onNotificationEnvelope?.(envelope("started", 0));

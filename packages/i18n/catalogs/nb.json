@@ -817,6 +817,7 @@
         "connected": "Tilkoblet · der turene dine kommer fra",
         "connectedAs": "Tilkoblet som {{name}} · der turene dine kommer fra",
         "missing": "Koble til eller importer turfiler.",
+        "notWorking": "Pålogget, men fungerer ikke ennå",
         "rejected": "{{intervals}} godtar ikke lenger påloggingen. Logg på igjen for å fortsette synkroniseringen.",
         "savedRides": "Turer lagret på {{computer}} · koble til for å synkronisere nye"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Sjekk av treningsdata er fullført. {{source}} tillater ikke at AI-verktøy fra tredjeparter bruker data fra API-et, så én aktivitet er ikke inkludert.",
         "publishedRestricted_other": "Sjekk av treningsdata er fullført. {{source}} tillater ikke at AI-verktøy fra tredjeparter bruker data fra API-et, så {{formattedCount}} aktiviteter er ikke inkludert.",
         "queued": "Synkronisering er satt i kø.",
-        "running": "Synkroniserer treningsdata…"
+        "running": "Synkroniserer treningsdata…",
+        "signInNotInUse": "{{intervals}} er ikke tilkoblet akkurat nå, så ingenting ble synkronisert. {{product}} prøver igjen når nettverket ditt er tilbake."
       },
       "restriction": {
         "fixAction": "· Slik løser du dette",

@@ -1639,7 +1639,7 @@ describe("settings after a setup change", () => {
     expect(coach.getByText("Active")).toHaveAttribute("data-state", "active");
   });
 
-  it("reloads a Coach pane that Review setup closed once Setup connects the provider", async () => {
+  it("keeps the Coach pane after Review setup and reloads it once Setup connects the provider", async () => {
     const user = userEvent.setup();
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
@@ -1653,7 +1653,8 @@ describe("settings after a setup change", () => {
     await user.click(coach.getByRole("combobox", { name: /Provider/u }));
     await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
     await user.click(await coach.findByRole("button", { name: "Review setup" }));
-    expect(useEnduragentStore.getState().settings.coach.status).toBe("closed");
+    expect(useEnduragentStore.getState().settings.coach.status).toBe("error");
+    expect(coach.getByRole("combobox", { name: /Provider/u })).toBeInTheDocument();
 
     active = OPENROUTER_ACTIVE;
     act(() => subject.panes.reloadAfterSetup());

@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/engine",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "private": true,
   "description": "Private coaching engine boundary and sport contract.",
   "type": "module",
@@ -15,6 +15,10 @@
     "./sport": {
       "types": "./dist/sport.d.ts",
       "import": "./dist/sport.js"
+    },
+    "./calendar": {
+      "types": "./dist/calendar.d.ts",
+      "import": "./dist/calendar.js"
     }
   },
   "scripts": {

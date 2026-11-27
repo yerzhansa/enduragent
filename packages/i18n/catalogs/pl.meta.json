@@ -2696,6 +2696,10 @@
       "sourceHash": "f49e87798f4ec07f7cfad4a621c9c19bc4ef7b22e6828a743749308546aac91a",
       "translatedBy": "model"
     },
+    "sidebar.sync.message.signInNotInUse": {
+      "sourceHash": "a8f97d901c5e6f00a22cd9def03fc6ac0acccc26e82e32092eb3a9cdf2b3e657",
+      "translatedBy": "model"
+    },
     "sidebar.sync.restriction.fixAction": {
       "sourceHash": "b96ff455b2a3a380bee16857e1d77906d6337c633d7a552426be60b816ed8a6d",
       "translatedBy": "model"
@@ -10454,6 +10458,10 @@
     },
     "coach.error.openRouterCredits": {
       "sourceHash": "e4928f5da9a7fa07a3b0728c08a13ff7afd51f95db0f91fa18756f4dba5d2e83",
+      "translatedBy": "model"
+    },
+    "setup.training.subtitle.notWorking": {
+      "sourceHash": "ae6a14a930a72bc19d0170e85d5d25f67a2e7fb813f5f139096fc715633cc446",
       "translatedBy": "model"
     }
   }

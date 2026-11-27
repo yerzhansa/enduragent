@@ -74,8 +74,12 @@ describe("wall-clock scheduler", () => {
 
     scheduler.start();
     scheduler.start();
-    expect(clock.pending()?.delay).toBe(Date.UTC(2026, 6, 18, 12) - tenOhFive);
     expect(clock.unref).toHaveBeenCalledTimes(1);
+
+    clock.setEpoch(Date.UTC(2026, 6, 18, 11, 59));
+    clock.fire();
+    await settle();
+    expect(execute).not.toHaveBeenCalled();
 
     clock.setEpoch(Date.UTC(2026, 6, 18, 12));
     clock.fire();
@@ -86,7 +90,15 @@ describe("wall-clock scheduler", () => {
     clock.setEpoch(Date.UTC(2026, 6, 18, 12, 7));
     run.resolve();
     await settle();
-    expect(clock.pending()?.delay).toBe(Date.UTC(2026, 6, 18, 18) - Date.UTC(2026, 6, 18, 12, 7));
+    clock.setEpoch(Date.UTC(2026, 6, 18, 17, 59));
+    clock.fire();
+    await settle();
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    clock.setEpoch(Date.UTC(2026, 6, 18, 18));
+    clock.fire();
+    await settle();
+    expect(execute).toHaveBeenCalledTimes(2);
     await scheduler.close();
   });
 

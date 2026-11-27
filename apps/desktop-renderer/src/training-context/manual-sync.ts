@@ -14,6 +14,8 @@ export const SYNC_OPERATION_FAILURE_COPY =
   "We couldn’t complete the training-data check. Your existing data is still available.";
 export const SYNC_INDETERMINATE_COPY =
   "Connection interrupted. Enduragent will check the sync again when it reconnects.";
+export const SYNC_NOT_IN_USE_COPY =
+  "Intervals.icu isn’t connected right now, so nothing was synced. Enduragent will try again when your network is back.";
 export const SYNC_PROTOCOL_COPY =
   "Enduragent couldn’t verify the sync result. Quit and reopen Enduragent.";
 
@@ -128,7 +130,9 @@ export function toManualSyncViewState(state: TrainingSyncState): ManualSyncViewS
             ? SYNC_PARTIAL_COPY
             : state.kind === "indeterminate"
               ? SYNC_INDETERMINATE_COPY
-              : SYNC_OPERATION_FAILURE_COPY,
+              : state.kind === "not-in-use"
+                ? SYNC_NOT_IN_USE_COPY
+                : SYNC_OPERATION_FAILURE_COPY,
         disabled: false,
         busy: false,
         tone: state.kind === "partial" ? "partial" : "failure",
@@ -173,23 +177,24 @@ export function createManualSyncController(input: {
       const selectedOperation =
         selectedState.status === "idle" ? undefined : selectedState.operation;
       activationTask = task;
-      const focused = task.then(() => {
-        const currentState = input.coordinator.getState();
-        const currentOperation =
-          currentState.status === "idle" ? undefined : currentState.operation;
-        if (
-          !disposed &&
-          selectedActivation === activation &&
-          selectedOperation === currentOperation &&
-          kind === "keyboard"
-        ) {
-          input.view.restoreKeyboardFocus();
-        }
-      });
-      const release = (): void => {
+      const settle = (): void => {
         if (activationTask === task) activationTask = undefined;
       };
-      void focused.then(release, release);
+      void task
+        .then(() => {
+          const currentState = input.coordinator.getState();
+          const currentOperation =
+            currentState.status === "idle" ? undefined : currentState.operation;
+          if (
+            !disposed &&
+            selectedActivation === activation &&
+            selectedOperation === currentOperation &&
+            kind === "keyboard"
+          ) {
+            input.view.restoreKeyboardFocus();
+          }
+        })
+        .then(settle, settle);
       return task;
     },
     dispose() {

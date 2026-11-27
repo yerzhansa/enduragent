@@ -4,7 +4,9 @@ import {
 } from "@enduragent/coach-contract";
 import type { DesktopCoachClient, DesktopCoachClientProvider } from "./coach-client";
 import type { IntervalsCredentialMutationResult } from "./onboarding/bridge";
-import type { TrainingSyncCoordinator } from "./training-sync";
+import type { TrainingSyncCoordinator, TrainingSyncState } from "./training-sync";
+
+export const NOT_IN_USE_RECHECK_MS = 30_000;
 
 export interface IntervalsSignInHealthStore {
   getState(): { setIntervalsSignInRejected(rejected: boolean): void };
@@ -13,7 +15,7 @@ export interface IntervalsSignInHealthStore {
 export interface IntervalsSignInHealth {
   readonly clients: DesktopCoachClientProvider;
   follow(
-    coordinator: Pick<TrainingSyncCoordinator, "subscribe">,
+    coordinator: Pick<TrainingSyncCoordinator, "subscribe" | "request">,
     focusTarget: Pick<Window, "addEventListener" | "removeEventListener">,
   ): () => void;
   refresh(): Promise<void>;
@@ -24,6 +26,14 @@ export interface IntervalsSignInHealth {
 
 export function intervalsSignInRejected(snapshot: RuntimeConfigSnapshot): boolean {
   return snapshot.intervals.credential_rejected === true;
+}
+
+function signInNotInUse(state: TrainingSyncState): boolean {
+  return state.status === "failed" && state.kind === "not-in-use";
+}
+
+function syncInProgress(state: TrainingSyncState): boolean {
+  return state.status === "queued" || state.status === "running";
 }
 
 export function createIntervalsSignInHealth(
@@ -38,12 +48,16 @@ export function createIntervalsSignInHealth(
     store.getState().setIntervalsSignInRejected(rejected);
   };
 
+  const snapshotListeners = new Set<(snapshot: RuntimeConfigSnapshot) => void>();
+
   const observe = (response: Promise<unknown>): void => {
     const observed = ++revision;
     void Promise.allSettled([response]).then(([outcome]) => {
-      if (observed !== revision || outcome?.status !== "fulfilled") return;
+      if (outcome?.status !== "fulfilled") return;
       const snapshot = GetRuntimeConfigRpcResultSchema.safeParse(outcome.value);
-      if (snapshot.success) publish(intervalsSignInRejected(snapshot.data));
+      if (!snapshot.success) return;
+      for (const listener of snapshotListeners) listener(snapshot.data);
+      if (observed === revision) publish(intervalsSignInRejected(snapshot.data));
     });
   };
 
@@ -88,7 +102,29 @@ export function createIntervalsSignInHealth(
     clients,
     refresh,
     follow(coordinator, focusTarget) {
+      let notInUse = false;
+      let requestedForKey = false;
+      let recheck: ReturnType<typeof setInterval> | undefined;
+      const stopRecheck = (): void => {
+        if (recheck !== undefined) clearInterval(recheck);
+        recheck = undefined;
+      };
+      const onSnapshot = (snapshot: RuntimeConfigSnapshot): void => {
+        if (!notInUse) return;
+        if (!snapshot.intervals.credential_configured) {
+          requestedForKey = false;
+          return;
+        }
+        if (requestedForKey) return;
+        requestedForKey = true;
+        void coordinator.request();
+      };
+      snapshotListeners.add(onSnapshot);
       const unsubscribe = coordinator.subscribe((state) => {
+        notInUse = signInNotInUse(state);
+        if (!notInUse && !syncInProgress(state)) requestedForKey = false;
+        if (!notInUse) stopRecheck();
+        else recheck ??= setInterval(() => void refresh(), NOT_IN_USE_RECHECK_MS);
         if (state.status === "succeeded" || state.status === "failed") void refresh();
       });
       const onFocus = (): void => {
@@ -98,6 +134,8 @@ export function createIntervalsSignInHealth(
       void refresh();
       return () => {
         unsubscribe();
+        stopRecheck();
+        snapshotListeners.delete(onSnapshot);
         focusTarget.removeEventListener("focus", onFocus);
       };
     },

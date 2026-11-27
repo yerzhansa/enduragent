@@ -817,6 +817,7 @@
         "connected": "Ansluten · källan till dina cykelturer",
         "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
         "missing": "Anslut eller importera filer från cykelturer.",
+        "notWorking": "Inloggad, men fungerar inte än",
         "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera.",
         "savedRides": "Cykelturer sparade på {{computer}} · anslut för att synkronisera nya"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Kontrollen av träningsdata är klar. {{source}} tillåter inte att AI-verktyg från tredje part använder data från API:t, så en aktivitet ingår inte.",
         "publishedRestricted_other": "Kontrollen av träningsdata är klar. {{source}} tillåter inte att AI-verktyg från tredje part använder data från API:t, så {{formattedCount}} aktiviteter ingår inte.",
         "queued": "Synkroniseringen står i kö.",
-        "running": "Synkroniserar träningsdata…"
+        "running": "Synkroniserar träningsdata…",
+        "signInNotInUse": "{{intervals}} är inte anslutet just nu, så inget synkroniserades. {{product}} försöker igen när ditt nätverk är tillbaka."
       },
       "restriction": {
         "fixAction": "· Så åtgärdar du detta",

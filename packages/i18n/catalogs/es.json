@@ -817,6 +817,7 @@
         "connected": "Conectado · de donde vienen tus salidas",
         "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas.",
+        "notWorking": "Sesión iniciada, pero aún no funciona",
         "rejected": "{{intervals}} ya no acepta el inicio de sesión. Vuelve a iniciar sesión para seguir sincronizando.",
         "savedRides": "Salidas guardadas en {{computer}} · conecta para sincronizar las nuevas"
       },
@@ -889,7 +890,8 @@
         "publishedRestricted_one": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluye una actividad.",
         "publishedRestricted_other": "Comprobación de los datos de entrenamiento completada. {{source}} no permite que las herramientas de IA de terceros usen datos de su API, por lo que no se incluyen {{formattedCount}} actividades.",
         "queued": "Sincronización en cola.",
-        "running": "Sincronizando datos de entrenamiento…"
+        "running": "Sincronizando datos de entrenamiento…",
+        "signInNotInUse": "{{intervals}} no está conectado en este momento, así que no se ha sincronizado nada. {{product}} lo volverá a intentar cuando vuelva tu conexión de red."
       },
       "restriction": {
         "fixAction": "· Cómo solucionarlo",

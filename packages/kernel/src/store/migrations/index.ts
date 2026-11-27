@@ -30,23 +30,16 @@ import planningDomain029 from "./029_planning_domain.sql";
 import trainingHistoryCoverage030 from "./030_training_history_coverage.sql";
 import trainingHistoryGapEvidence031 from "./031_training_history_gap_evidence.sql";
 import planningAuthority032 from "./032_planning_authority.sql";
-
 import athleteLanguage033 from "./033_athlete_language.sql";
 import planningPendingChecks034 from "./034_planning_pending_checks.sql";
+import planCalendarMirror035 from "./035_plan_calendar_mirror.sql";
 
 export interface Migration {
-  /** Ascending schema version this migration advances the store to. */
   readonly version: number;
-  /** The migration file's stem (diagnostics only). */
   readonly name: string;
-  /** The DDL text, bundled as a string at build time. */
   readonly sql: string;
 }
 
-/**
- * Ordered numbered migrations, ascending by version. The migrator applies each
- * whose version exceeds the store's PRAGMA user_version, in order.
- */
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: "001_init", sql: init001 },
   { version: 2, name: "002_repair_log", sql },
@@ -82,4 +75,5 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 32, name: "032_planning_authority", sql: planningAuthority032 },
   { version: 33, name: "033_athlete_language", sql: athleteLanguage033 },
   { version: 34, name: "034_planning_pending_checks", sql: planningPendingChecks034 },
+  { version: 35, name: "035_plan_calendar_mirror", sql: planCalendarMirror035 },
 ];

@@ -1,0 +1,17 @@
+CoachChange TypeOK holds
+CoachChange StopNeverGivesUpDuringAReply breaks
+CoachChange StopReachesReplyBeforeItEnds breaks
+CoachChange ReadsNotBlockedPastDeadline breaks
+CoachChange FailedChangeLeavesCoachUnchanged breaks
+CoachChange FailedChangeLeavesWindowUnchanged breaks
+CoachChange NoSwapUnderARunningReply holds
+CoachChange NoDeadlock holds
+SummaryModel SummaryModelIsChosen openai breaks
+SummaryModel SummaryModelIsChosen openrouter breaks
+SummaryModel SummaryModelIsChosen anthropic breaks
+SummaryModel MemoryModelIsChosen openai breaks
+SummaryModel MemoryModelIsChosen openrouter holds
+SummaryModel MemoryModelIsChosen anthropic holds
+SummaryModel ProviderSwitchResetsBackgroundModels openai holds
+SummaryModel ProviderSwitchResetsBackgroundModels openrouter holds
+SummaryModel ProviderSwitchResetsBackgroundModels anthropic holds
