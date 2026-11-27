@@ -22,7 +22,6 @@ import {
 import type { ApproveSheetState } from "../../calendar/approve-controller";
 import { ApproveSheet, type ApproveSheetPhase, type ApproveSheetReplace } from "./ApproveSheet";
 import type { PlanCalendarWorkout } from "@enduragent/coach-contract";
-import { ApproveSheet, type ApproveSheetPhase } from "./ApproveSheet";
 import { CalendarGrid } from "./CalendarGrid";
 import { ChangeSheet } from "./ChangeSheet";
 import { MoveDialog } from "./MoveDialog";
