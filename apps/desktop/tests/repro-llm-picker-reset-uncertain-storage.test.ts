@@ -1,12 +1,3 @@
-// Repro for llm-picker G5 (gemini verify, P1): after the credential vault latches
-// "storage uncertain" at startup, "Remove all credentials" succeeds but the vault
-// stays latched, so Setup keeps asking to re-enter the key and every save fails
-// until the app restarts.
-//
-// Real: createCredentialVault, createDesktopCredentialReset and the real
-// resetEncryptedCredentialStorage, on real files in a temp folder. Faked: the
-// encryption backend (a reversible synthetic codec), one transient file-removal failure
-// at startup (the trigger), and the coach edge (runtime binding).
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,7 +46,6 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
     const configDir = join(base, "config");
     await mkdir(configDir, { recursive: true });
 
-    // A key saved in an earlier session.
     const seed = createCredentialVault({
       root: credentialRoot,
       encryption: encryption(),
@@ -65,8 +55,6 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
       seed.writeCredential({ slot: "anthropic", value: "synthetic-old" }, { activate: false }),
     ).resolves.toMatchObject({ status: "configured" });
 
-    // This launch: a leftover temporary file cannot be cleaned once (a transient
-    // filesystem failure), so the vault latches "uncertain" (credential-vault.ts:372-415).
     const leftover = join(credentialRoot, ".anthropic.bin.startup-cleanup.tmp");
     await writeFile(leftover, "synthetic-leftover", { mode: CREDENTIAL_FILE_MODE });
     let cleanupAvailable = false;
@@ -88,7 +76,6 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
       runtimeState: null,
     });
 
-    // Settings -> Remove all credentials, as main wires it.
     const runtimeBinding = {
       authority: {
         getRuntimeConfig: async () => ({
@@ -139,7 +126,6 @@ describe("llm-picker G5: Remove all credentials after a startup storage-uncertai
     });
     await expect(reset()).resolves.toMatchObject({ status: "reset" });
 
-    // Setup: the athlete pastes a new key and saves.
     const saved = await vault.writeCredential({ slot: "anthropic", value: "synthetic-new" });
     const statuses = await vault.credentialStatuses();
 

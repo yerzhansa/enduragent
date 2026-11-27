@@ -1,15 +1,3 @@
-// Repro for issue 409, end to end in the built app with the window hidden: the credential
-// store latches "uncertain" at launch, Remove all credentials succeeds, and a key save in
-// Setup must work afterwards without a restart.
-//
-// Trigger, from the test's own profile only: before the second launch the test leaves a
-// folder named like a leftover temporary credential file in credentials-v1. The vault's
-// startup cleanup cannot remove a folder, so the store latches "uncertain". The test then
-// deletes that folder, which makes the failure transient, as in the issue.
-//
-// Real: the Electron main process, the credential vault, the reset and the renderer.
-// Stubbed: the coach process, a scripted RPC backend. No model provider or intervals.icu
-// request leaves the machine. Synthetic data only.
 import { spawn } from "node:child_process";
 import { chmod, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -27,8 +15,6 @@ import {
   type RunningDesktopFixture,
 } from "../helpers/desktop-fixture.js";
 
-// A video of the hidden window: CDP screencast frames, re-timed to 10 fps and encoded
-// with the ffmpeg build Playwright installs. Skipped if ffmpeg is missing.
 async function recordScreencast(context: BrowserContext, page: Page) {
   const session = await context.newCDPSession(page);
   const frames: { readonly data: Buffer; readonly at: number }[] = [];
@@ -283,9 +269,6 @@ const test = base.extend<{ desktop: Desktop }>({
         routeChatAttachmentComposer: true,
         extraEnv: { LANG: "en_US.UTF-8", TZ: "UTC" },
       });
-      // The fixture has no hook before its first launch, so the folder is left in this
-      // profile before a relaunch. The vault's startup cleanup removes files only, so the
-      // relaunched app latches the credential store as "uncertain".
       const credentialRoot = join(fixture.paths.userData, "credentials-v1");
       const leftover = join(credentialRoot, LEFTOVER);
       await fixture.relaunch(async () => {
@@ -348,16 +331,12 @@ test("Remove all credentials clears a storage warning so the next key save works
   const { page, leftover } = desktop;
   await expect(page.locator("[data-shell]")).toHaveAttribute("data-shell", "gate");
 
-  // The store latched "uncertain" at launch, so Setup refuses the key.
   const panel = await saveAnthropicKey(page);
   await expect(panel.getByText(STORAGE_UNCERTAIN)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("01-save-refused.png") });
 
-  // The file system failure was transient: the leftover can be removed now.
   await rm(leftover, { recursive: true, force: true });
 
-  // Remove all credentials, through the same bridge the Settings button uses. In this
-  // state Setup is a gate with no Settings and no Remove all button on screen.
   const reset = await page.evaluate(() =>
     (
       window as unknown as {
@@ -369,7 +348,6 @@ test("Remove all credentials clears a storage warning so the next key save works
     status: "reset",
   });
 
-  // The athlete enters the key again.
   await saveAnthropicKey(page);
   await page.waitForTimeout(1_000);
   await page.screenshot({ path: testInfo.outputPath("02-save-after-remove-all.png") });

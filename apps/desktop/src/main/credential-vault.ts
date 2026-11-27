@@ -173,7 +173,6 @@ export interface CredentialVault {
   ): Promise<CredentialDeleteResult>;
   reapplyConfigured(): Promise<void>;
   retryFailed(): Promise<void>;
-  /** Call while holding the credential mutation lock, after the storage was reset. */
   forgetStorageStateAfterReset(): Promise<void>;
 }
 
@@ -916,24 +915,25 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
           const shouldClearRuntime = runtimeStatus === "active" || runtimeStatus === "failed";
           let credential: ReadCredential | undefined;
           let authorizeRemoval: (() => Promise<boolean>) | undefined;
+          const removalRefusal = (read: ReadCredential): CredentialDeleteResult | undefined => {
+            if (read.state === "missing") return { slot, status: "refused", reason: "not-found" };
+            if (read.state === "configured" && read.value !== undefined) return undefined;
+            return {
+              slot,
+              status: "refused",
+              reason:
+                encryptionRefusal(options.encryption, platform) === undefined
+                  ? "storage-failed"
+                  : "encryption-unavailable",
+            };
+          };
           if (removalState === "keychain-dependent") {
             if (encryptionRefusal(options.encryption, platform) !== undefined) {
               return { slot, status: "refused", reason: "encryption-unavailable" };
             }
             credential = await readSlot(slot);
-            if (credential.state === "missing") {
-              return { slot, status: "refused", reason: "not-found" };
-            }
-            if (credential.state !== "configured" || credential.value === undefined) {
-              return {
-                slot,
-                status: "refused",
-                reason:
-                  encryptionRefusal(options.encryption, platform) === undefined
-                    ? "storage-failed"
-                    : "encryption-unavailable",
-              };
-            }
+            const refused = removalRefusal(credential);
+            if (refused !== undefined) return refused;
             const revalidate = options.revalidateEnvelopeRemoval;
             if (proof === undefined || revalidate === undefined) {
               return { slot, status: "refused", reason: "encryption-unavailable" };
@@ -951,19 +951,8 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
           }
           if (removalState === "unverified" && platform !== "darwin" && shouldClearRuntime) {
             credential = await readSlot(slot);
-            if (credential.state === "missing") {
-              return { slot, status: "refused", reason: "not-found" };
-            }
-            if (credential.state !== "configured" || credential.value === undefined) {
-              return {
-                slot,
-                status: "refused",
-                reason:
-                  encryptionRefusal(options.encryption, platform) === undefined
-                    ? "storage-failed"
-                    : "encryption-unavailable",
-              };
-            }
+            const refused = removalRefusal(credential);
+            if (refused !== undefined) return refused;
           }
           let runtimeCleared = false;
           if (shouldClearRuntime) {

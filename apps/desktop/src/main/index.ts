@@ -1111,8 +1111,7 @@ async function runDesktop(): Promise<void> {
         credentialRoot,
         telegramRoot: telegramCredentialRoot,
         serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,
-        deleteKeyForCredentialReset: (proof) =>
-          credentialEncryption.deleteKeyForCredentialReset(proof),
+        deleteKeyForCredentialReset: credentialEncryption.deleteKeyForCredentialReset,
         credentialRuntimeState,
         onRuntimeStateChange: markCredentialRuntimeChange,
         vault,

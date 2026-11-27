@@ -222,10 +222,7 @@ describe("desktop credential reset orchestration", () => {
       expect(subject.deleteKeyForCredentialReset).not.toHaveBeenCalled();
       expect(subject.credentialRuntimeState.get("anthropic")).toBe("failed");
       expect(subject.credentialRuntimeState.get("intervals-icu")).toBe("failed");
-      expect(subject.onRuntimeStateChange.mock.calls).toEqual([
-        ["anthropic"],
-        ["intervals-icu"],
-      ]);
+      expect(subject.onRuntimeStateChange.mock.calls).toEqual([["anthropic"], ["intervals-icu"]]);
     },
   );
 
@@ -416,8 +413,8 @@ describe("desktop credential reset orchestration", () => {
     expect(composition).toContain(
       "serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,",
     );
-    expect(composition).toMatch(
-      /deleteKeyForCredentialReset: \(proof\) =>\s+credentialEncryption\.deleteKeyForCredentialReset\(proof\)/u,
+    expect(composition).toContain(
+      "deleteKeyForCredentialReset: credentialEncryption.deleteKeyForCredentialReset,",
     );
     expect(composition).toContain("onRuntimeStateChange: markCredentialRuntimeChange,");
     expect(composition).toContain("vault,");
