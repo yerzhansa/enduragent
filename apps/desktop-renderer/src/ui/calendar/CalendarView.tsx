@@ -24,6 +24,7 @@ import { ChangeSheet } from "./ChangeSheet";
 import { MoveDialog } from "./MoveDialog";
 import { PlanDetailsSheet } from "./PlanDetailsSheet";
 import { movePreview } from "../../calendar/move";
+import { detailsEnding } from "../../calendar/details-controller";
 import { WeekReadyBanner } from "./WeekReadyBanner";
 import { SeasonStrip } from "./SeasonStrip";
 import { useCalendarText } from "./calendar-text";
@@ -284,6 +285,7 @@ export function CalendarView(): ReactElement {
         <Button
           type="button"
           variant="outline"
+          disabled={detailsEnding(details)}
           onClick={() => {
             const planId = read.plan?.planId;
             if (planId !== undefined) detailsActions?.open(planId);

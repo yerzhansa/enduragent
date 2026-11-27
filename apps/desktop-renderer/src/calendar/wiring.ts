@@ -4,7 +4,7 @@ import type { useEnduragentStore } from "../state/store";
 import { opensCalendarAfterActivate } from "./approval";
 import { createApproveController } from "./approve-controller";
 import { createChangeController } from "./change-controller";
-import { createDetailsController } from "./details-controller";
+import { createDetailsController, detailsEnding } from "./details-controller";
 import { createMoveController } from "./move-controller";
 import { createCalendarController } from "./controller";
 import { createCalendarSettingsController } from "./settings-controller";
@@ -103,6 +103,7 @@ export function startCalendar(
     cancelEnd: () => details.cancelEnd(),
     confirmEnd: () => void details.confirmEnd(),
     replace: () => {
+      if (detailsEnding(store.getState().calendarDetails)) return;
       details.close();
       store.getState().setActiveView("chat");
       store.getState().chatActions?.startPlanCreation();

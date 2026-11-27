@@ -2,7 +2,12 @@ import type { PlanCalendarHistoryEntry } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { useEffect, useRef, type ReactElement } from "react";
-import type { DetailsSheetState, PlanDetails } from "../../calendar/details-controller";
+import {
+  detailsEnding,
+  endChoiceLocked,
+  type DetailsSheetState,
+  type PlanDetails,
+} from "../../calendar/details-controller";
 import { addDays } from "../../calendar/dates";
 import type { PlanCalendarRead } from "../../calendar/grid";
 import { useCalendarText, type CalendarText } from "./calendar-text";
@@ -41,7 +46,7 @@ function historyText(entry: PlanCalendarHistoryEntry, text: CalendarText, say: S
   }
 }
 
-function phasesLine(read: PlanCalendarRead): string | null {
+function phasesLine(read: PlanCalendarRead, separator: string): string | null {
   const parts: string[] = [];
   let current: { phase: string; first: number; last: number } | null = null;
   for (const week of read.plan?.weeks ?? []) {
@@ -57,7 +62,7 @@ function phasesLine(read: PlanCalendarRead): string | null {
     current = { phase: week.phase, first: week.index, last: week.index };
     parts.push(`${current.phase} ${current.first}`);
   }
-  return parts.length === 0 ? null : parts.join(" · ");
+  return parts.length === 0 ? null : parts.join(separator);
 }
 
 function progress(read: PlanCalendarRead) {
@@ -131,7 +136,7 @@ function EndConfirmView(props: {
               type="checkbox"
               className="mt-0.5 size-4 accent-danger"
               checked={end.removeChanges}
-              disabled={busy}
+              disabled={endChoiceLocked(end)}
               onChange={(event) => props.onRemoveChanges(event.currentTarget.checked)}
             />
             {say("plan.calendar.details.endRemoveChanges", { count: changes })}
@@ -183,7 +188,12 @@ export function PlanDetailsSheet(props: {
       <h2 ref={heading} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
         {say("plan.calendar.details.title")}
       </h2>
-      <Button type="button" variant="outline" onClick={props.onClose}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={detailsEnding(state)}
+        onClick={props.onClose}
+      >
         {say("plan.calendar.details.close")}
       </Button>
     </div>
@@ -201,7 +211,7 @@ export function PlanDetailsSheet(props: {
     );
   }
   const counts = progress(read);
-  const phases = phasesLine(read);
+  const phases = phasesLine(read, say("plan.calendar.separator"));
   const lastDay = addDays(plan.startDateKey, plan.totalWeeks * 7 - 1);
   const rows: [string, string][] = [
     [
@@ -263,7 +273,12 @@ export function PlanDetailsSheet(props: {
       <section className="flex flex-col gap-1.5 rounded-card border border-line px-3 py-2.5">
         <strong className="text-sm text-ink">{say("plan.calendar.details.replaceTitle")}</strong>
         <span className="text-xs text-ink-2">{say("plan.calendar.details.replaceBody")}</span>
-        <Button type="button" variant="outline" onClick={props.onReplace}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={detailsEnding(state)}
+          onClick={props.onReplace}
+        >
           {say("plan.calendar.details.replaceAction")}
         </Button>
       </section>

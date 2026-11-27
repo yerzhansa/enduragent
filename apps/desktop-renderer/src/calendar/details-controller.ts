@@ -7,12 +7,13 @@ import type {
 export type PlanDetails = Extract<PlanCalendarRpcResult, { status: "plan-details" }>;
 
 export type EndConfirm =
-  | { readonly kind: "idle"; readonly removeChanges: boolean }
-  | { readonly kind: "ending"; readonly removeChanges: boolean }
+  | { readonly kind: "idle"; readonly removeChanges: boolean; readonly commandId: string }
+  | { readonly kind: "ending"; readonly removeChanges: boolean; readonly commandId: string }
   | {
       readonly kind: "failed";
       readonly removeChanges: boolean;
-      readonly reason: "changed" | "unavailable";
+      readonly commandId: string;
+      readonly reason: "changed" | "unconfirmed";
     };
 
 export type DetailsSheetState =
@@ -23,6 +24,17 @@ export type DetailsSheetState =
 
 export const DETAILS_SHEET_CLOSED: DetailsSheetState = Object.freeze({ kind: "closed" });
 
+export function detailsEnding(state: DetailsSheetState): boolean {
+  return state.kind === "open" && state.end?.kind === "ending";
+}
+
+export function endChoiceLocked(end: EndConfirm | null): boolean {
+  return (
+    end !== null &&
+    (end.kind === "ending" || (end.kind === "failed" && end.reason === "unconfirmed"))
+  );
+}
+
 export interface DetailsController {
   open(planId: string): Promise<void>;
   close(): void;
@@ -32,6 +44,12 @@ export interface DetailsController {
   confirmEnd(): Promise<void>;
 }
 
+type EndOutcome = "closed" | "changed" | "unconfirmed";
+
+function closeOutcome(result: PlanCloseResult): EndOutcome {
+  return result.status === "closed" ? "closed" : "changed";
+}
+
 export function createDetailsController(deps: {
   call(
     request:
@@ -39,6 +57,7 @@ export function createDetailsController(deps: {
       | {
           readonly action: "save-end-choice";
           readonly planId: string;
+          readonly commandId: string;
           readonly ticked: PlanCalendarTick[];
         },
   ): Promise<PlanCalendarRpcResult>;
@@ -60,11 +79,36 @@ export function createDetailsController(deps: {
   const withEnd = (end: EndConfirm | null): void => {
     if (state.kind === "open") publish({ kind: "open", details: state.details, end });
   };
-  const saveChoice = (planId: string, ticked: readonly PlanCalendarTick[]) =>
-    deps.call({ action: "save-end-choice", planId, ticked: [...ticked] });
+  const end = async (
+    details: PlanDetails,
+    commandId: string,
+    removeChanges: boolean,
+  ): Promise<EndOutcome> => {
+    const ticked = removeChanges ? details.ending.athleteChanges.map((entry) => entry.tick) : [];
+    try {
+      const saved = await deps.call({
+        action: "save-end-choice",
+        planId: details.planId,
+        commandId,
+        ticked,
+      });
+      const mayHaveEnded = saved.status === "refused" && saved.reason === "no-active-plan";
+      if (saved.status !== "end-choice-saved" && !mayHaveEnded) return "unconfirmed";
+      return closeOutcome(
+        await deps.closePlan({
+          commandId,
+          planId: details.planId,
+          expectedVersion: details.version,
+        }),
+      );
+    } catch {
+      return "unconfirmed";
+    }
+  };
 
   return {
     async open(planId) {
+      if (detailsEnding(state)) return;
       generation += 1;
       const mine = generation;
       publish({ kind: "loading", planId });
@@ -83,16 +127,17 @@ export function createDetailsController(deps: {
       );
     },
     close() {
-      if (state.kind === "open" && state.end?.kind === "ending") return;
+      if (detailsEnding(state)) return;
       generation += 1;
       publish(DETAILS_SHEET_CLOSED);
     },
     startEnd() {
-      withEnd({ kind: "idle", removeChanges: false });
+      if (state.kind !== "open" || state.end !== null) return;
+      withEnd({ kind: "idle", removeChanges: false, commandId: deps.newCommandId() });
     },
     setRemoveChanges(removeChanges) {
-      if (state.kind !== "open" || state.end === null || state.end.kind === "ending") return;
-      withEnd({ kind: "idle", removeChanges });
+      if (state.kind !== "open" || state.end === null || endChoiceLocked(state.end)) return;
+      withEnd({ kind: "idle", removeChanges, commandId: state.end.commandId });
     },
     cancelEnd() {
       if (state.kind !== "open" || state.end?.kind === "ending") return;
@@ -101,27 +146,15 @@ export function createDetailsController(deps: {
     async confirmEnd() {
       if (state.kind !== "open" || state.end === null || state.end.kind === "ending") return;
       const { details } = state;
-      const removeChanges = state.end.removeChanges;
-      withEnd({ kind: "ending", removeChanges });
-      const ticks = removeChanges ? details.ending.athleteChanges.map((entry) => entry.tick) : [];
-      let closed: PlanCloseResult;
-      try {
-        await saveChoice(details.planId, ticks);
-        closed = await deps.closePlan({
-          commandId: deps.newCommandId(),
-          planId: details.planId,
-          expectedVersion: details.version,
-        });
-      } catch {
-        withEnd({ kind: "failed", removeChanges, reason: "unavailable" });
-        return;
-      }
-      if (closed.status === "closed") {
+      const { removeChanges, commandId } = state.end;
+      withEnd({ kind: "ending", removeChanges, commandId });
+      const outcome = await end(details, commandId, removeChanges);
+      if (outcome === "closed") {
         publish(DETAILS_SHEET_CLOSED);
         deps.ended();
         return;
       }
-      withEnd({ kind: "failed", removeChanges, reason: "changed" });
+      withEnd({ kind: "failed", removeChanges, commandId, reason: outcome });
     },
   };
 }

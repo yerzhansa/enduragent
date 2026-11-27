@@ -157,7 +157,7 @@ describe("the Plan details sheet", () => {
     const actions = show({
       kind: "open",
       details: DETAILS,
-      end: { kind: "idle", removeChanges: false },
+      end: { kind: "idle", removeChanges: false, commandId: "end-1" },
     });
     render(<CalendarView />);
     const confirm = screen.getByRole("region", { name: "End the Plan?" });
@@ -178,14 +178,30 @@ describe("the Plan details sheet", () => {
 
   it.each([
     ["changed", "The Plan changed meanwhile, so it was not ended. Open Plan details again."],
-    ["unavailable", "The app did not answer, so the Plan was not ended. Try again."],
-  ] as const)("says the Plan was not ended when it fails (%s)", (reason, message) => {
+    ["unconfirmed", "The app did not answer, so ending could not be confirmed. Try again."],
+  ] as const)("says what happened when ending fails (%s)", (reason, message) => {
     show({
       kind: "open",
       details: DETAILS,
-      end: { kind: "failed", reason, removeChanges: false },
+      end: { kind: "failed", reason, removeChanges: true, commandId: "end-1" },
     });
     render(<CalendarView />);
     expect(screen.getByRole("alert")).toHaveTextContent(message);
+    const box = screen.getByRole("checkbox", { name: "Remove that one too" });
+    if (reason === "unconfirmed") expect(box).toBeDisabled();
+    else expect(box).toBeEnabled();
+  });
+
+  it("locks Replace, Close and the header button while the Plan is ending", () => {
+    show({
+      kind: "open",
+      details: DETAILS,
+      end: { kind: "ending", removeChanges: false, commandId: "end-1" },
+    });
+    render(<CalendarView />);
+    const sheet = screen.getByRole("complementary", { name: "Plan details" });
+    expect(within(sheet).getByRole("button", { name: "Replace Plan" })).toBeDisabled();
+    expect(within(sheet).getByRole("button", { name: "Close" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Plan details" })[0]).toBeDisabled();
   });
 });
