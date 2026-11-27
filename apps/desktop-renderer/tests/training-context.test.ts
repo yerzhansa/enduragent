@@ -65,6 +65,40 @@ function providerWith(call: CoachClient["call"]): DesktopCoachClientProvider {
   };
 }
 
+function reopeningProviderWith(call: CoachClient["call"]): {
+  readonly clients: DesktopCoachClientProvider;
+  readonly open: () => void;
+  readonly listening: () => number;
+} {
+  const client = {
+    handshake: {} as CoachClient["handshake"],
+    call,
+    close: vi.fn(async () => {}),
+  } as CoachClient;
+  const listeners = new Set<() => void>();
+  return {
+    clients: {
+      getClient: vi.fn(async () => client),
+      reconnect: vi.fn(async () => client),
+      close: vi.fn(async () => {}),
+      onConnectionOpen: vi.fn((listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      }),
+    },
+    open: () => {
+      for (const listener of listeners) listener();
+    },
+    listening: () => listeners.size,
+  };
+}
+
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe("training context controller", () => {
   it("fetches canonical state and units once on start without exposing raw state fields", async () => {
     const calls: string[] = [];
@@ -324,6 +358,81 @@ describe("training context controller", () => {
     resolve(athlete());
     await started;
     expect(render).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("training context controller after the window reconnects", () => {
+  function athleteStateReads(results: ReadonlyArray<"ok" | "dropped">) {
+    let reads = 0;
+    const call = (async (method: string) => {
+      if (method === "getUnitsPreference") return { value: "metric", source: "default" };
+      if (method === "getAthleteState") {
+        const result = results[reads] ?? "ok";
+        reads += 1;
+        if (result === "dropped") throw new CoachClientDisconnectedError(1006, "synthetic");
+        return athlete();
+      }
+      throw new TypeError();
+    }) as CoachClient["call"];
+    return { call, reads: () => reads };
+  }
+
+  it("reads the training data again once when a connection opens after a failed refresh", async () => {
+    const coach = athleteStateReads(["ok", "dropped"]);
+    const provider = reopeningProviderWith(coach.call);
+    const states: TrainingContextViewState[] = [];
+    const controller = createTrainingContextController({
+      clients: provider.clients,
+      view: { render: (state) => states.push(structuredClone(state)) },
+    });
+    await controller.start();
+    await controller.refresh();
+    expect(states.at(-1)?.status).toBe("refresh-unavailable");
+
+    provider.open();
+
+    await vi.waitFor(() => expect(states.at(-1)?.status).toBe("ready"));
+    expect(coach.reads()).toBe(3);
+
+    provider.open();
+    await settle();
+    expect(coach.reads()).toBe(3);
+  });
+
+  it("does not read the training data again when a connection opens while it is up to date", async () => {
+    const coach = athleteStateReads(["ok"]);
+    const provider = reopeningProviderWith(coach.call);
+    const states: TrainingContextViewState[] = [];
+    const controller = createTrainingContextController({
+      clients: provider.clients,
+      view: { render: (state) => states.push(structuredClone(state)) },
+    });
+    await controller.start();
+
+    provider.open();
+    await settle();
+
+    expect(coach.reads()).toBe(1);
+    expect(states.at(-1)?.status).toBe("ready");
+  });
+
+  it("stops listening for new connections once disposed", async () => {
+    const coach = athleteStateReads(["ok", "dropped"]);
+    const provider = reopeningProviderWith(coach.call);
+    const controller = createTrainingContextController({
+      clients: provider.clients,
+      view: { render() {} },
+    });
+    await controller.start();
+    await controller.refresh();
+    expect(provider.listening()).toBe(1);
+
+    controller.dispose();
+    provider.open();
+    await settle();
+
+    expect(provider.listening()).toBe(0);
+    expect(coach.reads()).toBe(2);
   });
 });
 

@@ -46,6 +46,10 @@ function coachConnection(
   };
 }
 
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("desktop coach client lifecycle", () => {
@@ -617,9 +621,7 @@ describe("desktop coach client lifecycle", () => {
     await vi.waitFor(() => expect(closeClient).toHaveBeenCalledTimes(1));
 
     const getDuringClose = await clients.getClient().catch((error: unknown) => error);
-    const reconnectDuringClose = await clients
-      .reconnect()
-      .catch((error: unknown) => error);
+    const reconnectDuringClose = await clients.reconnect().catch((error: unknown) => error);
     expect(closeSettled).toBe(false);
     expect(getDuringClose).toBeInstanceOf(CoachClientDisconnectedError);
     expect(getDuringClose).toMatchObject({ code: 1000, reason: "" });
@@ -632,12 +634,106 @@ describe("desktop coach client lifecycle", () => {
     expect(closeClient).toHaveBeenCalledTimes(1);
 
     const getAfterClose = await clients.getClient().catch((error: unknown) => error);
-    const reconnectAfterClose = await clients
-      .reconnect()
-      .catch((error: unknown) => error);
+    const reconnectAfterClose = await clients.reconnect().catch((error: unknown) => error);
     expect(getAfterClose).toBe(getDuringClose);
     expect(reconnectAfterClose).toBe(getDuringClose);
     expect(auth.getDaemonConnection).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells listeners about each connection that replaces a lost or retired one, not the first", async () => {
+    const first = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const second = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const third = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const auth = {
+      getDaemonConnection: vi.fn(async () => ({
+        url: "ws://127.0.0.1:45001/rpc",
+        rendererCapability: capability("s"),
+        generation: 3,
+      })),
+    };
+    const connect = vi
+      .fn()
+      .mockResolvedValueOnce(coachConnection(first))
+      .mockResolvedValueOnce(coachConnection(second))
+      .mockResolvedValueOnce(coachConnection(third));
+    vi.stubGlobal("window", { enduragentAuth: auth });
+    const clients = createDesktopCoachClientProvider(connect);
+    const opened = vi.fn();
+    const stopped = vi.fn();
+    clients.onConnectionOpen(opened);
+    const stop = clients.onConnectionOpen(stopped);
+    stop();
+
+    await expect(clients.getClient()).resolves.toBe(first);
+    await settle();
+    expect(opened).not.toHaveBeenCalled();
+
+    const options = connect.mock.calls[0]![0] as ConnectCoachClientOptions;
+    options.onTerminal?.(first, new CoachClientDisconnectedError(1006, ""));
+    await expect(clients.getClient()).resolves.toBe(second);
+    await vi.waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
+
+    await expect(clients.reconnect(second)).resolves.toBe(third);
+    await vi.waitFor(() => expect(opened).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(opened).toHaveBeenCalledTimes(2);
+    expect(stopped).not.toHaveBeenCalled();
+  });
+
+  it("does not count a first connection that took a second attempt as a reopen", async () => {
+    const connected = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const auth = {
+      getDaemonConnection: vi.fn(async () => ({
+        url: "ws://127.0.0.1:45001/rpc",
+        rendererCapability: capability("s"),
+        generation: 8,
+      })),
+    };
+    const connect = vi
+      .fn()
+      .mockRejectedValueOnce(new CoachClientHandshakeError())
+      .mockResolvedValueOnce(coachConnection(connected));
+    vi.stubGlobal("window", { enduragentAuth: auth });
+    const clients = createDesktopCoachClientProvider(connect);
+    const opened = vi.fn();
+    clients.onConnectionOpen(opened);
+
+    await expect(clients.getClient()).rejects.toBeInstanceOf(CoachClientHandshakeError);
+    await expect(clients.getClient()).resolves.toBe(connected);
+    await settle();
+
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it("keeps serving the new connection and telling other listeners when one listener throws", async () => {
+    const first = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const second = { close: vi.fn(async () => {}) } as unknown as CoachClient;
+    const auth = {
+      getDaemonConnection: vi.fn(async () => ({
+        url: "ws://127.0.0.1:45001/rpc",
+        rendererCapability: capability("s"),
+        generation: 5,
+      })),
+    };
+    const connect = vi
+      .fn()
+      .mockResolvedValueOnce(coachConnection(first))
+      .mockResolvedValueOnce(coachConnection(second));
+    vi.stubGlobal("window", { enduragentAuth: auth });
+    const clients = createDesktopCoachClientProvider(connect);
+    const failing = vi.fn(() => {
+      throw new Error("synthetic listener failure");
+    });
+    const opened = vi.fn();
+    clients.onConnectionOpen(failing);
+    clients.onConnectionOpen(opened);
+    await expect(clients.getClient()).resolves.toBe(first);
+
+    await expect(clients.reconnect(first)).resolves.toBe(second);
+
+    await vi.waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
+    expect(failing).toHaveBeenCalledTimes(1);
+    await expect(clients.getClient()).resolves.toBe(second);
   });
 });

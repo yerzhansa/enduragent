@@ -37,10 +37,17 @@ function subject(initial: RuntimeConfigSnapshot = snapshot({})) {
   const call = vi.fn(async (method: string) => (method === "getRuntimeConfig" ? runtime : {}));
   const inner = { handshake: {}, call } as unknown as DesktopCoachClient;
   const replacement = { handshake: {}, call } as unknown as DesktopCoachClient;
+  const openListeners = new Set<() => void>();
   const provider = {
     getClient: vi.fn(async () => inner),
     reconnect: vi.fn(async () => replacement),
     close: vi.fn(async () => undefined),
+    onConnectionOpen: vi.fn((listener: () => void) => {
+      openListeners.add(listener);
+      return () => {
+        openListeners.delete(listener);
+      };
+    }),
   } satisfies DesktopCoachClientProvider;
   const published: boolean[] = [];
   const health = createIntervalsSignInHealth(provider, {
@@ -67,6 +74,9 @@ function subject(initial: RuntimeConfigSnapshot = snapshot({})) {
     coordinator,
     emit,
     focusTarget: focusTarget as unknown as Window,
+    openConnection: () => {
+      for (const listener of openListeners) listener();
+    },
     setRuntime: (next: RuntimeConfigSnapshot) => {
       runtime = next;
     },
@@ -187,5 +197,18 @@ describe("intervals.icu sign-in health", () => {
       ["sync", {}],
       ["sync", {}, { signal }],
     ]);
+  });
+
+  it("tells listeners on its clients when the provider opens a new connection", () => {
+    const test = subject();
+    const listener = vi.fn();
+    const stop = test.health.clients.onConnectionOpen(listener);
+
+    test.openConnection();
+    expect(listener).toHaveBeenCalledOnce();
+
+    stop();
+    test.openConnection();
+    expect(listener).toHaveBeenCalledOnce();
   });
 });

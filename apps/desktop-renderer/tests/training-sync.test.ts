@@ -97,6 +97,38 @@ function providerWith(client: CoachClient): DesktopCoachClientProvider {
   };
 }
 
+function reopeningProvider(input: {
+  readonly current: CoachClient;
+  readonly replacement: CoachClient;
+}): {
+  readonly clients: DesktopCoachClientProvider;
+  readonly open: () => void;
+  readonly listening: () => number;
+} {
+  const listeners = new Set<() => void>();
+  return {
+    clients: {
+      getClient: vi.fn(async () => input.current),
+      reconnect: vi.fn(async () => input.replacement),
+      close: vi.fn(async () => {}),
+      onConnectionOpen: vi.fn((listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      }),
+    },
+    open: () => {
+      for (const listener of listeners) listener();
+    },
+    listening: () => listeners.size,
+  };
+}
+
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 async function exactCall(options: SyncOptions, result: SyncRpcResult): Promise<SyncRpcResult> {
   options.onNotificationEnvelope?.(envelope("started", 0));
   options.onNotificationEnvelope?.(envelope("completed", 1));
@@ -729,5 +761,125 @@ describe("training sync coordinator", () => {
     await coordinator.request();
     expect(client.callMock).toHaveBeenCalledTimes(1);
     expect(states.at(-1)).toEqual({ status: "running", operation: 1 });
+  });
+});
+
+describe("training sync coordinator after the window reconnects", () => {
+  const dropped = (): CoachClient & { readonly callMock: ReturnType<typeof vi.fn> } =>
+    clientWith(async () => {
+      throw new CoachClientDisconnectedError(1006, "private close reason");
+    });
+
+  it("asks the coach again once when a connection opens after an interrupted sync", async () => {
+    const replacement = clientWith((options) => exactCall(options, published));
+    const provider = reopeningProvider({ current: dropped(), replacement });
+    const refreshTrainingContext = vi.fn(async () => {});
+    const coordinator = createTrainingSyncCoordinator({
+      clients: provider.clients,
+      refreshTrainingContext,
+    });
+    await coordinator.request();
+    expect(coordinator.getState()).toMatchObject({ status: "failed", kind: "indeterminate" });
+
+    provider.open();
+
+    await vi.waitFor(() =>
+      expect(coordinator.getState()).toMatchObject({
+        status: "succeeded",
+        operation: 2,
+        kind: "published",
+      }),
+    );
+    expect(replacement.callMock).toHaveBeenCalledTimes(1);
+    expect(refreshTrainingContext).toHaveBeenCalledTimes(1);
+
+    provider.open();
+    await settle();
+    expect(replacement.callMock).toHaveBeenCalledTimes(1);
+    expect(refreshTrainingContext).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["before any sync", undefined],
+    ["after a finished sync", () => clientWith((options) => exactCall(options, published))],
+    [
+      "after a sync the coach did not admit",
+      () =>
+        clientWith(async () => {
+          throw new CoachClientCallNotAdmittedError();
+        }),
+    ],
+    [
+      "after a sync whose result could not be verified",
+      () =>
+        clientWith(async (options) => {
+          options.onTerminalEnvelope?.(terminal());
+          return published;
+        }),
+    ],
+  ])("does not ask the coach again when a connection opens %s", async (_name, first) => {
+    const current = first?.() ?? clientWith((options) => exactCall(options, published));
+    const replacement = clientWith((options) => exactCall(options, published));
+    const provider = reopeningProvider({ current, replacement });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: provider.clients,
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    if (first !== undefined) await coordinator.request();
+    const before = coordinator.getState();
+
+    provider.open();
+    await settle();
+
+    expect(coordinator.getState()).toEqual(before);
+    expect(current.callMock).toHaveBeenCalledTimes(first === undefined ? 0 : 1);
+    expect(replacement.callMock).not.toHaveBeenCalled();
+  });
+
+  it("does not start a second sync when a connection opens while one is running", async () => {
+    const release = deferred<void>();
+    const current = clientWith(async (options) => {
+      options.onNotificationEnvelope?.(envelope("started", 0));
+      await release.promise;
+      options.onNotificationEnvelope?.(envelope("completed", 1));
+      options.onTerminalEnvelope?.(terminal());
+      return published;
+    });
+    const replacement = clientWith((options) => exactCall(options, published));
+    const provider = reopeningProvider({ current, replacement });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: provider.clients,
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    const running = coordinator.request();
+    await vi.waitFor(() => expect(coordinator.getState()).toMatchObject({ status: "running" }));
+
+    provider.open();
+    await settle();
+    release.resolve();
+    await running;
+
+    expect(current.callMock).toHaveBeenCalledTimes(1);
+    expect(replacement.callMock).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({ status: "succeeded", operation: 1 });
+  });
+
+  it("stops listening for new connections once disposed", async () => {
+    const replacement = clientWith((options) => exactCall(options, published));
+    const provider = reopeningProvider({ current: dropped(), replacement });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: provider.clients,
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    await coordinator.request();
+    expect(coordinator.getState()).toMatchObject({ status: "failed", kind: "indeterminate" });
+    expect(provider.listening()).toBe(1);
+
+    coordinator.dispose();
+    provider.open();
+    await settle();
+
+    expect(provider.listening()).toBe(0);
+    expect(replacement.callMock).not.toHaveBeenCalled();
   });
 });
