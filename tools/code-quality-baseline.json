@@ -455,7 +455,7 @@
     "apps/desktop-renderer/src/ui/plan/PlanView.tsx": 5206,
     "apps/desktop-renderer/src/ui/training/RideReview.tsx": 1016,
     "apps/desktop/scripts/test-packaged-telegram.ts": 1742,
-    "apps/desktop/src/main/credential-vault.ts": 1047,
+    "apps/desktop/src/main/credential-vault.ts": 1046,
     "apps/desktop/src/main/index.ts": 1641,
     "apps/desktop/src/main/telegram-control.ts": 2166,
     "apps/desktop/src/main/telegram-credential-vault.ts": 1079,
