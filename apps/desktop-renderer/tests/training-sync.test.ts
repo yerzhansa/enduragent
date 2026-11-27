@@ -997,6 +997,63 @@ describe("training sync coordinator when re-asks keep getting interrupted", () =
     expect(syncs()).toBe(5);
   });
 
+  it("keeps the sync interrupted when a re-ask finds the coach down, then asks again once it is back", async () => {
+    const listeners = new Set<() => void>();
+    let coachDown = false;
+    let answer: "dropped" | "published" = "dropped";
+    const client = clientWith(async (options) => {
+      if (answer === "dropped") throw new CoachClientDisconnectedError(1006, "synthetic");
+      return exactCall(options, published);
+    });
+    const connect = async (): Promise<CoachClient> => {
+      if (coachDown) throw new CoachClientTransportUnavailableError();
+      return client;
+    };
+    const coordinator = createTrainingSyncCoordinator({
+      clients: {
+        getClient: vi.fn(connect),
+        reconnect: vi.fn(connect),
+        close: vi.fn(async () => {}),
+        onConnectionOpen: (listener) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+      },
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    const open = (): void => {
+      for (const listener of listeners) listener();
+    };
+    await coordinator.request();
+    open();
+    await vi.advanceTimersByTimeAsync(0);
+    open();
+    expect(client.callMock).toHaveBeenCalledTimes(2);
+
+    coachDown = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(client.callMock).toHaveBeenCalledTimes(2);
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: 3,
+      kind: "indeterminate",
+      retryable: true,
+    });
+
+    coachDown = false;
+    answer = "published";
+    open();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(client.callMock).toHaveBeenCalledTimes(3);
+    expect(coordinator.getState()).toMatchObject({
+      status: "succeeded",
+      operation: 4,
+      kind: "published",
+    });
+  });
+
   it("drops a waiting re-ask once disposed", async () => {
     const { coordinator, provider, syncs } = interruptedSyncs();
     await coordinator.request();
