@@ -1617,7 +1617,13 @@ describe("Plan Creation activation", () => {
     all.mockClear();
     get.mockClear();
     const expanded = await test.host["plan.list"]({});
-    expect(expanded.active).toEqual(initial.active);
+    expect(expanded.active).toEqual({
+      ...initial.active,
+      calendar: {
+        ...initial.active?.calendar,
+        window: { start: "1998-09-02", end: "1998-09-29" },
+      },
+    });
     expect(expanded.closed).toHaveLength(3);
     expect(expanded.closed.map((plan) => plan.calendar.window)).toEqual([
       { start: "1998-09-02", end: "1998-09-29" },
@@ -1701,7 +1707,7 @@ describe("Plan Creation activation", () => {
   });
 
   it.each(["mirror", "cleanup"] as const)(
-    "offers retry only below the failure budget for %s work in the library",
+    "offers retry for failed %s work in the library, past the failure budget only for cleanup",
     async (kind) => {
       const test = await review();
       test.setConnected(true);
@@ -1728,7 +1734,7 @@ describe("Plan Creation activation", () => {
         const calendar = kind === "mirror" ? library.active?.calendar : library.closed[0]?.calendar;
         expect(calendar).toMatchObject({
           status: "failed",
-          error: failureCount >= 5 ? error : `${error} Retry available.`,
+          error: kind === "mirror" && failureCount >= 5 ? error : `${error} Retry available.`,
         });
       }
     },
@@ -1944,7 +1950,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
         creationId: test.request.creationId,
         calendar: {
           status: "not-connected",
-          window: { start: "1998-01-01", end: "1998-01-07" },
+          window: { start: "1998-01-02", end: "1998-01-18" },
           currentThrough: null,
           error: null,
         },

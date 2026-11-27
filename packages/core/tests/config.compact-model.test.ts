@@ -13,13 +13,13 @@ describe("config — compact-model resolution", () => {
   it("provider anthropic, no knob → the Haiku background default", async () => {
     process.env.LLM_PROVIDER = "anthropic";
     const { loadConfig } = await import("../src/config.js");
-    expect(loadConfig().llm.compactModel).toBe("claude-haiku-4-5-20251001");
+    expect(loadConfig().llm.compactModel).toBe("claude-haiku-5-5");
   });
 
   it("provider openrouter, no knob → the DeepSeek background default", async () => {
     process.env.LLM_PROVIDER = "openrouter";
     const { loadConfig } = await import("../src/config.js");
-    expect(loadConfig().llm.compactModel).toBe("deepseek/deepseek-v4-flash");
+    expect(loadConfig().llm.compactModel).toBe("deepseek/deepseek-v4.1-flash-1017");
   });
 
   it("provider openai (no background slot), no knob → the chat model", async () => {
@@ -52,7 +52,7 @@ describe("config — compact-model resolution", () => {
 
   it("contextWindowForModel returns per-model windows with a 200k fallback", async () => {
     const { contextWindowForModel } = await import("../src/config.js");
-    expect(contextWindowForModel("claude-haiku-4-5-20251001")).toBe(200_000);
+    expect(contextWindowForModel("glm-4.7")).toBe(200_000);
     expect(contextWindowForModel("no-such-model")).toBe(200_000);
     expect(contextWindowForModel("claude-sonnet-4-6")).toBe(200_000);
   });

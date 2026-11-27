@@ -1062,7 +1062,7 @@ describe("Desktop Intervals.icu sign-in IPC", () => {
     );
   }
 
-  it("retains a coherent verified candidate when runtime application is uncertain", async () => {
+  it("retains a coherent verified candidate when the coach cannot use it", async () => {
     const value = await temporaryVault({});
     try {
       await expect(
@@ -1080,8 +1080,7 @@ describe("Desktop Intervals.icu sign-in IPC", () => {
       const result = await runtime.signIn();
 
       expect(result).toEqual({
-        outcome: "uncertain",
-        reason: "runtime-uncertain",
+        outcome: "saved-not-active",
         current: status("configured", "failed"),
       });
       expect(await readFile(join(value.root, "intervals-icu.bin"))).not.toEqual(before);
@@ -1102,7 +1101,7 @@ describe("Desktop Intervals.icu sign-in IPC", () => {
     }
   });
 
-  it("retains an initial verified candidate when runtime application is uncertain", async () => {
+  it("retains an initial verified candidate when the coach cannot use it", async () => {
     const value = await temporaryVault({});
     try {
       let ownerClaimed = false;
@@ -1113,8 +1112,7 @@ describe("Desktop Intervals.icu sign-in IPC", () => {
       const runtime = setup({ vault: value.vault });
 
       await expect(runtime.signIn()).resolves.toEqual({
-        outcome: "uncertain",
-        reason: "runtime-uncertain",
+        outcome: "saved-not-active",
         current: status("configured", "failed"),
       });
       const ciphertext = await readFile(join(value.root, "intervals-icu.bin"));

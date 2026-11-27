@@ -1,12 +1,20 @@
-import type { PlanHistoryResult } from "@enduragent/coach-contract";
+import type { ListPlansParams, PlanHistoryResult } from "@enduragent/coach-contract";
 import { planReadModel } from "../state/plan-slice";
 import { useEnduragentStore } from "../state/store";
 import type { PlanController } from "./controller";
 
 const retryListeners = new Set<(planId: string) => void>();
+let retryRequested = false;
 
 export function requestPlanCalendarRetry(planId: string): void {
+  retryRequested = true;
   for (const listener of retryListeners) listener(planId);
+}
+
+export function takePlanCalendarRetry(): ListPlansParams {
+  const params: ListPlansParams = retryRequested ? { retryCalendar: true } : {};
+  retryRequested = false;
+  return params;
 }
 
 export function subscribePlanLibraryRefresh(
@@ -153,16 +161,12 @@ export function subscribePlanFinalDetailsRefresh(
       attempts += 1;
       refreshing = true;
       const currentGeneration = generation;
-      void options
-        .readHistory(planId)
-        .then(
-          (value) => {
-            if (currentGeneration !== generation || !canPoll()) return;
-            history = value;
-            options.onHistory(value);
-          },
-          () => {},
-        )
+      void Promise.allSettled([options.readHistory(planId)])
+        .then(([read]) => {
+          if (read.status === "rejected" || currentGeneration !== generation || !canPoll()) return;
+          history = read.value;
+          options.onHistory(read.value);
+        })
         .finally(() => {
           refreshing = false;
           schedule();

@@ -704,7 +704,7 @@
       "endpointInvalid": "請輸入有效的 HTTPS 端點，或本機回環 HTTP 端點。",
       "intervalsOwnerUnavailable": "{{product}} 無法確認此 {{intervals}} 帳號是否與 {{computer}} 上的訓練資料相符。請待訓練資料可用時再試。",
       "intervalsRuntimeUnavailable": "無法啟用 {{intervals}} 登入。請重新登入。",
-      "intervalsRuntimeUncertain": "{{product}} 無法確認登入是否有效。請重新載入憑證狀態後再試。",
+      "intervalsSavedNotActive": "{{intervals}} 登入已儲存，但教練無法開始使用。請選擇「重試已儲存的金鑰」再試一次。",
       "intervalsSignInDenied": "未在 {{intervals}} 上允許存取。準備好後請重新登入。",
       "intervalsSignInFailed": "使用 {{intervals}} 登入未完成。請重新登入。",
       "intervalsSignInRejected": "{{intervals}} 未接受此次登入。請重新登入。",
@@ -834,6 +834,7 @@
     "checkingSetup": "正在檢查初始設定…",
     "loading": {
       "archive": "正在載入過往聊天…",
+      "calendar": "正在載入行事曆…",
       "chat": "正在載入聊天…",
       "plan": "正在載入計畫…",
       "settings": "正在載入設定…",
@@ -907,6 +908,7 @@
     },
     "views": {
       "archive": "過往聊天",
+      "calendar": "行事曆",
       "chat": "聊天",
       "plan": "計畫",
       "settings": "設定",
@@ -1508,6 +1510,98 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "額外",
+        "untitled": "騎乘"
+      },
+      "column": {
+        "trainingWeek": "訓練週",
+        "week": "週"
+      },
+      "copy": {
+        "changed": "已在 intervals.icu 中變更",
+        "deleted": "已在 intervals.icu 中刪除",
+        "moved": "已在 intervals.icu 中移至 {{date}}",
+        "notSent": "未傳送：intervals.icu 沒有回應"
+      },
+      "day": {
+        "beforePlan": "計畫開始前",
+        "rest": "休息日",
+        "today": "{{day}} · 今天",
+        "weekStarts": "{{day}} · 第 {{week}} 週"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} 公里"
+      },
+      "doneOf": "{{done}} / {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}} 小時 {{minutes}} 分鐘",
+        "minutes": "{{minutes}} 分鐘"
+      },
+      "next": "下週",
+      "noPlan": {
+        "body": "計畫會將訓練課表排入這些日期與 intervals.icu 行事曆，自行車碼表會從那裡取得課表。教練會在聊天中與你一起制定計畫，核准前不會傳送任何內容。",
+        "start": "在聊天中開始制定計畫",
+        "title": "尚無計畫"
+      },
+      "outcome": {
+        "doneAsPlanned": "依計畫完成",
+        "doneDifferently": "完成內容與計畫不同",
+        "isThisIt": "是這次嗎？",
+        "missed": "未完成",
+        "missedDetail": "{{planned}} · 無活動",
+        "moved": "已移至 {{date}}",
+        "notSyncedYet": "尚未同步",
+        "removedByYou": "已由你移除",
+        "rideSynced": "已同步一次騎乘",
+        "rideSyncedLength": "已同步一次 {{duration}} 的騎乘",
+        "noActivity": "無活動"
+      },
+      "previous": "上週",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}日–{{end}}"
+      },
+      "refreshFailed": "行事曆無法重新整理。",
+      "retry": "重試",
+      "season": {
+        "race": "比賽 {{date}}",
+        "week": "第 {{week}} 週，{{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "{{date}} 起可核准",
+        "goesOut": "{{date}} 傳送",
+        "notSentYet": "尚未傳送到 intervals.icu",
+        "onIntervals": "已在 intervals.icu 上",
+        "waitingForApprove": "等待核准",
+        "notConnected": "intervals.icu 未連線"
+      },
+      "subtitle": {
+        "ended": "{{name}} · 已結束",
+        "noPlan": "無計畫 · 來自 intervals.icu 的活動",
+        "starts": "{{name}} · {{date}} 開始",
+        "week": "{{name}} · 第 {{week}} 訓練週，共 {{total}} 週",
+        "weekPhase": "{{name}} · 第 {{week}} 訓練週，共 {{total}} 週 · {{phase}}"
+      },
+      "today": "今天",
+      "unavailable": "行事曆無法載入。",
+      "week": {
+        "activities_other": "{{duration}} · {{count}} 次活動",
+        "crossing": "第 {{from}} 週 → 第 {{to}} 週",
+        "endsOn": "至 {{date}}",
+        "label": "第 {{week}} 週",
+        "load": "負荷 {{load}}",
+        "nextStarts": "第 {{week}} 週於 {{date}} 開始",
+        "nothingPlanned": "無安排",
+        "planned": "已規劃 {{planned}}",
+        "planOnly": "{{planned}} · 僅在計畫中",
+        "soFar": "目前 {{duration}}",
+        "startsOn": "{{date}} 開始",
+        "toConfirm_other": "{{count}} 次騎乘待確認"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "清理完成",

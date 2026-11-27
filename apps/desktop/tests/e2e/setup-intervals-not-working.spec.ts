@@ -2,6 +2,22 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures/chat-desktop.js";
 
 const NOT_WORKING_SUBTITLE = "Signed in, but not working yet";
+const NOT_WORKING_MESSAGE =
+  "Your Intervals.icu sign-in is saved, but the coach couldn’t start using it. Choose Retry saved keys to try again.";
+
+async function expectRetrySavedKeysGuidance(host: Locator): Promise<void> {
+  const recovery = host.locator('[data-setup-panel="training-recovery"]');
+  await expect(
+    recovery,
+    "the message under the row should say the sign-in is saved and point at Retry saved keys",
+  ).toContainText(NOT_WORKING_MESSAGE);
+  await expect(recovery).not.toContainText("couldn’t confirm");
+  await expect(recovery).not.toContainText("Reload credential status");
+  await expect(
+    host.getByRole("button", { name: "Retry saved keys" }),
+    "keyboard focus should land on Retry saved keys, the control the message names",
+  ).toBeFocused();
+}
 
 async function signInToIntervals(
   page: Page,
@@ -40,6 +56,7 @@ test.describe("first-run setup when the Intervals.icu sign-in cannot be used", (
     await expect(row).toContainText(NOT_WORKING_SUBTITLE);
     await expect(row).not.toContainText("where your rides come from");
     await expect(gate.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
+    await expectRetrySavedKeysGuidance(gate);
     await page.screenshot({ path: info.outputPath("gate-sign-in-not-working.png") });
   });
 });
@@ -85,6 +102,7 @@ test.describe("Settings when the Intervals.icu sign-in cannot be used", () => {
     ).toHaveAttribute("data-state", "attention");
     await expect(row).toContainText(NOT_WORKING_SUBTITLE);
     await expect(row).not.toContainText("where your rides come from");
+    await expectRetrySavedKeysGuidance(setup);
     await page.screenshot({ path: info.outputPath("settings-sign-in-not-working.png") });
   });
 });

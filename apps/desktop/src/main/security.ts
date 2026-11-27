@@ -2,14 +2,17 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  app,
   BrowserWindow,
   type IpcMainInvokeEvent,
   net,
   protocol,
+  systemPreferences,
   type Session,
   type WebContents,
 } from "electron";
 import { desktopWindowBackgroundColor, type DesktopResolvedTheme } from "./appearance.js";
+import { macFirstWeekday, regionFirstDayArgument } from "./region-week.js";
 import {
   DESKTOP_HOST,
   DESKTOP_SCHEME,
@@ -148,6 +151,14 @@ export function desktopWindowOptions(
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      additionalArguments: [
+        regionFirstDayArgument(
+          app.getLocaleCountryCode(),
+          process.platform === "darwin"
+            ? macFirstWeekday(systemPreferences.getUserDefault("AppleFirstWeekday", "dictionary"))
+            : null,
+        ),
+      ],
     },
   };
 }
@@ -173,7 +184,7 @@ export function createDesktopRendererConsoleCapture(
 ): DesktopRendererConsoleCapture {
   if (!enabled) {
     return {
-      attach: () => {},
+      attach: () => undefined,
       hasMessageContaining: () => false,
     };
   }

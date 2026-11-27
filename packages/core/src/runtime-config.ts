@@ -32,19 +32,41 @@ export function isModelEnabledForProvider(provider: LlmProvider, model: string):
   return model !== "gpt-6-astra" || (provider !== "openai-codex" && provider !== "codex-agent");
 }
 
+export const RETIRED_MODEL_REPLACEMENTS = {
+  google: { "gemini-3.7-flash": "gemini-3.8-flash" },
+  deepseek: { "deepseek-v4-flash": "deepseek-flash" },
+  minimax: { "MiniMax-M2.7": "MiniMax-M3", "MiniMax-M2.7-highspeed": "MiniMax-M3.1-Flash" },
+  openrouter: { "qwen/qwen3.8-max": "qwen/qwen4-max" },
+} as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string>>>>;
+
+export function currentModelId(
+  provider: string,
+  model: string,
+  baseUrl: string | undefined,
+): string {
+  if (!Object.hasOwn(RETIRED_MODEL_REPLACEMENTS, provider)) return model;
+  const replacements: Readonly<Record<string, string>> =
+    RETIRED_MODEL_REPLACEMENTS[provider as keyof typeof RETIRED_MODEL_REPLACEMENTS];
+  const providerEndpoint =
+    baseUrl === undefined ||
+    baseUrl === PROVIDER_BASE_URLS[provider as keyof typeof PROVIDER_BASE_URLS];
+  const replacement = Object.hasOwn(replacements, model) ? replacements[model] : undefined;
+  return providerEndpoint && replacement !== undefined ? replacement : model;
+}
+
 export const DEFAULT_MODELS = {
-  anthropic: "claude-sonnet-5",
-  openai: "gpt-5.6-sol",
-  google: "gemini-3.6-flash",
+  anthropic: "claude-sonnet-5-5",
+  openai: "gpt-6.2-sol",
+  google: "gemini-4-hydrogen",
   "openai-codex": "gpt-5.6-sol",
   "claude-cli": "sonnet",
   "codex-agent": "gpt-5.6-sol",
-  deepseek: "deepseek-v4-flash",
-  qwen: "qwen3.7-plus",
+  deepseek: "deepseek-flash",
+  qwen: "qwen4-max",
   minimax: "MiniMax-M3",
-  kimi: "kimi-k3",
-  zai: "glm-4.7",
-  openrouter: "deepseek/deepseek-v4-flash",
+  kimi: "kimi-k3.1-pro",
+  zai: "glm-5.3",
+  openrouter: "deepseek/deepseek-v4.1-flash-1017",
 } as const satisfies Record<LlmProvider, string>;
 
 export const PROVIDER_BASE_URLS = {
@@ -138,9 +160,9 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
 ] as const;
 
 export const COMPACT_MODEL_DEFAULTS = {
-  anthropic: "claude-haiku-4-5-20251001",
+  anthropic: "claude-haiku-5-5",
   "claude-cli": "haiku",
-  openrouter: "deepseek/deepseek-v4-flash",
+  openrouter: "deepseek/deepseek-v4.1-flash-1017",
 } as const satisfies Partial<Record<LlmProvider, string>>;
 
 export const CLAUDE_CLI_BILLING_MODES = ["subscription", "api-key"] as const;
@@ -364,10 +386,14 @@ function compactModelDefault(provider: LlmProvider): string | undefined {
 function optionalModel(
   patch: NonNullable<RuntimeConfigPatch["llm"]>,
   field: "flushModel" | "compactModel",
+  provider: LlmProvider,
+  baseUrl: string | undefined,
 ): string | null | undefined {
   if (!isSpecified(patch, field)) return undefined;
   const value = patch[field];
-  return value === null ? null : requireString(value, `llm.${field}`);
+  return value === null
+    ? null
+    : currentModelId(provider, requireString(value, `llm.${field}`), baseUrl);
 }
 
 function requireBoolean(value: unknown, name: string): boolean {
@@ -467,8 +493,39 @@ export function resolveRuntimeConfig(
     ? resolveLlmProvider(llmPatch.provider)
     : (current?.llm.provider ?? "anthropic");
   const providerChanged = current !== undefined && provider !== current.llm.provider;
+  let baseUrl: string | undefined;
+  if (
+    provider === "claude-cli" &&
+    isSpecified(llmPatch, "baseUrl") &&
+    llmPatch.baseUrl !== null &&
+    llmPatch.baseUrl !== ""
+  ) {
+    throw new TypeError(
+      "llm.baseUrl must be absent for claude-cli — the Claude Code CLI owns its endpoint.",
+    );
+  }
+  if (
+    provider === "codex-agent" &&
+    isSpecified(llmPatch, "baseUrl") &&
+    llmPatch.baseUrl !== null &&
+    llmPatch.baseUrl !== ""
+  ) {
+    throw new TypeError(
+      "llm.baseUrl must be absent for codex-agent — the Codex CLI owns its endpoint.",
+    );
+  }
+  if (isSpecified(llmPatch, "baseUrl")) {
+    baseUrl =
+      llmPatch.baseUrl === null
+        ? providerBaseUrl(provider)
+        : requireString(llmPatch.baseUrl, "llm.baseUrl", true) || undefined;
+  } else {
+    baseUrl =
+      current !== undefined && !providerChanged ? current.llm.baseUrl : providerBaseUrl(provider);
+  }
+
   const model = isSpecified(llmPatch, "model")
-    ? requireString(llmPatch.model, "llm.model")
+    ? currentModelId(provider, requireString(llmPatch.model, "llm.model"), baseUrl)
     : current !== undefined && !providerChanged
       ? current.llm.model
       : DEFAULT_MODELS[provider];
@@ -516,7 +573,7 @@ export function resolveRuntimeConfig(
       ? current.llm.model
       : DEFAULT_MODELS.openai
     : model;
-  const requestedFlushModel = optionalModel(llmPatch, "flushModel");
+  const requestedFlushModel = optionalModel(llmPatch, "flushModel", provider, baseUrl);
   const flushModel =
     requestedFlushModel === null
       ? undefined
@@ -524,7 +581,7 @@ export function resolveRuntimeConfig(
         (current !== undefined && !providerChanged ? current.llm.flushModel : undefined) ??
         (astra ? backgroundModel : undefined));
 
-  const requestedCompactModel = optionalModel(llmPatch, "compactModel");
+  const requestedCompactModel = optionalModel(llmPatch, "compactModel", provider, baseUrl);
   const compactModel =
     provider === "openai-codex"
       ? model
@@ -536,37 +593,6 @@ export function resolveRuntimeConfig(
               ? backgroundModel
               : current.llm.compactModel
             : (compactModelDefault(provider) ?? backgroundModel)));
-
-  let baseUrl: string | undefined;
-  if (
-    provider === "claude-cli" &&
-    isSpecified(llmPatch, "baseUrl") &&
-    llmPatch.baseUrl !== null &&
-    llmPatch.baseUrl !== ""
-  ) {
-    throw new TypeError(
-      "llm.baseUrl must be absent for claude-cli — the Claude Code CLI owns its endpoint.",
-    );
-  }
-  if (
-    provider === "codex-agent" &&
-    isSpecified(llmPatch, "baseUrl") &&
-    llmPatch.baseUrl !== null &&
-    llmPatch.baseUrl !== ""
-  ) {
-    throw new TypeError(
-      "llm.baseUrl must be absent for codex-agent — the Codex CLI owns its endpoint.",
-    );
-  }
-  if (isSpecified(llmPatch, "baseUrl")) {
-    baseUrl =
-      llmPatch.baseUrl === null
-        ? providerBaseUrl(provider)
-        : requireString(llmPatch.baseUrl, "llm.baseUrl", true) || undefined;
-  } else {
-    baseUrl =
-      current !== undefined && !providerChanged ? current.llm.baseUrl : providerBaseUrl(provider);
-  }
 
   const intervalsApiKeySpecified = isSpecified(intervalsPatch, "apiKey");
   const intervalsApiKey = intervalsApiKeySpecified

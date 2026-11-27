@@ -2136,8 +2136,8 @@
       "sourceHash": "d356d27fd77eb200fa4d7dd3e34e7c09a0afa29996028abe796a67b07a15d9ef",
       "translatedBy": "model"
     },
-    "setup.error.intervalsRuntimeUncertain": {
-      "sourceHash": "b3ac912978e43c4e97b3b81c2ce36c2485de3ea42f8084db23a91f1eeecfbb2d",
+    "setup.error.intervalsSavedNotActive": {
+      "sourceHash": "2e6f5afbcbc642de22fe3741ce27d2fc857b17aebc717fe1dead104add464282",
       "translatedBy": "model"
     },
     "setup.error.intervalsSignInDenied": {
@@ -10462,6 +10462,294 @@
     },
     "setup.training.subtitle.notWorking": {
       "sourceHash": "ae6a14a930a72bc19d0170e85d5d25f67a2e7fb813f5f139096fc715633cc446",
+      "translatedBy": "model"
+    },
+    "plan.calendar.activity.extra": {
+      "sourceHash": "2e4aaf05df1cbfb30a89bd189df147c7e70f2f46a698a95336b344c0ecb79041",
+      "translatedBy": "model"
+    },
+    "plan.calendar.column.trainingWeek": {
+      "sourceHash": "9bbcce48ab2c0166c5a8d26168e78eadf711b160aca6825353c74c0dc8acd24c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.column.week": {
+      "sourceHash": "e78041ab51a818a22e2cfea6c15fe72e9e20092246f496f1670f7be3e42177a6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.changed": {
+      "sourceHash": "4cb70c4efc23249f8735a6ac4445e1c7fe167aab0e1b9600973591401404c815",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.deleted": {
+      "sourceHash": "55d00e5d7e17c4068b043363af2b290e9ff790200ebbe6a3a1ba66e46cde368e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.moved": {
+      "sourceHash": "840b407d771bc25f3da0676525abb595bec5f98bcdeae0ee42f9b2e025087aab",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.notSent": {
+      "sourceHash": "c2b77f82e8c3ee4a3cdc1db89226c6c2c71236d33ae425d1188d9878695ae8f3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.day.beforePlan": {
+      "sourceHash": "bffc93358c552e2830390570f56535b4a07dc4d074a0cd0dc328b8f9c9602064",
+      "translatedBy": "model"
+    },
+    "plan.calendar.day.rest": {
+      "sourceHash": "52efae684f6efbcd3d9d36bb2a8dfabcbce0314d7d618a1e84703c0197327ca5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.day.today": {
+      "sourceHash": "e84793d45ba013e2d76e2682431418b0f55b7425af6179f2c7c50b4909d7e8e9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.day.weekStarts": {
+      "sourceHash": "02556aaa92a25f2df56948064b5c09aee2950cb40853572e88fc45a00bb9cb2a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.distance.kilometres": {
+      "sourceHash": "b62718dbf20d568bba97942896024c386c249ed3c586ca35f754bd62063fcf6b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.doneOf": {
+      "sourceHash": "3dd6d16cc8adf0ad104ca4e2801a700724486854a7e2a7f0f9684d59fac3fdc6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.duration.hoursMinutes": {
+      "sourceHash": "f35242f6ebba66f2865026f3e8a8115aaa8d569767aa7d06a277403ab92d8720",
+      "translatedBy": "model"
+    },
+    "plan.calendar.duration.minutes": {
+      "sourceHash": "e4f30a2d296f5cb7b6b274e9bdf2fd613fc8bfde59c1b799a08c66be237e3144",
+      "translatedBy": "model"
+    },
+    "plan.calendar.next": {
+      "sourceHash": "21fbde19cfb095cd5dda1546c79bed02c800dff515e58b716f7231aa0ad74f1e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.noPlan.body": {
+      "sourceHash": "58cd3bcac2db0bd8c152816b4f8b7d78933b3524a8e3a5e2f9365c9fb2922529",
+      "translatedBy": "model"
+    },
+    "plan.calendar.noPlan.start": {
+      "sourceHash": "504b509bc1bec61b8ca9f82a8315ae029c39e02f84248574777d91120588a486",
+      "translatedBy": "model"
+    },
+    "plan.calendar.noPlan.title": {
+      "sourceHash": "7b8f19551fce1c7dc0ed5c356478393ca1469a8307c5485fddd590b8513ad5ba",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.doneAsPlanned": {
+      "sourceHash": "509cad194256a37d63f4ea1b2c244999590d1d4851680d5d56929cbad34794d0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.doneDifferently": {
+      "sourceHash": "1a2c058bd86299126e2b2459497f08c43978c9fe6f068196f8454560a4648bcd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.isThisIt": {
+      "sourceHash": "c8c6c6b520e9b76c1ed70a92275464ceb8f9d8302e65d5588fee50ef18c6fd68",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.missed": {
+      "sourceHash": "3d86eb082e3605a86d207bf5a080fadfa335c5c569dcd8b1bef8dc7b1a204a08",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.missedDetail": {
+      "sourceHash": "af68f1d8d16a099a4e894e10e6de7af65374f004112cead5a9d2af107177e817",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.moved": {
+      "sourceHash": "e8e20f5ce891113dfc199229d18b256ef274242d921270ceda40815a6ecc2986",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.notSyncedYet": {
+      "sourceHash": "c10529851ad89bd3b5bef08416a2bb13ea3d20785e9df6f92fdc8e8ea4c36cdd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.removedByYou": {
+      "sourceHash": "dd027629cb7c98b9205472a70b4419824ce1cc0906c03a1baf545552d9941956",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.rideSynced": {
+      "sourceHash": "8d6a240d218090ffaa3ee2f221b96f7ec5856083cc12cdbde51dbfef06ff1d61",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.rideSyncedLength": {
+      "sourceHash": "e2ad58f2bd86f1b6cc94cb4ec2750e355a5278085d871b21575b1ef63df227bd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.previous": {
+      "sourceHash": "c0f8bbcd417656cf2e756b55849036ce0948b60a509e9cf10e6589743bb73e61",
+      "translatedBy": "model"
+    },
+    "plan.calendar.range.crossMonth": {
+      "sourceHash": "bae613ce75f08bb93409e6b66e0901c136d0ffb4b3635b631e6c3f49fa90396c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.range.sameMonth": {
+      "sourceHash": "9469b89ca288b5508d6a3cab49cd70038dfdecba33f209c9a12a804bbd583bb0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.refreshFailed": {
+      "sourceHash": "cef4daf36fd285e7dc236e8788c846148ed9f5f982055e04ac5e975ce686bfa0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.retry": {
+      "sourceHash": "d8b8392e2c542950ca64867168e4ef87d4ad606882d5898f826b51c6d553988f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.season.race": {
+      "sourceHash": "50c4b9253f0b8e4d65ea17cfb2fa26cc29dc572cb0b63318cc058865306ad913",
+      "translatedBy": "model"
+    },
+    "plan.calendar.season.week": {
+      "sourceHash": "1701f9ed9648db4f512bfc1b75245fc067a044a790edf6fc1be98640d5a1c400",
+      "translatedBy": "model"
+    },
+    "plan.calendar.separator": {
+      "sourceHash": "588da410532073f8daec0cc62c6904f9d8a150b41ae3b1565c10069742cb18fc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.approveFrom": {
+      "sourceHash": "f4fa23665e1b9b447a85e2ddc37edfb06ebc64bbe760f1a798b27dd5ad44a105",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.goesOut": {
+      "sourceHash": "04b8f1662dfcc95ce88f3ec9102aad0cf9c05220c29a3bd653aaa18b41be79cf",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.notSentYet": {
+      "sourceHash": "3962f91e2c53cbc94b5df3d40579900e0076a551f4124edbad5346998c2df9fe",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.onIntervals": {
+      "sourceHash": "49a4b4c0f73caa853b8855885026958878b5c22c3cb774136a1296d8be8d23d4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.waitingForApprove": {
+      "sourceHash": "8466f2419c214c2fe9d2770120ad6d6b0defdecb1768bda43c556d50a71f7ca3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.subtitle.ended": {
+      "sourceHash": "f007ca0e4a9fbeaa1e9727677cc3c46224d02c1bef41da614c6f6f98447ab01c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.subtitle.noPlan": {
+      "sourceHash": "764d8d99a16ddc73c6a1d3ef0916e0481773c3ad377231a119bc3aa88cafffbb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.subtitle.starts": {
+      "sourceHash": "233f2a81b01ac02b39d8b1219bf05e6450ca347b95559fef7c4074b36afd98be",
+      "translatedBy": "model"
+    },
+    "plan.calendar.subtitle.week": {
+      "sourceHash": "9341e65437f9a90aa1cd98cc8f1816490238703cdf1f20ee0f23d35cae752dbb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.subtitle.weekPhase": {
+      "sourceHash": "fc64007058ddf12f7be77d6b0b8e8c4f4e1cda60a42a1b0568c7ec37ea994126",
+      "translatedBy": "model"
+    },
+    "plan.calendar.today": {
+      "sourceHash": "2b065c7c9ce466e5ebcad757987d5d660ee4c9ea708bc62c43444b53334738ba",
+      "translatedBy": "model"
+    },
+    "plan.calendar.unavailable": {
+      "sourceHash": "020d5ad5493a2fc002dd9826e8978aaa283041cd6c6473b9cb5ab5474d64f9f5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.activities_one": {
+      "sourceHash": "a7527f1f1d28884ad67c542d7ed07352db8043846e4a4a6c8c0995a0dc569e5d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.activities_few": {
+      "sourceHash": "182f86269a56375253467698dbfcd3c9ad9e8e00ae36820c1901fee57247dbeb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.activities_many": {
+      "sourceHash": "182f86269a56375253467698dbfcd3c9ad9e8e00ae36820c1901fee57247dbeb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.activities_other": {
+      "sourceHash": "182f86269a56375253467698dbfcd3c9ad9e8e00ae36820c1901fee57247dbeb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.crossing": {
+      "sourceHash": "ba35898b4fd8fbdf1f910c5cbc311efebcbe9eb62be07f4452054c5948d9d6a3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.endsOn": {
+      "sourceHash": "a96f9d8e133e2e51b72567baab2ca4507b023e26cd7ba48b948fe05c8d4f56e6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.label": {
+      "sourceHash": "12c638b38b40ba0f1467d3515a5cbb25b2e3d806074961e6ad7da11a0170e69e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.load": {
+      "sourceHash": "b9d5ba66c45e84ec8b65b1aa7f9df21cd6651a8f508e36539991b5f7540e9e8a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.nextStarts": {
+      "sourceHash": "625e3e61df21d091a3aee6eecbb21ee469a51716291fc013a7711000a8bf4e7b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.nothingPlanned": {
+      "sourceHash": "7fb2fa8e350812bbb6ad65baf1497b21f818ed8f82097877d34994eb4d90044d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.planned": {
+      "sourceHash": "acaba47af9ba34cf96f40b9e0c0ca4ff072bd9ee83d4c5aefdb045b04c8ce1ac",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.planOnly": {
+      "sourceHash": "ff359b5aa47c302c81c87c3dd100b5bbba5fe83727b173a066d9eaa7db257303",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.soFar": {
+      "sourceHash": "671a388de363e90f5e200b3a272a85c0c04c5bb86cb35cc1d6f32a83a50765a7",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.startsOn": {
+      "sourceHash": "5a681fedcacef1639f4d530556844c01bdab65a0bd92920b2de6beaa425b9180",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.toConfirm_one": {
+      "sourceHash": "e8bf6fcc8d5ae199b70f08a47272933806f36fc3fd8da076301d8ae15d4478af",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.toConfirm_few": {
+      "sourceHash": "f9fa5eebe84858b62d3104c587dffc3295aff844562f02634df79e0976f3687f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.toConfirm_many": {
+      "sourceHash": "f9fa5eebe84858b62d3104c587dffc3295aff844562f02634df79e0976f3687f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.week.toConfirm_other": {
+      "sourceHash": "f9fa5eebe84858b62d3104c587dffc3295aff844562f02634df79e0976f3687f",
+      "translatedBy": "model"
+    },
+    "shell.loading.calendar": {
+      "sourceHash": "4c531d325f3e38ed47ac2e8f37f40d94fdc4fc00da10ac309f48dc8f6b7d3dad",
+      "translatedBy": "model"
+    },
+    "sidebar.views.calendar": {
+      "sourceHash": "d5d0a30b517e3beab07609d7e54c378db5e15066f22280af453f587f7eec7474",
+      "translatedBy": "model"
+    },
+    "plan.calendar.activity.untitled": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.outcome.noActivity": {
+      "sourceHash": "d41255e50c5d76d3b8f6a004e07a92e1dbfd1168462329d64697a761e5717ce6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.status.notConnected": {
+      "sourceHash": "f7a5ea7f64280730e71e6eee237b5a3edb198457131f26030f404cd02ca97c73",
       "translatedBy": "model"
     }
   }

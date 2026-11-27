@@ -706,7 +706,7 @@
       "endpointInvalid": "Voer een geldig HTTPS-eindpunt of een HTTP-loopbackeindpunt in.",
       "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat dit {{intervals}}-account bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
       "intervalsRuntimeUnavailable": "De aanmelding bij {{intervals}} kon niet worden geactiveerd. Meld je opnieuw aan.",
-      "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de aanmelding actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsSavedNotActive": "Je aanmelding bij {{intervals}} is opgeslagen, maar de coach kon deze niet gaan gebruiken. Kies Opgeslagen sleutels opnieuw proberen om het nog eens te proberen.",
       "intervalsSignInDenied": "Toegang is niet toegestaan op {{intervals}}. Meld je opnieuw aan wanneer je zover bent.",
       "intervalsSignInFailed": "Het aanmelden met {{intervals}} is niet voltooid. Meld je opnieuw aan.",
       "intervalsSignInRejected": "{{intervals}} heeft de aanmelding niet geaccepteerd. Meld je opnieuw aan.",
@@ -837,6 +837,7 @@
     "checkingSetup": "Configuratie controleren…",
     "loading": {
       "archive": "Eerdere chats laden…",
+      "calendar": "Kalender laden…",
       "chat": "Chat laden…",
       "plan": "Plan laden…",
       "settings": "Instellingen laden…",
@@ -915,6 +916,7 @@
     },
     "views": {
       "archive": "Eerdere chats",
+      "calendar": "Kalender",
       "chat": "Chat",
       "plan": "Plan",
       "settings": "Instellingen",
@@ -1521,6 +1523,100 @@
     }
   },
   "plan": {
+    "calendar": {
+      "activity": {
+        "extra": "Extra",
+        "untitled": "Rit"
+      },
+      "column": {
+        "trainingWeek": "Trainingsweek",
+        "week": "Week"
+      },
+      "copy": {
+        "changed": "Gewijzigd in intervals.icu",
+        "deleted": "Verwijderd in intervals.icu",
+        "moved": "Verplaatst naar {{date}} in intervals.icu",
+        "notSent": "Niet verzonden: intervals.icu reageerde niet"
+      },
+      "day": {
+        "beforePlan": "Voor het trainingsschema",
+        "rest": "Rustdag",
+        "today": "{{day}} · Vandaag",
+        "weekStarts": "{{day}} · Week {{week}}"
+      },
+      "distance": {
+        "kilometres": "{{kilometres}} km"
+      },
+      "doneOf": "{{done}} van {{planned}}",
+      "duration": {
+        "hoursMinutes": "{{hours}}u {{minutes}}m",
+        "minutes": "{{minutes}}m"
+      },
+      "next": "Volgende week",
+      "noPlan": {
+        "body": "Een trainingsschema zet trainingen op deze dagen en in je intervals.icu-kalender, waar je fietscomputer ze ophaalt. De coach stelt het samen met je op in Chat, en er wordt niets verzonden totdat je het goedkeurt.",
+        "start": "Een trainingsschema starten in Chat",
+        "title": "Nog geen trainingsschema"
+      },
+      "outcome": {
+        "doneAsPlanned": "Gedaan volgens planning",
+        "doneDifferently": "Anders gedaan",
+        "isThisIt": "Is het deze?",
+        "missed": "Gemist",
+        "missedDetail": "{{planned}} · geen activiteit",
+        "moved": "Verplaatst naar {{date}}",
+        "notSyncedYet": "Nog niet gesynchroniseerd",
+        "removedByYou": "Door jou verwijderd",
+        "rideSynced": "Een rit gesynchroniseerd",
+        "rideSyncedLength": "Een rit van {{duration}} gesynchroniseerd",
+        "noActivity": "Geen activiteit"
+      },
+      "previous": "Vorige week",
+      "range": {
+        "crossMonth": "{{start}}–{{end}}",
+        "sameMonth": "{{startDay}}–{{end}}"
+      },
+      "refreshFailed": "De kalender kon niet worden vernieuwd.",
+      "retry": "Opnieuw proberen",
+      "season": {
+        "race": "Wedstrijd op {{date}}",
+        "week": "Week {{week}}, {{range}}"
+      },
+      "separator": " · ",
+      "status": {
+        "approveFrom": "Goedkeuren vanaf {{date}}",
+        "goesOut": "Wordt verzonden op {{date}}",
+        "notSentYet": "Nog niet op intervals.icu",
+        "onIntervals": "Op intervals.icu",
+        "waitingForApprove": "Wacht op goedkeuring",
+        "notConnected": "intervals.icu is niet verbonden"
+      },
+      "subtitle": {
+        "ended": "{{name}} · beëindigd",
+        "noPlan": "Geen trainingsschema · je activiteiten uit intervals.icu",
+        "starts": "{{name}} · start op {{date}}",
+        "week": "{{name}} · Trainingsweek {{week}} van {{total}}",
+        "weekPhase": "{{name}} · Trainingsweek {{week}} van {{total}} · {{phase}}"
+      },
+      "today": "Vandaag",
+      "unavailable": "De kalender kon niet worden geladen.",
+      "week": {
+        "activities_one": "{{duration}} · {{count}} activiteit",
+        "activities_other": "{{duration}} · {{count}} activiteiten",
+        "crossing": "Week {{from}} → {{to}}",
+        "endsOn": "tot {{date}}",
+        "label": "Week {{week}}",
+        "load": "Trainingsbelasting {{load}}",
+        "nextStarts": "Week {{week}} start op {{date}}",
+        "nothingPlanned": "Niets gepland",
+        "planned": "{{planned}} gepland",
+        "planOnly": "{{planned}} · alleen in het trainingsschema",
+        "soFar": "{{duration}} tot nu toe",
+        "startsOn": "start op {{date}}",
+        "toConfirm_one": "{{count}} rit te bevestigen",
+        "toConfirm_other": "{{count}} ritten te bevestigen"
+      }
+    },
     "details": {
       "calendar": {
         "complete": "Opschonen voltooid",

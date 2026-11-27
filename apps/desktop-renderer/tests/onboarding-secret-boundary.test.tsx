@@ -58,8 +58,12 @@ type ExpectedIntervalsCredentialMutationResult =
       readonly current: ExpectedIntervalsCredentialStatus;
     }
   | {
+      readonly outcome: "saved-not-active";
+      readonly current: ExpectedIntervalsCredentialStatus;
+    }
+  | {
       readonly outcome: "uncertain";
-      readonly reason: "storage-uncertain" | "runtime-uncertain";
+      readonly reason: "storage-uncertain";
       readonly current: ExpectedIntervalsCredentialStatus;
     };
 

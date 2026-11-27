@@ -1993,15 +1993,19 @@ export async function createLocalCoachComposition(
         ? null
         : makeChatClient({ apiKey: intervals.apiKey, athleteId: intervals.athleteId });
     });
-    const drain = createPlanCalendarDrain({
+    const calendarDeps = {
       store: input.context.store,
-      calendar: planCalendar,
       calendarConnected: () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey),
-      identity: planningIdentity,
       todayDateKey: planningDateKey,
       now,
+      dateKeyOfMs: (ms: number) =>
+        Number(todayInTZ(planningTimezone, new Date(ms)).replaceAll("-", "")),
+      calendar: planCalendar,
+      identity: planningIdentity,
       logger,
-    });
+      changed: () => closing || void drain.kick(),
+    };
+    const drain = createPlanCalendarDrain(calendarDeps);
     const runWindow = runtime.runWindow.bind(runtime);
     runtime.runWindow = async () => {
       const result = await runWindow();
@@ -2277,13 +2281,7 @@ export async function createLocalCoachComposition(
       ...planningRequestOperations,
       "plan.list": kickAfter(planCreationOperations["plan.list"]),
       "plan.close": kickAfter(planCreationOperations["plan.close"]),
-      "plan.calendar": kickAfter(
-        createPlanCalendarOperations({
-          store: input.context.store,
-          todayDateKey: planningDateKey,
-          now,
-        })["plan.calendar"],
-      ),
+      "plan.calendar": createPlanCalendarOperations(calendarDeps)["plan.calendar"],
       ...planChangeOperations,
       "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
       "plan.history": planCreationOperations["plan.history"],

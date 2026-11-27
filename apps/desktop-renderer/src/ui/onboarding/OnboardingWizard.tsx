@@ -32,6 +32,7 @@ import {
   settingsMutationActive,
 } from "../../state/settings-slice";
 import { SetupCard } from "./SetupCard";
+import { shownSetupError, useIntervalsRecovery } from "./intervals-recovery";
 import { SetupError } from "./SetupRow";
 import { TelegramRow } from "./TelegramRow";
 import { TrainingRow } from "./TrainingRow";
@@ -75,6 +76,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   }, [surface.focusSeq]);
 
   const wizard = surface.wizard;
+  const shownError = shownSetupError(wizard.fixedError, useIntervalsRecovery(surface));
   const readiness = surface.readiness;
   const statusKnown = setupStatusKnown(surface);
   const gateUnavailable = props.placement === "gate" && surface.loadUnavailable;
@@ -220,7 +222,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
         {importCopy}
       </p>
       <p className="onboarding-error-announcer sr-only" role="status" aria-live="polite">
-        {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
+        {shownError === null ? "" : say(ERROR_COPY[shownError])}
       </p>
     </section>
   );

@@ -566,8 +566,12 @@ type DesktopIntervalsCredentialMutationResult =
       readonly current: DesktopIntervalsCredentialStatus;
     }
   | {
+      readonly outcome: "saved-not-active";
+      readonly current: DesktopIntervalsCredentialStatus;
+    }
+  | {
       readonly outcome: "uncertain";
-      readonly reason: "storage-uncertain" | "runtime-uncertain";
+      readonly reason: "storage-uncertain";
       readonly current: DesktopIntervalsCredentialStatus;
     };
 

@@ -138,6 +138,7 @@ function captureRuntime() {
       ),
     runExclusive,
     runOutsideWindow: runExclusive,
+    abortActiveWindow: () => () => {},
     async runActivityWrite(work) {
       return { value: await runExclusive(work), activityReadAvailable: true };
     },

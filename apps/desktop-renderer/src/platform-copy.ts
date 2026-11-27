@@ -2,6 +2,7 @@ import { msg, type Message } from "@enduragent/i18n";
 
 export interface DesktopPlatformProjection {
   readonly platform: "darwin" | "win32";
+  readonly firstDayOfWeek: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   readonly capabilities: {
     readonly codexAgent: boolean;
   };
@@ -17,6 +18,7 @@ export interface DesktopPlatformProjection {
 
 const DARWIN_FALLBACK: DesktopPlatformProjection = Object.freeze({
   platform: "darwin",
+  firstDayOfWeek: 1,
   capabilities: Object.freeze({ codexAgent: true }),
   copy: Object.freeze({
     computer: "this Mac",
@@ -35,13 +37,8 @@ export function rendererPlatformProjection(
 ): DesktopPlatformProjection {
   if (projection !== undefined) return projection;
   if (typeof window === "undefined") return DARWIN_FALLBACK;
-  return (
-    (
-      window as unknown as {
-        readonly enduragentAuth?: { readonly platform?: DesktopPlatformProjection };
-      }
-    ).enduragentAuth?.platform ?? DARWIN_FALLBACK
-  );
+  const auth: { readonly platform?: DesktopPlatformProjection } | undefined = window.enduragentAuth;
+  return auth?.platform ?? DARWIN_FALLBACK;
 }
 
 export const PLATFORM_COPY = rendererPlatformProjection().copy;

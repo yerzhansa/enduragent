@@ -12,7 +12,11 @@ import userEvent from "@testing-library/user-event";
 import { lazy, Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPlanController } from "../src/plan/controller";
-import { requestPlanCalendarRetry, subscribePlanLibraryRefresh } from "../src/plan/library-refresh";
+import {
+  requestPlanCalendarRetry,
+  subscribePlanLibraryRefresh,
+  takePlanCalendarRetry,
+} from "../src/plan/library-refresh";
 import {
   EMPTY_CHAT_SURFACE,
   EMPTY_PLAN_CHANGE_SURFACE,
@@ -413,6 +417,15 @@ describe("Plan library", () => {
       "Calendar sync failed. Retry available.",
     ],
     [
+      {
+        status: "failed",
+        window: null,
+        currentThrough: null,
+        error: "Calendar cleanup failed. Retry available.",
+      },
+      "Calendar sync failed. Retry available.",
+    ],
+    [
       { status: "failed", window: null, currentThrough: null, error: "Calendar sync failed." },
       "Calendar sync failed.",
     ],
@@ -453,6 +466,8 @@ describe("Plan library", () => {
         expect(retry).toBeVisible();
         fireEvent.click(within(card).getByRole("button", { name: "Retry calendar" }));
         expect(useEnduragentStore.getState().planLibraryActions?.refresh).toHaveBeenCalledOnce();
+        expect(takePlanCalendarRetry()).toEqual({ retryCalendar: true });
+        expect(takePlanCalendarRetry()).toEqual({});
       } else expect(retry).toBeNull();
       for (const card of screen.getAllByRole("region", { name: "Closed Plan" })) {
         expect(card).not.toHaveTextContent("Calendar");

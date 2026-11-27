@@ -129,8 +129,12 @@ export type IntervalsCredentialMutationResult =
       readonly current: IntervalsCredentialStatus;
     }
   | {
+      readonly outcome: "saved-not-active";
+      readonly current: IntervalsCredentialStatus;
+    }
+  | {
       readonly outcome: "uncertain";
-      readonly reason: "storage-uncertain" | "runtime-uncertain";
+      readonly reason: "storage-uncertain";
       readonly current: IntervalsCredentialStatus;
     };
 

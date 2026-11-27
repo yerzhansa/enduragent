@@ -2,7 +2,14 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test, type Browser, type Page, type PlaywrightWorkerArgs } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type Locator,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from "@playwright/test";
 import { PlanChangeWorkoutSchema, PlanCreationDraftSchema } from "@enduragent/coach-contract";
 import { launchDesktopFixture, type RunningDesktopFixture } from "../helpers/desktop-fixture.js";
 import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
@@ -181,16 +188,46 @@ async function openChanges(scenario: Scenario) {
   await expect(changes(scenario).last()).toBeVisible();
 }
 
+async function pickOptionWithKeyboard(scenario: Scenario, select: Locator, name: string) {
+  await select.click();
+  const listbox = scenario.page.getByRole("listbox");
+  const option = listbox.getByRole("option", { name, exact: true });
+  await expect(option).toHaveCount(1);
+  const parkMouseAwayFromHoverHighlight = () => scenario.page.mouse.move(0, 0);
+  await parkMouseAwayFromHoverHighlight();
+  const options = listbox.getByRole("option");
+  for (let presses = await options.count(); presses >= 0; presses -= 1) {
+    const distance = await options.evaluateAll(
+      (elements, target) =>
+        elements.findIndex((element) => element.textContent?.trim() === target) -
+        elements.findIndex((element) => element.hasAttribute("data-highlighted")),
+      name,
+    );
+    if (distance === 0) break;
+    await scenario.page.keyboard.press(distance > 0 ? "ArrowDown" : "ArrowUp");
+  }
+  await expect(option).toBeFocused();
+  await scenario.page.keyboard.press("Enter");
+  await expect(listbox).toBeHidden();
+  await expect(select).toContainText(name);
+}
+
 async function editEvent(scenario: Scenario, operation: string) {
   const editor = changes(scenario).getByRole("region", {
     name: "What needs to change?",
     exact: true,
   });
   if (!(await editor.isVisible())) await openChanges(scenario);
-  await editor.getByRole("combobox", { name: "Change", exact: true }).click();
-  await scenario.page.getByRole("option", { name: "Supporting Event", exact: true }).click();
-  await editor.getByRole("combobox", { name: "Supporting Event operation", exact: true }).click();
-  await scenario.page.getByRole("option", { name: operation, exact: true }).click();
+  await pickOptionWithKeyboard(
+    scenario,
+    editor.getByRole("combobox", { name: "Change", exact: true }),
+    "Supporting Event",
+  );
+  await pickOptionWithKeyboard(
+    scenario,
+    editor.getByRole("combobox", { name: "Supporting Event operation", exact: true }),
+    operation,
+  );
   return editor;
 }
 
@@ -233,8 +270,11 @@ for (const appearance of appearances) {
       const editor = await editEvent(scenario, "Add a Supporting Event");
       await editor.getByRole("textbox", { name: "Event name", exact: true }).fill("Meadow ride");
       await editor.getByLabel("Event date", { exact: true }).fill("1998-01-10");
-      await editor.getByRole("combobox", { name: "Plan role", exact: true }).click();
-      await scenario.page.getByRole("option", { name: "Training", exact: true }).click();
+      await pickOptionWithKeyboard(
+        scenario,
+        editor.getByRole("combobox", { name: "Plan role", exact: true }),
+        "Training",
+      );
       await capture(scenario, "manual-editor");
       await editor.getByLabel("Event date", { exact: true }).fill("1998-01-09");
       await editor.getByRole("button", { name: "Preview change", exact: true }).click();
@@ -271,8 +311,11 @@ for (const appearance of appearances) {
       await expect(
         roleEditor.getByRole("combobox", { name: "Accepted Supporting Event", exact: true }),
       ).toContainText("Meadow ride");
-      await roleEditor.getByRole("combobox", { name: "Plan role", exact: true }).click();
-      await scenario.page.getByRole("option", { name: "Important", exact: true }).click();
+      await pickOptionWithKeyboard(
+        scenario,
+        roleEditor.getByRole("combobox", { name: "Plan role", exact: true }),
+        "Important",
+      );
       const roleCard = await previewEvent(scenario, "Change a Supporting Event role");
       await expect(
         roleCard.getByText("Meadow ride · 10 Jan 1998 · Important", { exact: true }),
@@ -363,13 +406,11 @@ for (const appearance of appearances) {
     try {
       await openChanges(scenario);
       const editor = await editEvent(scenario, "Add a Supporting Event");
-      await editor.getByRole("combobox", { name: "Synchronized event", exact: true }).click();
-      await scenario.page
-        .getByRole("option", {
-          name: "Local supporting ride · Intervals.icu event",
-          exact: true,
-        })
-        .click();
+      await pickOptionWithKeyboard(
+        scenario,
+        editor.getByRole("combobox", { name: "Synchronized event", exact: true }),
+        "Local supporting ride · Intervals.icu event",
+      );
       await capture(scenario, "synchronized-editor");
       const pending = await previewEvent(scenario, "Add a Supporting Event");
       await expect(

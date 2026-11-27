@@ -109,3 +109,5 @@ Read a model's results with the `/statechart` skill: give it the `.tla`, a confi
 ## Bounds
 
 The models use one workout, three Training Weeks and one ride. The engine walks stop at 8 to 12 steps. Neither covers real timing (the 6-hour timer, head-unit downloads), partial write failures and the drain's retries, indoor FTP in the models, or a drag across the sent and not-sent boundary.
+
+The plan model has one old Plan, so it cannot see a chain of Replaces. The calendar drain holds the new Plan while any closed Plan's cleanup is not verified, not only the newest. `packages/coach/tests/plan-calendar-cleanup-barrier.test.ts` guards that: `holds the new Plan behind an older failed cleanup after a later replacement's cleanup verifies`.

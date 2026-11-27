@@ -27,6 +27,11 @@ interface DesktopFixtures {
   readonly desktop: DesktopApplication;
 }
 
+interface DesktopOptions {
+  readonly savedConfig: string | undefined;
+  readonly recordDesktopVideo: boolean;
+}
+
 function isolatedEnvironment(paths: DesktopPaths): Record<string, string> {
   const environment = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -53,8 +58,10 @@ function isolatedEnvironment(paths: DesktopPaths): Record<string, string> {
   };
 }
 
-export const test = base.extend<DesktopFixtures>({
-  desktop: async ({ playwright }, use, testInfo) => {
+export const test = base.extend<DesktopFixtures & DesktopOptions>({
+  savedConfig: [undefined, { option: true }],
+  recordDesktopVideo: [false, { option: true }],
+  desktop: async ({ playwright, savedConfig, recordDesktopVideo }, use, testInfo) => {
     const temporaryRoot = await realpath(process.platform === "darwin" ? "/tmp" : tmpdir());
     const scratch = await mkdtemp(join(temporaryRoot, "enduragent-e2e-"));
     const paths = {
@@ -65,6 +72,11 @@ export const test = base.extend<DesktopFixtures>({
       mkdir(paths.athleteHome, { recursive: true, mode: 0o700 }),
       mkdir(paths.userData, { recursive: true, mode: 0o700 }),
     ]);
+    if (savedConfig !== undefined) {
+      const configDirectory = join(paths.athleteHome, "config");
+      await mkdir(configDirectory, { recursive: true, mode: 0o700 });
+      await writeFile(join(configDirectory, "config.yaml"), savedConfig, { mode: 0o600 });
+    }
     const messages: string[] = [];
     let application: ElectronApplication | undefined;
     let page: Page | undefined;
@@ -78,6 +90,14 @@ export const test = base.extend<DesktopFixtures>({
         locale: "en-US",
         timezoneId: "UTC",
         timeout: launchTimeoutMs,
+        ...(recordDesktopVideo
+          ? {
+              recordVideo: {
+                dir: testInfo.outputPath("video"),
+                size: { width: 1180, height: 820 },
+              },
+            }
+          : {}),
       });
       application.process().stderr?.on("data", (chunk: Buffer) => {
         messages.push(chunk.toString());

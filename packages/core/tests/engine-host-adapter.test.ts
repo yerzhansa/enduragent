@@ -27,8 +27,8 @@ function config(dataDir: string): Config {
     dataSource: "platform",
     llm: {
       provider: "anthropic",
-      model: "claude-sonnet-5",
-      compactModel: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-5-5",
+      compactModel: "claude-haiku-5-5",
       apiKey: "test",
     },
     intervals: { apiKey: "", athleteId: "0" },
@@ -165,37 +165,41 @@ describe("engine host adapter", () => {
 
   it("projects immutable engine config with independent chat and compact windows", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
+    const catalog = bundledAcceptedCatalog();
     const { ports } = createEngineHostAdapter({
-      catalog: bundledAcceptedCatalog(),
-      config: config(dataDir),
+      catalog,
+      config: {
+        ...config(dataDir),
+        llm: { provider: "zai", model: "glm-5.3", compactModel: "glm-4.7", apiKey: "test" },
+      },
       stateReader: legacyStateReader,
     });
     expect(ports.config).toMatchObject({
       dataSource: "platform",
       llm: {
-        provider: "anthropic",
-        model: "claude-sonnet-5",
-        compactModel: "claude-haiku-4-5-20251001",
+        provider: "zai",
+        model: "glm-5.3",
+        compactModel: "glm-4.7",
         apiKey: "test",
       },
       models: {
-        catalogRevision: 2,
+        catalogRevision: catalog.effective.revision,
         chat: {
           kind: "catalog",
-          provider: "anthropic",
-          model: "claude-sonnet-5",
+          provider: "zai",
+          model: "glm-5.3",
           contextWindowTokens: 1_000_000,
         },
         compact: {
           kind: "catalog",
-          provider: "anthropic",
-          model: "claude-haiku-4-5-20251001",
+          provider: "zai",
+          model: "glm-4.7",
           contextWindowTokens: 200_000,
         },
         flush: {
           kind: "catalog",
-          provider: "anthropic",
-          model: "claude-sonnet-5",
+          provider: "zai",
+          model: "glm-5.3",
           contextWindowTokens: 1_000_000,
         },
       },
@@ -213,9 +217,9 @@ describe("engine host adapter", () => {
     expect(Object.isFrozen(ports.config.llm)).toBe(true);
     expect(Object.isFrozen(ports.config.session)).toBe(true);
     expect(Object.isFrozen(ports.config.models)).toBe(true);
-    expect(
-      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
-    ).toBe(true);
+    expect(existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE))).toBe(
+      true,
+    );
   });
 
   it("does not persist selected profiles when opened with already resolved models", () => {
@@ -223,17 +227,17 @@ describe("engine host adapter", () => {
     const projected = engineConfigFromConfig(config(dataDir), {
       catalog: bundledAcceptedCatalog(),
     });
-    expect(
-      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
-    ).toBe(false);
+    expect(existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE))).toBe(
+      false,
+    );
     createEngineHostAdapter({
       models: projected.models,
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
-    expect(
-      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
-    ).toBe(false);
+    expect(existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE))).toBe(
+      false,
+    );
   });
 
   it("exposes one stable Core-owned conversation coordinator for both ports", () => {

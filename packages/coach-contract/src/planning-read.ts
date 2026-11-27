@@ -219,7 +219,9 @@ export const PlanTodayChoiceSchema = z
   .strict();
 export type PlanTodayChoice = z.infer<typeof PlanTodayChoiceSchema>;
 
-export const ListPlansParamsSchema = z.object({}).strict();
+export const ListPlansParamsSchema = z
+  .object({ retryCalendar: z.literal(true).optional() })
+  .strict();
 export type ListPlansParams = z.infer<typeof ListPlansParamsSchema>;
 export const ListPlansResultSchema = z
   .object({
