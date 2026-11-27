@@ -7,7 +7,7 @@ description: Model-check the desktop window's shared coach connection, the inter
 
 A TLA+ model of the desktop window's one shared connection to the coach, the calls that ride on it, the coach's sync windows, and the stored intervals.icu sign-in. TLC checks every order of those steps within the bounds below. Tests check the orders someone wrote down.
 
-Sync commit: `b7381e47`. The model was last confirmed against the code at that commit. `references/coverage.json` holds the same commit and a fingerprint of every function the model describes.
+Sync commit: `7237605d`. The model was last confirmed against the code at that commit. `references/coverage.json` holds the same commit and a fingerprint of every function the model describes.
 
 ## When to run it
 
@@ -116,6 +116,8 @@ Left out:
 
 - Main's own coach calls. Each opens its own connection (`credential-runtime.ts` `call`), so they cannot fail a window call.
 - A coach restart. The app reloads the window when it starts a new coach; the restart path belongs to the onboarding work.
+- A sync the coach turns away before it starts, such as -32005 while it closes admission for an upgrade. The window shows a failure with Try again and does not refresh Training, since the coach ran nothing.
+- The Calendar refresh that `boot.ts` starts once the Training and Plan refresh lands. The sync does not wait for it.
 - Sign-in health, Setup and Settings rows, Plan and spend contents after a reconnect. The rule checks the sidebar and the training context.
 - A rejected token (401 or 403), the backfill cursor (issue 414) and the plan calendar (issues 384 and 382).
 - A scheduled window refreshes the coach's data without telling the window. The rule counts only windows the window asked for.
