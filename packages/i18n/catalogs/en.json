@@ -1229,8 +1229,8 @@
         "onIntervals": "It moves on intervals.icu too, so your head unit gets it for {{weekday}}.",
         "planOnly": "It moves in the Plan. intervals.icu gets it when its week goes out.",
         "refused": "The Plan could not take this move, so nothing moved.",
-        "swap_one": "Swap: {{names}} goes to {{weekday}}",
-        "swap_other": "Swap: {{names}} go to {{weekday}}",
+        "swap_one": "Swap: {{names}} goes to {{date}}",
+        "swap_other": "Swap: {{names}} go to {{date}}",
         "title": "Move {{name}} to {{day}}?",
         "weeksChange": "Week {{from}} becomes {{fromTotal}} and Week {{to}} becomes {{toTotal}}.",
         "weekStays": "The week stays {{total}}."

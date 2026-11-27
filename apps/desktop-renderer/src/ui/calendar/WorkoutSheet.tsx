@@ -130,7 +130,7 @@ export function WorkoutSheet(props: {
         ref={heading}
         id={headingId}
         tabIndex={-1}
-        className="m-0 text-lg font-semibold break-words text-ink"
+        className="m-0 text-lg font-semibold break-words text-ink focus:outline-none"
       >
         {workout.name}
       </h2>

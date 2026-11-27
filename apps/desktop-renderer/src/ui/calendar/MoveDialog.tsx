@@ -1,7 +1,7 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useRef, type ReactElement } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactElement } from "react";
 import type { MovePreview } from "../../calendar/move";
 import type { MoveDialogState } from "../../calendar/move-controller";
 import { useCalendarText, type CalendarText } from "./calendar-text";
@@ -9,6 +9,23 @@ import { useCalendarText, type CalendarText } from "./calendar-text";
 type Say = ReturnType<typeof usePhrasebook>["say"];
 
 const STEP = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+
+const GAP_PX = 12;
+
+function keepTargetClear(frame: HTMLElement, dateKey: number): void {
+  const cell = document.querySelector<HTMLElement>(`[role="cell"][data-date-key="${dateKey}"]`);
+  if (cell === null) return;
+  cell.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  const scroller = cell.closest<HTMLElement>("[data-page-scroll]");
+  const target = cell.getBoundingClientRect();
+  const dialog = frame.getBoundingClientRect();
+  const covered =
+    target.bottom + GAP_PX > dialog.top &&
+    target.top < dialog.bottom &&
+    target.right > dialog.left &&
+    target.left < dialog.right;
+  if (scroller !== null && covered) scroller.scrollTop += target.bottom + GAP_PX - dialog.top;
+}
 
 function effect(preview: MovePreview, text: CalendarText, say: Say): string {
   const where =
@@ -57,6 +74,7 @@ function failure(
 export function MoveDialog(props: {
   readonly state: Exclude<MoveDialogState, { kind: "closed" }>;
   readonly preview: MovePreview;
+  readonly revision: unknown;
   readonly earlier: number | null;
   readonly later: number | null;
   readonly onDay: (toDateKey: number) => void;
@@ -73,6 +91,9 @@ export function MoveDialog(props: {
     if (frame.current?.contains(document.activeElement) === true) return;
     heading.current?.focus();
   }, [preview.toDateKey]);
+  useLayoutEffect(() => {
+    if (frame.current !== null) keepTargetClear(frame.current, preview.toDateKey);
+  }, [preview.toDateKey, props.revision]);
   const title = say("plan.calendar.move.title", {
     name: preview.workout.name,
     day: text.weekdayDayMonth(preview.toDateKey),
@@ -88,7 +109,7 @@ export function MoveDialog(props: {
   return (
     <div
       ref={frame}
-      className="absolute top-58 right-5 z-20 flex w-85 max-w-full flex-col gap-2.5 rounded-card border border-line bg-surface p-4 shadow-elev-3"
+      className="absolute right-5 bottom-5 z-20 flex w-85 max-w-full flex-col gap-2.5 rounded-card border border-line bg-surface p-4 shadow-elev-3"
       role="dialog"
       aria-label={title}
       aria-busy={busy}
@@ -102,7 +123,7 @@ export function MoveDialog(props: {
           ref={heading}
           tabIndex={-1}
           aria-live="polite"
-          className="m-0 min-w-0 flex-1 text-base font-semibold text-ink"
+          className="m-0 min-w-0 flex-1 text-base font-semibold text-ink focus:outline-none"
         >
           {title}
         </h2>
@@ -155,7 +176,7 @@ export function MoveDialog(props: {
               {say("plan.calendar.move.swap", {
                 count: preview.clash.length,
                 names: text.names(preview.clash.map((workout) => workout.name)),
-                weekday: text.weekdayLong(preview.workout.dateKey),
+                date: text.weekdayDayMonth(preview.workout.dateKey),
               })}
             </label>
           ) : null}

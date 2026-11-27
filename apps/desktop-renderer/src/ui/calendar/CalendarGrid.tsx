@@ -20,10 +20,17 @@ import {
 import { canDropOn } from "../../calendar/move";
 import { useCalendarText, type CalendarText } from "./calendar-text";
 
+export interface CalendarMoving {
+  readonly workoutId: string;
+  readonly toDateKey: number;
+  readonly fromDateKey: number;
+  readonly swapIds: readonly string[];
+}
+
 interface Dragging {
   readonly workout: PlanCalendarWorkout | null;
   readonly over: number | null;
-  readonly moving: { readonly workoutId: string; readonly toDateKey: number } | null;
+  readonly moving: CalendarMoving | null;
   start(workout: PlanCalendarWorkout): void;
   enter(dateKey: number | null): void;
   end(): void;
@@ -268,7 +275,9 @@ function WorkoutCard(props: {
   const { say } = usePhrasebook();
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
   const { drag, workout } = props;
-  const beingMoved = props.preview !== true && drag.moving?.workoutId === workout.id;
+  const beingMoved =
+    props.preview !== true &&
+    (drag.moving?.workoutId === workout.id || drag.moving?.swapIds.includes(workout.id) === true);
   const draggable = props.preview !== true && workout.movable && !look.opens;
   const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
   const interactive = props.preview !== true && (look.opens || !ghost);
@@ -547,10 +556,13 @@ function DayCell(props: {
   const { day, read, text, drag } = props;
   const dragged = drag.workout;
   const accepts = dragged !== null && canDropOn(read, dragged, day.dateKey);
-  const incoming =
-    drag.moving?.toDateKey === day.dateKey
-      ? read.plan?.workouts.find((workout) => workout.id === drag.moving?.workoutId)
-      : undefined;
+  const moving = drag.moving;
+  const incoming = (read.plan?.workouts ?? []).filter(
+    (workout) =>
+      moving !== null &&
+      ((moving.toDateKey === day.dateKey && workout.id === moving.workoutId) ||
+        (moving.fromDateKey === day.dateKey && moving.swapIds.includes(workout.id))),
+  );
   const number = text.dayOfMonth(day.dateKey);
   const heading =
     day.today === "today"
@@ -562,7 +574,7 @@ function DayCell(props: {
     day.workouts.length === 0 &&
     day.movedIn.length === 0 &&
     day.activities.length === 0 &&
-    incoming === undefined;
+    incoming.length === 0;
   return (
     <div
       className={cn(
@@ -614,9 +626,10 @@ function DayCell(props: {
           drag={drag}
         />
       ))}
-      {incoming === undefined ? null : (
+      {incoming.map((workout) => (
         <WorkoutCard
-          workout={incoming}
+          key={`preview-${workout.id}`}
+          workout={workout}
           activities={read.activities}
           highlighted={false}
           selected={false}
@@ -625,7 +638,7 @@ function DayCell(props: {
           drag={drag}
           preview
         />
-      )}
+      ))}
       {day.movedIn.map((workout) => (
         <MovedInCard
           key={`in-${workout.id}`}

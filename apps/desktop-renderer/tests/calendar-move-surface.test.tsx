@@ -128,7 +128,7 @@ describe("moving a workout on the Calendar", () => {
     );
     expect(dialog).toHaveTextContent("Saturday already has Recovery spin 45m");
     const swap = within(dialog).getByRole("radio", {
-      name: "Swap: Recovery spin goes to Wednesday",
+      name: "Swap: Recovery spin goes to Wed 14 Jan",
     });
     expect(swap).toBeChecked();
     await user.click(within(dialog).getByRole("radio", { name: "Keep both on Saturday" }));
@@ -213,5 +213,51 @@ describe("moving a workout on the Calendar", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Move" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+  });
+
+  it("names the date a swapped workout goes to, and shows it there while Swap is chosen", () => {
+    const earlier = calendarRead(
+      19980105,
+      plan(
+        19980105,
+        [week(1, 19980105), week(2, 19980112)],
+        [
+          workout(1, 19980107, { name: "Endurance ride", movable: true }),
+          workout(2, 19980112, { name: "Controlled effort", movable: true, durationS: 2_700 }),
+          workout(3, 19980114, { name: "Endurance ride", movable: true }),
+        ],
+      ),
+    );
+    const target = {
+      kind: "open",
+      planId: PLAN_ID,
+      workoutId: workoutId(1),
+      toDateKey: 19980112,
+      swap: true,
+    } as const;
+    show(target, earlier);
+    act(() => {
+      useEnduragentStore.setState({
+        calendar: {
+          kind: "ready",
+          read: earlier,
+          range: { firstRowStart: 19980105, rowCount: 2 },
+          refresh: "idle",
+        },
+      });
+    });
+    render(<CalendarView />);
+    const dialog = screen.getByRole("dialog", { name: "Move Endurance ride to Mon 12 Jan?" });
+    expect(
+      within(dialog).getByRole("radio", { name: "Swap: Controlled effort goes to Wed 7 Jan" }),
+    ).toBeChecked();
+    expect(cell(19980112).querySelector(`[data-move-preview="${workoutId(1)}"]`)).not.toBeNull();
+    expect(cell(19980107).querySelector(`[data-move-preview="${workoutId(2)}"]`)).not.toBeNull();
+    expect(card(workoutId(2))).toHaveAttribute("aria-label", "Controlled effort, being moved");
+    act(() => {
+      useEnduragentStore.setState({ calendarMove: { ...target, swap: false } });
+    });
+    expect(cell(19980107).querySelector("[data-move-preview]")).toBeNull();
+    expect(card(workoutId(2))).not.toHaveAttribute("aria-label");
   });
 });

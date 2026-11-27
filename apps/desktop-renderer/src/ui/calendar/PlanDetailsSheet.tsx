@@ -239,7 +239,11 @@ export function PlanDetailsSheet(props: {
   const plan = read.plan;
   const header = (
     <div className="flex items-center justify-between gap-2">
-      <h2 ref={heading} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
+      <h2
+        ref={heading}
+        tabIndex={-1}
+        className="m-0 text-lg font-semibold text-ink focus:outline-none"
+      >
         {say("plan.calendar.details.title")}
       </h2>
       <Button

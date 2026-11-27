@@ -246,7 +246,11 @@ export function ChangeSheet(props: {
         aria-busy={state.kind === "loading"}
         data-change-sheet={state.kind}
       >
-        <h2 ref={heading} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="m-0 text-lg font-semibold text-ink focus:outline-none"
+        >
           {say("plan.calendar.change.sheet")}
         </h2>
         <p
@@ -278,7 +282,11 @@ export function ChangeSheet(props: {
   return (
     <aside className={FRAME} aria-label={title} aria-busy={busy} data-change-sheet={detail.change}>
       <span className="text-xs text-ink-2">{caption.join(say("plan.calendar.separator"))}</span>
-      <h2 ref={heading} tabIndex={-1} className="m-0 text-lg font-semibold text-ink">
+      <h2
+        ref={heading}
+        tabIndex={-1}
+        className="m-0 text-lg font-semibold text-ink focus:outline-none"
+      >
         {title}
       </h2>
       {edited === null ? null : <span className="text-xs text-ink-2">{edited}</span>}

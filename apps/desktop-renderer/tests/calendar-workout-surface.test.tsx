@@ -133,6 +133,7 @@ afterEach(() => {
       calendarChange: CHANGE_SHEET_CLOSED,
       calendarChangeActions: null,
       calendarApproveActions: null,
+      calendarActions: null,
       trainingExport: IDLE_TRAINING_EXPORT,
       trainingExportActions: null,
     });
@@ -456,5 +457,40 @@ describe("one Calendar sheet at a time", () => {
     });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.querySelector("[data-calendar-grid]")).toHaveFocus();
+  });
+
+  it("pages the grid to a target day outside the shown weeks, and back on Escape", async () => {
+    const user = userEvent.setup();
+    const longer = calendarRead(
+      TODAY,
+      plan(
+        MONDAY,
+        [week(1, MONDAY), week(2, 19980119), week(3, 19980126)],
+        [workout(1, 19980125, { name: "Long endurance", durationS: 9_000, movable: true })],
+      ),
+    );
+    show(longer);
+    const showWeekOf = vi.fn();
+    act(() => {
+      useEnduragentStore.setState({
+        calendarActions: {
+          refresh: vi.fn(),
+          previous: vi.fn(),
+          next: vi.fn(),
+          today: vi.fn(),
+          showWeekOf,
+        },
+      });
+    });
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    await user.click(screen.getByRole("button", { name: "Move…" }));
+    expect(
+      screen.getByRole("dialog", { name: "Move Long endurance to Mon 26 Jan?" }),
+    ).toBeVisible();
+    expect(showWeekOf).toHaveBeenLastCalledWith(19980126);
+    await user.keyboard("{Escape}");
+    expect(showWeekOf).toHaveBeenLastCalledWith(19980125);
+    expect(useEnduragentStore.getState().calendarMove).toEqual(MOVE_DIALOG_CLOSED);
   });
 });
