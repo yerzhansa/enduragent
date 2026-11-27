@@ -429,18 +429,17 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
         .array(
           z
             .object({
-              timing: z.enum(["as-soon-as-possible", "earliest"]),
+              timing: z.enum(["first-day-of-week", "earliest", "as-soon-as-possible"]),
               label: z.string().min(1).max(128),
               detail: z.string().min(1).max(240),
             })
             .strict(),
         )
         .length(2)
-        .refine((options) =>
-          completeOptionSet(
-            options.map((option) => option.timing),
-            ["as-soon-as-possible", "earliest"],
-          ),
+        .refine(
+          (options) =>
+            new Set(options.map((option) => option.timing)).size === 2 &&
+            options.some((option) => option.timing === "earliest"),
         ),
       dateLabel: z.string().min(1).max(128),
     })

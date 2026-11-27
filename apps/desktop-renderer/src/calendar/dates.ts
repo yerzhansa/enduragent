@@ -48,3 +48,8 @@ export function weekdayOrder(firstDay: FirstDayOfWeek): readonly FirstDayOfWeek[
     return day === 1 || day === 2 || day === 3 || day === 4 || day === 5 || day === 6 ? day : 7;
   });
 }
+
+export function nextWeekStart(dateKey: number, firstDay: FirstDayOfWeek): number {
+  const start = rowStart(dateKey, firstDay);
+  return start === dateKey ? dateKey : addDays(start, 7);
+}

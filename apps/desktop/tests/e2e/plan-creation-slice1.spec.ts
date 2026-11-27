@@ -103,7 +103,10 @@ async function answerThroughFitnessSuccess(scenario: Scenario): Promise<void> {
   await scenario.page.locator('[data-parity="availability.longest"]').fill("2");
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
   await waitForVersion(scenario.backend, 5);
-  await choose(scenario.page, scenario.backend, 6, "asap");
+  await scenario.page.locator('[data-answer="earliest"]').click();
+  await scenario.page.getByLabel("Plan starts", { exact: true }).fill("1998-01-01");
+  await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+  await waitForVersion(scenario.backend, 6);
   await choose(scenario.page, scenario.backend, 7, "none");
   await choose(scenario.page, scenario.backend, 8, "regular");
   await choose(scenario.page, scenario.backend, 9, "train-consistently");

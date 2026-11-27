@@ -1,6 +1,8 @@
 import { chatFeedbackMessage } from "./copy";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useChatDate } from "./use-chat-date";
+import { usePlanDate } from "../plan/plan-date";
+import { regionWeekStart } from "../../calendar/week-start";
 import type { PlanCreationAnswerInput, PlanCreationOpenQuestion } from "@enduragent/coach-contract";
 import {
   useEffect,
@@ -639,53 +641,51 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
 
 function StartTimingForm(props: QuestionFormProps): ReactElement {
   const { say } = usePhrasebook();
-  const formatDate = useChatDate();
+  const planDate = usePlanDate();
   const question = props.question.kind === "start-timing-question" ? props.question : null;
-  if (question === null) throw new TypeError("start timing question required");
-  const current = props.currentAnswer?.kind === "start-timing" ? props.currentAnswer.timing : null;
-  const [timing, setTiming] = useState<"earliest" | null>(
-    current?.kind === "earliest" ? "earliest" : null,
+  const [firstDay, earliest] = ["first-day-of-week", "earliest"].map((timing) =>
+    question?.options.find((option) => option.timing === timing),
   );
-  const [date, setDate] = useState(current?.kind === "earliest" ? current.date : "");
+  if (question === null || earliest === undefined)
+    throw new TypeError("start timing question required");
+  const weekStart = regionWeekStart(question.earliestAllowed);
+  const current = props.currentAnswer?.kind === "start-timing" ? props.currentAnswer.timing : null;
+  const chosen = current?.kind === "earliest" ? current.date : null;
+  const [picking, setPicking] = useState(chosen !== null && chosen !== weekStart);
+  const [date, setDate] = useState(chosen ?? "");
   const [error, setError] = useState<string>();
   const errorId = useId();
-  const asap = question.options.find((option) => option.timing === "as-soon-as-possible")!;
-  const earliest = question.options.find((option) => option.timing === "earliest")!;
+  const answer = (start: string) =>
+    props.onAnswer({ kind: "start-timing", timing: { kind: "earliest", date: start } });
   return (
     <form
       className="grid gap-inset"
       onSubmit={(event) => {
         event.preventDefault();
-        if (timing === null) {
-          setError(say("chat.planCreation.startTimingRequired"));
-          return;
-        }
         if (date.length === 0 || date < question.earliestAllowed) {
           setError(
             say("chat.planCreation.startDateMinimum", {
-              date: formatDate(question.earliestAllowed),
+              date: planDate(question.earliestAllowed),
             }),
           );
           return;
         }
         setError(undefined);
-        props.onAnswer({ kind: "start-timing", timing: { kind: "earliest", date } });
+        answer(date);
       }}
       noValidate
     >
       <ChoiceList>
         {[
           <ChoiceRow
-            key="asap"
-            answerId="asap"
+            key="first-day"
+            answerId="first-day"
             number={1}
-            label={asap.label}
-            detail={asap.detail}
-            selected={current?.kind === "as-soon-as-possible"}
+            label={planDate(weekStart, { weekday: "short", day: "numeric", month: "short" })}
+            detail={firstDay?.label}
+            selected={chosen === weekStart}
             disabled={props.busy}
-            onClick={() =>
-              props.onAnswer({ kind: "start-timing", timing: { kind: "as-soon-as-possible" } })
-            }
+            onClick={() => answer(weekStart)}
           />,
           <ChoiceRow
             key="earliest"
@@ -693,16 +693,16 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
             number={2}
             label={earliest.label}
             detail={earliest.detail}
-            selected={timing === "earliest"}
+            selected={picking}
             disabled={props.busy}
             onClick={() => {
-              setTiming("earliest");
+              setPicking(true);
               setError(undefined);
             }}
           />,
         ]}
       </ChoiceList>
-      {timing === "earliest" ? (
+      {picking ? (
         <label className="grid gap-[calc(var(--inset)/2)] px-4 text-xs font-semibold leading-4 text-ink-2">
           {question.dateLabel}
           <input
@@ -729,7 +729,7 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
             {say("chat.planCreation.backToAnswers")}
           </Button>
         ) : null}
-        {timing === "earliest" ? (
+        {picking ? (
           <Button type="submit" disabled={props.busy}>
             {say("chat.planCreation.continue")}
           </Button>

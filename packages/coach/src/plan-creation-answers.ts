@@ -235,8 +235,8 @@ const currentGoalRunStart = (
   const family = goalFamily(current.answer);
   let sequence = current.record.sequence;
   for (let index = goals.length - 2; index >= 0; index -= 1) {
-    const prior = goals[index]!;
-    if (goalFamily(prior.answer) !== family) break;
+    const prior = goals[index];
+    if (prior === undefined || goalFamily(prior.answer) !== family) break;
     sequence = prior.record.sequence;
   }
   return { family, sequence };
@@ -257,8 +257,8 @@ const currentScheduleModeRunStart = (
   const mode = current.answer.mode;
   let sequence = current.record.sequence;
   for (let index = modes.length - 2; index >= 0; index -= 1) {
-    const prior = modes[index]!;
-    if (prior.answer.mode !== mode) break;
+    const prior = modes[index];
+    if (prior === undefined || prior.answer.mode !== mode) break;
     sequence = prior.record.sequence;
   }
   return { mode, sequence };
@@ -436,7 +436,7 @@ function answerSummary(
         detail:
           answer.timing.kind === "as-soon-as-possible"
             ? "As soon as possible"
-            : `Earliest start ${formatCivilDate(answer.timing.date)}`,
+            : `Starts ${formatCivilDate(answer.timing.date)}`,
       };
     case "schedule-mode":
       return {
@@ -576,21 +576,21 @@ function questionForKey(
       return {
         kind: "start-timing-question",
         step,
-        prompt: "When could this Plan start?",
+        prompt: "When should this Plan start?",
         earliestAllowed: context.today,
         options: [
           {
-            timing: "as-soon-as-possible",
-            label: "As soon as possible",
-            detail: "Start with the earliest suitable training week.",
+            timing: "first-day-of-week",
+            label: "First day of your week",
+            detail: "One calendar row is one Training Week.",
           },
           {
             timing: "earliest",
-            label: "From a date",
-            detail: "Set the earliest date this Plan may begin.",
+            label: "Pick another day",
+            detail: "The Plan starts on the day you pick.",
           },
         ],
-        dateLabel: "Earliest start date",
+        dateLabel: "Plan starts",
       };
     case "schedule-mode":
       return {

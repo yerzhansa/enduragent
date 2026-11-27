@@ -178,6 +178,11 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
       explanation:
         "No Workouts fit anywhere in this Plan under your confirmed limits. Edit those limits to continue.",
     };
+  if (answers.startTiming.kind === "earliest")
+    startKey = addCivilDays(
+      earliestKey,
+      Math.floor((inclusiveCivilDays(earliestKey, startKey) - 1) / 7) * 7,
+    );
   if (goal.kind === "event" && dateKeyFromText(goal.date) < startKey)
     return { kind: "no-workouts", explanation: "Choose an event date on or after the Plan start." };
   const computedWeeks =
@@ -315,7 +320,7 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
     guidance,
     ftp: null,
     builderId: "cycling-creation-draft",
-    builderVersion: "1",
+    builderVersion: "2",
   };
   return { ...draft, inputFingerprint: digest(input), outputFingerprint: digest(draft) };
 }

@@ -596,6 +596,29 @@ describe("Plan Creation operations", () => {
     expect(test.current().answers).toHaveLength(6);
   });
 
+  it("offers the first day of the week or another day, and keeps the picked day as the start", async () => {
+    const test = harness();
+    await answered(test.submit(eventGoal));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      prompt: "When should this Plan start?",
+      earliestAllowed: today,
+      options: [
+        { timing: "first-day-of-week", label: "First day of your week" },
+        { timing: "earliest", label: "Pick another day" },
+      ],
+      dateLabel: "Plan starts",
+    });
+    await answered(
+      test.submit({ kind: "start-timing", timing: { kind: "earliest", date: "1998-09-07" } }),
+    );
+    expect((await test.host.readCard())?.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 7 Sept 1998" }),
+    );
+  });
+
   it("rejects an earliest start before the host civil date", async () => {
     const test = harness();
     await answered(test.submit(eventGoal));

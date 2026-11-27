@@ -199,7 +199,9 @@ async function replacementDraft(scenario: Scenario, mode: "fixed" | "flexible" =
       await scenario.page.locator(`input[name="usableWeekdays"][value="${day}"]`).check();
   }
   await continueAnswer(scenario);
-  await choose(scenario, "asap");
+  await scenario.page.locator('[data-answer="earliest"]').click();
+  await scenario.page.getByLabel("Plan starts", { exact: true }).fill(today);
+  await continueAnswer(scenario);
   await choose(scenario, "none");
   await choose(scenario, "regular");
   await scenario.page.locator('[data-parity="choice.custom"][data-answer="custom"]').click();
