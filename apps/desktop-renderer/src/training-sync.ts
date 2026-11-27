@@ -54,6 +54,9 @@ export interface TrainingSyncCoordinator {
   dispose(): void;
 }
 
+const REASK_WAITS_MS = [0, 5_000, 30_000, 120_000];
+const REASK_EVERY_MS = 300_000;
+
 function settled(action: () => unknown): Promise<unknown> {
   return Promise.allSettled([new Promise((resolve) => resolve(action()))]);
 }
@@ -128,6 +131,8 @@ export function createTrainingSyncCoordinator(input: {
   let disposed = false;
   let needsReconnect = false;
   let failedClient: DesktopCoachClient | undefined;
+  let reasks = 0;
+  let pendingReask: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<TrainingSyncStateListener>();
 
   const current = (selectedEpoch: number): boolean => !disposed && selectedEpoch === epoch;
@@ -375,17 +380,39 @@ export function createTrainingSyncCoordinator(input: {
     return task;
   };
 
+  const interrupted = (): boolean =>
+    !disposed &&
+    inFlight === undefined &&
+    state.status === "failed" &&
+    state.kind === "indeterminate";
+
+  const cancelReask = (): void => {
+    clearTimeout(pendingReask);
+    pendingReask = undefined;
+  };
+
+  const reask = (): void => {
+    pendingReask = undefined;
+    if (!interrupted()) return;
+    reasks += 1;
+    void begin();
+  };
+
   const request = (): Promise<void> => {
     if (disposed || (state.status === "failed" && state.kind === "protocol")) {
       return Promise.resolve();
     }
-    return inFlight ?? begin();
+    if (inFlight !== undefined) return inFlight;
+    cancelReask();
+    reasks = 0;
+    return begin();
   };
 
   const stopFollowingConnections = input.clients.onConnectionOpen(() => {
-    if (inFlight === undefined && state.status === "failed" && state.kind === "indeterminate") {
-      void request();
-    }
+    if (pendingReask !== undefined || !interrupted()) return;
+    const wait = REASK_WAITS_MS.at(reasks) ?? REASK_EVERY_MS;
+    if (wait === 0) reask();
+    else pendingReask = setTimeout(reask, wait);
   });
 
   return {
@@ -408,6 +435,7 @@ export function createTrainingSyncCoordinator(input: {
       needsReconnect = false;
       failedClient = undefined;
       listeners.clear();
+      cancelReask();
       stopFollowingConnections();
     },
   };
