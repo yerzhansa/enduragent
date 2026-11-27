@@ -45,7 +45,7 @@ import {
   runReferenceCapture,
 } from "./capture.js";
 import { createLocalBundleProducer } from "./local-bundle-producer.js";
-import { currentRpcMethod } from "./rpc-diagnostics.js";
+import { captureRpcCall, currentRpcMethod } from "./rpc-diagnostics.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import {
   createWallClockScheduler,
@@ -304,6 +304,7 @@ export class StoreRuntime {
   ): Promise<T> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
     const method = currentRpcMethod();
+    const inRequesterCall = captureRpcCall();
     const askedAt = this.dependencies.monotonicNow();
     return new Promise<T>((resolve, reject) => {
       const held: Lane[] = [];
@@ -335,7 +336,7 @@ export class StoreRuntime {
         this.admissionControllers.add(controller);
         let task: Promise<T>;
         try {
-          task = Promise.resolve(work(controller.signal, offStoreLane));
+          task = Promise.resolve(inRequesterCall(() => work(controller.signal, offStoreLane)));
         } catch (error) {
           task = Promise.reject(error);
         }

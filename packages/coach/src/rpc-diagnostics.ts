@@ -1,15 +1,36 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { createSubsystemLogger } from "@enduragent/core";
+import { createSubsystemLogger, type SubsystemLogger } from "@enduragent/core";
 import { COACH_RPC_METHOD_REGISTRY, type CoachRpcMethodName } from "@enduragent/coach-contract";
 
-const rpcMethod = new AsyncLocalStorage<CoachRpcMethodName>();
+interface RpcCall {
+  readonly method: CoachRpcMethodName;
+  running: boolean;
+}
 
-export function withRpcMethod<T>(method: CoachRpcMethodName, work: () => T): T {
-  return rpcMethod.run(method, work);
+const rpcCall = new AsyncLocalStorage<RpcCall>();
+
+export async function withRpcMethod<T>(
+  method: CoachRpcMethodName,
+  work: () => Promise<T>,
+): Promise<T> {
+  const call: RpcCall = { method, running: true };
+  try {
+    return await rpcCall.run(call, work);
+  } finally {
+    call.running = false;
+  }
 }
 
 export function currentRpcMethod(): CoachRpcMethodName | undefined {
-  return rpcMethod.getStore();
+  const call = rpcCall.getStore();
+  return call?.running === true ? call.method : undefined;
+}
+
+export type RpcCallScope = <T>(work: () => T) => T;
+
+export function captureRpcCall(): RpcCallScope {
+  const call = rpcCall.getStore();
+  return (work) => (call === undefined ? rpcCall.exit(work) : rpcCall.run(call, work));
 }
 
 function knownMethod(name: string): CoachRpcMethodName | null {
@@ -18,20 +39,21 @@ function knownMethod(name: string): CoachRpcMethodName | null {
     : null;
 }
 
-export function reportClosedRpcConnection(
-  athleteHome: string,
-  code: number,
-  reason: string,
-  running: number,
-): void {
-  if (running === 0) return;
-  createSubsystemLogger("rpc", athleteHome).warn(
-    "rpc_connection_closed_with_calls_running",
-    undefined,
-    {
-      code,
-      abortedCall: knownMethod(reason),
-      running,
+export interface RpcConnectionLog {
+  closed(code: number, reason: string, running: number): void;
+}
+
+export function createRpcConnectionLog(athleteHome: string): RpcConnectionLog {
+  let logger: SubsystemLogger | undefined;
+  return {
+    closed(code, reason, running) {
+      if (running === 0) return;
+      logger ??= createSubsystemLogger("rpc", athleteHome);
+      logger.warn("rpc_connection_closed_with_calls_running", undefined, {
+        code,
+        abortedCall: knownMethod(reason),
+        running,
+      });
     },
-  );
+  };
 }

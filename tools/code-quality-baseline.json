@@ -468,7 +468,7 @@
     "packages/coach/src/composition.ts": 2349,
     "packages/coach/src/cycling-plan-draft-builder.ts": 1782,
     "packages/coach/src/daemon/handshake.ts": 867,
-    "packages/coach/src/daemon/rpc-server.ts": 2330,
+    "packages/coach/src/daemon/rpc-server.ts": 2331,
     "packages/coach/src/desktop-telegram-controller.ts": 1060,
     "packages/coach/src/enduragent.ts": 2574,
     "packages/coach/src/plan-change-operations.ts": 1034,

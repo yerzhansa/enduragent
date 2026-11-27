@@ -50,7 +50,7 @@ import {
 } from "@enduragent/coach-contract";
 import { PlanCreationStoreError } from "@enduragent/kernel/planning";
 import { unavailableChatAttachmentAdmission } from "../attachment-operations.js";
-import { reportClosedRpcConnection, withRpcMethod } from "../rpc-diagnostics.js";
+import { createRpcConnectionLog, withRpcMethod } from "../rpc-diagnostics.js";
 import type { WriterProtocolHandlers } from "@enduragent/kernel-node/lock";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 import type { DaemonHealthState } from "./healthz-server.js";
@@ -710,6 +710,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
   let closePromise: Promise<void> | undefined;
   let reservation: UpgradeReservation | undefined;
   let connectionSequence = 0;
+  const connectionLog = createRpcConnectionLog(input.athleteHome);
   let resolveShutdownRequested!: () => void;
   const shutdownRequested = new Promise<void>((resolve) => {
     resolveShutdownRequested = resolve;
@@ -2177,7 +2178,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
     const state = createClientState(ws, `connection-${connectionSequence}`);
     clients.add(state);
     ws.on("close", (code, reason) => {
-      reportClosedRpcConnection(input.athleteHome, code, String(reason), state.requestTasks.size);
+      connectionLog.closed(code, String(reason), state.requestTasks.size);
       clearAuthTimer(state);
       detach(state);
       if (reservation?.connectionId === state.connectionId && reservation.state === "reserved") {

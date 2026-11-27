@@ -5,7 +5,7 @@ import type { Config, ReferenceRuntime } from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { withRpcMethod } from "../src/rpc-diagnostics.js";
+import { currentRpcMethod, withRpcMethod } from "../src/rpc-diagnostics.js";
 import { createStoreRuntime, type StoreRuntime } from "../src/store-runtime.js";
 
 const roots: string[] = [];
@@ -195,6 +195,44 @@ describe("StoreRuntime store lane wait signal", () => {
     expect(await laneWaits()).toEqual([
       expect.objectContaining({ event: "store_lane_wait", method: null, waitMs: 7_250 }),
     ]);
+    await runtime.close();
+  });
+
+  it("names no method for store work that a call started but that runs after the call finished", async () => {
+    const { runtime, clock, laneWaits } = await laneRuntime();
+    const holder = gate();
+    const held = runtime.runExclusive(() => holder.opened);
+    let later: Promise<string> | undefined;
+    await withRpcMethod("configureRuntime", async () => {
+      later = new Promise((resolve) => setTimeout(resolve, 0)).then(() =>
+        runtime.runExclusive(async () => "later"),
+      );
+    });
+    await settle();
+
+    clock.ms = 6_000;
+    holder.open();
+
+    await expect(later).resolves.toBe("later");
+    await held;
+    expect(await laneWaits()).toEqual([
+      expect.objectContaining({ event: "store_lane_wait", method: null, waitMs: 6_000 }),
+    ]);
+    await runtime.close();
+  });
+
+  it("runs queued store work under its own call, not the call that released the lane", async () => {
+    const { runtime } = await laneRuntime();
+    const holder = gate();
+    const held = withRpcMethod("sync", () => runtime.runExclusive(() => holder.opened));
+    const queued = withRpcMethod("configureRuntime", () =>
+      runtime.runExclusive(async () => currentRpcMethod()),
+    );
+
+    holder.open();
+
+    await expect(queued).resolves.toBe("configureRuntime");
+    await held;
     await runtime.close();
   });
 
