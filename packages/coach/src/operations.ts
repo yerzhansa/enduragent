@@ -84,7 +84,11 @@ export interface CreateCoachOperationsInput {
   readonly context: CoachStoreWriterContext;
   readonly runtime: Pick<
     LocalStoreRuntime,
-    "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "runActivityWrite"
+    | "runWindowAfter"
+    | "runExclusive"
+    | "runOutsideWindow"
+    | "abortActiveWindow"
+    | "runActivityWrite"
   >;
   readonly intervalsCredentials: Readonly<{
     read(): Promise<Readonly<{ apiKey: string; athleteId: string }>>;
@@ -350,7 +354,11 @@ export function createCoachOperations(
         callerSignal === undefined
           ? deadlineSignal
           : AbortSignal.any([deadlineSignal, callerSignal]);
-      return enqueueRuntimeConfiguration(async () => {
+      const releaseWindow =
+        parsedRequest.intervals?.clear_credential === true
+          ? input.runtime.abortActiveWindow(new Error("intervals.icu credential cleared"))
+          : undefined;
+      const configured = enqueueRuntimeConfiguration(async () => {
         const apply = async (admissionSignal?: AbortSignal): Promise<ConfigureRuntimeRpcResult> => {
           const signal =
             admissionSignal === undefined
@@ -361,6 +369,7 @@ export function createCoachOperations(
             offeredIntervalsCredential = parsedRequest.intervals.api_key;
           }
           const refusal = await input.applyRuntimeConfig(parsedRequest, signal);
+          releaseWindow?.();
           if (refusal === undefined && parsedRequest.intervals?.clear_credential === true) {
             offeredIntervalsCredential = "";
           }
@@ -386,6 +395,7 @@ export function createCoachOperations(
           ? apply()
           : input.runtime.runOutsideWindow(apply);
       });
+      return releaseWindow === undefined ? configured : configured.finally(releaseWindow);
     },
     verify_intervals_credential(
       request: VerifyIntervalsCredentialRpcParams,

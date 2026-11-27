@@ -462,7 +462,7 @@
     "packages/coach-contract/src/plan-creation.ts": 920,
     "packages/coach-contract/src/planning.ts": 1682,
     "packages/coach-contract/src/rpc.ts": 2570,
-    "packages/coach/src/composition.ts": 2338,
+    "packages/coach/src/composition.ts": 2337,
     "packages/coach/src/cycling-plan-draft-builder.ts": 1782,
     "packages/coach/src/daemon/handshake.ts": 867,
     "packages/coach/src/daemon/rpc-server.ts": 2309,

@@ -279,15 +279,14 @@ export interface LocalReferenceRuntime {
   runScheduledOnce(signal?: AbortSignal): ReturnType<ReferenceRuntime["runScheduledOnce"]>;
 }
 
-export interface LocalStoreRuntime {
+export interface LocalStoreRuntime extends Pick<
+  StoreRuntime,
+  "runWindowAfter" | "runExclusive" | "runOutsideWindow" | "abortActiveWindow" | "runActivityWrite"
+> {
   readonly athleteData: StoreRuntime["athleteData"];
   currentDroppedActivities(): ReturnType<StoreRuntime["currentDroppedActivities"]>;
   attemptLedgerForRun(): ReturnType<StoreRuntime["attemptLedgerForRun"]>;
   runWindow(): ReturnType<StoreRuntime["runWindow"]>;
-  runWindowAfter: StoreRuntime["runWindowAfter"];
-  runExclusive: StoreRuntime["runExclusive"];
-  runOutsideWindow: StoreRuntime["runOutsideWindow"];
-  runActivityWrite: StoreRuntime["runActivityWrite"];
   startScheduler(): void;
   close(): Promise<void>;
 }
