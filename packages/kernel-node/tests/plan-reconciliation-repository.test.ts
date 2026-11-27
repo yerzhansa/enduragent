@@ -295,6 +295,93 @@ describe("Plan reconciliation repository", () => {
     expect(await listed(1_029)).toEqual([cleanupId]);
   });
 
+  it("reads the cleanup that holds the active Plan: a failed one, then any unverified, then the newest", async () => {
+    const repository = await fresh();
+    if (store === undefined) throw new Error("missing store");
+    const [first, second, third] = [
+      "01K00000000000000000000009",
+      "01K00000000000000000000010",
+      "01K00000000000000000000011",
+    ];
+    for (const planId of [first, second, third]) {
+      await store.run(
+        `INSERT INTO plan (
+          id,origin_id,name,primary_goal,start_date_key,target_date_key,status,kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+        ) SELECT ?,origin_id,name,primary_goal,start_date_key,target_date_key,'ended',kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+          FROM plan WHERE id=?`,
+        [planId, PLAN_ID],
+      );
+    }
+    const cleanup = (id: string, planId: string, createdAtMs: number) =>
+      repository.createOrGetJob({
+        ...job(),
+        id,
+        planId,
+        kind: "cleanup",
+        windowStartDateKey: 19980825 + createdAtMs / 10,
+        createdAtMs,
+      });
+    const settle = async (id: string, outcome: "verified" | "failed") => {
+      await repository.beginAttempt(id, 100);
+      if (outcome === "verified") await repository.verifyJob(id, 101);
+      else await repository.failJob(id, "calendar-delete-failed", 101);
+    };
+    expect(await repository.readCleanupBarrier()).toBeUndefined();
+    await cleanup("01K00000000000000000000020", first, 10);
+    await cleanup("01K00000000000000000000021", second, 20);
+    await cleanup("01K00000000000000000000022", third, 30);
+    await repository.createOrGetJob({ ...job(), id: "01K00000000000000000000023", kind: "cleanup" });
+    const barrier = async () => (await repository.readCleanupBarrier())?.id;
+
+    expect(await barrier()).toBe("01K00000000000000000000022");
+    await settle("01K00000000000000000000022", "verified");
+    expect(await barrier()).toBe("01K00000000000000000000021");
+    await settle("01K00000000000000000000020", "failed");
+    expect(await barrier()).toBe("01K00000000000000000000020");
+    await settle("01K00000000000000000000021", "verified");
+    expect(await barrier()).toBe("01K00000000000000000000020");
+    await settle("01K00000000000000000000020", "verified");
+    expect(await barrier()).toBe("01K00000000000000000000022");
+  });
+
+  it("reopens every failed cleanup past its failure budget and leaves other jobs alone", async () => {
+    const repository = await fresh();
+    const exhausted = await repository.createOrGetJob({
+      ...job(),
+      id: "01K00000000000000000000020",
+      kind: "cleanup",
+    });
+    const mirror = await repository.createOrGetJob({ ...job(), id: "01K00000000000000000000021" });
+    for (const id of [exhausted.id, mirror.id]) {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await repository.beginAttempt(id, 11 + attempt * 2);
+        await repository.failJob(id, "calendar-delete-failed", 12 + attempt * 2);
+      }
+    }
+    const before = await repository.readJob(exhausted.id);
+    const failedMirror = await repository.readJob(mirror.id);
+
+    await repository.reopenFailedCleanups(30);
+
+    expect(await repository.readJob(exhausted.id)).toEqual({
+      ...before,
+      status: "pending",
+      lastErrorCode: null,
+      updatedAtMs: 30,
+    });
+    expect(await repository.readJob(mirror.id)).toEqual(failedMirror);
+    expect(
+      (
+        await repository.listRunnable({ nowMs: 31, leaseMs: 50, maxFailures: 5, cleanupRetryMs: 1_000 })
+      ).map(({ id }) => id),
+    ).toEqual([exhausted.id]);
+    await expect(repository.reopenFailedCleanups(-1)).rejects.toEqual(
+      new PlanReconciliationValidationError("invalid-job"),
+    );
+  });
+
   it("claims a pending job and preserves a fresh lease until its exact expiry", async () => {
     const repository = await fresh();
     await repository.createOrGetJob(job());
