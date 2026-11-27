@@ -1103,6 +1103,62 @@ describe("training sync coordinator when re-asks keep getting interrupted", () =
     });
   });
 
+  it("keeps the sync interrupted when the coach refuses a re-ask before it starts, then asks again on the next connection", async () => {
+    const listeners = new Set<() => void>();
+    let answer: "dropped" | "refused" | "published" = "dropped";
+    const client = clientWith(async (options) => {
+      if (answer === "dropped") throw new CoachClientDisconnectedError(1006, "synthetic");
+      if (answer === "refused") {
+        options.onTerminalEnvelope?.({
+          jsonrpc: "2.0",
+          id: 1,
+          error: { code: -32_005, message: "daemon-upgrading" },
+        });
+        throw new CoachRpcRemoteError(-32_005, "daemon-upgrading");
+      }
+      return exactCall(options, published);
+    });
+    const coordinator = createTrainingSyncCoordinator({
+      clients: {
+        getClient: vi.fn(async () => client),
+        reconnect: vi.fn(async () => client),
+        close: vi.fn(async () => {}),
+        onConnectionOpen: (listener) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+      },
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    const open = (): void => {
+      for (const listener of listeners) listener();
+    };
+    await coordinator.request();
+    answer = "refused";
+    open();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(client.callMock).toHaveBeenCalledTimes(2);
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: 2,
+      kind: "indeterminate",
+      retryable: true,
+    });
+
+    answer = "published";
+    open();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(client.callMock).toHaveBeenCalledTimes(3);
+    expect(coordinator.getState()).toMatchObject({
+      status: "succeeded",
+      operation: 3,
+      kind: "published",
+    });
+  });
+
   it("drops a waiting re-ask once disposed", async () => {
     const { coordinator, provider, syncs } = interruptedSyncs();
     await coordinator.request();

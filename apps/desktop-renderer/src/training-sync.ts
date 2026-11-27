@@ -325,7 +325,7 @@ export function createTrainingSyncCoordinator(input: {
         publish({
           status: "failed",
           operation: selectedOperation,
-          kind: "operation",
+          kind: reasking ? "indeterminate" : "operation",
           retryable: true,
         });
         return;

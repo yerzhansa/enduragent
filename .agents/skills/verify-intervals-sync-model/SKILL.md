@@ -116,7 +116,7 @@ Left out:
 
 - Main's own coach calls. Each opens its own connection (`credential-runtime.ts` `call`), so they cannot fail a window call.
 - A coach restart. The app reloads the window when it starts a new coach; the restart path belongs to the onboarding work.
-- A sync the coach turns away before it starts, such as -32005 while it closes admission for an upgrade. The window shows a failure with Try again and does not refresh Training, since the coach ran nothing.
+- A sync the coach turns away before it starts, such as -32005 while it closes admission for an upgrade. The window does not refresh Training, since the coach ran nothing. An athlete's press ends on Try again. A refused re-ask stays interrupted, so the next connection asks again.
 - The Calendar refresh that `boot.ts` starts once the Training and Plan refresh lands. The sync does not wait for it.
 - Sign-in health, Setup and Settings rows, Plan and spend contents after a reconnect. The rule checks the sidebar and the training context.
 - A rejected token (401 or 403), the backfill cursor (issue 414) and the plan calendar (issues 384 and 382).
