@@ -11,7 +11,13 @@ export type RowPhase = "fetch" | "decode" | "landing";
 
 export type RowDropReason = RowRejectionReason | "source-restricted" | "fetch" | "unclassified";
 
-export const DROP_ERROR_NAMES = ["Error", "TypeError", "RangeError", "SyntaxError", "ZodError"] as const;
+export const DROP_ERROR_NAMES = [
+  "Error",
+  "TypeError",
+  "RangeError",
+  "SyntaxError",
+  "ZodError",
+] as const;
 export type DropErrorName = (typeof DROP_ERROR_NAMES)[number];
 
 export interface RowDrop {
@@ -53,7 +59,8 @@ const WELLNESS_FIELDS: ReadonlySet<string> = new Set([
 
 function fields(payload: unknown): Readonly<Record<string, unknown>> {
   return payload !== null && typeof payload === "object" && !Array.isArray(payload)
-    ? payload as Record<string, unknown> : {};
+    ? (payload as Record<string, unknown>)
+    : {};
 }
 
 export function isSourceRestrictedRow(entry: unknown): boolean {
@@ -68,7 +75,9 @@ export function civilDatePrefix(value: unknown): string | null {
 
 function safeActivityId(id: unknown): string | null {
   if (typeof id === "number") return Number.isSafeInteger(id) ? String(id) : null;
-  return typeof id === "string" && id.length <= MAX_DROP_ID_LENGTH && BULK_SAFE_ACTIVITY_ID.test(id) ? id : null;
+  return typeof id === "string" && id.length <= MAX_DROP_ID_LENGTH && BULK_SAFE_ACTIVITY_ID.test(id)
+    ? id
+    : null;
 }
 
 function rowIdentity(site: RowSite, payload: unknown): Pick<RowDrop, "externalId" | "localDate"> {
@@ -78,9 +87,14 @@ function rowIdentity(site: RowSite, payload: unknown): Pick<RowDrop, "externalId
     return { externalId: activityId === null ? null : `streams:${activityId}`, localDate: null };
   }
   if (site.lane === "settings") {
-    return { externalId: typeof row.id === "number" && Number.isSafeInteger(row.id) ? String(row.id) : null, localDate: null };
+    return {
+      externalId:
+        typeof row.id === "number" && Number.isSafeInteger(row.id) ? String(row.id) : null,
+      localDate: null,
+    };
   }
-  if (site.lane === "activities") return { externalId: safeActivityId(row.id), localDate: civilDatePrefix(row.start_date_local) };
+  if (site.lane === "activities")
+    return { externalId: safeActivityId(row.id), localDate: civilDatePrefix(row.start_date_local) };
   const date = typeof row.id === "string" && isCivilDate(row.id) ? row.id : null;
   return { externalId: date, localDate: date };
 }
@@ -91,14 +105,21 @@ function dropFor(phase: RowPhase, site: RowSite, payload: unknown, error: unknow
     return { ...row, phase, reason: "source-restricted", field: null, errorName: null };
   }
   if (error instanceof RowRejection) {
-    const declared = site.lane === "wellness" && error.field !== null && WELLNESS_FIELDS.has(error.field);
-    return { ...row, phase: error.reason === "landing" ? "landing" : "decode", reason: error.reason,
-      field: declared ? error.field : null, errorName: null };
+    const declared =
+      site.lane === "wellness" && error.field !== null && WELLNESS_FIELDS.has(error.field);
+    return {
+      ...row,
+      phase: error.reason === "landing" ? "landing" : "decode",
+      reason: error.reason,
+      field: declared ? error.field : null,
+      errorName: null,
+    };
   }
   if (error instanceof IntervalsHttpError) {
     return { ...row, phase, reason: "fetch", field: `http_${error.status}`, errorName: null };
   }
-  const name = error instanceof Error ? DROP_ERROR_NAMES.find((allowed) => allowed === error.name) : undefined;
+  const name =
+    error instanceof Error ? DROP_ERROR_NAMES.find((allowed) => allowed === error.name) : undefined;
   return { ...row, phase, reason: "unclassified", field: null, errorName: name ?? null };
 }
 
@@ -156,8 +177,10 @@ export class LaneTally {
 }
 
 export function activityDropEvidence(report: LaneReport): DroppedActivityRowEvidence {
-  const sourceRestricted = report.drops.filter((drop) => drop.reason === "source-restricted").length;
-  const dated = report.drops.flatMap((drop) => drop.localDate === null ? [] : [drop.localDate]);
+  const sourceRestricted = report.drops.filter(
+    (drop) => drop.reason === "source-restricted",
+  ).length;
+  const dated = report.drops.flatMap((drop) => (drop.localDate === null ? [] : [drop.localDate]));
   return Object.freeze({
     sourceRestricted,
     other: report.drops.length - sourceRestricted,
@@ -183,8 +206,13 @@ export interface LaneStanding {
 }
 
 export function laneStanding(report: LaneReport): LaneStanding {
-  const dates = judgedDrops(report).flatMap((drop) => drop.localDate === null ? [] : [drop.localDate]);
-  return Object.freeze({ health: laneHealth(report), droppedDates: Object.freeze([...new Set(dates)].sort(compareBinary)) });
+  const dates = judgedDrops(report).flatMap((drop) =>
+    drop.localDate === null ? [] : [drop.localDate],
+  );
+  return Object.freeze({
+    health: laneHealth(report),
+    droppedDates: Object.freeze([...new Set(dates)].sort(compareBinary)),
+  });
 }
 
 export interface CaptureHealth {
@@ -192,11 +220,20 @@ export interface CaptureHealth {
   readonly lanes: Readonly<Record<CaptureLane, LaneHealth>>;
 }
 
-export const CAPTURE_LANES: readonly CaptureLane[] = Object.freeze(["settings", "activities", "wellness", "streams"]);
+export const CAPTURE_LANES: readonly CaptureLane[] = Object.freeze([
+  "settings",
+  "activities",
+  "wellness",
+  "streams",
+]);
 
 export function captureHealth(report: CaptureReport): CaptureHealth {
-  const lanes = { settings: laneHealth(report.settings), activities: laneHealth(report.activities),
-    wellness: laneHealth(report.wellness), streams: laneHealth(report.streams) };
+  const lanes = {
+    settings: laneHealth(report.settings),
+    activities: laneHealth(report.activities),
+    wellness: laneHealth(report.wellness),
+    streams: laneHealth(report.streams),
+  };
   return Object.freeze({
     status: CAPTURE_LANES.some((lane) => lanes[lane] === "lost") ? "degraded" : "ok",
     lanes: Object.freeze(lanes),

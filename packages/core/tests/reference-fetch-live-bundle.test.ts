@@ -154,7 +154,11 @@ describe("fetchLiveBundle", () => {
     });
 
     expect(res.bundle.wellness).toHaveLength(1);
-    expect(res.bundle.wellness[0]).toMatchObject({ fitness: 40, fatigue: 45, subjectiveFatigue: 3 });
+    expect(res.bundle.wellness[0]).toMatchObject({
+      fitness: 40,
+      fatigue: 45,
+      subjectiveFatigue: 3,
+    });
   });
 
   it("fetches streams only for cycling rides within the stream window, capped", async () => {
