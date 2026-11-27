@@ -119,7 +119,7 @@ test.describe("Activity review", () => {
         .click();
       await expect(page.locator('[data-activity-review-state="ready"]')).toBeVisible();
       const verdict = page.getByRole("region", { name: "Coach’s verdict" });
-      await expect(verdict).toContainText(
+      await expect(verdict, "opening a ride writes no coach's verdict").toContainText(
         "Steady from the first minute to the last, and the work matched the Plan.",
         { timeout: 15_000 },
       );
