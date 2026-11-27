@@ -165,6 +165,7 @@ describe("desktop credential reset orchestration", () => {
     expect(subject.deleteChatGptProfile).not.toHaveBeenCalled();
     expect(subject.resetEncryptedCredentialStorage).not.toHaveBeenCalled();
     expect(subject.deleteKeyForCredentialReset).not.toHaveBeenCalled();
+    expect(subject.vault.forgetStorageStateAfterReset).not.toHaveBeenCalled();
     expect(subject.credentialRuntimeState.get("anthropic")).toBe("active");
   });
 
@@ -346,6 +347,7 @@ describe("desktop credential reset orchestration", () => {
     });
 
     expect(subject.deleteChatGptProfile).toHaveBeenCalledOnce();
+    expect(subject.vault.forgetStorageStateAfterReset).not.toHaveBeenCalled();
     expect(subject.credentialRuntimeState.get("anthropic")).toBe("failed");
     expect(subject.credentialRuntimeState.get("intervals-icu")).toBe("failed");
   });
