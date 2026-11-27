@@ -220,7 +220,12 @@ describe("Plan reconciliation repository", () => {
     await repository.beginAttempt(freshId, 51);
     await repository.beginAttempt(verifiedId, 20);
     await repository.verifyJob(verifiedId, 21);
-    const runnable = await repository.listRunnable({ nowMs: 100, leaseMs: 50, maxFailures: 2 });
+    const runnable = await repository.listRunnable({
+      nowMs: 100,
+      leaseMs: 50,
+      maxFailures: 2,
+      cleanupRetryMs: 1_000,
+    });
     expect(runnable.map(({ id, status }) => ({ id, status }))).toEqual([
       { id: pendingId, status: "pending" },
       { id: retryingId, status: "retrying" },
@@ -260,9 +265,34 @@ describe("Plan reconciliation repository", () => {
     });
     expect(closedMirror.status).toBe("pending");
     expect(legacyMirror.status).toBe("pending");
-    expect(await repository.listRunnable({ nowMs: 100, leaseMs: 50, maxFailures: 5 })).toEqual([
-      cleanup,
-    ]);
+    expect(
+      await repository.listRunnable({
+        nowMs: 100,
+        leaseMs: 50,
+        maxFailures: 5,
+        cleanupRetryMs: 1_000,
+      }),
+    ).toEqual([cleanup]);
+  });
+
+  it("lists a cleanup that ran out of tries again once its retry wait has passed", async () => {
+    const repository = await fresh();
+    const cleanupId = "01K00000000000000000000020";
+    const mirrorId = "01K00000000000000000000021";
+    await repository.createOrGetJob({ ...job(), id: cleanupId, kind: "cleanup" });
+    await repository.createOrGetJob({ ...job(), id: mirrorId, kind: "mirror" });
+    for (const id of [cleanupId, mirrorId]) {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await repository.beginAttempt(id, 20 + attempt * 2);
+        await repository.failJob(id, "calendar-list-failed", 21 + attempt * 2);
+      }
+    }
+    const listed = async (nowMs: number) =>
+      (
+        await repository.listRunnable({ nowMs, leaseMs: 50, maxFailures: 5, cleanupRetryMs: 1_000 })
+      ).map(({ id }) => id);
+    expect(await listed(1_020)).toEqual([]);
+    expect(await listed(1_029)).toEqual([cleanupId]);
   });
 
   it("claims a pending job and preserves a fresh lease until its exact expiry", async () => {

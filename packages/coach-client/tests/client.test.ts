@@ -132,6 +132,7 @@ const rpcDeadlineCases = [
   ["getAthleteState", {}, 30_000],
   ["getPlanningReadModel", {}, 30_000],
   ["plan.list", {}, 30_000],
+  ["plan.calendar", { action: "read-settings" }, 30_000],
   [
     "plan.close",
     { commandId: "close-1", planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", expectedVersion: 1 },
@@ -1086,6 +1087,7 @@ describe("RPC receive and observers", () => {
         "plan_change.preview": { status: "rejected", reason: "no-active-plan" },
         "plan_change.apply": { status: "rejected", reason: "no-active-plan" },
         "plan.history": null,
+        "plan.calendar": { status: "settings", weekDelivery: "send-each-week" },
         getPlanningReadModel: {
           schemaVersion: 1,
           status: "no-plan",

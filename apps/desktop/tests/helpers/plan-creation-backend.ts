@@ -23,6 +23,7 @@ import {
   type PlanCreationRepository,
 } from "@enduragent/kernel/planning";
 import type { PlanMirrorCalendarPort } from "@enduragent/engine";
+import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import {
   createPlanCalendarDrain,
@@ -174,7 +175,7 @@ export class PlanCreationBackend {
     coexistence = false,
     readStoredPlans = false,
     private readonly options: {
-      readonly calendar?: PlanMirrorCalendarPort;
+      readonly calendar?: PlanMirrorCalendarPort & { readonly mirror: CalendarMirrorPort };
       readonly calendarConnected?: boolean;
       readonly legacy?: LegacyPlanSummary | null;
     } = {},
