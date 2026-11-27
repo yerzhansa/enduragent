@@ -879,7 +879,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Verbindung unterbrochen. Die Synchronisierung wird möglicherweise noch abgeschlossen. {{product}} versucht sie nicht automatisch erneut.",
+        "indeterminate": "Verbindung unterbrochen. {{product}} prüft die Synchronisierung erneut, sobald die Verbindung wiederhergestellt ist.",
         "noChange": "Lokale Verarbeitung der Trainingsdaten abgeschlossen.",
         "noChangeRestricted_one": "Lokale Verarbeitung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher ist eine Aktivität nicht enthalten.",
         "noChangeRestricted_other": "Lokale Verarbeitung der Trainingsdaten abgeschlossen. {{source}} erlaubt Drittanbieter-KI-Tools nicht, Daten aus seiner API zu nutzen, daher sind {{formattedCount}} Aktivitäten nicht enthalten.",

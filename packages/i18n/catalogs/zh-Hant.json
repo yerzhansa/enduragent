@@ -875,7 +875,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "連線已中斷。同步可能仍在完成中。{{product}} 不會自動重試。",
+        "indeterminate": "連線已中斷。重新連線後，{{product}} 會再次檢查同步。",
         "noChange": "本機訓練資料處理完成。",
         "noChangeRestricted_other": "本機訓練資料處理已完成。{{source}} 不允許第三方 AI 工具使用其 API 資料，因此 {{formattedCount}} 筆活動未納入。",
         "operationFailure": "無法完成訓練資料檢查。既有資料仍可使用。",

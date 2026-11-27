@@ -587,7 +587,7 @@ describe("sidebar sync chip", () => {
           kind: "indeterminate",
           retryable: true,
         }),
-        "Connection interrupted. The sync may still be finishing. Enduragent won’t retry it automatically.",
+        "Connection interrupted. Enduragent will check the sync again when it reconnects.",
       ],
       [
         toManualSyncViewState({

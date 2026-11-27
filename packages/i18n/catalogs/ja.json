@@ -875,7 +875,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "接続が中断されました。同期はまだ完了処理中の可能性があります。{{product}}は自動で再試行しません。",
+        "indeterminate": "接続が中断されました。再接続すると、{{product}}が同期をもう一度確認します。",
         "noChange": "このコンピュータでのトレーニングデータの処理が完了しました。",
         "noChangeRestricted_other": "このコンピュータでのトレーニングデータの処理が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "operationFailure": "トレーニングデータの確認を完了できませんでした。既存のデータは引き続き利用できます。",

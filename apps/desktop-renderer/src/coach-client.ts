@@ -12,11 +12,8 @@ export type DesktopCoachClient = Pick<CoachClient, "handshake" | "call">;
 export interface DesktopCoachClientProvider {
   getClient(): Promise<DesktopCoachClient>;
   reconnect(failedClient?: DesktopCoachClient): Promise<DesktopCoachClient>;
+  onConnectionOpen(listener: () => void): () => void;
   close(): Promise<void>;
-}
-
-interface DesktopConnectionBridge {
-  getDaemonConnection(failedGeneration?: number): Promise<unknown>;
 }
 
 interface OwnedClient {
@@ -43,13 +40,14 @@ export function createDesktopCoachClientProvider(
   const owned = new Set<CoachClientConnection>();
   const retirements = new Map<CoachClientConnection, Promise<void>>();
   const attempts = new Set<ConnectionAttempt>();
+  const openListeners = new Set<() => void>();
+  let connectedBefore = false;
 
-  const auth = (): DesktopConnectionBridge =>
-    (
-      window as unknown as Window & {
-        readonly enduragentAuth: DesktopConnectionBridge;
-      }
-    ).enduragentAuth;
+  const announceOpen = (): void => {
+    void Promise.allSettled(
+      Array.from(openListeners, (listener) => Promise.resolve().then(listener)),
+    );
+  };
 
   const retire = (owner: OwnedClient): Promise<void> => {
     const existing = retirements.get(owner.connection);
@@ -60,13 +58,12 @@ export function createDesktopCoachClientProvider(
     } catch (error) {
       requested = Promise.reject(error);
     }
-    const retirement = requested
-      .catch(() => owner.connection.close())
-      .catch(() => undefined)
-      .finally(() => {
+    const retirement = Promise.allSettled([requested.catch(() => owner.connection.close())]).then(
+      () => {
         retirements.delete(owner.connection);
         owned.delete(owner.connection);
-      });
+      },
+    );
     retirements.set(owner.connection, retirement);
     return retirement;
   };
@@ -91,7 +88,7 @@ export function createDesktopCoachClientProvider(
       failedGeneration = connectingOwner.generation;
       void retire(connectingOwner);
     };
-    const pending = auth()
+    const pending = window.enduragentAuth
       .getDaemonConnection(recoveryGeneration)
       .then(validateRendererDaemonConnection)
       .then((options) => {
@@ -109,14 +106,14 @@ export function createDesktopCoachClientProvider(
           token: options.rendererCapability,
           signal: controller.signal,
           onTerminal,
-        });
+        }).then((connected) => ({ connected, generation: options.generation }));
       })
-      .then(async (connected) => {
+      .then(async ({ connected, generation }) => {
         owned.add(connected);
         const owner: OwnedClient = {
           client: connected.client,
           connection: connected,
-          generation: connectionGeneration!,
+          generation,
         };
         connectingOwner = owner;
         if (terminalDuringConnect?.client === owner.client) {
@@ -131,6 +128,8 @@ export function createDesktopCoachClientProvider(
         }
         selected = owner;
         failedGeneration = undefined;
+        if (connectedBefore) announceOpen();
+        connectedBefore = true;
         return owner;
       })
       .catch((error: unknown) => {
@@ -165,7 +164,8 @@ export function createDesktopCoachClientProvider(
       let previous = selected;
       const previousConnection = connection;
       if (previous === undefined && previousConnection !== undefined) {
-        previous = await previousConnection.catch(() => undefined);
+        const [outcome] = await Promise.allSettled([previousConnection]);
+        previous = outcome.status === "fulfilled" ? outcome.value : undefined;
       }
       if (previous !== undefined && alreadyReplaced(previous, failedClient)) return previous;
       if (selected === previous) selected = undefined;
@@ -181,13 +181,18 @@ export function createDesktopCoachClientProvider(
   return {
     getClient() {
       if (shutdownCause !== undefined) return Promise.reject(shutdownCause);
-      const available = reconnection ?? (selected === undefined ? connectFresh() : undefined);
-      return available === undefined
-        ? Promise.resolve(selected!.client)
-        : available.then((owner) => owner.client);
+      if (reconnection !== undefined) return reconnection.then((owner) => owner.client);
+      if (selected !== undefined) return Promise.resolve(selected.client);
+      return connectFresh().then((owner) => owner.client);
     },
     reconnect(failedClient) {
       return reconnect(failedClient).then((owner) => owner.client);
+    },
+    onConnectionOpen(listener) {
+      openListeners.add(listener);
+      return () => {
+        openListeners.delete(listener);
+      };
     },
     close() {
       if (closing !== undefined) return closing;

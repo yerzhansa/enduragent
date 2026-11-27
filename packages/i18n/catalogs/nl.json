@@ -879,7 +879,7 @@
       },
       "message": {
         "external": "{{message}}",
-        "indeterminate": "Verbinding onderbroken. De synchronisatie wordt mogelijk nog afgerond. {{product}} probeert het niet automatisch opnieuw.",
+        "indeterminate": "Verbinding onderbroken. {{product}} controleert de synchronisatie opnieuw zodra de verbinding hersteld is.",
         "noChange": "Lokale verwerking van trainingsgegevens voltooid.",
         "noChangeRestricted_one": "Lokale verwerking van trainingsgegevens voltooid. {{source}} staat niet toe dat AI-tools van derden gegevens uit de API gebruiken, dus één activiteit is niet opgenomen.",
         "noChangeRestricted_other": "Lokale verwerking van trainingsgegevens voltooid. {{source}} staat niet toe dat AI-tools van derden gegevens uit de API gebruiken, dus {{formattedCount}} activiteiten zijn niet opgenomen.",
