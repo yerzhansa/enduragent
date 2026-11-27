@@ -37,6 +37,7 @@ export interface FlagFact {
 }
 
 const UPDATE_CONTROLLER = "apps/desktop/src/main/update-controller.ts";
+const UPDATE_STATE_MACHINE = "apps/desktop/src/main/update-state-machine.ts";
 const QUIT_COORDINATOR = "apps/desktop/src/main/quit-coordinator.ts";
 const VERSION_FLOOR = "apps/desktop/src/main/update-version-floor.ts";
 const UPDATE_IPC = "apps/desktop/src/main/update-ipc.ts";
@@ -50,103 +51,147 @@ const APPLICATION_SECTION = "apps/desktop-renderer/src/ui/settings/ApplicationSe
 export const FLAGS: readonly FlagFact[] = [
   {
     name: "DetachSettledOperation",
-    says: "failOperation and publishIfReady detach activeOperation instead of pinning it behind pendingCalls",
+    says: "failed and ready transitions leave active operation phases immediately without waiting on pendingCalls",
     read: (s) => {
+      const finish = s.code(s.block(UPDATE_CONTROLLER, "const finishActivePhase ="));
       const fail = s.code(s.block(UPDATE_CONTROLLER, "const failOperation ="));
-      const pub = s.code(s.block(UPDATE_CONTROLLER, "const publishIfReady ="));
-      const finish = s.code(s.block(UPDATE_CONTROLLER, "const finishOperation ="));
-      const detachAlways = /detachPending\s*=\s*true/.test(finish);
-      const failDetaches = /finishOperation\(\s*operation\s*,\s*true\s*,\s*true\s*\)/.test(fail);
-      const pubDetaches = /finishOperation\(\s*operation\s*,\s*false\s*,\s*true\s*\)/.test(pub);
-      return detachAlways || (failDetaches && pubDetaches);
+      const pub = s.code(s.block(UPDATE_CONTROLLER, "const publishReady ="));
+      return (
+        /phase\s*=\s*nextPhase/.test(finish) &&
+        !/pendingCalls/.test(finish) &&
+        /finishActivePhase\(/.test(fail) &&
+        /finishActivePhase\(/.test(pub)
+      );
     },
   },
   {
     name: "ResetTransferWatermarkOnFallback",
-    says: "download progress handles a differential-to-full fallback reset instead of ignoring transferred <= lastTransferred",
+    says: "download progress resets its transfer watermark and stall timer on differential-to-full fallback",
     read: (s) => {
-      const listener = s.code(s.block(UPDATE_CONTROLLER, "operation.progressListener = (info)"));
-      return !/info\.transferred\s*<=\s*operation\.lastTransferred/.test(listener);
+      const helper = s.code(
+        s.block(UPDATE_STATE_MACHINE, "export function advanceDownloadTransfer("),
+      );
+      const listener = s.code(s.block(UPDATE_CONTROLLER, "downloading.progressListener = (info)"));
+      return (
+        /info\.transferred\s*<\s*downloading\.lastTransferred/.test(helper) &&
+        /downloading\.lastTransferred\s*=\s*info\.transferred/.test(helper) &&
+        /advanceDownloadTransfer\(\s*downloading\s*,\s*info\s*\)/.test(listener) &&
+        /resetDownloadStallTimer\(\s*downloading\s*\)/.test(listener)
+      );
     },
   },
   {
     name: "RelaunchOnInstallFailure",
-    says: "quit-coordinator relaunches the current app when an update install handoff or drain fails",
-    read: (s) =>
-      /\brelaunch\b/.test(
-        s.code(s.block(QUIT_COORDINATOR, "export async function completeDesktopShutdown(")),
-      ),
+    says: "quit-coordinator relaunches the current app once when an update install handoff, error, timeout, or drain fails, and main wires app.relaunch()",
+    read: (s) => {
+      const shutdown = s.code(
+        s.block(QUIT_COORDINATOR, "export async function completeDesktopShutdown("),
+      );
+      const quitWiring = s.code(s.statement(MAIN_INDEX, "const quitCoordinator ="));
+      return (
+        /relaunch:\s*\(\)\s*=>\s*app\.relaunch\(\)/.test(quitWiring) &&
+        /if\s*\(\s*installRequested\s*\)\s*relaunchAndExit\(1\)/.test(shutdown) &&
+        /desktop-update-install-error[^}]*relaunchAndExit\(1\)/.test(shutdown) &&
+        /desktop-update-handoff-timeout[^}]*relaunchAndExit\(1\)/.test(shutdown) &&
+        /if\s*\(\s*updateInstall\s*===\s*"failed"\s*\)\s*\{[^}]*relaunchAndExit\(1\)/.test(shutdown)
+      );
+    },
   },
   {
     name: "ArmNativeListenersOnlyAfterZipReady",
-    says: "macOS nativeUpdater readiness listeners only accept events after zipReady is true",
+    says: "macOS nativeUpdater readiness listeners are armed only in preparing after archive download completes",
     read: (s) => {
       const begin = s.code(s.block(UPDATE_CONTROLLER, "const beginDownload ="));
-      const attachedInBegin = /nativeUpdater\.on\(\s*"update-downloaded"/.test(begin);
-      if (!attachedInBegin) return true;
-      const listener = s.code(
-        s.block(UPDATE_CONTROLLER, "operation.nativeDownloadedListener = ()"),
+      const preparing = s.code(s.block(UPDATE_CONTROLLER, "const enterPreparing ="));
+      return (
+        !/nativeUpdater\.on\(/.test(begin) &&
+        /phase\.kind\s*!==\s*"downloading"/.test(preparing) &&
+        /nativeUpdater\.on\(\s*"update-downloaded"/.test(preparing)
       );
-      return /!operation\.zipReady/.test(listener);
     },
   },
   {
     name: "ClearUpdaterOnConfigFailure",
-    says: "initializeUpdater commits updater only after configuration succeeds (or clears updater on catch)",
+    says: "initializeUpdater commits updater only after configuration and interval setup succeed",
     read: (s) => {
       const init = s.code(s.block(UPDATE_CONTROLLER, "const initializeUpdater ="));
       const assignsBeforeConfig = /updater\s*=\s*await\s+input\.loadUpdater\(\)/.test(init);
-      const clearsOnCatch = /updater\s*=\s*undefined/.test(init);
-      return !assignsBeforeConfig || clearsOnCatch;
+      const commitsAfterCatch = /catch\s*\{[\s\S]*return\s+false;\s*\}\s*updater\s*=\s*loaded/.test(
+        init,
+      );
+      return !assignsBeforeConfig && commitsAfterCatch;
     },
   },
   {
     name: "SidebarSeparatesRestartFromCheckBusy",
-    says: "UpdateAvailableButton does not derive restarting from the shared actionDisabled check flag",
+    says: "UpdateAvailableButton derives restarting only from pendingAction === 'restarting' or installing status",
     read: (s) => {
       const stmt = s.code(s.statement(UPDATE_BUTTON, "const restarting ="));
-      return !/update\.actionDisabled/.test(stmt);
+      return (
+        !/update\.actionDisabled/.test(stmt) &&
+        /update\.pendingAction\s*===\s*"restarting"/.test(stmt)
+      );
     },
   },
   {
     name: "ScheduleIntervalOnInitFailure",
-    says: "startup schedules the 6-hour periodic check even when version floor initialization fails transiently",
+    says: "startup schedules the 6-hour periodic check even when version floor or config initialization fails transiently",
     read: (s) => {
-      const startFn = s.code(s.block(UPDATE_CONTROLLER, "const start ="));
       const initFn = s.code(s.block(UPDATE_CONTROLLER, "const initializeUpdater ="));
-      const floorIdx = initFn.indexOf("recordRunningVersion");
-      const intervalIdx = initFn.indexOf("scheduleInterval(");
-      return /scheduleInterval\(/.test(startFn) || (intervalIdx !== -1 && intervalIdx < floorIdx);
+      const floorBranch = /recordedFloor\.status\s*!==\s*"ready"[\s\S]*?return\s+false;/.exec(
+        initFn,
+      )?.[0];
+      const configCatch =
+        /disableWebInstaller\s*=\s*true[\s\S]*?catch\s*\{([\s\S]*?)return\s+false;/.exec(
+          initFn,
+        )?.[1];
+      return (
+        floorBranch !== undefined &&
+        /ensurePeriodicCheckScheduled/.test(floorBranch) &&
+        configCatch !== undefined &&
+        /ensurePeriodicCheckScheduled/.test(configCatch)
+      );
     },
   },
   {
     name: "FreezeUpdateOnBeforeQuit",
-    says: "before-quit freezes update IPC and controller synchronously before async shutdown awaits",
+    says: "shutdown freezes update IPC and controller synchronously before its first await",
     read: (s) => {
-      const beforeQuit = s.code(s.call(MAIN_INDEX, '"before-quit"'));
       const shutdownFn = s.code(s.block(MAIN_INDEX, "const shutdown ="));
       const firstAwait = shutdownFn.indexOf("await ");
+      const ipcIdx = shutdownFn.indexOf("disposeUpdateIpc?.()");
       const closeIdx = shutdownFn.indexOf("updateController.close()");
       return (
-        /updateController\.close\(|disposeUpdateIpc/.test(beforeQuit) ||
-        (closeIdx !== -1 && (firstAwait === -1 || closeIdx < firstAwait))
+        ipcIdx !== -1 &&
+        closeIdx !== -1 &&
+        (firstAwait === -1 || (ipcIdx < firstAwait && closeIdx < firstAwait))
       );
     },
   },
   {
     name: "BlockActionsUntilHydrated",
-    says: "renderer update controller blocks check/restart clicks until initial getUpdateState() hydrates",
+    says: "renderer update controller and store start in hydrating and block activate() until ready",
     read: (s) => {
+      const initialPhase = s.code(s.statement(RENDERER_UPDATE, "let phase: RendererUpdatePhase ="));
       const activate = s.code(s.block(RENDERER_UPDATE, "const activate ="));
-      return /\bhydrated\b|\bhydrating\b|"loading"/.test(activate);
+      const emptySurface = s.code(s.statement(SETTINGS_SLICE, "const EMPTY_UPDATE_SURFACE:"));
+      return (
+        /kind:\s*"hydrating"/.test(initialPhase) &&
+        /phase\.kind\s*!==\s*"ready"/.test(activate) &&
+        /pendingAction:\s*"hydrating"/.test(emptySurface)
+      );
     },
   },
   {
     name: "RendererHandlesRejectionAfterPush",
-    says: "renderer activate() handles checkForUpdates() rejection even after intermediate checking/downloading pushes bumped revision",
+    says: "renderer activate() handles checkForUpdates() rejection even after checking/downloading pushes bumped revision",
     read: (s) => {
       const activate = s.code(s.block(RENDERER_UPDATE, "const activate ="));
-      return !/revision\s*===\s*before\s*&&\s*!restarting/.test(activate);
+      return (
+        !/revision\s*===\s*before\s*&&\s*!restarting/.test(activate) &&
+        /phase\.state\.status\s*===\s*"checking"/.test(activate) &&
+        /phase\.state\.status\s*===\s*"downloading"/.test(activate)
+      );
     },
   },
   {
@@ -163,10 +208,15 @@ export const FLAGS: readonly FlagFact[] = [
   },
   {
     name: "RequireNativeReadinessOnMac",
-    says: "publishIfReady waits for operation.nativeReady on darwin before publishing downloaded",
+    says: "on darwin, downloaded is published only after preparing receives nativeUpdater update-downloaded",
     read: (s) => {
-      const pub = s.code(s.block(UPDATE_CONTROLLER, "const publishIfReady ="));
-      return /requiresNativePreparation\s*&&\s*!operation\.nativeReady/.test(pub);
+      const preparing = s.code(s.block(UPDATE_CONTROLLER, "const enterPreparing ="));
+      return (
+        /if\s*\(\s*!requiresNativePreparation\s*\)\s*\{\s*publishReady/.test(preparing) &&
+        /preparing\.nativeDownloadedListener\s*=\s*\(\)\s*:\s*void\s*=>\s*\{[\s\S]*?publishReady/.test(
+          preparing,
+        )
+      );
     },
   },
   {
@@ -177,25 +227,26 @@ export const FLAGS: readonly FlagFact[] = [
         s.block(QUIT_COORDINATOR, "export async function completeDesktopShutdown("),
       );
       const complete = s.code(
-        s.block(UPDATE_CONTROLLER, "completeInstallAfterDrain(allowFinalQuit)"),
+        s.block(UPDATE_CONTROLLER, "completeInstallAfterDrain(allowFinalQuit, onInstallError)"),
       );
       return (
         /drainOutcome\s*!==\s*"drained"/.test(shutdown) &&
-        /!installRequested/.test(complete) &&
-        /if\s*\(\s*readinessInvalidated\s*\)\s*return\s*"failed"/.test(complete)
+        /handoff\s*===\s*undefined/.test(complete) &&
+        /handoff\.readinessInvalidated/.test(complete)
       );
     },
   },
   {
     name: "GuardSingleInstallInvocation",
-    says: "completeInstallAfterDrain guards quitAndInstall with installInvoked so it runs at most once",
+    says: "completeInstallAfterDrain guards quitAndInstall with handoff.status so it runs at most once",
     read: (s) => {
       const complete = s.code(
-        s.block(UPDATE_CONTROLLER, "completeInstallAfterDrain(allowFinalQuit)"),
+        s.block(UPDATE_CONTROLLER, "completeInstallAfterDrain(allowFinalQuit, onInstallError)"),
       );
       return (
-        /if\s*\(\s*installInvoked\s*\)\s*return\s*"started"/.test(complete) &&
-        /installInvoked\s*=\s*true/.test(complete)
+        /handoff\.status\s*===\s*"started"/.test(complete) &&
+        /handoff\.status\s*=\s*"invoking"/.test(complete) &&
+        /handoff\.status\s*=\s*"started"/.test(complete)
       );
     },
   },
@@ -207,7 +258,7 @@ export const FLAGS: readonly FlagFact[] = [
       const isCurrent = s.code(s.statement(UPDATE_CONTROLLER, "const isCurrent ="));
       return (
         /"restart-required"/.test(canCheck) &&
-        /operation\.generation\s*===\s*generation/.test(isCurrent)
+        /expectedGeneration\s*===\s*generation/.test(isCurrent)
       );
     },
   },
@@ -232,15 +283,14 @@ export interface RuleFact {
 export const RULES: readonly RuleFact[] = [
   {
     name: "NoPermanentRetryWedge",
-    says: "A failed update check or download never leaves a dead timerless activeOperation that swallows Retry.",
-    harm: "Clicking Try again and 6-hour checks silently return the cached failure (or stale downloaded state) without checking.",
+    says: "A failed update check or download never leaves a dead timerless active operation that swallows Retry.",
+    harm: "Clicking Try again and 6-hour checks silently return a stale failure or stale downloaded state without checking.",
     breaksWhen: [
       {
         when: (f) => !f.DetachSettledOperation,
         fixedWith: { DetachSettledOperation: true },
-        finding: "BUG-1 (new; #269 class)",
         because:
-          "failOperation and publishIfReady clear all timers while keeping activeOperation until pendingCalls hits 0",
+          "failOperation or publishReady keeps an active operation pinned behind pendingCalls after clearing timers",
       },
     ],
     breakWith: { DetachSettledOperation: false },
@@ -254,9 +304,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.ResetTransferWatermarkOnFallback,
         fixedWith: { ResetTransferWatermarkOnFallback: true },
-        finding: "BUG-2 (new)",
         because:
-          "progressListener ignores transferred <= lastTransferred after differential download falls back to full download",
+          "download progress no longer resets its transfer watermark when differential download falls back to full download",
       },
     ],
     breakWith: { ResetTransferWatermarkOnFallback: false },
@@ -270,9 +319,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.RelaunchOnInstallFailure,
         fixedWith: { RelaunchOnInstallFailure: true },
-        finding: "BUG-3 (#391 + Windows/drain triggers)",
         because:
-          "completeDesktopShutdown calls exit(1) without relaunching on failed install, drain failure, or 30s handoff timeout",
+          "completeDesktopShutdown exits with error without relaunching on failed install, drain failure, or handoff timeout",
       },
     ],
     breakWith: { RelaunchOnInstallFailure: false },
@@ -286,9 +334,7 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.ArmNativeListenersOnlyAfterZipReady,
         fixedWith: { ArmNativeListenersOnlyAfterZipReady: true },
-        finding: "BUG-4 (new)",
-        because:
-          "beginDownload arms nativeDownloadedListener before zipReady and never checks operation.zipReady",
+        because: "macOS nativeUpdater listeners are armed before archive download finishes",
       },
     ],
     breakWith: { ArmNativeListenersOnlyAfterZipReady: false },
@@ -302,9 +348,7 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.ClearUpdaterOnConfigFailure,
         fixedWith: { ClearUpdaterOnConfigFailure: true },
-        finding: "BUG-5 (new)",
-        because:
-          "initializeUpdater assigns updater before configuring properties and does not clear it on catch",
+        because: "initializeUpdater commits updater before configuration succeeds",
       },
     ],
     breakWith: { ClearUpdaterOnConfigFailure: false },
@@ -318,9 +362,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.SidebarSeparatesRestartFromCheckBusy,
         fixedWith: { SidebarSeparatesRestartFromCheckBusy: true },
-        finding: "BUG-6 (new)",
         because:
-          "UpdateAvailableButton derives restarting from shared actionDisabled while checkForUpdates() is still settling",
+          "UpdateAvailableButton derives restarting from a shared check-busy flag instead of pendingAction === 'restarting'",
       },
     ],
     breakWith: { SidebarSeparatesRestartFromCheckBusy: false },
@@ -334,9 +377,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.ScheduleIntervalOnInitFailure,
         fixedWith: { ScheduleIntervalOnInitFailure: true },
-        finding: "BUG-7 (#391 note)",
         because:
-          "initializeUpdater returns false on floor/config failure before scheduling the 6-hour interval",
+          "initializeUpdater returns on transient floor failure without scheduling periodic checks",
       },
     ],
     breakWith: { ScheduleIntervalOnInitFailure: false },
@@ -350,9 +392,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.FreezeUpdateOnBeforeQuit,
         fixedWith: { FreezeUpdateOnBeforeQuit: true },
-        finding: "BUG-8 (new)",
         because:
-          "before-quit awaits residency/IPC close before disposing update IPC and closing updateController",
+          "shutdown awaits async work before disposing update IPC and closing updateController",
       },
     ],
     breakWith: { FreezeUpdateOnBeforeQuit: false },
@@ -361,14 +402,13 @@ export const RULES: readonly RuleFact[] = [
   {
     name: "NoPreHydrationCheckRace",
     says: "Renderer update buttons do not fire checkForUpdates() on fake initial idle before getUpdateState() hydrates.",
-    harm: "Early clicks race initial hydration and can flash Restarting if an update was already downloaded.",
+    harm: "Early clicks race initial hydration and can conflict with already-downloaded state.",
     breaksWhen: [
       {
         when: (f) => !f.BlockActionsUntilHydrated,
         fixedWith: { BlockActionsUntilHydrated: true },
-        finding: "BUG-9a (new)",
         because:
-          "renderer update controller initializes to idle with actionDisabled=false and does not gate activate() on hydration",
+          "renderer update controller or store permits clicks before initial hydration finishes",
       },
     ],
     breakWith: { BlockActionsUntilHydrated: false },
@@ -382,9 +422,8 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.RendererHandlesRejectionAfterPush,
         fixedWith: { RendererHandlesRejectionAfterPush: true },
-        finding: "BUG-11c/12 (new)",
         because:
-          "renderer activate() catch checks revision === before, which is always false after checking/downloading pushes",
+          "renderer activate() rejection handler ignores failures after checking/downloading pushes bumped revision",
       },
     ],
     breakWith: { RendererHandlesRejectionAfterPush: false },
@@ -412,7 +451,7 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.RequireNativeReadinessOnMac,
         fixedWith: { RequireNativeReadinessOnMac: true },
-        because: "publishIfReady no longer waits for operation.nativeReady on darwin",
+        because: "enterPreparing no longer waits for Squirrel.Mac native readiness on darwin",
       },
     ],
     breakWith: { RequireNativeReadinessOnMac: false },
@@ -427,7 +466,7 @@ export const RULES: readonly RuleFact[] = [
         when: (f) => !f.GateInstallOnDrainAndReadiness,
         fixedWith: { GateInstallOnDrainAndReadiness: true },
         because:
-          "quit-coordinator or completeInstallAfterDrain no longer enforces drainOutcome, installRequested, and readinessInvalidated",
+          "quit-coordinator or completeInstallAfterDrain no longer enforces drainOutcome, active handoff, and readinessInvalidated",
       },
     ],
     breakWith: { GateInstallOnDrainAndReadiness: false },
@@ -441,7 +480,7 @@ export const RULES: readonly RuleFact[] = [
       {
         when: (f) => !f.GuardSingleInstallInvocation,
         fixedWith: { GuardSingleInstallInvocation: true },
-        because: "completeInstallAfterDrain no longer guards quitAndInstall with installInvoked",
+        because: "completeInstallAfterDrain no longer guards quitAndInstall with handoff.status",
       },
     ],
     breakWith: { GuardSingleInstallInvocation: false },
@@ -470,11 +509,10 @@ export const STEPS: Record<string, string> = {
     "renderer getUpdateState() resolves and hydrates initial update state",
   StartBootInit: "main calls updateController.start() (index.ts)",
   VersionFloorReady: "version floor records running version (update-version-floor.ts)",
-  VersionFloorUnavailable: "version floor fails closed as unavailable before interval scheduling",
+  VersionFloorUnavailable: "version floor fails closed as unavailable",
   LoadUpdaterFails: "packaged electron-updater load fails -> restart-required(check)",
   LoadAndConfigureSucceeds: "electron-updater loads, configures flags, and schedules 6h interval",
-  LoadSucceedsConfigFails:
-    "updater loads and assigns updater, then config/interval throws -> failed(check)",
+  LoadSucceedsConfigFails: "updater loads, then config/interval throws -> failed(check)",
   MainStartsCheck: "startup or 6h periodic check calls runCheck()",
   AthleteClicksCheck: "athlete clicks Check for updates / Try again in Settings",
   FinishInitAndRunCheck: "manual check finishes initializeUpdater() and enters runCheck()",
@@ -487,19 +525,18 @@ export const STEPS: Record<string, string> = {
   FallbackDownloadExpiresAsStall:
     "2m stall timer expires during full fallback because transferred <= lastTransferred",
   ZipUpdateDownloaded:
-    "electron-updater emits update-downloaded (and on macOS triggers Squirrel checkForUpdates)",
+    "electron-updater emits update-downloaded (and on macOS enters preparing for Squirrel)",
   NativeUpdateDownloaded: "Squirrel.Mac nativeUpdater emits update-downloaded",
   UpdaterErrorEventBeforePromiseSettles:
     "updater/nativeUpdater emits error event while check/download promise is still pending",
-  UnderlyingCallSettles:
-    "pending checkForUpdates()/downloadUpdate() promise settles and decrements pendingCalls",
+  UnderlyingCallSettles: "pending checkForUpdates()/downloadUpdate() promise settles",
   OperationDeadlineExpires: "check/stall/preparation/absolute deadline fires -> restart-required",
   NativeReadinessInvalidated:
     "late Squirrel.Mac native error invalidates downloaded update readiness",
-  AthleteClicksRestart: "athlete clicks Restart to update -> installRequested=true and app.quit()",
+  AthleteClicksRestart: "athlete clicks Restart to update -> installing phase and app.quit()",
   OrdinaryQuitRequested: "ordinary quit (Cmd+Q / Tray Quit / SIGTERM) enters before-quit drain",
   ShutdownClosesUpdateController:
-    "async shutdown reaches disposeUpdateIpc() and updateController.close()",
+    "shutdown reaches disposeUpdateIpc() and updateController.close()",
   DrainFinishes:
     "shutdown drain finishes and quit-coordinator runs completeInstallAfterDrain / exit",
   DuplicateInstallHandoffCall: "repeated completeInstallAfterDrain() invocation during handoff",
@@ -534,19 +571,13 @@ export const COVERED: readonly Covered[] = [
   },
   {
     file: UPDATE_CONTROLLER,
-    needle: "const armReadinessWatch =",
+    needle: "const failHandoff =",
     kind: "block",
-    models: "NativeReadinessInvalidated",
+    models: "NativeReadinessInvalidated; DrainFinishes",
   },
   {
     file: UPDATE_CONTROLLER,
-    needle: "const releaseOperationIfIdle =",
-    kind: "block",
-    models: "UnderlyingCallSettles",
-  },
-  {
-    file: UPDATE_CONTROLLER,
-    needle: "const finishOperation =",
+    needle: "const finishActivePhase =",
     kind: "block",
     models: "DetachSettledOperation",
   },
@@ -564,16 +595,27 @@ export const COVERED: readonly Covered[] = [
   },
   {
     file: UPDATE_CONTROLLER,
-    needle: "const publishIfReady =",
+    needle: "const armReadinessWatch =",
     kind: "block",
-    models:
-      "ZipUpdateDownloaded; NativeUpdateDownloaded; RequireNativeReadinessOnMac; DetachSettledOperation",
+    models: "NativeReadinessInvalidated",
   },
   {
     file: UPDATE_CONTROLLER,
-    needle: "const noteZipReady =",
+    needle: "const publishReady =",
     kind: "block",
-    models: "ZipUpdateDownloaded",
+    models: "ZipUpdateDownloaded; NativeUpdateDownloaded; DetachSettledOperation",
+  },
+  {
+    file: UPDATE_CONTROLLER,
+    needle: "const enterPreparing =",
+    kind: "block",
+    models: "ZipUpdateDownloaded; ArmNativeListenersOnlyAfterZipReady; RequireNativeReadinessOnMac",
+  },
+  {
+    file: UPDATE_STATE_MACHINE,
+    needle: "export function advanceDownloadTransfer(",
+    kind: "block",
+    models: "DownloadProgressAdvances; DownloadFallsBackToFull; ResetTransferWatermarkOnFallback",
   },
   {
     file: UPDATE_CONTROLLER,
@@ -605,7 +647,7 @@ export const COVERED: readonly Covered[] = [
   { file: UPDATE_CONTROLLER, needle: "restart() {", kind: "block", models: "AthleteClicksRestart" },
   {
     file: UPDATE_CONTROLLER,
-    needle: "completeInstallAfterDrain(allowFinalQuit)",
+    needle: "completeInstallAfterDrain(allowFinalQuit, onInstallError)",
     kind: "block",
     models: "DrainFinishes; GateInstallOnDrainAndReadiness; GuardSingleInstallInvocation",
   },
@@ -624,9 +666,21 @@ export const COVERED: readonly Covered[] = [
   },
   {
     file: QUIT_COORDINATOR,
-    needle: "export function createDesktopQuitCoordinator(",
+    needle: "beforeQuit(event) {",
     kind: "block",
     models: "OrdinaryQuitRequested; InstallHandoffAccepted",
+  },
+  {
+    file: QUIT_COORDINATOR,
+    needle: "const exitOnce =",
+    kind: "block",
+    models: "DrainFinishes; InstallHandoffTimesOut",
+  },
+  {
+    file: QUIT_COORDINATOR,
+    needle: "forceQuit() {",
+    kind: "block",
+    models: "Force quit termination",
   },
   {
     file: VERSION_FLOOR,
@@ -648,28 +702,52 @@ export const COVERED: readonly Covered[] = [
   },
   {
     file: MAIN_INDEX,
+    needle: "const quitCoordinator =",
+    kind: "statement",
+    models: "RelaunchOnInstallFailure",
+  },
+  {
+    file: MAIN_INDEX,
     needle: '"before-quit"',
     kind: "call",
     models: "OrdinaryQuitRequested; FreezeUpdateOnBeforeQuit",
   },
   {
     file: RENDERER_UPDATE,
-    needle: "export function createDesktopUpdateController(",
+    needle: "let phase: RendererUpdatePhase =",
+    kind: "statement",
+    models: "Initial hydrating renderer phase; BlockActionsUntilHydrated",
+  },
+  {
+    file: RENDERER_UPDATE,
+    needle: "const applyPushedState =",
+    kind: "block",
+    models: "RendererReceivesPush",
+  },
+  {
+    file: RENDERER_UPDATE,
+    needle: "const activate =",
     kind: "block",
     models:
-      "RendererHydrationCompletes; AthleteClicksCheck; AthleteClicksRestart; RendererReceivesPush; RendererReceivesInvokeReply; RendererInvokeRejects; BlockActionsUntilHydrated; RendererHandlesRejectionAfterPush",
+      "AthleteClicksCheck; AthleteClicksRestart; RendererReceivesInvokeReply; RendererInvokeRejects; BlockActionsUntilHydrated; RendererHandlesRejectionAfterPush",
+  },
+  {
+    file: RENDERER_UPDATE,
+    needle: "async start() {",
+    kind: "block",
+    models: "RendererHydrationCompletes",
   },
   {
     file: UPDATE_ADAPTER,
     needle: "export function createUpdateSettingsAdapter(",
     kind: "block",
-    models: "SidebarShowsRestarting actionDisabled projection",
+    models: "SidebarShowsRestarting pendingAction projection",
   },
   {
     file: SETTINGS_SLICE,
     needle: "const EMPTY_UPDATE_SURFACE:",
     kind: "statement",
-    models: "Initial unhydrated idle store state; BlockActionsUntilHydrated",
+    models: "Initial hydrating store state; BlockActionsUntilHydrated",
   },
   {
     file: UPDATE_BUTTON,
