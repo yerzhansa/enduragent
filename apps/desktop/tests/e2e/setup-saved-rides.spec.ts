@@ -1,4 +1,6 @@
-import { writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/chat-desktop.js";
 
@@ -35,11 +37,15 @@ test.describe("first-run setup without Intervals.icu", () => {
     await expect(start).toBeDisabled();
     await page.screenshot({ path: info.outputPath("gate-before-import.png") });
 
-    const ride = info.outputPath("synthetic-ride.fit");
-    await writeFile(ride, "synthetic ride file\n");
-    await dropRideFile(page, ride);
-
-    await expect(badge).toHaveText("2 of 2 required ready");
+    const rideDirectory = await mkdtemp(join(tmpdir(), "enduragent-e2e-ride-"));
+    try {
+      const ride = join(rideDirectory, "synthetic-ride.fit");
+      await writeFile(ride, "synthetic ride file\n");
+      await dropRideFile(page, ride);
+      await expect(badge).toHaveText("2 of 2 required ready");
+    } finally {
+      await rm(rideDirectory, { recursive: true, force: true });
+    }
     await expect(start).toBeEnabled();
     await expect(
       row,
