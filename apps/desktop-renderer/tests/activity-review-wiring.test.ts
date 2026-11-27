@@ -27,6 +27,7 @@ function started() {
   const dispose = startCalendarPages(store, {
     getClient: async () => client,
     reconnect: async () => client,
+    onConnectionOpen: () => () => undefined,
     close: async () => undefined,
   });
   const actions = () => call.mock.calls.map(([method, params]) => `${method}:${params.action}`);
