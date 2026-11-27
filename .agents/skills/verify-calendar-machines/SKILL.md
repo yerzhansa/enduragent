@@ -26,7 +26,7 @@ Each rule is a TLA+ invariant with the same name. The test's walk checks it as a
 
 | Rule | What breaks for the athlete | Named test |
 |---|---|---|
-| `NeverUndoneByItself` | An edit, move or delete made in intervals.icu is replaced without the athlete pressing Put back on that version. | `refreshes the card instead of putting back over a newer edit`, `does not send the Plan's version over an edit made in intervals.icu`, `sees a move made in intervals.icu and keeps it through a later coach change`, `closes the card when the athlete deleted a workout the coach then removed`, `deletes an edited workout on Put back once the coach removed it from the Plan` |
+| `NeverUndoneByItself` | An edit, move or delete made in intervals.icu is replaced without the athlete pressing Put back on that version, or a drag in the app never reaches intervals.icu. | `refreshes the card instead of putting back over a newer edit`, `does not send the Plan's version over an edit made in intervals.icu`, `sees a move made in intervals.icu and keeps it through a later coach change`, `closes the card when the athlete deleted a workout the coach then removed`, `deletes an edited workout on Put back once the coach removed it from the Plan`, `sends a drag of a kept edit to intervals.icu` |
 | `KeptEditReplacedOnlyWhenFlagged` | A kept edit is replaced by a coach change not marked "Replaces your intervals.icu edit". | `marks a coach change shown before a Keep as replacing the athlete's edit`, `never rewrites a kept edit for an unmarked Plan change` |
 | `CardOnlyForRealChanges` | "Changed in intervals.icu" appears though nobody changed anything. | `does not open the card when intervals.icu only stored our write in its own format` |
 | `NoRewriteOfSameWorkout` | The app rewrites a workout that already matches. | `keeps every rule on every path of up to eight steps` (icu-copy), `sends one update for an event found without a receipt, and leaves an unknown one alone` |
@@ -42,13 +42,13 @@ Each rule is a TLA+ invariant with the same name. The test's walk checks it as a
 | `NeverOverwriteAnUnseenFtp` | The app writes over an FTP the confirm did not show. | `shows a number set in intervals.icu while the confirm is open before writing` |
 | `NoProposalFromOneRide` | One ride makes the coach propose a new FTP. | `keeps every rule on every path of up to nine steps` (ftp-proposal), `finds drift only after 14 days at least 3% away since the FTP was set` |
 | `PlannedTestIsAnswered` | A planned FTP test gets no answer inside the 4 weeks after Keep. | `answers a planned test within four weeks of Keep` |
-| `AnsweredTestIsNotAskedAgain` (engine only) | The coach asks again about a planned test the athlete already answered. | `does not ask again about a planned test the athlete already answered` |
+| `AnsweredTestIsNotAskedAgain` (engine only) | The coach asks again about a planned test the athlete already answered, or an older one. | `does not ask again about a planned test the athlete already answered`, `ignores an older planned test once a later one was answered` |
 | `NothingWithoutConsent` | A week reaches intervals.icu without the athlete's Approve. | `sends nothing before the first Approve`, `waits for each later week's Approve when the setting asks` |
 | `ThisWeekAndNextAreThere` | This Training Week or next is missing from intervals.icu after a run. | `sends this week and next when the first Change Set is approved late`, `sends every due week after the app was closed for more than seven days` |
 | `TodayIsKept` | End or Replace deletes today's workout, or keeps the next day's when the cleanup retries a day later. | `keeps today's workout when the Plan ends`, `removes from the day after the Plan closed, even when the cleanup retries a day later` |
 | `NeverTwoPlansOnIntervals` | The new Plan's weeks go out while the old ones are still there. | `sends the new Plan's weeks only after the old ones are removed and checked` |
 | `LocalFirst` | A failed cleanup reopens the old Plan. | `closes the Plan locally before any cleanup runs` |
-| `YourChangesAreNotDeletedByItself` | End or Replace deletes a workout the athlete changed in intervals.icu, or one changed again after the confirm. | `lists the workouts the athlete changed apart and removes only the ticked version` |
+| `YourChangesAreNotDeletedByItself` | End or Replace deletes a workout the athlete changed in intervals.icu, or one changed again after the confirm. | `lists the workouts the athlete changed apart and removes only the ticked version`, `keeps a ticked change the athlete then moved to another day` |
 
 Each machine's walk test (`keeps every rule on every path…`) checks all of that machine's rules at once. The two rules marked "engine only" have no TLA+ invariant: the models clear their evidence and text state in ways the engine cannot, so only the walks see these cases.
 
@@ -99,7 +99,9 @@ No one ran the desktop before this design, so the upgrade paths are left out:
 
 1. Change the engine module and its test first. The walk test fails when a rule breaks.
 2. If the change alters a step the model has, edit the model's action to match, and run the check.
-3. A rule never gets weaker to make a run pass. A new rule gets a TLA+ invariant, a walk predicate and a named test.
+3. A rule never gets weaker to make a run pass. A new rule gets a walk predicate and a named test, and a TLA+ invariant when the model can express it. A rule the model cannot express is marked "engine only" in the table above.
+
+The icu walk's executor skips a write when intervals.icu already holds what the app would send, as the calendar mirror's conditional write does. Without that, `NoRewriteOfSameWorkout` breaks when the athlete moves a workout in intervals.icu to the day they then drag it to in the app.
 
 Read a model's results with the `/statechart` skill: give it the `.tla`, a config like the one `check.ts` writes, and the `view.ts` beside it.
 

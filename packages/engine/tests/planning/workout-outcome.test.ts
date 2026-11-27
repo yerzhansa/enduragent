@@ -218,7 +218,12 @@ describe("a Plan Workout's result on the calendar", () => {
       version: { fingerprint: "icu:sat", updated: "v2" },
     } as const;
     const card = icuCopyOnRun(copy, { kind: "send", planFingerprint: "plan:thu" }, moved);
-    const kept = icuCopyKeep(card.copy, moved, "plan:sat");
+    const kept = icuCopyKeep(
+      card.copy,
+      moved,
+      { kind: "send", planFingerprint: "plan:thu" },
+      "plan:sat",
+    );
     expect(kept).toMatchObject({
       kind: "done",
       effect: { kind: "adopt-into-plan", dateKey: movedTo },

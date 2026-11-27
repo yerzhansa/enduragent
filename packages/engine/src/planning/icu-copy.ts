@@ -297,6 +297,11 @@ export function icuCopyAllowsMove(copy: IcuCopy): boolean {
   return copy.kind === "not-sent" || copy.kind === "on-icu";
 }
 
+export function icuCopyMovedInApp(copy: IcuCopy): IcuCopy {
+  if (copy.kind !== "on-icu" || copy.baseline.owner !== "athlete-edit") return copy;
+  return { ...copy, baseline: { ...copy.baseline, owner: "plan" } };
+}
+
 export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCopy {
   if (mark !== "replaces-your-edit") return copy;
   if (copy.kind === "removed-by-you") return ICU_COPY_NOT_SENT;

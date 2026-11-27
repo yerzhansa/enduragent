@@ -293,7 +293,12 @@ describe("End Plan and Replace Plan", () => {
     const edited: World = { ...START, edited: "kept" };
     const summary = planEndingSummary(copies(edited), TODAY);
     expect(summary.athleteChanges.map((entry) => entry.tick)).toEqual([
-      { planWorkoutId: "edited", eventId: LATER + 1, fingerprint: "icu:athlete" },
+      {
+        planWorkoutId: "edited",
+        eventId: LATER + 1,
+        dateKey: LATER + 1,
+        fingerprint: "icu:athlete",
+      },
     ]);
     const open = planEndingStep(PLAN_ENDING_START, { type: "athlete-presses-end" });
     const keepThem = planEndingStep(open, {
@@ -336,5 +341,26 @@ describe("End Plan and Replace Plan", () => {
       kind: "closed",
       cleanup: { kind: "failed" },
     });
+  });
+
+  it("keeps a ticked change the athlete then moved to another day", () => {
+    const kept = onIcu("athlete-edit", LATER + 1, "icu:athlete");
+    const listed: readonly PlanCopyOnIcu[] = [
+      { planWorkoutId: "edited", dateKey: LATER + 1, copy: kept },
+    ];
+    const ticks = planEndingSummary(listed, TODAY).athleteChanges.map((entry) => entry.tick);
+    const open = planEndingStep(PLAN_ENDING_START, { type: "athlete-presses-end" });
+    const ended = planEndingStep(open, {
+      type: "athlete-confirms-end",
+      todayDateKey: TODAY,
+      athleteChanges: { kind: "remove-them", ticked: ticks },
+    });
+    const moved: IcuCopy = editedLater(kept, "icu:athlete");
+    if (moved.kind !== "changed-in-icu" || moved.shown.kind !== "present")
+      throw new Error("not moved");
+    const movedCopy: IcuCopy = { ...moved, shown: { ...moved.shown, dateKey: LATER + 2 } };
+    expect(
+      cleanupDeletes([{ planWorkoutId: "edited", dateKey: LATER + 2, copy: movedCopy }], ended),
+    ).toEqual([]);
   });
 });

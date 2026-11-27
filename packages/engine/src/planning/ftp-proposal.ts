@@ -16,7 +16,12 @@ export type CoachFtp =
   | { readonly kind: "none" };
 
 export type FtpEvidence =
-  | { readonly kind: "planned-test"; readonly watts: number; readonly activityId: string }
+  | {
+      readonly kind: "planned-test";
+      readonly watts: number;
+      readonly activityId: string;
+      readonly dateKey: number;
+    }
   | { readonly kind: "drift"; readonly watts: number }
   | { readonly kind: "none" };
 
@@ -26,15 +31,20 @@ export type FtpDriftPause =
 
 export type FtpAnsweredTest =
   | { readonly kind: "none" }
-  | { readonly kind: "answered"; readonly activityId: string };
+  | { readonly kind: "answered"; readonly activityId: string; readonly dateKey: number };
+
+export type FtpSeen =
+  | { readonly kind: "none" }
+  | { readonly kind: "seen"; readonly watts: number; readonly sinceDateKey: number };
 
 export interface FtpMemory {
   readonly pause: FtpDriftPause;
   readonly answeredTest: FtpAnsweredTest;
+  readonly ftpSeen: FtpSeen;
 }
 
 export type FtpProposalBasis =
-  | { readonly kind: "planned-test"; readonly activityId: string }
+  | { readonly kind: "planned-test"; readonly activityId: string; readonly dateKey: number }
   | { readonly kind: "drift" };
 
 export type FtpProposal =
@@ -61,7 +71,12 @@ export type FtpProposal =
     };
 
 export type FtpProposalEvent =
-  | { readonly type: "checked"; readonly evidence: FtpEvidence; readonly todayDateKey: number }
+  | {
+      readonly type: "checked";
+      readonly evidence: FtpEvidence;
+      readonly icuFtpWatts: number | null;
+      readonly todayDateKey: number;
+    }
   | { readonly type: "athlete-keeps"; readonly todayDateKey: number }
   | { readonly type: "athlete-uses"; readonly icuWatts: number | null }
   | { readonly type: "athlete-confirms"; readonly icuWattsNow: number | null }
@@ -93,6 +108,7 @@ export const FTP_PROPOSAL_START: FtpProposal = Object.freeze({
   memory: Object.freeze({
     pause: Object.freeze({ kind: "none" }),
     answeredTest: Object.freeze({ kind: "none" }),
+    ftpSeen: Object.freeze({ kind: "none" }),
   }),
 });
 
@@ -152,24 +168,39 @@ function stay(proposal: FtpProposal): FtpProposalStep {
   return { proposal, effect: NONE };
 }
 
+function seenFtp(seen: FtpSeen, watts: number | null, todayDateKey: number): FtpSeen {
+  if (watts === null) return { kind: "none" };
+  if (seen.kind === "seen" && seen.watts === watts) return seen;
+  return { kind: "seen", watts, sinceDateKey: todayDateKey };
+}
+
+function alreadyAnswered(answered: FtpAnsweredTest, activityId: string, dateKey: number): boolean {
+  return (
+    answered.kind === "answered" &&
+    (answered.activityId === activityId || dateKey < answered.dateKey)
+  );
+}
+
 function onChecked(
   proposal: FtpProposal,
   event: Extract<FtpProposalEvent, { type: "checked" }>,
 ): FtpProposalStep {
   if (proposal.kind !== "quiet") return stay(proposal);
-  const memory: FtpMemory = pauseCovers(proposal.memory.pause, event.todayDateKey)
-    ? proposal.memory
-    : { ...proposal.memory, pause: { kind: "none" } };
+  const current = proposal.memory;
+  const memory: FtpMemory = {
+    ...current,
+    pause: pauseCovers(current.pause, event.todayDateKey) ? current.pause : { kind: "none" },
+    ftpSeen: seenFtp(current.ftpSeen, event.icuFtpWatts, event.todayDateKey),
+  };
   const evidence = event.evidence;
   if (evidence.kind === "planned-test") {
-    const answered =
-      memory.answeredTest.kind === "answered" &&
-      memory.answeredTest.activityId === evidence.activityId;
-    if (answered) return stay({ kind: "quiet", memory });
+    if (alreadyAnswered(memory.answeredTest, evidence.activityId, evidence.dateKey)) {
+      return stay({ kind: "quiet", memory });
+    }
     return stay({
       kind: "shown",
       watts: evidence.watts,
-      basis: { kind: "planned-test", activityId: evidence.activityId },
+      basis: { kind: "planned-test", activityId: evidence.activityId, dateKey: evidence.dateKey },
       memory,
     });
   }
@@ -181,7 +212,10 @@ function onChecked(
 
 function answeredMemory(memory: FtpMemory, basis: FtpProposalBasis): FtpMemory {
   return basis.kind === "planned-test"
-    ? { ...memory, answeredTest: { kind: "answered", activityId: basis.activityId } }
+    ? {
+        ...memory,
+        answeredTest: { kind: "answered", activityId: basis.activityId, dateKey: basis.dateKey },
+      }
     : memory;
 }
 
@@ -250,4 +284,8 @@ export function ftpProposalStep(proposal: FtpProposal, event: FtpProposalEvent):
         memory: proposal.memory,
       });
   }
+}
+
+export function ftpSetSince(memory: FtpMemory, fallbackDateKey: number): number {
+  return memory.ftpSeen.kind === "seen" ? memory.ftpSeen.sinceDateKey : fallbackDateKey;
 }

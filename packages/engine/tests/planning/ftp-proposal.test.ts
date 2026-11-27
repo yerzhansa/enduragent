@@ -4,6 +4,7 @@ import {
   coachFtp,
   ftpDriftEvidence,
   ftpProposalStep,
+  ftpSetSince,
   FTP_PROPOSAL_START,
   type FtpEvidence,
   type FtpProposal,
@@ -32,7 +33,12 @@ interface World {
 
 function engineEvidence(evidence: Evidence): FtpEvidence {
   if (evidence === "test-1" || evidence === "test-2") {
-    return { kind: "planned-test", watts: PROPOSED, activityId: evidence };
+    return {
+      kind: "planned-test",
+      watts: PROPOSED,
+      activityId: evidence,
+      dateKey: evidence === "test-1" ? TODAY - 2 : TODAY - 1,
+    };
   }
   if (evidence === "drift") return { kind: "drift", watts: PROPOSED };
   return { kind: "none" };
@@ -51,7 +57,13 @@ function answer(world: World): World {
   if (proposal.kind === "quiet" || proposal.basis.kind !== "planned-test") return world;
   return {
     ...world,
-    answered: [...new Set([...world.answered, proposal.basis.activityId])].sort(),
+    answered: [
+      ...new Set([
+        ...world.answered,
+        ...(proposal.basis.activityId === "test-2" ? ["test-1"] : []),
+        proposal.basis.activityId,
+      ]),
+    ].sort(),
   };
 }
 
@@ -71,6 +83,7 @@ function appChecks(world: World): World {
   const checked = step(world, {
     type: "checked",
     evidence: engineEvidence(world.evidence),
+    icuFtpWatts: ICU_NOW,
     todayDateKey: world.today,
   });
   const shownTest =
@@ -91,8 +104,7 @@ function next(world: World): readonly Step<World>[] {
   const steps: Step<World>[] = [];
   if (world.proposal.kind === "quiet") {
     for (const evidence of ["test-1", "test-2", "drift", "one-ride"] as const) {
-      const olderTest = evidence === "test-1" && world.answered.includes("test-2");
-      if (evidence !== world.evidence && !olderTest) {
+      if (evidence !== world.evidence) {
         steps.push([
           `evidence arrives: ${evidence}`,
           { ...world, evidence, checked: "not-checked" },
@@ -172,7 +184,12 @@ const START: World = {
 };
 
 function shownFor(evidence: Evidence, today = TODAY): World {
-  return step(START, { type: "checked", evidence: engineEvidence(evidence), todayDateKey: today });
+  return step(START, {
+    type: "checked",
+    evidence: engineEvidence(evidence),
+    icuFtpWatts: ICU_NOW,
+    todayDateKey: today,
+  });
 }
 
 describe("FTP", () => {
@@ -215,6 +232,7 @@ describe("FTP", () => {
       ftpProposalStep(kept.proposal, {
         type: "checked",
         evidence: engineEvidence("test-1"),
+        icuFtpWatts: ICU_NOW,
         todayDateKey: inside,
       }).proposal,
     ).toMatchObject({ kind: "shown", basis: { kind: "planned-test", activityId: "test-1" } });
@@ -222,6 +240,7 @@ describe("FTP", () => {
       ftpProposalStep(kept.proposal, {
         type: "checked",
         evidence: engineEvidence("drift"),
+        icuFtpWatts: ICU_NOW,
         todayDateKey: inside,
       }).proposal,
     ).toMatchObject({ kind: "quiet" });
@@ -229,6 +248,7 @@ describe("FTP", () => {
       ftpProposalStep(kept.proposal, {
         type: "checked",
         evidence: engineEvidence("drift"),
+        icuFtpWatts: ICU_NOW,
         todayDateKey: addCivilDays(TODAY, 28),
       }).proposal,
     ).toMatchObject({ kind: "shown", basis: { kind: "drift" } });
@@ -241,6 +261,7 @@ describe("FTP", () => {
       ftpProposalStep(kept.proposal, {
         type: "checked",
         evidence: engineEvidence("test-1"),
+        icuFtpWatts: ICU_NOW,
         todayDateKey: later,
       }).proposal,
     ).toMatchObject({ kind: "quiet" });
@@ -248,6 +269,7 @@ describe("FTP", () => {
       ftpProposalStep(kept.proposal, {
         type: "checked",
         evidence: engineEvidence("test-2"),
+        icuFtpWatts: ICU_NOW,
         todayDateKey: later,
       }).proposal,
     ).toMatchObject({ kind: "shown", basis: { activityId: "test-2" } });
@@ -293,5 +315,51 @@ describe("FTP", () => {
       kind: "none",
     });
     expect(drift(daily(20, 291), addCivilDays(TODAY, -5))).toEqual({ kind: "none" });
+  });
+
+  it("ignores an older planned test once a later one was answered", () => {
+    const keptOne = step(shownFor("test-1"), { type: "athlete-keeps", todayDateKey: TODAY });
+    const shownTwo = step(keptOne, {
+      type: "checked",
+      evidence: engineEvidence("test-2"),
+      icuFtpWatts: ICU_NOW,
+      todayDateKey: TODAY + 1,
+    });
+    const keptTwo = step(shownTwo, { type: "athlete-keeps", todayDateKey: TODAY + 1 });
+    expect(
+      ftpProposalStep(keptTwo.proposal, {
+        type: "checked",
+        evidence: engineEvidence("test-1"),
+        icuFtpWatts: ICU_NOW,
+        todayDateKey: TODAY + 2,
+      }).proposal,
+    ).toMatchObject({ kind: "quiet" });
+  });
+
+  it("remembers the day it first saw the current FTP for the drift check", () => {
+    const seen = step(START, {
+      type: "checked",
+      evidence: { kind: "none" },
+      icuFtpWatts: ICU_NOW,
+      todayDateKey: TODAY,
+    });
+    if (seen.proposal.kind !== "quiet") throw new Error("not quiet");
+    expect(ftpSetSince(seen.proposal.memory, 0)).toBe(TODAY);
+    const later = step(seen, {
+      type: "checked",
+      evidence: { kind: "none" },
+      icuFtpWatts: ICU_NOW,
+      todayDateKey: TODAY + 5,
+    });
+    if (later.proposal.kind !== "quiet") throw new Error("not quiet");
+    expect(ftpSetSince(later.proposal.memory, 0)).toBe(TODAY);
+    const changed = step(later, {
+      type: "checked",
+      evidence: { kind: "none" },
+      icuFtpWatts: ATHLETE_SET,
+      todayDateKey: TODAY + 6,
+    });
+    if (changed.proposal.kind !== "quiet") throw new Error("not quiet");
+    expect(ftpSetSince(changed.proposal.memory, 0)).toBe(TODAY + 6);
   });
 });

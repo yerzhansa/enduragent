@@ -6,6 +6,7 @@ import {
   icuCopyChangeApproved,
   icuCopyDeleted,
   icuCopyKeep,
+  icuCopyMovedInApp,
   icuCopyOnRun,
   icuCopyPutBack,
   icuCopyWritten,
@@ -73,7 +74,7 @@ function sighting(icu: Icu, version: number): IcuSighting {
     kind: "present",
     eventId: EVENT_ID,
     dateKey: icu.day,
-    version: { fingerprint: icu.content, updated: `v${version}` },
+    version: { fingerprint: `${icu.content}@${icu.day}`, updated: `v${version}` },
   };
 }
 
@@ -123,6 +124,20 @@ function execute(
       : current.kind === "present" && current.version.fingerprint === effect.expected.fingerprint;
   if (!stillAsSeen) return { ...world, copy: icuCopyOnRun(copy, planSide(world), current).copy };
   const after: Icu = { kind: "there", content: norm(world.plan.content), day: world.plan.day };
+  if (current.kind === "present" && sameIcu(world.icu, after)) {
+    return {
+      ...world,
+      agreed: after,
+      kept: { kind: "none" },
+      approvedOverEdit: "no",
+      copy: icuCopyWritten(copy, {
+        eventId: EVENT_ID,
+        dateKey: after.day,
+        planFingerprint: planFingerprint(world.plan),
+        readBack: current.version,
+      }),
+    };
+  }
   const readBack = sighting(after, world.version + 1);
   if (readBack.kind !== "present") throw new Error("write lost");
   return written(
@@ -150,7 +165,7 @@ function athleteChanges(world: World, to: Icu): World {
 function shownIcu(copy: IcuCopy): Icu | { readonly kind: "none" } {
   if (copy.kind !== "changed-in-icu") return { kind: "none" };
   if (copy.shown.kind === "absent") return { kind: "gone" };
-  const content = copy.shown.version.fingerprint;
+  const content = copy.shown.version.fingerprint.split("@")[0];
   if (content === "Pn" || content === "Qn" || content === "E" || content === "F") {
     return { kind: "there", content, day: copy.shown.dateKey };
   }
@@ -233,6 +248,17 @@ function athleteOptions(world: World): readonly Icu[] {
   return options.filter((option) => !sameIcu(option, world.icu));
 }
 
+function athleteDrags(world: World): World {
+  if (world.plan.kind !== "workout" || !icuCopyAllowsMove(world.copy)) return world;
+  const owned = world.copy.kind === "on-icu" && world.copy.baseline.owner === "athlete-edit";
+  return {
+    ...world,
+    plan: { ...world.plan, day: world.plan.day === THURSDAY ? SATURDAY : THURSDAY },
+    copy: icuCopyMovedInApp(world.copy),
+    approvedOverEdit: owned ? "yes" : world.approvedOverEdit,
+  };
+}
+
 function next(world: World): readonly Step<World>[] {
   const steps: Step<World>[] = [["the app runs", appRuns(world)]];
   for (const to of athleteOptions(world)) {
@@ -240,6 +266,9 @@ function next(world: World): readonly Step<World>[] {
       `the athlete changes it in intervals.icu to ${JSON.stringify(to)}`,
       athleteChanges(world, to),
     ]);
+  }
+  if (world.plan.kind === "workout" && icuCopyAllowsMove(world.copy)) {
+    steps.push(["the athlete drags it to the other day in the app", athleteDrags(world)]);
   }
   if (world.copy.kind === "changed-in-icu") {
     steps.push(["the athlete presses Keep", keep(world)]);
@@ -356,7 +385,7 @@ describe("a Plan Workout's copy on intervals.icu", () => {
     expect(pressed.lost).toBe(false);
     expect(pressed.copy).toMatchObject({
       kind: "changed-in-icu",
-      shown: { version: { fingerprint: "F" } },
+      shown: { version: { fingerprint: "F@19980820" } },
     });
   });
 
@@ -421,7 +450,7 @@ describe("a Plan Workout's copy on intervals.icu", () => {
     );
     expect(result).toMatchObject({
       kind: "done",
-      effect: { kind: "delete", expected: { fingerprint: "E" } },
+      effect: { kind: "delete", expected: { fingerprint: "E@19980820" } },
     });
     expect(
       icuCopyKeep(
@@ -473,11 +502,22 @@ describe("a Plan Workout's copy on intervals.icu", () => {
       icuCopyOnRun(ICU_COPY_NOT_SENT, { kind: "send", planFingerprint: "plan:P" }, found),
     ).toMatchObject({
       copy: { kind: "on-icu", baseline: { planFingerprint: "unknown" } },
-      effect: { kind: "update", expected: { fingerprint: "Pn" } },
+      effect: { kind: "update", expected: { fingerprint: "Pn@19980820" } },
     });
     expect(icuCopyOnRun(ICU_COPY_NOT_SENT, { kind: "withdraw" }, found)).toEqual({
       copy: ICU_COPY_NOT_SENT,
       effect: { kind: "none" },
     });
+  });
+
+  it("sends a drag of a kept edit to intervals.icu", () => {
+    const kept = keep(
+      appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
+    );
+    expect(kept.copy).toMatchObject({ kind: "on-icu", baseline: { owner: "athlete-edit" } });
+    const dragged = appRuns(athleteDrags(kept));
+    expect(dragged.icu).toEqual({ kind: "there", content: "E", day: SATURDAY });
+    expect(dragged.lost).toBe(false);
+    expect(dragged.lostKept).toBe(false);
   });
 });

@@ -4,6 +4,7 @@ import { icuCopyIsAthleteChange, type IcuCopy, type IcuVersion } from "./icu-cop
 export interface TickedChange {
   readonly planWorkoutId: string;
   readonly eventId: number;
+  readonly dateKey: number;
   readonly fingerprint: string;
 }
 
@@ -203,6 +204,7 @@ export function planEndingSummary(
       tick: {
         planWorkoutId: entry.planWorkoutId,
         eventId: there.eventId,
+        dateKey: there.dateKey,
         fingerprint: there.version.fingerprint,
       },
     });
@@ -233,6 +235,7 @@ export function cleanupDeletes(
       (tick) =>
         tick.planWorkoutId === entry.tick.planWorkoutId &&
         tick.eventId === entry.tick.eventId &&
+        tick.dateKey === entry.tick.dateKey &&
         tick.fingerprint === entry.tick.fingerprint,
     );
     const there = onIcuVersion(entry.copy);
