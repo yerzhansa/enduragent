@@ -31,6 +31,7 @@ export const CLAUDE_CLI_STATUS_STATES = [
 ] as const;
 
 export const CLAUDE_CLI_STATUS_DEADLINE_MS = 72_000;
+export const CLAUDE_CLI_READY_REUSE_MS = 60_000;
 
 export type ClaudeCliStatusState = (typeof CLAUDE_CLI_STATUS_STATES)[number];
 
@@ -197,19 +198,19 @@ export function createClaudeCliStatus(
   let recheckGeneration = 0;
   let activeRead: ReadSlot | undefined;
   let queuedRecheck: ReadSlot | undefined;
-  let latestReadyStatus: ClaudeCliStatus | null = null;
+  let latestReady: { readonly status: ClaudeCliStatus; readonly at: number } | null = null;
 
   const read = async (forceRecheck: boolean): Promise<ClaudeCliStatus> => {
     let settings: ClaudeCliSettings;
     try {
       settings = await options.settings();
     } catch {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: "not-logged-in" };
     }
     const baseEnv = { ...environment() };
     if (!isClaudeCliLaneEligible({ environment: baseEnv, enabled: settings.enabled })) {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: "disabled" };
     }
     try {
@@ -227,10 +228,10 @@ export function createClaudeCliStatus(
           probeDependencies,
         ),
       );
-      latestReadyStatus = status;
+      latestReady = { status, at: Date.now() };
       return status;
     } catch (error) {
-      latestReadyStatus = null;
+      latestReady = null;
       return { state: stateForFailure(error) };
     }
   };
@@ -246,31 +247,27 @@ export function createClaudeCliStatus(
       }, CLAUDE_CLI_STATUS_DEADLINE_MS);
       timeout.unref?.();
       const settleLate = (): void => {
-        try {
-          invalidate();
-        } catch {}
-        latestReadyStatus = null;
+        invalidate();
+        latestReady = null;
       };
-      void rawTask
-        .then(
-          (status) => {
-            if (timedOut) {
-              settleLate();
-              return;
-            }
-            clearTimeout(timeout);
-            resolve(status);
-          },
-          (error: unknown) => {
-            if (timedOut) {
-              settleLate();
-              return;
-            }
-            clearTimeout(timeout);
-            resolve({ state: stateForFailure(error) });
-          },
-        )
-        .catch(() => undefined);
+      void rawTask.then(
+        (status) => {
+          if (timedOut) {
+            settleLate();
+            return;
+          }
+          clearTimeout(timeout);
+          resolve(status);
+        },
+        (error: unknown) => {
+          if (timedOut) {
+            settleLate();
+            return;
+          }
+          clearTimeout(timeout);
+          resolve({ state: stateForFailure(error) });
+        },
+      );
     });
     activeRead = { generation, task };
     const clear = (): void => {
@@ -284,34 +281,32 @@ export function createClaudeCliStatus(
   const status = (): Promise<ClaudeCliStatus> =>
     activeRead?.task ?? queuedRecheck?.task ?? startRead(false);
 
+  const recheck = (): Promise<ClaudeCliStatus> => {
+    if (queuedRecheck !== undefined) return queuedRecheck.task;
+    const previous = activeRead;
+    const generation = ++recheckGeneration;
+    const task = (async () => {
+      if (previous !== undefined) await Promise.allSettled([previous.task]);
+      invalidate();
+      latestReady = null;
+      return await startRead(true);
+    })();
+    queuedRecheck = { generation, task };
+    const clear = (): void => {
+      if (queuedRecheck?.generation === generation && queuedRecheck.task === task) {
+        queuedRecheck = undefined;
+      }
+    };
+    void task.then(clear, clear);
+    return task;
+  };
+
   return {
     status,
-    recheck() {
-      if (queuedRecheck !== undefined) return queuedRecheck.task;
-      const previous = activeRead;
-      const generation = ++recheckGeneration;
-      const task = (async () => {
-        if (previous !== undefined) {
-          try {
-            await previous.task;
-          } catch {}
-        }
-        invalidate();
-        latestReadyStatus = null;
-        return await startRead(true);
-      })();
-      queuedRecheck = { generation, task };
-      const clear = (): void => {
-        if (queuedRecheck?.generation === generation && queuedRecheck.task === task) {
-          queuedRecheck = undefined;
-        }
-      };
-      void task.then(clear, clear);
-      return task;
-    },
+    recheck,
     invalidateProbeCache: () => {
       invalidate();
-      latestReadyStatus = null;
+      latestReady = null;
     },
     async activate(input, catalogSnapshot) {
       let selection: ReturnType<typeof parseClaudeCliLlmSelection>;
@@ -320,7 +315,12 @@ export function createClaudeCliStatus(
       } catch {
         return { status: "refused", reason: "invalid-input" };
       }
-      const current = latestReadyStatus ?? (await status());
+      const reusable =
+        latestReady !== null && Date.now() - latestReady.at <= CLAUDE_CLI_READY_REUSE_MS
+          ? latestReady.status
+          : null;
+      const inFlight = activeRead !== undefined || queuedRecheck !== undefined;
+      const current = reusable ?? (await (inFlight ? status() : recheck()));
       if (current.state === "disabled") {
         return { status: "refused", reason: "runtime-unavailable" };
       }
