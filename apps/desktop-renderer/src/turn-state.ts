@@ -16,6 +16,7 @@ export const QUEUED_MESSAGE_SEPARATOR = "\n\n";
 export type ChatStatus = "idle" | "streaming" | "interrupted";
 export type SessionPresence = "unknown" | "absent" | "present";
 export type SessionResetPhase = "idle" | "confirming" | "resetting" | "uncertain";
+export type NewConversationCheck = "hidden" | "ready" | "busy";
 
 export interface ChatSessionState {
   readonly presence: SessionPresence;
@@ -142,6 +143,17 @@ export type ChatAction =
   | { readonly type: "begin-reset" }
   | { readonly type: "reset-succeeded"; readonly announcement: string }
   | { readonly type: "reset-failed"; readonly announcement: string }
+  | {
+      readonly type: "reset-checked";
+      readonly outcome: "landed";
+      readonly announcement: string;
+      readonly keepDraft: boolean;
+    }
+  | {
+      readonly type: "reset-checked";
+      readonly outcome: "not-started";
+      readonly announcement: string;
+    }
   | { readonly type: "announce"; readonly announcement: string | null };
 
 function current(state: ChatState, requestKey: number): ActiveTurn | null {
@@ -196,6 +208,24 @@ export function hasClearableConversation(state: ChatState): boolean {
     state.queued.length > 0 ||
     state.messages.some((message) => message.role === "athlete" || /\S/u.test(message.text))
   );
+}
+
+function startedConversation(state: ChatState, announcement: string, keepDraft = false): ChatState {
+  return {
+    status: "idle",
+    messages: [],
+    activeTurn: null,
+    progress: null,
+    queued: [],
+    ...(state.activeQueueClaimIds === undefined ? {} : { activeQueueClaimIds: [] }),
+    ...(state.retryRequired === undefined ? {} : { retryRequired: null }),
+    session: {
+      presence: "absent",
+      resetPhase: "idle",
+      resetCount: keepDraft ? state.session.resetCount : state.session.resetCount + 1,
+      announcement,
+    },
+  };
 }
 
 export function reduceChatState(state: ChatState, action: ChatAction): ChatState {
@@ -587,21 +617,7 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
     case "reset-succeeded":
       return state.session.resetPhase !== "resetting"
         ? state
-        : {
-            status: "idle",
-            messages: [],
-            activeTurn: null,
-            progress: null,
-            queued: [],
-            ...(state.activeQueueClaimIds === undefined ? {} : { activeQueueClaimIds: [] }),
-            ...(state.retryRequired === undefined ? {} : { retryRequired: null }),
-            session: {
-              presence: "absent",
-              resetPhase: "idle",
-              resetCount: state.session.resetCount + 1,
-              announcement: action.announcement,
-            },
-          };
+        : startedConversation(state, action.announcement);
     case "reset-failed":
       return state.session.resetPhase !== "resetting"
         ? state
@@ -612,6 +628,14 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
               resetPhase: "uncertain",
               announcement: action.announcement,
             },
+          };
+    case "reset-checked":
+      if (state.session.resetPhase !== "uncertain") return state;
+      return action.outcome === "landed"
+        ? startedConversation(state, action.announcement, action.keepDraft)
+        : {
+            ...state,
+            session: { ...state.session, resetPhase: "idle", announcement: action.announcement },
           };
     case "announce":
       return action.announcement === state.session.announcement

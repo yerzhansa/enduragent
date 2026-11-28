@@ -28,6 +28,14 @@
       "sourceHash": "31fbef162594de01bab0cd525c51f74de7bcb15063029fa1a54b2cf5944c80d8",
       "translatedBy": "model"
     },
+    "language.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
+      "translatedBy": "model"
+    },
+    "language.saveFailed": {
+      "sourceHash": "98a0ea6a36c9bfb2d244592f4b4c6e7183116595fdf4b5496ac377b9ebe22007",
+      "translatedBy": "model"
+    },
     "settings.appearance.dark": {
       "sourceHash": "60acc53f13a5d1bf115878c4a785e9a43e8286c4139a8402a6ac7d23966f9153",
       "translatedBy": "model"
@@ -3084,6 +3092,10 @@
       "sourceHash": "e697cc1e45afa5418934fb94f7d9c1bf8e45628cade57a6d31871f5961978d77",
       "translatedBy": "model"
     },
+    "chat.composer.finishAnswer": {
+      "sourceHash": "bda1d0abe66cbc53b9def1c125db3af9c24025913f844e09ebac6cc650d6b3be",
+      "translatedBy": "model"
+    },
     "chat.composer.finishPlanQuestion": {
       "sourceHash": "38f9f55340931f82b601043f4e8cc2384e8cbc155262dbea9865ea74c1128e15",
       "translatedBy": "model"
@@ -3306,6 +3318,14 @@
     },
     "chat.notice.newConversationUncertain": {
       "sourceHash": "215fe82d0f11fd97b21219f0f5f2508fba24b9b9b1c9e854e7491dbdea38d9be",
+      "translatedBy": "model"
+    },
+    "chat.notice.newConversationNotStarted": {
+      "sourceHash": "7aad8b6bdeee86e677f2293d5cbe4b4c86ad3720d018a558bc327e48c9121831",
+      "translatedBy": "model"
+    },
+    "chat.notice.checkNewConversation": {
+      "sourceHash": "fb7099ad8e818d42eceefe0d97c824fd54ddb0eeef54c263ec72c77d39198ac9",
       "translatedBy": "model"
     },
     "chat.notice.planningRequestFailure": {
@@ -12006,6 +12026,38 @@
     },
     "coach.error.modelUnavailable": {
       "sourceHash": "6889bfaa2f4fcf84cc73f189d1af6fde0124666505b1b02ec08284383118ea3a",
+      "translatedBy": "model"
+    },
+    "settings.coach.retiredModel": {
+      "sourceHash": "5c29f4f633e212ad8dd7d6aa5900b65c2a9e7f4e00f0c839f1018edf22b0a900",
+      "translatedBy": "model"
+    },
+    "settings.coach.retiredNotice": {
+      "sourceHash": "4cae7fa7bb57839400f5bab9187ea767bba49b26e4d843fcba3d25592a6e37b4",
+      "translatedBy": "model"
+    },
+    "settings.coach.retiredNoticeNoReplacement": {
+      "sourceHash": "05eced8b8761dd10fcb2606bdb8dddcde94b00c795a70be28a9c848436d6a714",
+      "translatedBy": "model"
+    },
+    "settings.coach.switchModel": {
+      "sourceHash": "39a9866d461c2de8ec3b943e98dd2d48541368a07ed2fabcc8cbe3f1810cf77d",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredModel": {
+      "sourceHash": "5c29f4f633e212ad8dd7d6aa5900b65c2a9e7f4e00f0c839f1018edf22b0a900",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredNotice": {
+      "sourceHash": "4cae7fa7bb57839400f5bab9187ea767bba49b26e4d843fcba3d25592a6e37b4",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredNoticeNoReplacement": {
+      "sourceHash": "05eced8b8761dd10fcb2606bdb8dddcde94b00c795a70be28a9c848436d6a714",
+      "translatedBy": "model"
+    },
+    "setup.ai.switchModel": {
+      "sourceHash": "39a9866d461c2de8ec3b943e98dd2d48541368a07ed2fabcc8cbe3f1810cf77d",
       "translatedBy": "model"
     },
     "chat.notice.discardMessage": {

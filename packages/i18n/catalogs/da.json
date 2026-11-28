@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Vælg dit sprog",
-    "continue": "Fortsæt"
+    "continue": "Fortsæt",
+    "retry": "Prøv igen",
+    "saveFailed": "Dit sprog kunne ikke gemmes. Prøv igen."
   },
   "settings": {
     "appearance": {
@@ -357,12 +359,16 @@
         "claude": "{{claude}}-abonnement",
         "codex": "{{codex}}-agent (eksperimentel)"
       },
+      "retiredModel": "{{model}} (ikke længere på listen)",
+      "retiredNotice": "{{model}} er ikke længere på modellisten. Din træner bruger den fortsat, indtil du skifter.",
+      "retiredNoticeNoReplacement": "{{model}} er ikke længere på modellisten. Din træner bruger den fortsat, indtil du skifter. Vælg en anden model, når du er klar.",
       "retry": "Prøv igen",
       "reviewSetup": "Gennemgå opsætning",
       "route": "Trænerrute",
       "save": "Gem trænerrute",
       "saved": "Trænerindstillinger gemt.",
       "saving": "Gemmer trænerindstillinger…",
+      "switchModel": "Skift til {{model}}",
       "title": "Træner",
       "unavailable": "Trænerindstillingerne er utilgængelige lige nu. Prøv igen.",
       "unsaved": "Ikke gemt",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Logget ind · tilføj kreditter hos {{openrouter}} for at få svar"
       },
       "provider": "Udbyder",
+      "retiredModel": "{{model}} (ikke længere på listen)",
+      "retiredNotice": "{{model}} er ikke længere på modellisten. Din træner bruger den fortsat, indtil du skifter.",
+      "retiredNoticeNoReplacement": "{{model}} er ikke længere på modellisten. Din træner bruger den fortsat, indtil du skifter. Vælg en anden model, når du er klar.",
       "saveLabel": "Gem API-nøgle",
       "subtitle": "Påkrævet. {{product}} inkluderer ikke en",
+      "switchModel": "Skift til {{model}}",
       "title": "AI, der driver din træner",
       "tooltip": {
         "body": "Den bruger et {{chatgpt}}-abonnement, et {{claudeCode}}-login, et {{openrouter}}-login eller en API-nøgle, du selv angiver. Uanset hvad du vælger, bliver det på {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Vedhæft filer",
+      "finishAnswer": "Gør dit svar ovenfor færdigt",
       "finishPlanQuestion": "Besvar først spørgsmålet om træningsplanen ovenfor",
       "label": "Skriv til din træner",
       "messagePlaceholder": "Skriv til din træner",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "En ny samtale er startet. Nogle af de seneste detaljer er muligvis ikke gemt i trænerens hukommelse.",
       "newConversationSuccess": "En ny samtale er startet.",
       "newConversationUncertain": "Vi kunne ikke bekræfte, om den nye samtale blev startet. Din synlige samtale bliver bevaret.",
+      "newConversationNotStarted": "Den nye samtale blev ikke startet. Din samtale er uændret.",
+      "checkNewConversation": "Kontrollér igen",
       "planningRequestFailure": "Plan kunne ikke modtage denne anmodning. Din anmodning bliver bevaret, og intet er ændret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke kontrollere gemte anmodninger til Plan. Opret forbindelse igen, og prøv igen.",
       "protocolFailure": "Trænerens svar kunne ikke bekræftes. Prøv igen.",

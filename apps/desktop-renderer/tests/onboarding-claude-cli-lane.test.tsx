@@ -41,7 +41,7 @@ const CLAUDE_CLI_CONFIGURATION: OnboardingLlmConfiguration = {
 
 const ACTIVE_CLAUDE_CLI_CONFIGURATION: OnboardingLlmConfiguration = {
   ...CLAUDE_CLI_CONFIGURATION,
-  active: { provider: "claude-cli", model: "sonnet" },
+  active: { provider: "claude-cli", model: "sonnet", kind: "listed" },
 };
 
 function claudeBridge(status: ClaudeCliStatus, overrides: Partial<OnboardingBridge> = {}) {

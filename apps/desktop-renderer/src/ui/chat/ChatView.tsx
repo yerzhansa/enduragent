@@ -17,7 +17,7 @@ import {
   planChangePendingInLibrary,
 } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
-import { Button } from "@enduragent/ui";
+import { Button, cn } from "@enduragent/ui";
 import {
   Dialog,
   DialogContent,
@@ -82,8 +82,6 @@ export function ChatView(): ReactElement {
   const conversation = useRef<HTMLElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const composerDraft = useRef("");
-  const prefilled = useRef<string | null>(null);
-  const [composerKey, setComposerKey] = useState(0);
   const [planChangeDraft, setPlanChangeDraftState] = useState<PlanChangeDraftState>({
     kind: "none",
   });
@@ -108,6 +106,13 @@ export function ChatView(): ReactElement {
   const resetPhase = useEnduragentStore((state) => state.chat.resetPhase);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
   const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
+  const newConversationCheck = useEnduragentStore((state) => state.chat.newConversationCheck);
+  const newConversationStatus =
+    resetPhase === "uncertain"
+      ? say("chat.notice.newConversationUncertain")
+      : announcementMessage === null
+        ? (announcement ?? "")
+        : say(announcementMessage);
   const composerStatus = useEnduragentStore((state) => state.chat.composerStatus);
   const composerStatusMessage =
     composerStatus === null ? null : chatFeedbackMessage(composerStatus);
@@ -147,13 +152,8 @@ export function ChatView(): ReactElement {
   const applyComposerDraft = useCallback(
     (next: string, persist: boolean): void => {
       composerDraft.current = next;
-      if (composer.current !== null) {
-        composer.current.replace(next);
-        if (persist) actions?.saveAttachmentDraftText(next);
-      } else {
-        prefilled.current = persist ? next : null;
-        setComposerKey((key) => key + 1);
-      }
+      composer.current?.replace(next);
+      if (persist) actions?.saveAttachmentDraftText(next);
     },
     [actions],
   );
@@ -232,12 +232,6 @@ export function ChatView(): ReactElement {
     const next = base.trim().length === 0 ? prefill.text : `${base}\n\n${prefill.text}`;
     applyComposerDraft(next, true);
   }, [prefill, clearPrefill, actions, applyComposerDraft, setPlanChangeDraft]);
-  useEffect(() => {
-    const next = prefilled.current;
-    if (next === null) return;
-    prefilled.current = null;
-    actions?.saveAttachmentDraftText(next);
-  }, [composerKey, actions]);
   const mountedView = useRef(activeView);
   const previousConversationTop = useRef<number | null>(null);
   const pending = useMemo(
@@ -429,10 +423,14 @@ export function ChatView(): ReactElement {
 
   const hasSetAsideDraft =
     planChangeDraft.kind === "clean" && planChangeDraft.earlierDraft !== null;
+  const inlineEditorOpen = decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen;
+  const composerLockedPlaceholder = planCreationEditorOpen
+    ? say("chat.composer.finishPlanQuestion")
+    : inlineEditorOpen
+      ? say("chat.composer.finishAnswer")
+      : undefined;
   const planChangeBarVisible =
-    !decisionCustomOpen &&
-    !planCreationEditorOpen &&
-    !planChangeEditorOpen &&
+    !inlineEditorOpen &&
     (hasSetAsideDraft ||
       (planChangeRouting &&
         !planChangeSurfaceEditorOpen &&
@@ -570,13 +568,33 @@ export function ChatView(): ReactElement {
           <div className="composer-wrap z-2 row-start-3 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
             <div className="composer-feedback empty:hidden">
               <div className="chat-notice-host empty:hidden">
-                <p
-                  className="new-conversation-status m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
-                  role="status"
-                  aria-live="polite"
+                <div
+                  className={cn(
+                    "flex items-center justify-between gap-inset",
+                    newConversationStatus === "" ? undefined : "px-3.5 pb-inset",
+                  )}
                 >
-                  {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
-                </p>
+                  <p
+                    className="new-conversation-status m-0 text-sm text-ink-2"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {newConversationStatus}
+                  </p>
+                  {newConversationCheck === "hidden" ? null : (
+                    <Button
+                      type="button"
+                      className="shrink-0 text-ink-2 hover:text-ink"
+                      variant="ghost"
+                      size="xs"
+                      disabled={newConversationCheck === "busy"}
+                      focusableWhenDisabled
+                      onClick={() => actions?.checkNewConversation()}
+                    >
+                      {say("chat.notice.checkNewConversation")}
+                    </Button>
+                  )}
+                </div>
                 {composerStatus === null ? null : (
                   <p
                     className="composer-send-hold m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
@@ -614,19 +632,17 @@ export function ChatView(): ReactElement {
                 <AttachmentPanel />
                 <QueuedMessages />
               </div>
-              {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
-                <Composer
-                  key={composerKey}
-                  handle={composer}
-                  draftMemory={composerDraft}
-                  draftSetAside={hasSetAsideDraft}
-                  draftSetAsideRef={draftSetAsideRef}
-                  planChangeDraftRevision={
-                    planChangeDraft.kind === "clean" ? planChangeDraft.revision : null
-                  }
-                  onPlanChangeDraftSubmitted={onPlanChangeDraftSubmitted}
-                />
-              )}
+              <Composer
+                handle={composer}
+                draftMemory={composerDraft}
+                draftSetAside={hasSetAsideDraft}
+                draftSetAsideRef={draftSetAsideRef}
+                planChangeDraftRevision={
+                  planChangeDraft.kind === "clean" ? planChangeDraft.revision : null
+                }
+                onPlanChangeDraftSubmitted={onPlanChangeDraftSubmitted}
+                lockedPlaceholder={composerLockedPlaceholder}
+              />
             </div>
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">
               {changeSurfaceVisible ? say("chat.view.confirmation") : say("chat.view.disclaimer")}

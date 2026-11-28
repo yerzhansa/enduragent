@@ -20,6 +20,7 @@ import {
 import type { GenerateResult, Sport } from "@enduragent/engine/sport";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSpendMeterService } from "../../../packages/coach/src/spend-meter.js";
+import { readUsageLedger } from "../../../packages/core/src/usage-ledger.js";
 import { isDesktopRendererUrl } from "../src/main/renderer-navigation.js";
 import {
   launchDesktopFixture,
@@ -581,6 +582,16 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       "$0.30 / $0.50",
     );
     expect(shown.notices).not.toContain("Some provider costs are unavailable");
+    const ledger = readUsageLedger(join(root, "data")).lines;
+    const [turnRow] = ledger.filter((line) => line.kind === "turn");
+    const chatCalls = ledger.filter((line) => line.kind === "generate");
+    expect(chatCalls.map((line) => line.outcome)).toEqual(["error", "error", "ok"]);
+    expect(turnRow, "the turn row sums all three calls next to the rows it sums").toMatchObject({
+      turnId: chatCalls[0]?.turnId,
+      outcome: "ok",
+      steps: 2,
+    });
+    expect(turnRow?.cost?.total).toBeCloseTo(0.3, 9);
   }, 60_000);
 
   it("keeps the spending surface visible at both viewport bands and never blocks reached-cap chat", async () => {

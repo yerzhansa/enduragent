@@ -105,6 +105,8 @@ export type {
   UsagePort,
 } from "./host-ports.js";
 
+export { isFailedCallWithoutKnownUsage } from "./agent/turn-usage.js";
+
 export interface CreateCoachEngineInput {
   readonly sport: Sport;
   readonly ports: EngineHostPorts;
@@ -328,6 +330,7 @@ export function createCoachEngine(
           queueText(selected),
           {
             languageDetectionText,
+            resumesTurn: mode === "retry",
             ...(normalizedAttachmentContext.length === 0
               ? {}
               : { attachmentContext: normalizedAttachmentContext }),

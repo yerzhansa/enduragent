@@ -1,4 +1,5 @@
 import { markTurnToolFailure } from "./agent/turn-context.js";
+import { startModelCallSpan } from "./agent/turn-trace.js";
 import { generateText, streamText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -137,6 +138,7 @@ export class LLM {
     const signal =
       watchdog === undefined ? deadlineSignal : AbortSignal.any([deadlineSignal, watchdog.signal]);
     const tally = createStepUsageTally();
+    const span = startModelCallSpan(opts.turnId);
     const handleTextDelta = (delta: string): void => {
       watchdog?.textDelta(delta);
       notifyTextDelta(opts.onTextDelta, delta);
@@ -165,13 +167,13 @@ export class LLM {
       result = applyResolvedModelMetadata(generated, this.profile);
     } catch (err) {
       const failure = relabelCallFailure(err, { watchdog, deadline, callerSignal: opts.signal });
-      this.recordFailedGenerate(opts, tally, this.ports.now() - start, failure);
+      span.end(this.recordFailedGenerate(opts, tally, this.ports.now() - start, failure));
       throw failure.error;
     } finally {
       watchdog?.clear();
     }
     const durationMs = this.ports.now() - start;
-    this.recordGenerate(opts, result, durationMs);
+    span.end(this.recordGenerate(opts, result, durationMs));
     return result;
   }
 
@@ -410,14 +412,16 @@ export class LLM {
     };
   }
 
-  private recordGenerate(opts: GenerateOpts, result: GenerateResult, durationMs: number): void {
-    this.ports.usage.append({
+  private recordGenerate(opts: GenerateOpts, result: GenerateResult, durationMs: number) {
+    const line: UsageLedgerLine = {
       ...this.generateLineBase(opts, durationMs),
       steps: result.steps,
       ...usageFieldsFromResult(result),
       stopReason: result.finishReason,
       outcome: "ok",
-    });
+    };
+    this.ports.usage.append(line);
+    return line;
   }
 
   private recordFailedGenerate(
@@ -425,17 +429,19 @@ export class LLM {
     tally: StepUsageTally,
     durationMs: number,
     failure: CallFailure,
-  ): void {
+  ): UsageLedgerLine | undefined {
     try {
-      this.ports.usage.append({
+      const line: UsageLedgerLine = {
         ...this.generateLineBase(opts, durationMs),
         steps: tally.finishedSteps(),
         ...usageFieldsFromResult(knownUsageOfFailedCall(tally, this.profile)),
         outcome: "error",
         errorClass: this.errorClassOf(failure),
-      });
+      };
+      this.ports.usage.append(line);
+      return line;
     } catch {
-      return;
+      return undefined;
     }
   }
 

@@ -61,7 +61,7 @@ import { parseChatGptStatus } from "./chatgpt-status.js";
 import { createStartAtLoginBridge } from "./start-at-login-bridge.js";
 import { createUpdateBridge } from "./update-bridge.js";
 import { parseCredentialDeleteInput, parseDeleteResult } from "./credential-delete-result.js";
-import { exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
+import { exactKeys, record, RUNTIME_STATES, safeString, SLOTS } from "./shape.js";
 import { parseUpdateState, type PreloadUpdateState } from "./update-state.js";
 
 const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status";
@@ -432,22 +432,6 @@ function parseArchivedConversations(value: unknown): unknown {
   return { schemaVersion: 1, conversations, truncated: value.truncated };
 }
 
-function safeString(value: unknown, maximumLength: number): value is string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > maximumLength ||
-    value.trim() !== value
-  ) {
-    return false;
-  }
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 0x1f || code === 0x7f) return false;
-  }
-  return true;
-}
-
 function normalizedSelectionText(value: unknown, maximumLength: number): string {
   if (typeof value !== "string" || value.length === 0 || value.length > maximumLength) {
     throw new TypeError();
@@ -793,18 +777,21 @@ function parseLlmConfiguration(value: unknown): unknown {
   ) {
     throw new TypeError();
   }
-  let active: { readonly provider: string; readonly model: string } | null = null;
+  let active: Record<string, unknown> | null = null;
   if (value.active !== null) {
+    const retired = record(value.active) && value.active.kind === "retired";
     if (
       !record(value.active) ||
-      !exactKeys(value.active, ["provider", "model"]) ||
+      !exactKeys(value.active, ["provider", "model", "kind", ...(retired ? ["replacedBy"] : [])]) ||
       typeof value.active.provider !== "string" ||
       !LLM_PROVIDERS.has(value.active.provider) ||
-      !safeString(value.active.model, 512)
+      !safeString(value.active.model, 512) ||
+      !["listed", "retired", "custom"].includes(String(value.active.kind)) ||
+      (retired && value.active.replacedBy !== null && !safeString(value.active.replacedBy, 512))
     ) {
       throw new TypeError();
     }
-    active = { provider: value.active.provider, model: value.active.model };
+    active = { ...value.active };
   }
   return {
     schemaVersion: 1,

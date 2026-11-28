@@ -67,7 +67,12 @@ function freezeBuilderOptions(
   updaterMetadataSha256,
 ) {
   const publish = Object.freeze([
-    Object.freeze({ provider: "generic", url: feedUrl, channel: "latest" }),
+    Object.freeze({
+      provider: "generic",
+      url: feedUrl,
+      channel: "latest",
+      useMultipleRangeRequest: false,
+    }),
   ]);
   const target = Object.freeze([
     Object.freeze({ target: "nsis", arch: Object.freeze([WINDOWS_RELEASE_ARCH]) }),
@@ -136,6 +141,7 @@ export function serializeWindowsReleaseUpdaterMetadata(feedUrl, publisherDn) {
       provider: "generic",
       url,
       channel: "latest",
+      useMultipleRangeRequest: false,
       updaterCacheDirName: DESKTOP_UPDATER_CACHE_DIRECTORY,
       publisherName: [publisherDn],
     }),
@@ -229,7 +235,7 @@ export function parseWindowsReleaseUpdaterMetadata(bytes, options = {}) {
   } catch {
     throw new TypeError("release updater metadata is invalid");
   }
-  const keys = ["provider", "url", "channel", "updaterCacheDirName"];
+  const keys = ["provider", "url", "channel", "useMultipleRangeRequest", "updaterCacheDirName"];
   if (exactObject(metadata) && Object.hasOwn(metadata, "publisherName")) keys.push("publisherName");
   let publisherName;
   if (exactObject(metadata) && Object.hasOwn(metadata, "publisherName")) {
@@ -243,6 +249,7 @@ export function parseWindowsReleaseUpdaterMetadata(bytes, options = {}) {
     !hasExactKeys(metadata, keys) ||
     metadata.provider !== "generic" ||
     metadata.channel !== "latest" ||
+    metadata.useMultipleRangeRequest !== false ||
     metadata.updaterCacheDirName !== DESKTOP_UPDATER_CACHE_DIRECTORY ||
     (Object.hasOwn(metadata, "publisherName") &&
       (typeof publisherName !== "string" ||
@@ -267,6 +274,7 @@ export function parseWindowsReleaseUpdaterMetadata(bytes, options = {}) {
     provider: "generic",
     url,
     channel: "latest",
+    useMultipleRangeRequest: false,
     updaterCacheDirName: DESKTOP_UPDATER_CACHE_DIRECTORY,
   };
   if (publisherName !== undefined) result.publisherName = publisherName;
@@ -328,6 +336,7 @@ export function createWindowsReleasePlan(input) {
     provider: "generic",
     url: feedUrl,
     channel: "latest",
+    useMultipleRangeRequest: false,
     updaterCacheDirName: DESKTOP_UPDATER_CACHE_DIRECTORY,
     publisherName: publisherDn,
   });

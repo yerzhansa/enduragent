@@ -82,6 +82,7 @@ function stubActions(): ChatActions {
     openNewConversation: vi.fn(),
     cancelNewConversation: vi.fn(),
     confirmNewConversation: vi.fn(),
+    checkNewConversation: vi.fn(),
     retryFirstSync: vi.fn(),
     openOpenRouterCredits: vi.fn(),
     answerDecision: vi.fn(),
@@ -771,7 +772,10 @@ describe("chat surface", () => {
 
       await user.click(screen.getByRole("button", { name: /Something else/u }));
       expect(screen.queryByRole("button", { name: /Prioritize recovery/u })).toBeNull();
-      expect(normalComposer).not.toBeVisible();
+      expect(composer()).toBe(normalComposer);
+      expect(normalComposer).toBeDisabled();
+      expect(normalComposer).toHaveValue("Keep this draft");
+      expect(normalComposer).toHaveAttribute("placeholder", "Finish your answer above");
       const custom = screen.getByLabelText("What would work better?");
       expect(
         document.querySelector('[data-pending-navigation-source="coach-decision:decision-1"]'),
@@ -790,22 +794,53 @@ describe("chat surface", () => {
       });
       await user.click(back);
       expect(composer()).toHaveValue("Keep this draft");
+      expect(composer()).toBeEnabled();
       expect(screen.getByRole("button", { name: /Something else/u })).toHaveFocus();
     });
 
-    it("brings the message box back when the decision closes while its custom editor is open", async () => {
+    it("keeps Stop responding live under the locked message box while the custom editor is open", async () => {
       const user = userEvent.setup();
       render(<Harness />);
+      setChat({
+        decision: unansweredDecision(),
+        sendDisabled: true,
+        inputDisabled: false,
+        status: "streaming",
+      });
+
+      await user.click(screen.getByRole("button", { name: /Something else/u }));
+      const custom = screen.getByLabelText("What would work better?");
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Coach is responding…");
+      const stop = screen.getByRole("button", { name: "Stop responding" });
+      expect(stop).toBeEnabled();
+
+      await user.type(custom, "/plan{Enter}");
+      expect(actions.submit).not.toHaveBeenCalled();
+      await user.click(stop);
+      expect(actions.stop).toHaveBeenCalledTimes(1);
+
+      setChat({ status: "interrupted" });
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Finish your answer above");
+      expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    });
+
+    it("unlocks the message box with its draft when the decision closes while its custom editor is open", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      await user.type(composer(), "Keep this draft");
       setChat({ decision: unansweredDecision(), sendDisabled: true, inputDisabled: false });
 
       await user.click(screen.getByRole("button", { name: /Something else/u }));
       expect(screen.getByLabelText("What would work better?")).toBeVisible();
-      expect(document.querySelector("textarea#message")).toBeNull();
+      expect(composer()).toBeDisabled();
 
       setChat({ decision: null, sendDisabled: false });
 
       expect(screen.queryByLabelText("What would work better?")).toBeNull();
-      expect(composer()).toBeVisible();
+      expect(composer()).toBeEnabled();
+      expect(composer()).toHaveValue("Keep this draft");
     });
 
     it("shows continuing and relaunch recovery states", () => {
@@ -1254,7 +1289,7 @@ describe("chat surface", () => {
       expect(actions.submit).not.toHaveBeenCalled();
     });
 
-    it("updates draft memory and persists an accepted slash command across remount", async () => {
+    it("persists an accepted slash command and keeps it while a custom editor is open", async () => {
       const user = userEvent.setup();
       setChat({ decision: unansweredDecision(), sendDisabled: true, inputDisabled: false });
       render(<Harness />);
@@ -1265,7 +1300,8 @@ describe("chat surface", () => {
       expect(composer()).toHaveValue("/review ");
 
       await user.click(screen.getByRole("button", { name: /Something else/u }));
-      expect(actions.saveAttachmentDraftText).toHaveBeenCalledWith("/review ");
+      expect(composer()).toHaveValue("/review ");
+      await waitFor(() => expect(actions.saveAttachmentDraftText).toHaveBeenCalledWith("/review "));
 
       await user.click(screen.getByRole("button", { name: "Back" }));
       expect(composer()).toHaveValue("/review ");
@@ -2820,6 +2856,39 @@ describe("chat surface", () => {
       });
     });
 
+    it("offers Check again only while the reset outcome is uncertain", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      const status = (): Element | null => document.querySelector(".new-conversation-status");
+      const uncertainCopy =
+        "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
+
+      setChat({ resetPhase: "uncertain", announcement: uncertainCopy });
+      expect(status()).toHaveTextContent(uncertainCopy);
+      expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+
+      setChat({ newConversationCheck: "ready", announcement: "Thanks — we received your note." });
+      expect(status()).toHaveTextContent(uncertainCopy);
+      await user.click(screen.getByRole("button", { name: "Check again" }));
+      expect(actions.checkNewConversation).toHaveBeenCalledTimes(1);
+
+      setChat({ newConversationCheck: "busy" });
+      expect(screen.getByRole("button", { name: "Check again" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+
+      setChat({
+        resetPhase: "idle",
+        newConversationCheck: "hidden",
+        announcement: "The new conversation didn’t start. Your conversation is unchanged.",
+      });
+      expect(status()).toHaveTextContent(
+        "The new conversation didn’t start. Your conversation is unchanged.",
+      );
+      expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+    });
+
     it("names the restored history in the confirmation copy", () => {
       render(<Harness />);
       setChat({ resetPhase: "confirming" });
@@ -2902,7 +2971,8 @@ describe("chat surface", () => {
           expect(input).toHaveAccessibleDescription(
             "Give the weekday and exact limit, or the exact time-off dates.",
           );
-        expect(document.querySelector("#message")).toBeNull();
+        expect(composer()).toBeDisabled();
+        expect(composer()).toHaveAttribute("placeholder", "Finish the Plan question above");
         if (field === "event")
           expect(screen.getByLabelText("Event date")).toHaveValue("1998-10-18");
         await userEvent.click(screen.getByRole("button", { name: submit }));
@@ -3053,7 +3123,8 @@ describe("chat surface", () => {
       expect(screen.queryByRole("textbox", { name: "Success meaning" })).toBeNull();
       await userEvent.click(screen.getByRole("button", { name: "Something else" }));
       expect(screen.getByRole("textbox", { name: "Success meaning" })).toHaveValue("");
-      expect(document.querySelector('[data-parity="composer"]')).toBeNull();
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Finish the Plan question above");
       expect(document.querySelector('[data-parity="custom.editor"]')).toBeVisible();
       expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
       await userEvent.click(screen.getByRole("button", { name: "Back" }));
@@ -3664,7 +3735,8 @@ describe("chat surface", () => {
         }),
       );
       expect(document.querySelector('[data-parity="custom.editor"]')).not.toBeNull();
-      expect(document.querySelector('[data-parity="composer"]')).toBeNull();
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Finish the Plan question above");
       await user.keyboard("{Escape}");
       expect(actions.pausePlanCreation).not.toHaveBeenCalled();
       expect(document.querySelector('[data-parity="custom.editor"]')).toBeNull();
@@ -3673,7 +3745,7 @@ describe("chat surface", () => {
           name: /^(Event not listed|Something else|Add commitments or time off)$/u,
         }),
       ).toBeVisible();
-      expect(document.querySelector('[data-parity="composer"]')).not.toBeNull();
+      expect(composer()).toBeEnabled();
     });
 
     it("lets Escape close command suggestions before it pauses the Card", async () => {
@@ -4277,7 +4349,8 @@ describe("chat surface", () => {
       expect(editor).toHaveValue("Wednesday at most 45 minutes");
       await waitFor(() => expect(editor).toHaveFocus());
       expect(screen.queryByRole("region", { name: "Did I read this right?" })).toBeNull();
-      expect(document.querySelector("#message")).toBeNull();
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Finish the Plan question above");
     });
 
     it("returns focus to the composer and enables building after skipping a pending answer", async () => {

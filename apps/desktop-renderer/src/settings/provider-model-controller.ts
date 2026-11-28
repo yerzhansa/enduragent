@@ -5,6 +5,7 @@ import type {
   OnboardingLlmSelectionResult,
 } from "../onboarding/bridge";
 import { CUSTOM_MODEL_SELECTION } from "../onboarding/constants";
+import { offersModel, withSavedSelection } from "../onboarding/selection";
 
 export type ProviderModelValidationError =
   | "model-required"
@@ -88,9 +89,10 @@ function hasControlCharacters(value: string): boolean {
 
 function draftFor(
   provider: OnboardingLlmProviderConfiguration,
+  active: OnboardingLlmConfiguration["active"],
   model = provider.defaultModel,
 ): ProviderModelDraft {
-  const known = provider.models.some((option) => option.value === model);
+  const known = offersModel(provider, active, model);
   return {
     provider,
     modelChoice: known ? model : CUSTOM_MODEL_SELECTION,
@@ -191,7 +193,7 @@ export function createProviderModelSettingsController(input: {
     const draft =
       configuration.active === null || activeProvider === undefined
         ? null
-        : draftFor(activeProvider, configuration.active.model);
+        : draftFor(activeProvider, configuration.active, configuration.active.model);
     if (draft !== null) {
       providerDrafts.set(draft.provider.provider, draft);
       if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
@@ -267,7 +269,7 @@ export function createProviderModelSettingsController(input: {
     const editable = editableState(currentState);
     const provider = editable?.providers.find((entry) => entry.provider === providerName);
     if (editable === null || provider === undefined) return;
-    const draft = providerDrafts.get(provider.provider) ?? draftFor(provider);
+    const draft = providerDrafts.get(provider.provider) ?? draftFor(provider, editable.active);
     updateDraft(draft);
     commit(committedCustomModels.get(provider.provider) === selectedModel(draft));
   };
@@ -280,7 +282,7 @@ export function createProviderModelSettingsController(input: {
       draft === null ||
       draft === undefined ||
       (model !== CUSTOM_MODEL_SELECTION &&
-        !draft.provider.models.some((option) => option.value === model))
+        !offersModel(draft.provider, editable?.active ?? null, model))
     ) {
       return;
     }
@@ -340,10 +342,7 @@ export function createProviderModelSettingsController(input: {
       }
       render({
         status: "saving",
-        ...formState(
-          { ...latest, active: { provider: selection.provider, model: selection.model } },
-          input.codexAgentSupported ?? true,
-        ),
+        ...formState(withSavedSelection(latest, selection), input.codexAgentSupported ?? true),
       });
       try {
         input.onSaved?.(selection);

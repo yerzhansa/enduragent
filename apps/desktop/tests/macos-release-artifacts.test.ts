@@ -258,6 +258,7 @@ async function signedIdentityFixture() {
           "provider: generic",
           "url: " + DESKTOP_FEED_URL,
           "channel: latest",
+          "useMultipleRangeRequest: false",
           "updaterCacheDirName: '@enduragentdesktop-updater'",
           "",
         ].join("\n"),
@@ -496,23 +497,31 @@ describe.skipIf(process.platform === "win32")("macOS signed identity continuity"
   it.each([
     [
       "provider",
-      "provider: github\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
+      "provider: github\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nuseMultipleRangeRequest: false\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
     ],
     [
       "channel",
-      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: beta\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
+      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: beta\nuseMultipleRangeRequest: false\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
+    ],
+    [
+      "missing multi-range flag",
+      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
+    ],
+    [
+      "enabled multi-range flag",
+      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nuseMultipleRangeRequest: true\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
     ],
     [
       "cache directory",
-      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nupdaterCacheDirName: alternate\n",
+      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nuseMultipleRangeRequest: false\nupdaterCacheDirName: alternate\n",
     ],
     [
       "HTTPS feed",
-      "provider: generic\nurl: http://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
+      "provider: generic\nurl: http://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nuseMultipleRangeRequest: false\nupdaterCacheDirName: '@enduragentdesktop-updater'\n",
     ],
     [
       "exact keys",
-      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nupdaterCacheDirName: '@enduragentdesktop-updater'\nextra: forbidden\n",
+      "provider: generic\nurl: https://github.com/yerzhansa/enduragent/releases/latest/download/\nchannel: latest\nuseMultipleRangeRequest: false\nupdaterCacheDirName: '@enduragentdesktop-updater'\nextra: forbidden\n",
     ],
   ])("rejects updater metadata with invalid %s", async (_label, contents) => {
     const fixture = await signedIdentityFixture();
@@ -2089,7 +2098,10 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
 
   it("verifies the unpacked application signature, stapled ticket, and Gatekeeper offline", async () => {
     const application = "/synthetic/Enduragent.app";
-    const executeFile = vi.fn(async () => ({ stdout: "", stderr: "Notarization Ticket=stapled\n" }));
+    const executeFile = vi.fn(async () => ({
+      stdout: "",
+      stderr: "Notarization Ticket=stapled\n",
+    }));
 
     await verifyMacosApplication(application, { executeFile });
 

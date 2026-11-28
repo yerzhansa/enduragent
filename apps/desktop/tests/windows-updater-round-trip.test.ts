@@ -39,6 +39,7 @@ const preflight: WindowsUpdaterPreflight = {
   feedUrl: DESKTOP_FEED_URL,
   channel: "latest",
   publisherName: "CN=Operator Name, O=Open Source Developer, C=KZ",
+  useMultipleRangeRequest: false,
   disableWebInstaller: true,
   verifyUpdateCodeSignature: true,
 };
@@ -283,6 +284,17 @@ const negativeScenarios: readonly {
         } as unknown as WindowsUpdaterPreflight,
       }),
   },
+  {
+    name: "useMultipleRangeRequest true",
+    expected: "updater preflight is invalid",
+    input: () =>
+      roundTripInput({
+        preflight: {
+          ...preflight,
+          useMultipleRangeRequest: true,
+        } as unknown as WindowsUpdaterPreflight,
+      }),
+  },
 ];
 
 describe("Windows updater N-to-N+1 round trip", () => {
@@ -294,10 +306,19 @@ describe("Windows updater N-to-N+1 round trip", () => {
       candidateInstallerName: "Enduragent-0.1.6-x64.exe",
       candidateInstallerSha512: createHash("sha512").update(candidateInstaller).digest("base64"),
       candidateInstallerSize: candidateInstaller.byteLength,
+      differential: {
+        totalBytes: candidateInstaller.byteLength,
+        copyBytes: 32,
+        downloadBytes: 2,
+        copyOperations: 1,
+        downloadOperations: 1,
+        reuseRatio: 32 / candidateInstaller.byteLength,
+      },
       preflight,
       authenticode: "pending-w19",
     });
     expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.differential)).toBe(true);
   });
 
   it.each(negativeScenarios)("rejects $name", ({ expected, input }) => {

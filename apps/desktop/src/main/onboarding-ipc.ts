@@ -37,6 +37,7 @@ import {
   parseOnboardingLlmSelection,
   publicLlmProviderConfiguration,
   runtimeConfigurationForSelection,
+  savedModel,
   type OnboardingLlmConfiguration,
   type OnboardingLlmSelection,
   type OnboardingLlmSelectionResult,
@@ -347,21 +348,17 @@ async function llmConfiguration(
   getRuntimeConfig: () => Promise<RuntimeConfigSnapshot>,
   catalog: LocalModelCatalogSnapshot,
 ): Promise<OnboardingLlmConfiguration> {
+  const providers = publicLlmProviderConfiguration(catalog);
   let active: OnboardingLlmConfiguration["active"] = null;
   try {
     const snapshot = await getRuntimeConfig();
     if (snapshot.llm.credential_configured) {
-      active = { provider: snapshot.llm.provider, model: snapshot.llm.model };
+      active = savedModel(providers, snapshot.llm.provider, snapshot.llm.model);
     }
   } catch {
     active = null;
   }
-  return {
-    schemaVersion: 1,
-    catalogRevision: catalog.revision,
-    providers: publicLlmProviderConfiguration(catalog),
-    active,
-  };
+  return { schemaVersion: 1, catalogRevision: catalog.revision, providers, active };
 }
 
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {

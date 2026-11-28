@@ -254,7 +254,9 @@
   },
   "language": {
     "chooseTitle": "Escolhe o teu idioma",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "retry": "Tentar novamente",
+    "saveFailed": "Não foi possível guardar o teu idioma. Tenta novamente."
   },
   "settings": {
     "appearance": {
@@ -372,12 +374,16 @@
         "claude": "Subscrição {{claude}}",
         "codex": "Agente {{codex}} (experimental)"
       },
+      "retiredModel": "{{model}} (já não está na lista)",
+      "retiredNotice": "{{model}} já não está na lista de modelos. O teu treinador continua a usá-lo até mudares.",
+      "retiredNoticeNoReplacement": "{{model}} já não está na lista de modelos. O teu treinador continua a usá-lo até mudares. Escolhe outro modelo quando quiseres.",
       "retry": "Tentar novamente",
       "reviewSetup": "Rever configuração",
       "route": "Ligação do treinador",
       "save": "Guardar ligação do treinador",
       "saved": "Definições do treinador guardadas.",
       "saving": "A guardar definições do treinador…",
+      "switchModel": "Mudar para {{model}}",
       "title": "Treinador",
       "unavailable": "As definições do treinador não estão disponíveis agora. Tenta novamente.",
       "unsaved": "Por guardar",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Sessão iniciada · adiciona créditos em {{openrouter}} para receberes respostas"
       },
       "provider": "Fornecedor",
+      "retiredModel": "{{model}} (já não está na lista)",
+      "retiredNotice": "{{model}} já não está na lista de modelos. O teu treinador continua a usá-lo até mudares.",
+      "retiredNoticeNoReplacement": "{{model}} já não está na lista de modelos. O teu treinador continua a usá-lo até mudares. Escolhe outro modelo quando quiseres.",
       "saveLabel": "Guardar chave de API",
       "subtitle": "Obrigatória. {{product}} não inclui uma",
+      "switchModel": "Mudar para {{model}}",
       "title": "IA que faz funcionar o teu treinador",
       "tooltip": {
         "body": "Funciona com uma subscrição {{chatgpt}}, uma sessão iniciada no {{claudeCode}}, uma sessão iniciada no {{openrouter}} ou uma chave de API que forneças. A opção que escolheres fica em {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Anexar ficheiros",
+      "finishAnswer": "Conclui a tua resposta acima",
       "finishPlanQuestion": "Conclui a pergunta do Plano acima",
       "label": "Envia uma mensagem ao teu treinador",
       "messagePlaceholder": "Envia uma mensagem ao teu treinador",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido guardados na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",
       "newConversationUncertain": "Não foi possível confirmar se a nova conversa foi iniciada. A conversa visível mantém-se.",
+      "newConversationNotStarted": "A nova conversa não foi iniciada. A sua conversa não foi alterada.",
+      "checkNewConversation": "Verificar novamente",
       "planningRequestFailure": "O Plano não conseguiu receber este pedido. O teu pedido mantém-se e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar os pedidos guardados do Plano. Volta a ligar e tenta novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tenta novamente.",

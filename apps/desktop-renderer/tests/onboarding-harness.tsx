@@ -346,7 +346,7 @@ export const TEST_LLM_CONFIGURATION: OnboardingLlmConfiguration = {
       defaultBaseUrl: "https://api.z.ai/api/openai/v1",
     },
   ],
-  active: { provider: "openai-codex", model: "gpt-5.5" },
+  active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
 };
 
 export type TestBridge = OnboardingBridge &

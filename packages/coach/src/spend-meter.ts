@@ -20,6 +20,7 @@ import {
   codexAgentCacheReadSavingsUsd,
   priceClaudeCliInclusiveUsage,
   priceCodexAgentInclusiveUsage,
+  isFailedCallWithoutKnownUsage,
   priceInclusiveUsage,
   type UsageCost,
   type UsageLedgerLine,
@@ -190,16 +191,6 @@ function catalogCacheReadSavingsFor(line: UsageLedgerLine, cacheReadTokens: numb
   return cacheReadSavingsUsd(line.provider, line.model, cacheReadTokens);
 }
 
-function failedCallWithoutKnownUsage(line: UsageLedgerLine): boolean {
-  return (
-    line.outcome === "error" &&
-    line.inputTokens === undefined &&
-    line.outputTokens === undefined &&
-    line.providerReportedCostUsd === undefined &&
-    line.cost === undefined
-  );
-}
-
 function accruesToCap(line: UsageLedgerLine): boolean {
   if (line.costBasis === "notional") return false;
   if (line.costBasis === "actual") return true;
@@ -359,7 +350,7 @@ function aggregateLedger(
             cacheWriteTokens: line.cacheWriteTokens ?? 0,
           })
         : undefined;
-    const cost = failedCallWithoutKnownUsage(line)
+    const cost = isFailedCallWithoutKnownUsage(line)
       ? 0
       : (providerReported ??
         (catalogRevision === undefined ? catalogCost?.total : storedCost?.total));

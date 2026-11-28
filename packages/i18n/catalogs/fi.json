@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Valitse kielesi",
-    "continue": "Jatka"
+    "continue": "Jatka",
+    "retry": "Yritä uudelleen",
+    "saveFailed": "Kieltäsi ei voitu tallentaa. Yritä uudelleen."
   },
   "settings": {
     "appearance": {
@@ -357,12 +359,16 @@
         "claude": "{{claude}}-tilaus",
         "codex": "{{codex}}-agentti (kokeellinen)"
       },
+      "retiredModel": "{{model}} (ei enää listalla)",
+      "retiredNotice": "{{model}} ei ole enää malliluettelossa. Valmentajasi käyttää sitä edelleen, kunnes vaihdat.",
+      "retiredNoticeNoReplacement": "{{model}} ei ole enää malliluettelossa. Valmentajasi käyttää sitä edelleen, kunnes vaihdat. Valitse toinen malli, kun olet valmis.",
       "retry": "Yritä uudelleen",
       "reviewSetup": "Tarkista käyttöönotto",
       "route": "Valmentajan yhteys",
       "save": "Tallenna valmentajan yhteys",
       "saved": "Valmentajan asetukset tallennettu.",
       "saving": "Tallennetaan valmentajan asetuksia…",
+      "switchModel": "Vaihda malliin {{model}}",
       "title": "Valmentaja",
       "unavailable": "Valmentajan asetukset eivät ole juuri nyt käytettävissä. Yritä uudelleen.",
       "unsaved": "Tallentamatta",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Kirjautunut · lisää krediittejä palvelussa {{openrouter}}, niin saat vastauksia"
       },
       "provider": "Palveluntarjoaja",
+      "retiredModel": "{{model}} (ei enää listalla)",
+      "retiredNotice": "{{model}} ei ole enää malliluettelossa. Valmentajasi käyttää sitä edelleen, kunnes vaihdat.",
+      "retiredNoticeNoReplacement": "{{model}} ei ole enää malliluettelossa. Valmentajasi käyttää sitä edelleen, kunnes vaihdat. Valitse toinen malli, kun olet valmis.",
       "saveLabel": "Tallenna API-avain",
       "subtitle": "Pakollinen · {{product}} ei sisällä omaa tekoälyä",
+      "switchModel": "Vaihda malliin {{model}}",
       "title": "Valmentajasi käyttämä tekoäly",
       "tooltip": {
         "body": "Se käyttää {{chatgpt}}-tilausta, {{claudeCode}}-kirjautumista, {{openrouter}}-kirjautumista tai antamaasi API-avainta. Valitsemasi tunnistautumistiedot säilyvät tietokoneella {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Liitä tiedostoja",
+      "finishAnswer": "Viimeistele vastauksesi yllä",
       "finishPlanQuestion": "Vastaa ensin yllä olevaan suunnitelmakysymykseen",
       "label": "Lähetä viesti valmentajallesi",
       "messagePlaceholder": "Lähetä viesti valmentajallesi",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "Uusi keskustelu aloitettu. Joitakin viimeaikaisia tietoja ei ehkä tallennettu valmentajan muistiin.",
       "newConversationSuccess": "Uusi keskustelu aloitettu.",
       "newConversationUncertain": "Uuden keskustelun alkamista ei voitu vahvistaa. Näkyvä keskustelusi säilyy.",
+      "newConversationNotStarted": "Uutta keskustelua ei aloitettu. Keskustelusi on ennallaan.",
+      "checkNewConversation": "Tarkista uudelleen",
       "planningRequestFailure": "Suunnitelma ei voinut vastaanottaa tätä pyyntöä. Pyyntösi säilyy, eikä suunnitelmassa muuttunut mikään.",
       "planningRequestLoadFailure": "Tallennettuja suunnitelmapyyntöjä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "protocolFailure": "Valmentajan vastausta ei voitu varmistaa. Yritä uudelleen.",

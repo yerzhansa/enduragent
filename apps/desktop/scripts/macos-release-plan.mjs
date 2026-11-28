@@ -300,9 +300,16 @@ export function parseMacosReleaseUpdaterMetadata(value) {
   }
   if (
     !exactObject(metadata) ||
-    !hasExactKeys(metadata, ["provider", "url", "channel", "updaterCacheDirName"]) ||
+    !hasExactKeys(metadata, [
+      "provider",
+      "url",
+      "channel",
+      "useMultipleRangeRequest",
+      "updaterCacheDirName",
+    ]) ||
     metadata.provider !== "generic" ||
     metadata.channel !== "latest" ||
+    metadata.useMultipleRangeRequest !== false ||
     metadata.updaterCacheDirName !== DESKTOP_UPDATER_CACHE_DIRECTORY
   ) {
     throw new TypeError("release updater metadata is invalid");
@@ -317,6 +324,7 @@ export function parseMacosReleaseUpdaterMetadata(value) {
     provider: "generic",
     url,
     channel: "latest",
+    useMultipleRangeRequest: false,
     updaterCacheDirName: DESKTOP_UPDATER_CACHE_DIRECTORY,
   });
 }
@@ -424,6 +432,7 @@ async function createMacosReleasePlanCore(input, dependencies = {}) {
           provider: "generic",
           url: feedUrl,
           channel: "latest",
+          useMultipleRangeRequest: false,
         },
       ],
       mac: {
@@ -806,9 +815,12 @@ export async function runMacosRelease(input, dependencies = {}) {
   const verifyBackendSelection =
     dependencies.verifyBackendSelection ??
     (async (candidate) =>
-      (await import("./verify-macos-backend-selection.mjs")).verifyMacosBackendSelection(candidate, {
-        executeFile: dependencies.executeFile,
-      }));
+      (await import("./verify-macos-backend-selection.mjs")).verifyMacosBackendSelection(
+        candidate,
+        {
+          executeFile: dependencies.executeFile,
+        },
+      ));
   dependencies.reportStage?.("backend-selection");
   await verifyBackendSelection(application);
   const dmgPath = join(plan.builderOptions.projectDir, "dist", plan.artifactNames.dmg);

@@ -292,15 +292,15 @@ describe("desktop update controller", () => {
     },
   );
 
-  it("configures a quiet updater, performs startup and unref'd six-hour checks, and cleans up", async () => {
+  it("configures a safe updater logger, performs startup and unref'd six-hour checks, and cleans up", async () => {
     const fake = fakeUpdater();
+    const log = vi.fn();
     vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
-    const subject = activeController(fake.updater);
+    const subject = activeController(fake.updater, { log });
 
     await subject.controller.start();
 
     expect(fake.updater).toMatchObject({
-      logger: null,
       autoDownload: false,
       autoInstallOnAppQuit: false,
       autoRunAppAfterInstall: true,
@@ -308,6 +308,19 @@ describe("desktop update controller", () => {
       allowDowngrade: false,
       disableWebInstaller: true,
     });
+    expect(fake.updater.logger).not.toBeNull();
+    expect(fake.updater.logger?.info).toBeTypeOf("function");
+    expect(fake.updater.logger?.warn).toBeTypeOf("function");
+    expect(fake.updater.logger?.error).toBeTypeOf("function");
+    expect(fake.updater.logger?.debug).toBeUndefined();
+    fake.updater.logger?.error(
+      'Cannot download differentially, fallback to full download: HttpError: 502 Bad Gateway\nHeaders: {"authorization":"Bearer secret"}\n    at /Users/athlete/app.js:1:1',
+    );
+    expect(log).toHaveBeenCalledWith(
+      "desktop-update-updater level=error event=differential-fallback reason=http-error status=502",
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain("secret");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("/Users/athlete");
     expect(fake.updater.checkForUpdates).toHaveBeenCalledOnce();
     expect(subject.timer.unref).toHaveBeenCalledOnce();
     expect(fake.listenerCount()).toBe(0);

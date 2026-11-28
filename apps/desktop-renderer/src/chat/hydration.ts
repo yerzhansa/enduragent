@@ -54,7 +54,7 @@ export interface TranscriptHydrator {
   loadEarlier(): Promise<void>;
   retry(): Promise<void>;
   beginReset(): void;
-  resetSucceeded(): void;
+  resetSucceeded(page?: Extract<TranscriptPage, { readonly status: "page" }>): void;
   resetFailed(): void;
   dispose(): void;
 }
@@ -72,6 +72,10 @@ const EMPTY_HYDRATION: TranscriptHydrationSnapshot = Object.freeze({
   revision: 0,
   change: "none",
 });
+
+export async function readEmptyTranscript(): Promise<TranscriptPage> {
+  return { schemaVersion: 1, status: "page", turns: [], nextCursor: null };
+}
 
 export function emptyTranscriptHydration(): TranscriptHydrationSnapshot {
   return EMPTY_HYDRATION;
@@ -328,7 +332,7 @@ export function createTranscriptHydrator(input: {
         });
       }
     },
-    resetSucceeded() {
+    resetSucceeded(page) {
       if (disposed) return;
       resetPending = false;
       epoch += 1;
@@ -343,6 +347,7 @@ export function createTranscriptHydrator(input: {
         revision: snapshot.revision + 1,
         change: "clear",
       });
+      if (page !== undefined) applyPage(page, "initial");
     },
     resetFailed() {
       if (disposed) return;

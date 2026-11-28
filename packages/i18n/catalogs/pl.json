@@ -228,7 +228,9 @@
   },
   "language": {
     "chooseTitle": "Wybierz swój język",
-    "continue": "Kontynuuj"
+    "continue": "Kontynuuj",
+    "retry": "Spróbuj ponownie",
+    "saveFailed": "Nie udało się zapisać języka. Spróbuj ponownie."
   },
   "settings": {
     "appearance": {
@@ -365,12 +367,16 @@
         "claude": "Subskrypcja {{claude}}",
         "codex": "Agent {{codex}} (eksperymentalny)"
       },
+      "retiredModel": "{{model}} (usunięty z listy)",
+      "retiredNotice": "{{model}} nie jest już na liście modeli. Twój trener nadal go używa, dopóki nie zmienisz modelu.",
+      "retiredNoticeNoReplacement": "{{model}} nie jest już na liście modeli. Twój trener nadal go używa, dopóki nie zmienisz modelu. Wybierz inny model, kiedy zechcesz.",
       "retry": "Spróbuj ponownie",
       "reviewSetup": "Sprawdź konfigurację",
       "route": "Połączenie trenera",
       "save": "Zapisz połączenie trenera",
       "saved": "Zapisano ustawienia trenera.",
       "saving": "Zapisywanie ustawień trenera…",
+      "switchModel": "Przełącz na {{model}}",
       "title": "Trener",
       "unavailable": "Ustawienia trenera są teraz niedostępne. Spróbuj ponownie.",
       "unsaved": "Niezapisane",
@@ -891,8 +897,12 @@
         "openrouterCredits": "Zalogowano · dodaj środki w {{openrouter}}, aby otrzymywać odpowiedzi"
       },
       "provider": "Dostawca",
+      "retiredModel": "{{model}} (usunięty z listy)",
+      "retiredNotice": "{{model}} nie jest już na liście modeli. Twój trener nadal go używa, dopóki nie zmienisz modelu.",
+      "retiredNoticeNoReplacement": "{{model}} nie jest już na liście modeli. Twój trener nadal go używa, dopóki nie zmienisz modelu. Wybierz inny model, kiedy zechcesz.",
       "saveLabel": "Zapisz klucz API",
       "subtitle": "Wymagane — {{product}} go nie zawiera",
+      "switchModel": "Przełącz na {{model}}",
       "title": "AI obsługujące twojego trenera",
       "tooltip": {
         "body": "Korzysta z subskrypcji {{chatgpt}}, logowania {{claudeCode}}, logowania {{openrouter}} lub podanego przez ciebie klucza API. Wybrana opcja pozostaje na {{computer}}.",
@@ -1254,6 +1264,7 @@
     },
     "composer": {
       "attach": "Załącz pliki",
+      "finishAnswer": "Najpierw dokończ odpowiedź powyżej",
       "finishPlanQuestion": "Najpierw odpowiedz na pytanie o plan powyżej",
       "label": "Napisz do trenera",
       "messagePlaceholder": "Napisz do trenera",
@@ -1322,6 +1333,8 @@
       "newConversationMemoryWarning": "Rozpoczęto nową rozmowę. Niektóre ostatnie szczegóły mogły nie zostać zapisane w pamięci trenera.",
       "newConversationSuccess": "Rozpoczęto nową rozmowę.",
       "newConversationUncertain": "Nie udało się potwierdzić rozpoczęcia nowej rozmowy. Widoczna rozmowa została zachowana.",
+      "newConversationNotStarted": "Nowa rozmowa nie została rozpoczęta. Twoja rozmowa się nie zmieniła.",
+      "checkNewConversation": "Sprawdź ponownie",
       "planningRequestFailure": "Plan nie mógł odebrać tej prośby. Twoja prośba została zachowana, a plan pozostał bez zmian.",
       "planningRequestLoadFailure": "Nie udało się sprawdzić zapisanych próśb dotyczących planu. Połącz ponownie i spróbuj jeszcze raz.",
       "protocolFailure": "Nie udało się zweryfikować odpowiedzi trenera. Spróbuj ponownie.",

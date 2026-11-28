@@ -51,6 +51,7 @@ function configuration(
   active: OnboardingLlmConfiguration["active"] = {
     provider: "anthropic",
     model: "claude-sonnet",
+    kind: "listed",
   },
 ): OnboardingLlmConfiguration {
   return { schemaVersion: 1, catalogRevision: 7, providers: PROVIDERS, active };
@@ -130,7 +131,7 @@ function formState(controller: ProviderModelSettingsController) {
 }
 
 describe("provider and model settings refresh", () => {
-  const OPENAI_ACTIVE = { provider: "openai", model: "gpt-standard" } as const;
+  const OPENAI_ACTIVE = { provider: "openai", model: "gpt-standard", kind: "listed" } as const;
 
   it("keeps the current route on screen until the refreshed route arrives", async () => {
     const gate = deferred<OnboardingLlmConfiguration>();
@@ -203,7 +204,7 @@ describe("provider and model settings refresh", () => {
       reason: "credential-required",
     });
 
-    const setupRoute = { provider: "openai", model: "gpt-reasoning" } as const;
+    const setupRoute = { provider: "openai", model: "gpt-reasoning", kind: "listed" } as const;
     load.mockResolvedValueOnce(configuration(setupRoute));
     await controller.refresh();
 
@@ -285,7 +286,9 @@ describe("provider and model settings controller", () => {
 
   it("represents an unknown active model as Other without making it dirty", async () => {
     const { controller } = createSubject({
-      load: vi.fn(async () => configuration({ provider: "anthropic", model: "claude-future" })),
+      load: vi.fn(async () =>
+        configuration({ provider: "anthropic", model: "claude-future", kind: "custom" }),
+      ),
     });
 
     await controller.activate();
@@ -298,6 +301,57 @@ describe("provider and model settings controller", () => {
       },
       dirty: false,
       validationError: null,
+    });
+  });
+
+  const RETIRED_ACTIVE = {
+    provider: "anthropic",
+    model: "claude-legacy",
+    kind: "retired",
+    replacedBy: "claude-opus",
+  } as const;
+
+  it("keeps a retired saved model as its own choice without making it dirty", async () => {
+    const { controller } = createSubject({
+      load: vi.fn(async () => configuration(RETIRED_ACTIVE)),
+    });
+
+    await controller.activate();
+
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      draft: { modelChoice: "claude-legacy", customModel: "" },
+      dirty: false,
+      validationError: null,
+    });
+  });
+
+  it("saves nothing until the athlete leaves the retired choice, then saves the pick", async () => {
+    const { controller, subject, apply } = createSubject({
+      load: vi.fn(async () => configuration(RETIRED_ACTIVE)),
+    });
+    await controller.activate();
+
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.model("claude-legacy");
+    expect(formState(controller)).toMatchObject({
+      draft: { modelChoice: "claude-legacy" },
+      dirty: false,
+    });
+    expect(apply).not.toHaveBeenCalled();
+
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(apply).toHaveBeenCalledExactlyOnceWith({
+      catalogRevision: 7,
+      provider: "anthropic",
+      model: "claude-opus",
+      endpoint: { mode: "automatic" },
+    });
+    expect(formState(controller).active).toEqual({
+      provider: "anthropic",
+      model: "claude-opus",
+      kind: "listed",
     });
   });
 
@@ -326,7 +380,9 @@ describe("provider and model settings controller", () => {
 
   it("keeps the panel usable when the active provider is absent from the catalogue", async () => {
     const { controller, subject, apply } = createSubject({
-      load: vi.fn(async () => configuration({ provider: "codex-agent", model: "gpt-codex" })),
+      load: vi.fn(async () =>
+        configuration({ provider: "codex-agent", model: "gpt-codex", kind: "custom" }),
+      ),
     });
 
     await controller.activate();
@@ -363,7 +419,9 @@ describe("provider and model settings controller", () => {
 
   it("requires a provider change when Windows reports Codex agent unsupported", async () => {
     const { controller, subject, apply } = createSubject({
-      load: vi.fn(async () => configuration({ provider: "codex-agent", model: "gpt-codex" })),
+      load: vi.fn(async () =>
+        configuration({ provider: "codex-agent", model: "gpt-codex", kind: "custom" }),
+      ),
       codexAgentSupported: false,
     });
 
@@ -657,11 +715,11 @@ describe("provider and model settings controller", () => {
     controller.close();
     const secondOpen = controller.activate();
 
-    first.resolve(configuration({ provider: "anthropic", model: "claude-future" }));
+    first.resolve(configuration({ provider: "anthropic", model: "claude-future", kind: "custom" }));
     await firstOpen;
     expect(controller.state()).toEqual({ status: "loading" });
 
-    second.resolve(configuration({ provider: "openai", model: "gpt-standard" }));
+    second.resolve(configuration({ provider: "openai", model: "gpt-standard", kind: "listed" }));
     await secondOpen;
     expect(formState(controller)).toMatchObject({
       status: "ready",
@@ -761,7 +819,11 @@ describe("provider and model settings controller", () => {
     });
     second.resolve({ status: "configured", runtimeReady: true });
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
-    expect(formState(controller).active).toEqual({ provider: "openai", model: "gpt-reasoning" });
+    expect(formState(controller).active).toEqual({
+      provider: "openai",
+      model: "gpt-reasoning",
+      kind: "listed",
+    });
   });
 
   it("queues a return to the previous active route while another route saves", async () => {
@@ -837,7 +899,8 @@ describe("provider and model settings controller", () => {
 
   it("restores a committed custom route when returning to its provider", async () => {
     const { controller, subject, apply } = createSubject({
-      load: async () => configuration({ provider: "anthropic", model: "private-model" }),
+      load: async () =>
+        configuration({ provider: "anthropic", model: "private-model", kind: "custom" }),
     });
     await controller.activate();
     subject.provider("openai");

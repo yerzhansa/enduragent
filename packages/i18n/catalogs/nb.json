@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Velg språket ditt",
-    "continue": "Fortsett"
+    "continue": "Fortsett",
+    "retry": "Prøv igjen",
+    "saveFailed": "Språket ditt kunne ikke lagres. Prøv igjen."
   },
   "settings": {
     "appearance": {
@@ -357,12 +359,16 @@
         "claude": "{{claude}}-abonnement",
         "codex": "{{codex}}-agent (eksperimentell)"
       },
+      "retiredModel": "{{model}} (ikke lenger på listen)",
+      "retiredNotice": "{{model}} er ikke lenger på modellisten. Treneren din fortsetter å bruke den til du bytter.",
+      "retiredNoticeNoReplacement": "{{model}} er ikke lenger på modellisten. Treneren din fortsetter å bruke den til du bytter. Velg en annen modell når du er klar.",
       "retry": "Prøv igjen",
       "reviewSetup": "Se gjennom oppsettet",
       "route": "Treneroppsett",
       "save": "Lagre treneroppsett",
       "saved": "Trenerinnstillinger lagret.",
       "saving": "Lagrer trenerinnstillinger…",
+      "switchModel": "Bytt til {{model}}",
       "title": "Trener",
       "unavailable": "Trenerinnstillingene er ikke tilgjengelige akkurat nå. Prøv igjen.",
       "unsaved": "Ikke lagret",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Pålogget · legg til kreditter hos {{openrouter}} for å få svar"
       },
       "provider": "Leverandør",
+      "retiredModel": "{{model}} (ikke lenger på listen)",
+      "retiredNotice": "{{model}} er ikke lenger på modellisten. Treneren din fortsetter å bruke den til du bytter.",
+      "retiredNoticeNoReplacement": "{{model}} er ikke lenger på modellisten. Treneren din fortsetter å bruke den til du bytter. Velg en annen modell når du er klar.",
       "saveLabel": "Lagre API-nøkkel",
       "subtitle": "Påkrevd — {{product}} inkluderer ingen",
+      "switchModel": "Bytt til {{model}}",
       "title": "KI-en som driver treneren din",
       "tooltip": {
         "body": "Den bruker et {{chatgpt}}-abonnement, en {{claudeCode}}-pålogging, en {{openrouter}}-pålogging eller en API-nøkkel du oppgir. Uansett hva du velger, beholdes det på {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Legg ved filer",
+      "finishAnswer": "Gjør ferdig svaret ditt ovenfor",
       "finishPlanQuestion": "Svar ferdig på planspørsmålet ovenfor",
       "label": "Skriv til treneren din",
       "messagePlaceholder": "Skriv til treneren din",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "Ny samtale startet. Enkelte nylige detaljer er kanskje ikke lagret i trenerens hukommelse.",
       "newConversationSuccess": "Ny samtale startet.",
       "newConversationUncertain": "Vi kunne ikke bekrefte om den nye samtalen startet. Den synlige samtalen er bevart.",
+      "newConversationNotStarted": "Den nye samtalen startet ikke. Samtalen din er uendret.",
+      "checkNewConversation": "Sjekk igjen",
       "planningRequestFailure": "Plan kunne ikke motta denne forespørselen. Forespørselen er bevart, og ingenting ble endret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke sjekke lagrede planforespørsler. Koble til på nytt og prøv igjen.",
       "protocolFailure": "Trenerens svar kunne ikke bekreftes. Prøv igjen.",

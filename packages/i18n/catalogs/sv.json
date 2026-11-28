@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Välj ditt språk",
-    "continue": "Fortsätt"
+    "continue": "Fortsätt",
+    "retry": "Försök igen",
+    "saveFailed": "Ditt språk kunde inte sparas. Försök igen."
   },
   "settings": {
     "appearance": {
@@ -357,12 +359,16 @@
         "claude": "{{claude}}-abonnemang",
         "codex": "{{codex}}-agent (experimentell)"
       },
+      "retiredModel": "{{model}} (finns inte längre i listan)",
+      "retiredNotice": "{{model}} finns inte längre i modellistan. Din tränare fortsätter att använda den tills du byter.",
+      "retiredNoticeNoReplacement": "{{model}} finns inte längre i modellistan. Din tränare fortsätter att använda den tills du byter. Välj en annan modell när du är redo.",
       "retry": "Försök igen",
       "reviewSetup": "Granska konfigurationen",
       "route": "Tränaranslutning",
       "save": "Spara tränaranslutning",
       "saved": "Tränarinställningar sparade.",
       "saving": "Sparar tränarinställningar…",
+      "switchModel": "Byt till {{model}}",
       "title": "Tränare",
       "unavailable": "Tränarinställningarna är inte tillgängliga just nu. Försök igen.",
       "unsaved": "Osparat",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Inloggad · lägg till krediter hos {{openrouter}} för att få svar"
       },
       "provider": "Leverantör",
+      "retiredModel": "{{model}} (finns inte längre i listan)",
+      "retiredNotice": "{{model}} finns inte längre i modellistan. Din tränare fortsätter att använda den tills du byter.",
+      "retiredNoticeNoReplacement": "{{model}} finns inte längre i modellistan. Din tränare fortsätter att använda den tills du byter. Välj en annan modell när du är redo.",
       "saveLabel": "Spara API-nyckel",
       "subtitle": "Krävs. Ingen AI ingår i {{product}}.",
+      "switchModel": "Byt till {{model}}",
       "title": "AI som driver din tränare",
       "tooltip": {
         "body": "Den använder ett {{chatgpt}}-abonnemang, en {{claudeCode}}-inloggning, en {{openrouter}}-inloggning eller en API-nyckel som du anger. Det du väljer stannar på {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Bifoga filer",
+      "finishAnswer": "Gör klart ditt svar ovan",
       "finishPlanQuestion": "Besvara planfrågan ovan",
       "label": "Skriv till din tränare",
       "messagePlaceholder": "Skriv till din tränare",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "Ett nytt samtal har startats. Vissa nya uppgifter kanske inte har sparats i tränarens minne.",
       "newConversationSuccess": "Ett nytt samtal har startats.",
       "newConversationUncertain": "Det gick inte att bekräfta om det nya samtalet startades. Ditt synliga samtal finns kvar.",
+      "newConversationNotStarted": "Det nya samtalet startades inte. Ditt samtal är oförändrat.",
+      "checkNewConversation": "Kontrollera igen",
       "planningRequestFailure": "Plan kunde inte ta emot förfrågan. Din förfrågan finns kvar och inget ändrades i Plan.",
       "planningRequestLoadFailure": "Det gick inte att kontrollera sparade planförfrågningar. Anslut på nytt och försök igen.",
       "protocolFailure": "Tränarens svar kunde inte verifieras. Försök igen.",

@@ -156,7 +156,6 @@
     "packages/core/tests/telegram-update-offsets.test.ts": 2,
     "packages/core/tests/text-truncate.test.ts": 5,
     "packages/core/tests/updater.test.ts": 10,
-    "packages/core/tests/usage-ledger.test.ts": 7,
     "packages/cycling-coach/src/binary.ts": 2,
     "packages/cycling-coach/tests/binary-fixture-parity.test.ts": 3,
     "packages/cycling-coach/tests/migration-integration.test.ts": 5,
@@ -370,8 +369,6 @@
     "tools/snapshot-manifest.test.ts": 6,
     "tools/snapshot-manifest.ts": 3,
     "tools/snapshot-section-11.ts": 28,
-    "tools/usage-baseline.test.ts": 9,
-    "tools/usage-baseline.ts": 21,
     "tools/usage-cache-band.test.ts": 21,
     "tools/usage-cache-band.ts": 18
   },
@@ -425,8 +422,8 @@
     "tools/shift-to-synthetic-epoch.ts": 3
   },
   "file-length": {
-    "apps/desktop-renderer/src/chat/controller.ts": 3357,
-    "apps/desktop-renderer/src/onboarding/controller.ts": 1083,
+    "apps/desktop-renderer/src/chat/controller.ts": 3351,
+    "apps/desktop-renderer/src/onboarding/controller.ts": 1081,
     "apps/desktop-renderer/src/settings/credential-controller.ts": 838,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 862,
     "apps/desktop-renderer/src/state/adapters/plan.ts": 1479,
@@ -440,7 +437,7 @@
     "apps/desktop/src/main/telegram-control.ts": 2166,
     "apps/desktop/src/main/telegram-credential-vault.ts": 1079,
     "apps/desktop/src/main/telegram-power.ts": 802,
-    "apps/desktop/src/preload/index.ts": 1682,
+    "apps/desktop/src/preload/index.ts": 1669,
     "packages/coach-contract/src/athlete-state.ts": 1031,
     "packages/coach-contract/src/plan-creation.ts": 916,
     "packages/coach-contract/src/planning.ts": 1682,
@@ -462,7 +459,7 @@
     "packages/core/src/setup.ts": 1365,
     "packages/engine/src/agent/claude-cli/session.ts": 850,
     "packages/engine/src/agent/claude-cli/working-area.ts": 829,
-    "packages/engine/src/agent/coach-agent.ts": 2183,
+    "packages/engine/src/agent/coach-agent.ts": 2134,
     "packages/kernel-node/src/service/launchd-plist.ts": 803,
     "packages/kernel/src/chat-attachments/repository.ts": 854,
     "packages/kernel/src/ingest/dedup-rekey.ts": 1073,
@@ -751,7 +748,6 @@
     "tools/external-oracle.ts": 3,
     "tools/fuzz-parity.ts": 11,
     "tools/snapshot-section-11.ts": 1,
-    "tools/ui-release-artifact.ts": 1,
-    "tools/usage-baseline.ts": 1
+    "tools/ui-release-artifact.ts": 1
   }
 }

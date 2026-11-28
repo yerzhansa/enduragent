@@ -136,7 +136,7 @@ function llmConfiguration(): OnboardingLlmConfiguration {
         models: [{ value: "vendor/synthetic", label: "Vendor synthetic" }],
       },
     ],
-    active: { provider: "anthropic", model: "synthetic-model" },
+    active: { provider: "anthropic", model: "synthetic-model", kind: "listed" },
   };
 }
 
@@ -837,7 +837,7 @@ describe("settings setup inventory", () => {
   it("shows Active ChatGPT in the first Setup row when draft still points at another provider", async () => {
     seedOnboardingPrimaryAi({
       draftProvider: "anthropic",
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
       chatGpt: { state: "configured", runtimeReady: true },
     });
     await renderSettings({
@@ -850,7 +850,12 @@ describe("settings setup inventory", () => {
         { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
         { slot: "intervals-icu", state: "configured", runtimeState: "active" },
       ],
-      llm: () => catalogueWith([CHATGPT_PROVIDER], { provider: "openai-codex", model: "gpt-5.5" }),
+      llm: () =>
+        catalogueWith([CHATGPT_PROVIDER], {
+          provider: "openai-codex",
+          model: "gpt-5.5",
+          kind: "listed",
+        }),
     });
 
     const setup = document.querySelector('[data-setup-host="settings"]');
@@ -950,7 +955,7 @@ describe("settings setup inventory", () => {
   it("shows Claude Code in the first Setup row when draft still points at an API key", async () => {
     seedOnboardingPrimaryAi({
       draftProvider: "anthropic",
-      active: { provider: "claude-cli", model: "sonnet" },
+      active: { provider: "claude-cli", model: "sonnet", kind: "listed" },
       extraProviders: [CLAUDE_PROVIDER],
     });
     await renderSettings({
@@ -1006,6 +1011,7 @@ describe("settings setup inventory", () => {
     expect(useEnduragentStore.getState().onboarding.configuration?.active).toEqual({
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -1536,7 +1542,11 @@ describe("settings lifecycle", () => {
 });
 
 describe("settings after a setup change", () => {
-  const OPENROUTER_ACTIVE = { provider: "openrouter", model: "vendor/synthetic" } as const;
+  const OPENROUTER_ACTIVE = {
+    provider: "openrouter",
+    model: "vendor/synthetic",
+    kind: "listed",
+  } as const;
 
   function recordPaneStatuses() {
     const coach: string[] = [];
@@ -1563,6 +1573,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     let statuses: readonly CredentialSlotStatus[] = [
       { slot: "anthropic", state: "configured", runtimeState: "active" },
@@ -1597,6 +1608,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({ llm: () => ({ ...llmConfiguration(), active }) });
     await user.click(screen.getByRole("combobox", { name: /^Model$/u }));
@@ -1627,6 +1639,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({
       llm: () => ({ ...llmConfiguration(), active }),
@@ -1651,6 +1664,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({
       llm: () => ({ ...llmConfiguration(), active }),
@@ -2804,6 +2818,112 @@ describe("keyless provider status", () => {
 });
 
 describe("coach route", () => {
+  function savedOn(
+    model: string,
+    saved:
+      | { readonly kind: "listed" | "custom" }
+      | { readonly kind: "retired"; readonly replacedBy: string | null },
+  ): () => OnboardingLlmConfiguration {
+    return () => ({
+      ...llmConfiguration(),
+      providers: [
+        {
+          provider: "anthropic",
+          defaultModel: "claude-sonnet-5-5",
+          models: [
+            { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+            { value: "claude-opus-5-5", label: "Claude Opus 5.5" },
+          ],
+        },
+        ...llmConfiguration().providers.slice(1),
+      ],
+      active: { provider: "anthropic", model, ...saved },
+    });
+  }
+
+  it("names a retired saved model, keeps it, and switches only when asked", async () => {
+    const user = userEvent.setup();
+    const subject = await renderSettings({
+      llm: savedOn("claude-opus-5", { kind: "retired", replacedBy: "claude-opus-5-5" }),
+    });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent(
+      "claude-opus-5 (no longer listed)",
+    );
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveAccessibleDescription(
+      "claude-opus-5 is no longer on the model list. Your coach keeps using it until you switch.",
+    );
+    expect(coach.queryByRole("status")).toBeNull();
+    expect(coach.queryByLabelText("Custom model name")).toBeNull();
+    expect(coach.getByText("Anthropic → claude-opus-5")).toBeInTheDocument();
+    expect(
+      coach.getByText(
+        "claude-opus-5 is no longer on the model list. Your coach keeps using it until you switch.",
+      ),
+    ).toBeInTheDocument();
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+
+    await user.click(coach.getByRole("button", { name: "Switch to Claude Opus 5.5" }));
+
+    await waitFor(() => {
+      expect(subject.applyLlmSelection).toHaveBeenCalledExactlyOnceWith({
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-opus-5-5",
+        endpoint: { mode: "automatic" },
+      });
+    });
+    expect(await coach.findByText("Anthropic → Claude Opus 5.5")).toBeInTheDocument();
+    expect(coach.queryByText(/is no longer on the model list/u)).toBeNull();
+    expect(coach.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+  });
+
+  it("offers no switch when the list names no replacement for the retired model", async () => {
+    const user = userEvent.setup();
+    await renderSettings({
+      llm: savedOn("claude-fable-5-1", { kind: "retired", replacedBy: null }),
+    });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent(
+      "claude-fable-5-1 (no longer listed)",
+    );
+    expect(
+      coach.getByText(
+        "claude-fable-5-1 is no longer on the model list. Your coach keeps using it until you switch. Pick another model when you’re ready.",
+      ),
+    ).toBeInTheDocument();
+    expect(coach.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+
+    await user.click(coach.getByRole("combobox", { name: /^Model$/u }));
+    const options = (await screen.findAllByRole("option")).map((option) => option.textContent);
+    expect(options).toEqual([
+      "Claude Sonnet 5.5",
+      "Claude Opus 5.5",
+      "claude-fable-5-1 (no longer listed)",
+      "Other model…",
+    ]);
+  });
+
+  it("shows a listed saved model without the retired note", async () => {
+    await renderSettings({ llm: savedOn("claude-opus-5-5", { kind: "listed" }) });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent("Claude Opus 5.5");
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).not.toHaveAccessibleDescription();
+    expect(coach.queryByText(/no longer/u)).toBeNull();
+  });
+
+  it("shows a typed saved model as Other without the retired note", async () => {
+    await renderSettings({ llm: savedOn("athlete/typed-model", { kind: "custom" }) });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent("Other model…");
+    expect(coach.getByLabelText("Custom model name")).toHaveValue("athlete/typed-model");
+    expect(coach.queryByText(/no longer/u)).toBeNull();
+  });
+
   it("saves a custom model through the sentinel option", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings();
@@ -2926,7 +3046,7 @@ describe("coach route", () => {
     await renderSettings({
       llm: () => ({
         ...llmConfiguration(),
-        active: { provider: "codex-agent", model: "synthetic-codex" },
+        active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
       }),
     });
 
@@ -2945,7 +3065,7 @@ describe("coach route", () => {
       codexAgentSupported: false,
       llm: () => ({
         ...llmConfiguration(),
-        active: { provider: "codex-agent", model: "synthetic-codex" },
+        active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
       }),
     });
 

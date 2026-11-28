@@ -219,7 +219,9 @@
   },
   "language": {
     "chooseTitle": "選擇語言",
-    "continue": "繼續"
+    "continue": "繼續",
+    "retry": "重試",
+    "saveFailed": "無法儲存語言。請重試。"
   },
   "settings": {
     "appearance": {
@@ -353,12 +355,16 @@
         "claude": "{{claude}} 訂閱",
         "codex": "{{codex}} 代理程式（實驗性）"
       },
+      "retiredModel": "{{model}}（已不在清單中）",
+      "retiredNotice": "{{model}} 已不在模型清單中。切換前，教練會繼續使用該模型。",
+      "retiredNoticeNoReplacement": "{{model}} 已不在模型清單中。切換前，教練會繼續使用該模型。準備好後請選擇其他模型。",
       "retry": "重試",
       "reviewSetup": "檢查初始設定",
       "route": "教練連線",
       "save": "儲存教練連線",
       "saved": "已儲存教練設定。",
       "saving": "正在儲存教練設定…",
+      "switchModel": "切換至 {{model}}",
       "title": "教練",
       "unavailable": "目前無法使用教練設定。請重試。",
       "unsaved": "未儲存",
@@ -876,8 +882,12 @@
         "openrouterCredits": "已登入 · 在 {{openrouter}} 新增額度後即可收到回覆"
       },
       "provider": "供應商",
+      "retiredModel": "{{model}}（已不在清單中）",
+      "retiredNotice": "{{model}} 已不在模型清單中。切換前，教練會繼續使用該模型。",
+      "retiredNoticeNoReplacement": "{{model}} 已不在模型清單中。切換前，教練會繼續使用該模型。準備好後請選擇其他模型。",
       "saveLabel": "儲存 API 金鑰",
       "subtitle": "必填 — {{product}} 未內含 AI",
+      "switchModel": "切換至 {{model}}",
       "title": "教練使用的 AI",
       "tooltip": {
         "body": "可使用 {{chatgpt}} 訂閱、{{claudeCode}} 登入、{{openrouter}} 登入，或自行提供的 API 金鑰。無論選擇哪一種，登入資料或金鑰都會保留在 {{computer}}。",
@@ -1221,6 +1231,7 @@
     },
     "composer": {
       "attach": "新增附件",
+      "finishAnswer": "請先完成上方的回答",
       "finishPlanQuestion": "請先回答上方的計畫問題",
       "label": "傳送訊息給教練",
       "messagePlaceholder": "傳送訊息給教練",
@@ -1289,6 +1300,8 @@
       "newConversationMemoryWarning": "已開始新對話。部分近期細節可能未儲存至教練記憶。",
       "newConversationSuccess": "已開始新對話。",
       "newConversationUncertain": "無法確認是否已開始新對話。目前顯示的對話已保留。",
+      "newConversationNotStarted": "新對話未開始。你的對話沒有變更。",
+      "checkNewConversation": "再次檢查",
       "planningRequestFailure": "計畫無法接收此請求。請求已保留，計畫未發生變更。",
       "planningRequestLoadFailure": "無法檢查已儲存的計畫請求。請重新連線後重試。",
       "protocolFailure": "無法驗證教練回覆。請重試。",

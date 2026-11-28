@@ -14,12 +14,17 @@ import type {
   PlanChangeRequest,
   PlanChangePendingCheck,
 } from "@enduragent/coach-contract";
-import type { ActivePlanKnowledge } from "../chat/controller";
+import type { ActivePlanKnowledge } from "../chat/controller-helpers";
 import type { WireMessage } from "../chat/message-state";
 import type { StateCreator } from "zustand";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "../chat/hydration";
 import type { FirstSyncState } from "../first-sync";
-import type { ChatStatus, ChatTranscriptMessage, SessionResetPhase } from "../turn-state";
+import type {
+  ChatStatus,
+  ChatTranscriptMessage,
+  NewConversationCheck,
+  SessionResetPhase,
+} from "../turn-state";
 import type { EnduragentState } from "./store";
 
 export interface ChatMessageView {
@@ -118,6 +123,7 @@ export interface ChatSurfaceState {
   readonly composerPlaceholder: string;
   readonly composerStatus: string | null;
   readonly newConversationUnavailable: boolean;
+  readonly newConversationCheck: NewConversationCheck;
   readonly resetPhase: SessionResetPhase;
   readonly resetCount: number;
   readonly announcement: string | null;
@@ -175,6 +181,7 @@ export interface ChatActions {
   openNewConversation(): void;
   cancelNewConversation(): void;
   confirmNewConversation(): void;
+  checkNewConversation(): void;
   retryFirstSync(): void;
   answerDecision(decisionId: string, answer: CoachDecisionAnswer): void;
   skipDecision(decisionId: string): void;
@@ -225,6 +232,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   composerPlaceholder: "Message your coach",
   composerStatus: null,
   newConversationUnavailable: true,
+  newConversationCheck: "hidden",
   resetPhase: "idle",
   resetCount: 0,
   announcement: null,
@@ -481,6 +489,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.composerPlaceholder === right.composerPlaceholder &&
     left.composerStatus === right.composerStatus &&
     left.newConversationUnavailable === right.newConversationUnavailable &&
+    left.newConversationCheck === right.newConversationCheck &&
     left.resetPhase === right.resetPhase &&
     left.resetCount === right.resetCount &&
     left.announcement === right.announcement &&

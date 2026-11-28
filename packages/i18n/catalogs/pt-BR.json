@@ -254,7 +254,9 @@
   },
   "language": {
     "chooseTitle": "Escolha seu idioma",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "retry": "Tentar novamente",
+    "saveFailed": "Não foi possível salvar seu idioma. Tente novamente."
   },
   "settings": {
     "appearance": {
@@ -372,12 +374,16 @@
         "claude": "Assinatura {{claude}}",
         "codex": "Agente {{codex}} (experimental)"
       },
+      "retiredModel": "{{model}} (não está mais na lista)",
+      "retiredNotice": "{{model}} não está mais na lista de modelos. Seu treinador continua usando esse modelo até você trocar.",
+      "retiredNoticeNoReplacement": "{{model}} não está mais na lista de modelos. Seu treinador continua usando esse modelo até você trocar. Escolha outro modelo quando quiser.",
       "retry": "Tentar novamente",
       "reviewSetup": "Revisar configuração",
       "route": "Rota do treinador",
       "save": "Salvar rota do treinador",
       "saved": "Configurações do treinador salvas.",
       "saving": "Salvando configurações do treinador…",
+      "switchModel": "Trocar para {{model}}",
       "title": "Treinador",
       "unavailable": "As configurações do treinador não estão disponíveis agora. Tente novamente.",
       "unsaved": "Não salvo",
@@ -881,8 +887,12 @@
         "openrouterCredits": "Sessão iniciada · adicione créditos em {{openrouter}} para receber respostas"
       },
       "provider": "Provedor",
+      "retiredModel": "{{model}} (não está mais na lista)",
+      "retiredNotice": "{{model}} não está mais na lista de modelos. Seu treinador continua usando esse modelo até você trocar.",
+      "retiredNoticeNoReplacement": "{{model}} não está mais na lista de modelos. Seu treinador continua usando esse modelo até você trocar. Escolha outro modelo quando quiser.",
       "saveLabel": "Salvar chave de API",
       "subtitle": "Obrigatória — {{product}} não inclui uma",
+      "switchModel": "Trocar para {{model}}",
       "title": "IA que faz seu treinador funcionar",
       "tooltip": {
         "body": "Funciona com uma assinatura {{chatgpt}}, uma sessão de {{claudeCode}}, uma sessão de {{openrouter}} ou uma chave de API fornecida por você. A opção escolhida fica em {{computer}}.",
@@ -1232,6 +1242,7 @@
     },
     "composer": {
       "attach": "Anexar arquivos",
+      "finishAnswer": "Conclua sua resposta acima",
       "finishPlanQuestion": "Conclua a pergunta do Plano acima",
       "label": "Envie uma mensagem ao seu treinador",
       "messagePlaceholder": "Envie uma mensagem ao seu treinador",
@@ -1300,6 +1311,8 @@
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido salvos na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",
       "newConversationUncertain": "Não foi possível confirmar se a nova conversa foi iniciada. A conversa visível foi preservada.",
+      "newConversationNotStarted": "A nova conversa não foi iniciada. Sua conversa não mudou.",
+      "checkNewConversation": "Verificar novamente",
       "planningRequestFailure": "O Plano não conseguiu receber esta solicitação. Sua solicitação foi preservada e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar as solicitações salvas do Plano. Reconecte e tente novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tente novamente.",

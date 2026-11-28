@@ -13,11 +13,11 @@ import type {
   QueuedChatMessage,
   TurnEvent,
 } from "@enduragent/coach-contract";
+import { createChatController } from "../src/chat/controller";
 import {
   CHAT_DRAFT_SAVE_FAILURE_COPY,
-  createChatController,
   type ChatViewControls,
-} from "../src/chat/controller";
+} from "../src/chat/controller-helpers";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import { EMPTY_PLAN_CHANGE_SURFACE, type PlanChangeSurfaceState } from "../src/state/chat-slice";
 import type { ChatState } from "../src/turn-state";

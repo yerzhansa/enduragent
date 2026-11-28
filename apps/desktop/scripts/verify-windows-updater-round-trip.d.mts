@@ -1,3 +1,5 @@
+import type { DifferentialBlockmapSummary } from "./verify-differential-blockmap.mjs";
+
 export interface WindowsUpdaterReleaseInput {
   readonly version: string;
   readonly installer: Uint8Array;
@@ -9,6 +11,7 @@ export interface WindowsUpdaterPreflight {
   readonly feedUrl: string;
   readonly channel: "latest";
   readonly publisherName: string;
+  readonly useMultipleRangeRequest: false;
   readonly disableWebInstaller: true;
   readonly verifyUpdateCodeSignature: true;
 }
@@ -19,6 +22,7 @@ export interface WindowsUpdaterRoundTripResult {
   readonly candidateInstallerName: string;
   readonly candidateInstallerSha512: string;
   readonly candidateInstallerSize: number;
+  readonly differential: DifferentialBlockmapSummary | null;
   readonly preflight: WindowsUpdaterPreflight;
   readonly authenticode: "pending-w19";
 }

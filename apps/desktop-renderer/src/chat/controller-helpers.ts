@@ -4,6 +4,8 @@ import {
   type ChatAttachmentComposerReadModel,
   type CoachDecisionAnswer,
   type CoachDecisionReadModel,
+  type CreatePlanningRequestRpcParams,
+  type CreateWorkoutPlanningRequestRpcParams,
   type PlanChangeIntent,
   type PlanChangeRequest,
   type PlanCreationAnswerInput,
@@ -14,6 +16,7 @@ import {
   type PlanningRequestDelivery,
   type TranscriptPageEntry,
 } from "@enduragent/coach-contract";
+import type { NewConversationCheck } from "../turn-state";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "./hydration";
 import type { ChatState } from "./message-state";
 
@@ -63,11 +66,59 @@ export const NEW_CONVERSATION_MEMORY_WARNING_COPY =
   "New conversation started. Some recent details may not have been saved to coach memory.";
 export const NEW_CONVERSATION_UNCERTAIN_COPY =
   "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
+export const NEW_CONVERSATION_NOT_STARTED_COPY =
+  "The new conversation didn’t start. Your conversation is unchanged.";
 export const FEEDBACK_USAGE_COPY = "Send /feedback followed by your note.";
 export const FEEDBACK_TOO_LONG_COPY =
   "Keep your note to 4000 characters or fewer. Nothing was sent.";
 export const FEEDBACK_SENT_COPY = "Thanks — we received your note.";
 export const FEEDBACK_FAILED_COPY = "Couldn't send that note. It's still in the box — try again.";
+
+export interface QueuedRetry {
+  readonly requestKey: number;
+  readonly promise: Promise<void>;
+  readonly token: object;
+}
+
+export type ChatQueueCall =
+  | {
+      readonly method: "runQueuedCommand";
+      readonly queuedMessageId: string;
+      readonly queuedMessageIds: readonly string[];
+    }
+  | {
+      readonly method: "retryQueuedTurn";
+      readonly claimId: string;
+      readonly queuedMessageIds: readonly string[];
+    }
+  | { readonly method: "resumeChatQueue"; readonly queuedMessageIds: readonly string[] };
+
+export interface InterruptedQueueOrigin {
+  readonly requestKey: number;
+  readonly call: ChatQueueCall;
+}
+
+export interface ChatRun {
+  readonly task: Promise<void>;
+  allowInterruptedDrain(): boolean;
+}
+
+export type BootProbeStatus = "idle" | "succeeded" | "failed";
+
+export interface ActiveStopRequest {
+  readonly requestKey: number;
+  request(): void;
+}
+
+export type PendingPlanningRequestCreate =
+  | {
+      readonly kind: "generic";
+      readonly request: CreatePlanningRequestRpcParams;
+    }
+  | {
+      readonly kind: "workout";
+      readonly request: CreateWorkoutPlanningRequestRpcParams;
+    };
 
 export interface ChatAppendDelta {
   readonly messageId: string;
@@ -83,6 +134,7 @@ export interface PlanCreationDiscardEvent {
 
 export interface ChatViewControls {
   readonly newConversationDisabled: boolean;
+  readonly newConversationCheck?: NewConversationCheck;
   readonly workBlocked: boolean;
   readonly decisionLoading?: boolean;
   readonly decisionLoadError?: string | null;
@@ -208,6 +260,7 @@ export interface ChatController {
   openNewConversation(): boolean;
   cancelNewConversation(): void;
   confirmNewConversation(): Promise<void>;
+  checkNewConversation(): Promise<void>;
   answerDecision(decisionId: string, answer: CoachDecisionAnswer): Promise<void>;
   skipDecision(decisionId: string): Promise<void>;
   dispose(): void;

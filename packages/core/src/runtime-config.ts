@@ -41,6 +41,32 @@ export const RETIRED_MODEL_REPLACEMENTS = {
   openrouter: { "qwen/qwen3.8-max": "qwen/qwen4-max" },
 } as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string>>>>;
 
+export const DROPPED_MODELS = {
+  anthropic: { "claude-opus-5": "claude-opus-5-5", "claude-fable-5-1": "claude-fable-5-2" },
+  openai: { "gpt-5.6-terra": "gpt-6.1-terra", "gpt-5.6-luna": "gpt-6-luna" },
+  google: { "gemini-3.1-pro-preview": "gemini-4-neon" },
+  kimi: { "kimi-k2.6": "kimi-k3.1-pro", "kimi-k2.7-code": "kimi-k3.1-pro" },
+  qwen: { "qwen3.7-max": "qwen4-max", "qwen3.8-max": "qwen4-max" },
+  zai: { "glm-5.2": "glm-5.3", "glm-4.7-flashx": "glm-5.3-flash" },
+  openrouter: {
+    "z-ai/glm-5.2": "z-ai/glm-5.3",
+    "moonshotai/kimi-k2.7-code": "moonshotai/kimi-k3.1-pro",
+    "anthropic/claude-fable-5.1": null,
+    "openai/gpt-6-astra": null,
+    "deepseek/deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash-1017",
+  },
+} as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string | null>>>>;
+
+export function droppedModel(
+  provider: string,
+  model: string,
+): { readonly replacedBy: string | null } | null {
+  if (!Object.hasOwn(DROPPED_MODELS, provider)) return null;
+  const dropped: Readonly<Record<string, string | null>> =
+    DROPPED_MODELS[provider as keyof typeof DROPPED_MODELS];
+  return Object.hasOwn(dropped, model) ? { replacedBy: dropped[model] ?? null } : null;
+}
+
 export function currentModelId(
   provider: string,
   model: string,

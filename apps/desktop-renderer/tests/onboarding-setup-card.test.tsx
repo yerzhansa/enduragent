@@ -39,6 +39,7 @@ import {
   testBridge,
   TEST_LLM_CONFIGURATION,
   type TestBridge,
+  type UserEvent,
 } from "./onboarding-harness";
 
 const english = await createPhrasebook({ tag: "en", locale: "en-US" });
@@ -58,7 +59,7 @@ const CLAUDE_CONFIGURATION: OnboardingLlmConfiguration = {
       models: [{ value: "sonnet", label: "Claude Sonnet" }],
     },
   ],
-  active: { provider: "claude-cli", model: "sonnet" },
+  active: { provider: "claude-cli", model: "sonnet", kind: "listed" },
 };
 
 function coldBridge(): TestBridge {
@@ -268,7 +269,7 @@ describe("setup card", () => {
     const bridge = readyEverythingBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "codex-agent", model: "synthetic-codex" },
+      active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
     });
     const wizard = mountWizard({ bridge, placement: "settings" });
     await wizard.open();
@@ -297,7 +298,7 @@ describe("setup card", () => {
     const bridge = readyEverythingBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "codex-agent", model: "synthetic-codex" },
+      active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
     });
     const wizard = mountWizard({
       bridge,
@@ -448,7 +449,7 @@ describe("setup card", () => {
     const bridge = claudeReadyBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
     });
     bridge.chatGptStatus.mockResolvedValue({ state: "configured", runtimeReady: true });
     const wizard = mountWizard({ bridge, placement: "settings" });
@@ -475,7 +476,7 @@ describe("setup card", () => {
     const bridge = claudeReadyBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
     });
     bridge.chatGptStatus
       .mockResolvedValueOnce({ state: "configured", runtimeReady: false })
@@ -962,12 +963,124 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
+  async function openRetiredAnthropic(user: UserEvent, replacedBy: string | null) {
+    return openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "claude-sonnet-4",
+      kind: "retired",
+      replacedBy,
+    });
+  }
+
+  async function openSavedAnthropic(user: UserEvent, active: OnboardingLlmConfiguration["active"]) {
+    const bridge = coldBridge();
+    bridge.llmConfiguration.mockResolvedValue({ ...TEST_LLM_CONFIGURATION, active });
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ]);
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await waitFor(() => {
+      expect(rowState("ai")).toBe("ready");
+    });
+    await openApiKeyPanel(user);
+    return { bridge, wizard, apiKey: within(panel("api-key") as HTMLElement) };
+  }
+
+  it("shows a listed saved model in Advanced without the retired note", async () => {
+    const user = userEvent.setup();
+    const { wizard, apiKey } = await openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      kind: "listed",
+    });
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("Claude Sonnet 4.6");
+    expect(control("onboarding-llm-model")).not.toHaveAccessibleDescription();
+    expect(document.querySelector("#onboarding-custom-model")).toBeNull();
+    expect(apiKey.queryByText(/no longer on the model list/u)).toBeNull();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("shows a typed saved model in Advanced as Other without the retired note", async () => {
+    const user = userEvent.setup();
+    const { wizard, apiKey } = await openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "athlete/typed-model",
+      kind: "custom",
+    });
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("Other model…");
+    expect(control<HTMLInputElement>("onboarding-custom-model").value).toBe("athlete/typed-model");
+    expect(apiKey.queryByText(/no longer on the model list/u)).toBeNull();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("names a retired saved model in Advanced and switches only when asked", async () => {
+    const user = userEvent.setup();
+    const { bridge, wizard, apiKey } = await openRetiredAnthropic(user, "claude-sonnet-4-6");
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("claude-sonnet-4 (no longer listed)");
+    expect(control("onboarding-llm-model")).toHaveAccessibleDescription(
+      "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch.",
+    );
+    expect(apiKey.queryByRole("status")).toBeNull();
+    expect(document.querySelector("#onboarding-custom-model")).toBeNull();
+    expect(
+      apiKey.getByText(
+        "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch.",
+      ),
+    ).toBeInTheDocument();
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+
+    await user.click(apiKey.getByRole("button", { name: "Switch to Claude Sonnet 4.6" }));
+
+    await waitFor(() => {
+      expect(bridge.applyLlmSelection).toHaveBeenCalledExactlyOnceWith({
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        endpoint: { mode: "automatic" },
+      });
+    });
+    await waitFor(() => {
+      expect(panel("api-key")).toBeNull();
+    });
+    wizard.controller.dispose();
+  });
+
+  it("saves a retired saved model unchanged and offers no switch without a replacement", async () => {
+    const user = userEvent.setup();
+    const { bridge, wizard, apiKey } = await openRetiredAnthropic(user, null);
+
+    expect(
+      apiKey.getByText(
+        "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch. Pick another model when you’re ready.",
+      ),
+    ).toBeInTheDocument();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+
+    await user.click(apiKey.getByRole("button", { name: "Save API key" }));
+
+    await waitFor(() => {
+      expect(bridge.applyLlmSelection).toHaveBeenCalledExactlyOnceWith({
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-sonnet-4",
+        endpoint: { mode: "automatic" },
+      });
+    });
+    wizard.controller.dispose();
+  });
+
   it("restores the complete provider draft when API-key editing is cancelled", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openrouter", model: "saved/custom-model" },
+      active: { provider: "openrouter", model: "saved/custom-model", kind: "custom" },
     });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "openrouter", state: "configured", runtimeState: "active" },
@@ -1173,7 +1286,7 @@ describe("setup card", () => {
     const bridge = coldBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "anthropic", model: "claude-sonnet-4-6" },
+      active: { provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" },
     });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },
