@@ -575,6 +575,7 @@ const PLAN_CHAT_RENDERER_METHODS = new Set<CoachRpcMethodName>([
   "resumeChatQueue",
   "runQueuedCommand",
   "retryQueuedTurn",
+  "discardQueuedTurn",
 ]);
 
 function rendererChatIdAllowed(method: CoachRpcMethodName, chatId: string): boolean {
@@ -1012,10 +1013,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               const request = COACH_RPC_METHOD_REGISTRY.stopChat.requestSchema.parse(
                 generic.data.params,
               );
-              result =
-                input.engine.stopChat === undefined
-                  ? { stopped: false }
-                  : await input.engine.stopChat(request);
+              result = (await input.engine.stopChat?.(request)) ?? { stopped: false };
             } catch (error) {
               invocationFailure = { error };
             }

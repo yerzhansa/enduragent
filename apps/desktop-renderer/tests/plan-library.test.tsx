@@ -91,6 +91,7 @@ function stubPlanActions(): PlanActions {
     stopCoach: vi.fn(),
     removeQueuedCoachMessage: vi.fn(),
     retryQueuedCoachTurn: vi.fn(),
+    discardQueuedCoachTurn: vi.fn(),
     answerCoachDecision: vi.fn(),
     skipCoachDecision: vi.fn(),
     saveFtp: vi.fn(),

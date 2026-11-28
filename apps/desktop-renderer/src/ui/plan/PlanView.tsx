@@ -61,6 +61,7 @@ import { CoachDecisionPanel } from "../chat/CoachDecisionPanel";
 import { Composer, type ComposerHandle } from "../chat/Composer";
 import { ConversationTranscript } from "../chat/Transcript";
 import { PlanLibrary } from "./PlanLibrary";
+import { PlanQueue } from "./PlanQueue";
 import { PlanFinalDetails } from "./PlanFinalDetails";
 import { Page } from "@enduragent/ui";
 import { WorkoutArchiveExportControl } from "../training/TrainingExportControls";
@@ -544,6 +545,7 @@ function AppliedHistoryProjection(props: {
   const actions = useEnduragentStore((state) => state.planActions);
   const before = props.entry?.before ?? null;
   const after = props.entry?.after ?? null;
+  const undoEntry = props.entry?.undoStatus === "eligible" ? props.entry : null;
   return (
     <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
       <div className="flex items-start gap-row">
@@ -608,16 +610,16 @@ function AppliedHistoryProjection(props: {
         </div>
       ) : null}
       <div className="flex flex-wrap justify-end gap-inset">
-        {props.entry?.undoStatus === "eligible" ? (
+        {undoEntry === null ? null : (
           <Button
             type="button"
             variant="outline"
-            onClick={() => actions?.undoPlanChange(props.entry!.id)}
+            onClick={() => actions?.undoPlanChange(undoEntry.id)}
           >
             <Undo2 className="size-4" aria-hidden="true" />
             {say("chat.planChange.undo")}
           </Button>
-        ) : null}
+        )}
         <Button type="button" onClick={() => actions?.closeHistory()}>
           {say("plan.view.planView.backToPlan")}
         </Button>
@@ -1018,61 +1020,6 @@ function CoursePickerDialog(): ReactElement {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PlanQueue(): ReactElement | null {
-  const phrasebook = usePhrasebook();
-  const { say, format } = phrasebook;
-
-  const queue = useEnduragentStore((state) => state.plan.coach.queued);
-  const retry = useEnduragentStore((state) => state.plan.coach.retryRequired);
-  const actions = useEnduragentStore((state) => state.planActions);
-  if (queue.length === 0) return null;
-  return (
-    <section
-      className="overflow-hidden rounded-card bg-sunk"
-      aria-label={say("plan.view.planQueue.queuedCoachMessages")}
-    >
-      <div className="flex min-h-ctl items-center justify-between px-ctl-px">
-        <h3 className="m-0 text-xs font-semibold">{say("plan.view.planQueue.queuedMessages")}</h3>
-        <span className="rounded-chip bg-surface px-inset text-xs text-ink-2">
-          {format.number(queue.length, { useGrouping: false })}
-        </span>
-      </div>
-      {retry === null ? null : (
-        <div className="border-t border-line px-ctl-px py-inset">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={actions === null}
-            onClick={() => actions?.retryQueuedCoachTurn(retry.claimId)}
-          >
-            {say("plan.view.planQueue.retryInterruptedMessage")}
-          </Button>
-        </div>
-      )}
-      <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">
-        {queue.map((message, index) => (
-          <li key={message.id} className="flex min-h-ctl items-center gap-inset px-ctl-px py-inset">
-            <span className="min-w-0 flex-1 break-words text-sm text-ink-2">{message.text}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              aria-label={say("plan.view.planQueue.removeMessageLabel", {
-                value1: format.number(index + 1, { useGrouping: false }),
-              })}
-              disabled={actions === null || retry?.queuedMessageIds.includes(message.id) === true}
-              onClick={() => actions?.removeQueuedCoachMessage(message.id)}
-            >
-              {say("plan.view.planQueue.remove")}
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -2902,7 +2849,9 @@ function RaceWeekProjection(props: {
                         id={`race-week-workout-${day.workoutId}`}
                         type="button"
                         className="bg-transparent p-0 text-left font-medium text-ink underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                        onClick={() => actions?.openWorkout(day.workoutId!)}
+                        onClick={() => {
+                          if (day.workoutId !== null) actions?.openWorkout(day.workoutId);
+                        }}
                       >
                         {day.name}
                       </button>
@@ -3914,6 +3863,8 @@ function ActiveProjection(): ReactElement {
       : (data.selectedWorkout ??
         data.workouts.find((workout) => workout.id === data.selectedWorkoutId) ??
         null);
+  const confirmableActivityId =
+    selectedWorkout?.match?.requiresConfirmation === true ? selectedWorkout.match.activityId : null;
   const selectedProposal =
     data.selectedProposalId === undefined || data.selectedProposalId === null
       ? null
@@ -4232,8 +4183,7 @@ function ActiveProjection(): ReactElement {
                 ) : null}
               </div>
               <DialogFooter className="m-0 shrink-0 flex-row justify-end border-t border-line bg-surface px-5 py-row">
-                {selectedWorkout.match?.requiresConfirmation === true &&
-                selectedWorkout.match.activityId !== null ? (
+                {confirmableActivityId !== null ? (
                   <>
                     <Button
                       type="button"
@@ -4242,7 +4192,7 @@ function ActiveProjection(): ReactElement {
                       onClick={() =>
                         actions?.resolveWorkoutMatch(
                           selectedWorkout.id,
-                          selectedWorkout.match!.activityId!,
+                          confirmableActivityId,
                           "reject",
                         )
                       }
@@ -4255,7 +4205,7 @@ function ActiveProjection(): ReactElement {
                       onClick={() =>
                         actions?.resolveWorkoutMatch(
                           selectedWorkout.id,
-                          selectedWorkout.match!.activityId!,
+                          confirmableActivityId,
                           "confirm",
                         )
                       }

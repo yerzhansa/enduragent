@@ -93,6 +93,7 @@ export interface PlanActions {
   stopCoach(): void;
   removeQueuedCoachMessage(id: string): void;
   retryQueuedCoachTurn(claimId: string): void;
+  discardQueuedCoachTurn(claimId: string): void;
   answerCoachDecision(decisionId: string, answer: CoachDecisionAnswer): void;
   skipCoachDecision(decisionId: string): void;
   saveFtp(watts: number): void;
