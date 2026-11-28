@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LlmProvider, RuntimeConfigSnapshot } from "@enduragent/coach-contract";
 import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
+import { createCredentialMutationLock } from "../src/main/credential-envelope-lock.js";
 import {
   createChatGptAuth as createChatGptAuthSubject,
   deleteChatGptProfile,
@@ -766,6 +767,46 @@ describe("desktop ChatGPT auth", () => {
     });
 
     await expect(auth.status()).resolves.toEqual({ state: "configured", runtimeReady: false });
+  });
+
+  it("opens the browser without the credential lock and ends a cancelled store as cancelled", async () => {
+    const directory = await configDir();
+    const lock = createCredentialMutationLock();
+    let releaseHolder!: () => void;
+    const holder = lock(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseHolder = resolve;
+        }),
+    );
+    let browserOpened = false;
+    const writeProfile = vi.fn(async () => undefined);
+    const auth = createChatGptAuth({
+      configDir: directory,
+      openExternal: async () => {},
+      applyRuntimeConfig: async () => {},
+      serializeCredentialMutation: lock,
+      dependencies: {
+        loginCodex: async () => {
+          browserOpened = true;
+          return credentials();
+        },
+        writeProfile,
+      },
+    });
+
+    const login = auth.login("held", selection());
+    await vi.waitFor(() => expect(browserOpened).toBe(true));
+    expect(auth.cancelLogin("held")).toEqual({ status: "cancelling", operationId: "held" });
+    releaseHolder();
+    await holder;
+
+    await expect(login).resolves.toEqual({
+      status: "refused",
+      operationId: "held",
+      reason: "cancelled",
+    });
+    expect(writeProfile).not.toHaveBeenCalled();
   });
 
   it("refuses concurrent login and maps callback, storage, and runtime failures", async () => {

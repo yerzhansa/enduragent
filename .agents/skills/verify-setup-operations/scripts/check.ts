@@ -48,9 +48,9 @@ interface Check {
 // A fix flips its row to "holds" in the same pull request that changes the model.
 const CHECKS: readonly Check[] = [
   { rule: "TypeOK", kind: "invariant", scenario: "everything", expect: "holds", finding: "model sanity" },
-  { rule: "NoRestartLostBehindAPerson", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#396" },
+  { rule: "NoRestartLostBehindAPerson", kind: "invariant", scenario: "everything", expect: "holds", finding: "#396, fixed by #1205" },
   { rule: "NoRestartLostToSlowIntervals", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#396 second trigger (intervals.icu owner)" },
-  { rule: "NothingWaitsBehindAPerson", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#396" },
+  { rule: "NothingWaitsBehindAPerson", kind: "invariant", scenario: "everything", expect: "holds", finding: "#396, fixed by #1205" },
   { rule: "ChatGptActivationHasSetupAlone", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#398" },
   { rule: "IntervalsSignInHasSetupAlone", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#398 (OpenRouter widening)" },
   { rule: "OpenRouterSignInHasSetupAlone", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#398 (OpenRouter widening)" },

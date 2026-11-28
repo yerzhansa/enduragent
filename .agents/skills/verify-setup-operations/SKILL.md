@@ -71,7 +71,7 @@ When a change to covered code is intended:
 1. Edit the actions that name the changed functions, so each one matches the new code. One atomic step in the model is one atomic step in the code: a synchronous run between two `await`s, or one IPC handler.
 2. Run the check. Update the expected rows the change fixes or breaks, and say why in the pull request.
 3. Replay any new broken path against the real code before you call it a bug.
-4. Move the sync commit (the `2cbc4a56` in this file) to the new commit only after you have read every covered function at that commit against its action.
+4. Move the sync commit (the `2cbc4a56` in this file) to the new commit only after you have read every covered function at that commit against its action. A pull request that changes covered code and the model together cannot know its own merge commit: it adds itself to the list of described changes under the sync commit, and the next agent who moves the sync commit past it removes it from the list.
 
 ## Expected findings at the sync commit
 
@@ -79,9 +79,7 @@ Each path is TLC's shortest. The words are the code's.
 
 | Rule | Scenario | Finding | Path |
 |---|---|---|---|
-| `NoRestartLostBehindAPerson` | everything | #396 | `login` queues `performLogin` in `serializeCredentialMutation`. The lock goes to it, and `runLogin` waits for the browser. The coach exits; `recoverCurrent` starts the new process, and `publishSuccessor` calls `prepareReady` (`reapplyCredentials`), whose `reapplyConfigured` queues behind the login. After `READINESS_TIMEOUT_MS`, `enterTerminal("unavailable")`. |
 | `NoRestartLostToSlowIntervals` | everything | #396 second trigger. The intervals.icu session owns it. | The coach exits with Intervals.icu connected. `reapplyConfigured` holds the lock while the replay awaits `assertIntervalsOwner`, which allows 20 s. The 5 s readiness limit passes. The same happens when the replay queues behind an Intervals.icu Disconnect, whose revoke allows 10 s inside the lock, or behind the Intervals.icu key check after a sign-in. That last path assumes the check is slow with the coach gone, which is not traced: replay it in the app before calling it a bug. |
-| `NothingWaitsBehindAPerson` | everything | #396 | The ChatGPT login holds the lock while it waits for the browser. A Coach save in Settings (`vault.applyLlmSelection`) queues behind it. Telegram's `configure` and Setup's `writeCredential` queue the same way. |
 | `ChatGptActivationHasSetupAlone` | everything | #398 | `withChatGptLoginResult` stores the sign-in. `beginChatGptActivation` runs with `busy` false (`withChatGptActivationPending`). `connectTrainingData` checks only `busy`, so an Intervals.icu sign-in starts during the activation. |
 | `IntervalsSignInHasSetupAlone`, `OpenRouterSignInHasSetupAlone` | everything | #398, widened by pull request 1188 | The OpenRouter sign-in runs outside `busy`. `connectTrainingData` and `TrainingRow`'s `controlsDisabled` do not check `openRouterSignInBusy`, so an Intervals.icu sign-in starts during it. |
 | `KeySaveHasSetupAlone` | everything | #398 | The #398 path, then `withChatGptActivationResult` sets `busy` false while the Intervals.icu sign-in is live. `saveModelKey` passes its `busy` guard, and a key save starts beside the sign-in. |
@@ -93,16 +91,18 @@ Each path is TLC's shortest. The words are the code's.
 | `NeverSentToSetupWithAWorkingCoach` | everything | #419 | A Settings delete calls `onDeleted`, which calls `onboarding.refresh()`: one read with a 3 s budget. The coach answers late, so `finishUnavailableLoad` runs. `refreshOnboardingCredentials` throws, the delete's catch renders a repair credential, and `patchSettings` calls `requireCompletion()`. |
 | `NeverSentToSetupWithAWorkingCoach` | no-slow-coach | #395 | The #395 switch, then any delete. `load` does not hydrate after its first success, so `activeProviderIsReady` checks the stale Anthropic. It is not active, so `completionRequired` turns true and the gate shows. |
 
-Rules that hold at the sync commit: `TypeOK`, `BusySetupNamesItsOwner`, `ChatGptSignInHasSetupAlone` (the AI row runs one operation at a time) and `OpenRouterSignInEndsWithItsPage` (the `closed` event disposes the window's OpenRouter auth). Each control was seen to fail on a broken variant: without `disposeOpenRouter()` in the onboarding IPC dispose, `OpenRouterSignInEndsWithItsPage` breaks in 4 steps; without `connectTrainingData`'s `busy` check, `ChatGptSignInHasSetupAlone` breaks in 2; with `busy` left set after a key save, `BusySetupNamesItsOwner` breaks in 3.
+Rules that hold at the sync commit: `NoRestartLostBehindAPerson` and `NothingWaitsBehindAPerson` (since #1205, the ChatGPT login takes the lock only to store the sign-in, so neither a restart's replay nor a Coach save, key save or Telegram setup waits behind the browser), `TypeOK`, `BusySetupNamesItsOwner`, `ChatGptSignInHasSetupAlone` (the AI row runs one operation at a time) and `OpenRouterSignInEndsWithItsPage` (the `closed` event disposes the window's OpenRouter auth). Each control was seen to fail on a broken variant: without `disposeOpenRouter()` in the onboarding IPC dispose, `OpenRouterSignInEndsWithItsPage` breaks in 4 steps; without `connectTrainingData`'s `busy` check, `ChatGptSignInHasSetupAlone` breaks in 2; with `busy` left set after a key save, `BusySetupNamesItsOwner` breaks in 3.
 
 ## Coverage record
 
 Sync commit: `2cbc4a56` (`origin/main`, 2026-11-27, after #1195). At that commit, every action below was read against the code it names.
 
+Later changes the model already describes: #1205 (`chatgpt-auth.ts` `login` and `performLogin`: the browser wait runs outside the lock, and only `throwIfAborted` and `storeProfile` take it). The drift command lists their commits; they need no new reading.
+
 | Model part | Code |
 |---|---|
 | `lockHolder`, `lockQueue`, `LockGoesToNext` | `credential-envelope-lock.ts` `createCredentialMutationLock`, created once in `index.ts` and passed to ChatGPT, the vault, Telegram, reset and the successor vault |
-| `AthleteStartsChatGptSignIn`, `AthleteCancelsQueuedChatGptSignIn`, `ChatGptBrowserWaitEnds`, `PersonFinishesChatGptInBrowser`, `ChatGptSignInIsStored` | `chatgpt-auth.ts` `login`, `performLogin`, `cancelLogin`. Renderer: `controller.ts` `startChatGptLogin` and its result handler, `machine.ts` `withChatGptPending`, `withChatGptLoginResult` |
+| `AthleteStartsChatGptSignIn`, `AthleteCancelsQueuedChatGptSignIn`, `ChatGptBrowserWaitEnds`, `PersonFinishesChatGptInBrowser`, `ChatGptSignInIsStored` | `chatgpt-auth.ts` `login`, `performLogin` (its store step under `serializeCredentialMutation`), `cancelLogin`. Renderer: `controller.ts` `startChatGptLogin` and its result handler, `machine.ts` `withChatGptPending`, `withChatGptLoginResult` |
 | `ChatGptActivationFinishes` | `controller.ts` `beginChatGptActivation`, `scheduleChatGptActivation`, `recordActiveSelection`. `machine.ts` `withChatGptActivationPending`, `withChatGptActivationResult`. Main: `chatgpt-auth.ts` `activate` |
 | `AthleteSavesKeyInSetup`, `SetupKeyWriteFinishes` | `controller.ts` `saveModelKey`, `saveModelCredential`. Main: `credential-vault.ts` `writeCredential` |
 | Intervals.icu actions | `controller.ts` `connectTrainingData`, `cancelActiveIntervalsSignIn`. Main: `intervals-ipc.ts` `signIn`, `runCapturedCredential` (through `vault.runExclusiveMutation`), the cancel handler |
