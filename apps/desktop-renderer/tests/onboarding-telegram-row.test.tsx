@@ -15,6 +15,7 @@ import {
   TELEGRAM_CREATE_COPY as TELEGRAM_CREATE_COPY_MESSAGE,
   TELEGRAM_CREATE_TITLE as TELEGRAM_CREATE_TITLE_MESSAGE,
   TELEGRAM_DELETE_COPY as TELEGRAM_DELETE_COPY_MESSAGE,
+  TELEGRAM_UNAVAILABLE_COPY as TELEGRAM_UNAVAILABLE_COPY_MESSAGE,
 } from "../src/ui/onboarding/copy";
 import {
   mountWizard,
@@ -32,6 +33,21 @@ const TELEGRAM_AVAILABILITY_COPY = english.say(TELEGRAM_AVAILABILITY_COPY_MESSAG
 const TELEGRAM_CREATE_COPY = english.say(TELEGRAM_CREATE_COPY_MESSAGE);
 const TELEGRAM_CREATE_TITLE = english.say(TELEGRAM_CREATE_TITLE_MESSAGE);
 const TELEGRAM_DELETE_COPY = english.say(TELEGRAM_DELETE_COPY_MESSAGE);
+const TELEGRAM_UNAVAILABLE_COPY = english.say(TELEGRAM_UNAVAILABLE_COPY_MESSAGE);
+
+const LOAD_FAILED: TelegramSettingsState = {
+  status: "error",
+  kind: "load",
+  telegram: null,
+  allowedSenders: null,
+  senderLoadFailed: false,
+  announcement: "Telegram settings aren’t available. Keep the app open and try again.",
+  healthAnnouncement: "",
+  feedback: {
+    tone: "error",
+    message: "Telegram settings aren’t available. Keep the app open and try again.",
+  },
+};
 
 const UNCONFIGURED: TelegramControlStatus = {
   channel: { desiredState: "disabled", state: "disabled" },
@@ -188,6 +204,54 @@ describe("setup gate Telegram row", () => {
     expect(document.querySelector('[data-setup-row="telegram"]')).toBeNull();
     expect(document.querySelector("[data-setup-readiness]")).toBeNull();
     settingsWizard.controller.dispose();
+  });
+
+  it("says Telegram settings aren’t available and offers Retry instead of Create until a read succeeds", async () => {
+    const user = userEvent.setup();
+    const port = setTelegramSettings(LOAD_FAILED);
+    const wizard = mountWizard({
+      bridge: testBridge(async () => ({ status: "refused", reason: "cancelled" })),
+    });
+    await wizard.open();
+
+    const row = setupRow("telegram");
+    expect(row).toHaveAttribute("data-state", "attention");
+    expect(row.querySelector("[data-setup-row-subtitle]")).toHaveTextContent(
+      TELEGRAM_UNAVAILABLE_COPY,
+    );
+    expect(within(row).queryByRole("button", { name: "Create Telegram bot" })).toBeNull();
+
+    await user.click(within(row).getByRole("button", { name: "Retry" }));
+    expect(port.retry).toHaveBeenCalledOnce();
+
+    publishTelegram({ status: "loading" });
+    expect(within(row).getByRole("button", { name: "Create Telegram bot" })).toBeDisabled();
+    publishTelegram(LOAD_FAILED);
+    expect(within(row).getByRole("button", { name: "Retry" })).toBeEnabled();
+    publishTelegram(readyTelegramSettings(UNCONFIGURED));
+    expect(row.querySelector("[data-setup-row-subtitle]")).toHaveTextContent(
+      TELEGRAM_AVAILABILITY_COPY,
+    );
+    expect(within(row).getByRole("button", { name: "Create Telegram bot" })).toBeEnabled();
+    expect(within(row).queryByRole("button", { name: "Retry" })).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("keeps an open bot setup from using a token while Telegram settings aren’t available", async () => {
+    const user = userEvent.setup();
+    setTelegramSettings(readyTelegramSettings(UNCONFIGURED));
+    const wizard = mountWizard({
+      bridge: testBridge(async () => ({ status: "refused", reason: "cancelled" })),
+    });
+    await wizard.open();
+    await user.click(screen.getByRole("button", { name: "Create Telegram bot" }));
+
+    publishTelegram(LOAD_FAILED);
+    const telegramPanel = panel("telegram") as HTMLElement;
+    expect(within(telegramPanel).getByRole("button", { name: "Use copied token" })).toBeDisabled();
+    expect(within(telegramPanel).queryByRole("button", { name: "Check again" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Retry" })).toHaveLength(1);
+    wizard.controller.dispose();
   });
 
   it("keeps the open panel aligned with authoritative identity changes from another surface", async () => {
