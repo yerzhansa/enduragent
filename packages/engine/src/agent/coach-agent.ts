@@ -122,9 +122,8 @@ import {
   decisionRequestInput,
 } from "./coach-decision-tool.js";
 import { PLAN_REFERENCE_TOOL_NAME, createPlanReferenceTool } from "./plan-reference-tool.js";
-import { PLAN_HANDOFF_TOOL_NAME, createPlanHandoffTool } from "./plan-handoff-tool.js";
+import { assembleCoachToolSets } from "./coach-tool-sets.js";
 import { attachNativeMediaToCurrentUserMessage } from "../native-media-message.js";
-import { createPlanIntakeTool, PLAN_INTAKE_TOOL_NAME } from "./plan-intake-tool.js";
 import { assertPlanCoachReplyAuthority } from "./plan-coach-authority.js";
 
 const MAX_OVERFLOW_ATTEMPTS = 3;
@@ -484,24 +483,15 @@ export class CoachAgent {
               (options: unknown) => getTurnContext(options)?.readToolCache,
             ),
           );
-    this.tools = {
-      ...sportTools,
-      ...(this.decisionTool === undefined ? {} : { [COACH_DECISION_TOOL_NAME]: this.decisionTool }),
-      ...(this.planReferenceTool === undefined
-        ? {}
-        : { [PLAN_REFERENCE_TOOL_NAME]: this.planReferenceTool }),
-    };
-    this.desktopTools = {
-      ...this.tools,
-      [PLAN_HANDOFF_TOOL_NAME]: capToolResult(markUntrustedResult(createPlanHandoffTool()), {
-        maxResultTokens,
-      }),
-    };
-    const planIntakeTool = createPlanIntakeTool();
-    this.planTools = {
-      ...(this.decisionTool === undefined ? {} : { [COACH_DECISION_TOOL_NAME]: this.decisionTool }),
-      [PLAN_INTAKE_TOOL_NAME]: planIntakeTool,
-    };
+    const toolSets = assembleCoachToolSets({
+      sportTools,
+      decisionTool: this.decisionTool,
+      planReferenceTool: this.planReferenceTool,
+      maxResultTokens,
+    });
+    this.tools = toolSets.chat;
+    this.desktopTools = toolSets.desktop;
+    this.planTools = toolSets.plan;
     ports.onToolsAssembled?.(Object.freeze(Object.keys(this.tools)));
   }
 

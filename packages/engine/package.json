@@ -44,12 +44,14 @@
     "@enduragent/kernel": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@openrouter/ai-sdk-provider": "^2.9.1",
+    "@opentelemetry/api": "1.9.0",
     "ai": "^6.0.158",
     "intervals-icu-api": "^0.4.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@ai-sdk/provider": "^3.0.10",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
     "@types/node": "^25.6.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",

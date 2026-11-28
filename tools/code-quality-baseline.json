@@ -460,7 +460,7 @@
     "packages/core/src/setup.ts": 1365,
     "packages/engine/src/agent/claude-cli/session.ts": 850,
     "packages/engine/src/agent/claude-cli/working-area.ts": 829,
-    "packages/engine/src/agent/coach-agent.ts": 2147,
+    "packages/engine/src/agent/coach-agent.ts": 2137,
     "packages/kernel-node/src/service/launchd-plist.ts": 803,
     "packages/kernel/src/chat-attachments/repository.ts": 854,
     "packages/kernel/src/ingest/dedup-rekey.ts": 1073,
