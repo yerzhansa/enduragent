@@ -51,7 +51,7 @@ On(event) == event \in Events
 FreshSetup(active) ==
     [busy |-> FALSE, active |-> active, loading |-> FALSE, unavailable |-> FALSE,
      required |-> FALSE, chatgpt |-> "idle", intervals |-> "idle",
-     keySave |-> NoOne, openRouter |-> "idle"]
+     keySave |-> NoOne, openRouter |-> "idle", loadedActive |-> active]
 
 FreshSettings == [op |-> "idle", arg |-> NoOne, repair |-> FALSE]
 
@@ -117,7 +117,9 @@ OnboardingCredentialMutationActive ==
     \/ setup.loading
     \/ setup.unavailable
     \/ setup.busy
+    \/ setup.keySave # NoOne
     \/ setup.chatgpt \in {"signing-in", "activating"}
+    \/ setup.intervals # "idle"
     \/ setup.openRouter # "idle"
 
 \* The Setup operations the live page has in flight.
@@ -370,28 +372,35 @@ OpenRouterSignInIsStored ==
 -----------------------------------------------------------------------------
 (* Settings: Coach provider save and key delete *)
 
-\* provider-model-controller.ts commit -> vault.applyLlmSelection. The Coach
-\* pane is locked only by other Settings mutations, not by Setup.
+\* provider-model-controller.ts commit -> vault.applyLlmSelection. CoachSection's
+\* controlsDisabled also holds while onboardingCredentialMutationActive.
 AthleteSavesCoachInSettings(p) ==
     /\ On("coach-save")
     /\ Athlete
     /\ page.alive
     /\ settings.op = "idle"
     /\ telegramRow = "idle"
+    /\ ~OnboardingCredentialMutationActive
     /\ p \in stored \cap (KeyProviders \cup {ChatGpt})
     /\ p # coach.active
     /\ settings' = [settings EXCEPT !.op = "coach-save", !.arg = p]
     /\ lockQueue' = Append(lockQueue, Entry("coach-save", p, page.id))
     /\ UNCHANGED <<lockHolder, login, signIn, openRouter, coach, stored, windowVars, setup, telegramRow>>
 
-\* boot.ts onSaved only refreshes chat attachments. Setup is not told.
+\* boot.ts onSaved calls onboarding.refresh(false), which returns early while a
+\* load runs. The load's configuration read happens at once, so it reads main's
+\* coach as it is at this step.
 CoachSaveFinishes ==
     /\ lockHolder.op = "coach-save"
-    /\ coach' = IF CoachReady /\ lockHolder.arg \in stored
-                THEN [coach EXCEPT !.active = lockHolder.arg] ELSE coach
+    /\ LET next == IF CoachReady /\ lockHolder.arg \in stored
+                    THEN [coach EXCEPT !.active = lockHolder.arg] ELSE coach
+       IN /\ coach' = next
+          /\ setup' = IF Owns(lockHolder.page) /\ ~setup.loading
+                      THEN [setup EXCEPT !.loading = TRUE, !.loadedActive = next.active]
+                      ELSE setup
     /\ settings' = IF Owns(lockHolder.page) THEN FreshSettings ELSE settings
     /\ lockHolder' = NoEntry
-    /\ UNCHANGED <<lockQueue, login, signIn, openRouter, stored, windowVars, setup, telegramRow, steps>>
+    /\ UNCHANGED <<lockQueue, login, signIn, openRouter, stored, windowVars, telegramRow, steps>>
 
 \* credential-controller.ts delete, gated on onboardingCredentialMutationActive.
 AthleteDeletesKeyInSettings(p) ==
@@ -414,12 +423,14 @@ KeyIsDeleted ==
     /\ lockHolder' = NoEntry
     /\ IF Owns(lockHolder.page) /\ settings.op = "deleting"
        THEN /\ settings' = [settings EXCEPT !.op = "refreshing-setup"]
-            /\ setup' = [setup EXCEPT !.loading = TRUE]
+            /\ setup' = [setup EXCEPT !.loading = TRUE,
+                                       !.loadedActive = IF coach.active = lockHolder.arg
+                                                        THEN NoOne ELSE coach.active]
        ELSE UNCHANGED <<settings, setup>>
     /\ UNCHANGED <<lockQueue, login, signIn, openRouter, windowVars, telegramRow, steps>>
 
-\* load(): hydrateAuthoritativeState is false after the first success, so the
-\* fresh configuration is dropped and Setup keeps its copy of `active`.
+\* load(): every successful read adopts main's configuration, including `active`
+\* (the athlete's own draft is kept, which the model leaves out).
 \* createOnboardingState rebuilds the wizard; busy follows the intervals phase.
 SetupReadAnswers ==
     /\ setup.loading
@@ -427,19 +438,20 @@ SetupReadAnswers ==
     /\ setup' = [setup EXCEPT !.loading = FALSE, !.unavailable = FALSE,
                               !.busy = (setup.intervals # "idle"),
                               !.chatgpt = "idle", !.keySave = NoOne,
-                              !.required = @ \/ ~ReadyFor(setup.active)]
+                              !.active = setup.loadedActive,
+                              !.required = @ \/ ~ReadyFor(setup.loadedActive)]
     /\ settings' = IF settings.op = "refreshing-setup" THEN FreshSettings ELSE settings
     /\ UNCHANGED <<mainVars, windowVars, telegramRow, steps>>
 
 \* finishUnavailableLoad. After a delete, refreshOnboardingCredentials throws;
-\* the catch renders a repair credential, and patchSettings calls
-\* requireCompletion().
+\* the catch keeps the repair state it had (content.repairCredential), so
+\* nothing calls requireCompletion().
 SetupReadTimesOut ==
     /\ setup.loading
     /\ On("slow-coach") \/ ~CoachReady
     /\ IF settings.op = "refreshing-setup"
-       THEN /\ setup' = [setup EXCEPT !.loading = FALSE, !.unavailable = TRUE, !.required = TRUE]
-            /\ settings' = [FreshSettings EXCEPT !.repair = TRUE]
+       THEN /\ setup' = [setup EXCEPT !.loading = FALSE, !.unavailable = TRUE]
+            /\ settings' = [FreshSettings EXCEPT !.repair = settings.repair]
        ELSE /\ setup' = [setup EXCEPT !.loading = FALSE, !.unavailable = TRUE]
             /\ UNCHANGED settings
     /\ UNCHANGED <<mainVars, windowVars, telegramRow, steps>>
@@ -557,15 +569,28 @@ MainHandlesIntervalsCancel ==
     /\ signIn' = IF signIn.phase = "awaiting-browser" THEN Idle ELSE signIn
     /\ UNCHANGED <<lockHolder, lockQueue, login, openRouter, coach, stored, page, onboardingIpc, rendererVars, steps>>
 
-\* The window's "closed" event disposes onboarding IPC, which removes the
-\* ChatGPT cancel handler and disposes the OpenRouter auth of this window.
+\* The window's "closed" event disposes onboarding IPC: it cancels the ChatGPT
+\* logins this window's registration started, removes the cancel handler, and
+\* disposes the window's OpenRouter auth. The page's webContents emits
+\* "destroyed", which ends its Intervals.icu sign-in before approval.
 WindowIsClosed ==
     /\ ~page.alive
     /\ onboardingIpc = "registered"
     /\ onboardingIpc' = "disposed"
-    /\ pendingCancel' = pendingCancel \ {"chatgpt"}
+    /\ pendingCancel' = pendingCancel \ {"chatgpt", "intervals"}
     /\ openRouter' = IF openRouter.phase = "awaiting-browser" THEN Idle ELSE openRouter
-    /\ UNCHANGED <<lockHolder, lockQueue, login, signIn, coach, stored, page, rendererVars, steps>>
+    /\ signIn' = IF signIn.phase = "awaiting-browser" /\ signIn.page = page.id THEN Idle ELSE signIn
+    /\ IF login.page = page.id /\ login.phase = "awaiting-browser"
+       THEN /\ login' = LoginIdle
+            /\ UNCHANGED lockHolder
+       ELSE IF login.page = page.id /\ login.phase = "storing" /\ lockHolder.op = "chatgpt-login"
+            THEN /\ login' = LoginIdle
+                 /\ lockHolder' = NoEntry
+            ELSE IF login.page = page.id /\ login.phase = "storing"
+                 THEN /\ login' = [login EXCEPT !.aborted = TRUE]
+                      /\ UNCHANGED lockHolder
+                 ELSE UNCHANGED <<login, lockHolder>>
+    /\ UNCHANGED <<lockQueue, coach, stored, page, rendererVars, steps>>
 
 \* The athlete opens the window again. The new page starts idle and open()
 \* loads Setup with hydration from main's answers.

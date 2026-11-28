@@ -57,14 +57,14 @@ const CHECKS: readonly Check[] = [
   { rule: "KeySaveHasSetupAlone", kind: "invariant", scenario: "everything", expect: "holds", finding: "#398, fixed by #398 PR" },
   { rule: "ChatGptSignInHasSetupAlone", kind: "invariant", scenario: "everything", expect: "holds", finding: "control" },
   { rule: "BusySetupNamesItsOwner", kind: "invariant", scenario: "everything", expect: "holds", finding: "control" },
-  { rule: "ChatGptSignInEndsWithItsPage", kind: "invariant", scenario: "crash-not-close", expect: "breaks", finding: "#400" },
-  { rule: "IntervalsSignInEndsWithItsPage", kind: "invariant", scenario: "crash-not-close", expect: "breaks", finding: "#400" },
+  { rule: "ChatGptSignInEndsWithItsPage", kind: "invariant", scenario: "crash-not-close", expect: "holds", finding: "#400, fixed" },
+  { rule: "IntervalsSignInEndsWithItsPage", kind: "invariant", scenario: "crash-not-close", expect: "holds", finding: "#400, fixed" },
   { rule: "IntervalsSignInEndsWithItsPage", kind: "invariant", scenario: "close-not-crash", expect: "holds", finding: "#398 (Setup forgot the sign-in, so pagehide cannot cancel it), fixed by #398 PR" },
-  { rule: "ChatGptSignInEndsWithItsPage", kind: "invariant", scenario: "close-not-crash", expect: "breaks", finding: "lead: cancel lost when closed runs first" },
+  { rule: "ChatGptSignInEndsWithItsPage", kind: "invariant", scenario: "close-not-crash", expect: "holds", finding: "lead: cancel lost when closed runs first, fixed" },
   { rule: "OpenRouterSignInEndsWithItsPage", kind: "invariant", scenario: "everything", expect: "holds", finding: "control: closed disposes the auth" },
-  { rule: "SetupShowsTheActiveCoach", kind: "invariant", scenario: "everything", expect: "breaks", finding: "#395" },
-  { rule: "NeverSentToSetupWithAWorkingCoach", kind: "property", scenario: "everything", expect: "breaks", finding: "#419" },
-  { rule: "NeverSentToSetupWithAWorkingCoach", kind: "property", scenario: "no-slow-coach", expect: "breaks", finding: "#395" },
+  { rule: "SetupShowsTheActiveCoach", kind: "invariant", scenario: "everything", expect: "holds", finding: "#395, fixed" },
+  { rule: "NeverSentToSetupWithAWorkingCoach", kind: "property", scenario: "everything", expect: "holds", finding: "#419, fixed" },
+  { rule: "NeverSentToSetupWithAWorkingCoach", kind: "property", scenario: "no-slow-coach", expect: "holds", finding: "#395, fixed" },
 ];
 
 interface Options {
