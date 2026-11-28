@@ -117,6 +117,7 @@ describe("engine scaffold", () => {
       "getMessageProvenance",
       "invalidateClaudeAccountProbeCache",
       "invalidateCodexAgentProbeCache",
+      "isFailedCallWithoutKnownUsage",
       "isNonEmptyData",
       "isProviderAuthFailure",
       "isRacePlanWorkout",

@@ -102,6 +102,7 @@ describe("engine public export surface", () => {
       "getMessageProvenance",
       "invalidateClaudeAccountProbeCache",
       "invalidateCodexAgentProbeCache",
+      "isFailedCallWithoutKnownUsage",
       "isNonEmptyData",
       "isProviderAuthFailure",
       "isRacePlanWorkout",
