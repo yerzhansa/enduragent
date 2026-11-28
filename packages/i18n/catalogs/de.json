@@ -3202,8 +3202,10 @@
     "error": {
       "intervalsCredentials": "{{service}} hat die Anfrage abgelehnt. Prüfe deine Verbindung zu {{service}} oder deinen API-Schlüssel.",
       "intervalsTransient": "Ich kann {{service}} gerade nicht erreichen. Versuche es gleich noch einmal.",
+      "modelUnavailable": "{{provider}} bietet dieses Modell nicht mehr an. Wähle unter Einstellungen, Coach ein anderes Modell und sende deine Nachricht dann erneut.",
       "openRouterCredits": "Dein {{openrouter}}-Konto hat nicht genug Guthaben. Lade Guthaben bei {{openrouter}} auf und sende deine Nachricht dann erneut.",
       "providerCredentials": "Der Modellanbieter hat den API-Schlüssel abgelehnt. Prüfe deine Zugangsdaten beim Anbieter.",
+      "providerCredits": "Dein {{provider}}-Konto hat nicht genug Guthaben. Lade Guthaben bei {{provider}} auf und sende deine Nachricht dann erneut.",
       "providerDown": "Der Modellanbieter hat gerade Probleme. Versuche es in ein paar Minuten erneut.",
       "rateLimit": "Anfragelimit erreicht. Versuche es gleich noch einmal.",
       "rateLimitDefault": "Anfragelimit erreicht. Versuche es in etwa einer Minute erneut.",

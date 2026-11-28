@@ -26,6 +26,9 @@ export const AgentErrorKindSchema = z.enum([
   "unknown",
   "detached",
   "openrouter-credits",
+  "subscription-signed-out",
+  "provider-credits",
+  "model-unavailable",
 ]);
 export type AgentErrorKind = z.infer<typeof AgentErrorKindSchema>;
 

@@ -3202,8 +3202,10 @@
     "error": {
       "intervalsCredentials": "{{service}} ha rifiutato la richiesta. Controlla la connessione a {{service}} o la chiave API.",
       "intervalsTransient": "Non riesco a raggiungere {{service}} in questo momento. Riprova tra poco.",
+      "modelUnavailable": "{{provider}} non offre più questo modello. Scegli un altro modello in Impostazioni, Coach, poi invia di nuovo il tuo messaggio.",
       "openRouterCredits": "Il tuo account {{openrouter}} non ha crediti sufficienti. Aggiungi crediti su {{openrouter}}, poi invia di nuovo il tuo messaggio.",
       "providerCredentials": "Il fornitore del modello ha rifiutato la chiave API. Controlla le credenziali del fornitore.",
+      "providerCredits": "Il tuo account {{provider}} non ha crediti sufficienti. Aggiungi crediti con {{provider}}, poi invia di nuovo il tuo messaggio.",
       "providerDown": "Il fornitore del modello sta avendo problemi. Riprova tra qualche minuto.",
       "rateLimit": "Limite di richieste raggiunto. Riprova tra poco.",
       "rateLimitDefault": "Limite di richieste raggiunto. Riprova tra circa un minuto.",

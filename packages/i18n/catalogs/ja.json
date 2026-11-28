@@ -3140,8 +3140,10 @@
     "error": {
       "intervalsCredentials": "{{service}}がリクエストを拒否しました。{{service}}の接続またはAPIキーを確認してください。",
       "intervalsTransient": "今は{{service}}に接続できません。少し待ってから、もう一度お試しください。",
+      "modelUnavailable": "{{provider}}ではこのモデルを利用できなくなりました。「設定」の「コーチ」で別のモデルを選んでから、メッセージをもう一度送信してください。",
       "openRouterCredits": "{{openrouter}}アカウントのクレジットが不足しています。{{openrouter}}でクレジットを追加してから、メッセージをもう一度送信してください。",
       "providerCredentials": "モデルのプロバイダーがAPIキーを拒否しました。プロバイダーの認証情報を確認してください。",
+      "providerCredits": "{{provider}}アカウントのクレジットが不足しています。{{provider}}でクレジットを追加してから、メッセージをもう一度送信してください。",
       "providerDown": "モデルのプロバイダーで問題が起きています。数分後に、もう一度お試しください。",
       "rateLimit": "リクエストの上限に達しました。少し待ってから、もう一度お試しください。",
       "rateLimitDefault": "リクエストの上限に達しました。約1分後に、もう一度お試しください。",

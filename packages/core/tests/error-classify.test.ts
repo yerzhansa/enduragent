@@ -212,3 +212,118 @@ describe("payment required", () => {
     });
   });
 });
+
+function providerError(input: {
+  readonly statusCode: number;
+  readonly body?: unknown;
+  readonly rawBody?: string;
+  readonly message?: string;
+}): APICallError {
+  return new APICallError({
+    message: input.message ?? "provider error",
+    url: "https://provider.invalid/v1/chat/completions",
+    requestBodyValues: {},
+    statusCode: input.statusCode,
+    responseBody:
+      input.rawBody ?? (input.body === undefined ? undefined : JSON.stringify(input.body)),
+    data: input.body,
+  });
+}
+
+describe("model unavailable", () => {
+  it("keeps a bare 404, such as a wrong base URL, generic", () => {
+    expect(classifyFailure(apiError(404))).toBe("unknown");
+    expect(classifyFailure(apiError(404), "anthropic")).toBe("unknown");
+    expect(
+      classifyFailure(
+        providerError({ statusCode: 404, body: { error: { code: 404, message: "Not Found" } } }),
+        "openrouter",
+      ),
+    ).toBe("unknown");
+    expect(
+      classifyFailure(providerError({ statusCode: 404, rawBody: "<html>Not Found</html>" })),
+    ).toBe("unknown");
+  });
+
+  it.each([400, 404])(
+    "classifies a %i with the model_not_found code or type, parsed or raw, as model_unavailable",
+    (statusCode) => {
+      const code = { error: { code: "model_not_found", message: "The model does not exist" } };
+      const type = { error: { type: "model_not_found" } };
+      expect(classifyFailure(providerError({ statusCode, body: code }))).toBe("model_unavailable");
+      expect(classifyFailure(providerError({ statusCode, rawBody: JSON.stringify(code) }))).toBe(
+        "model_unavailable",
+      );
+      expect(classifyFailure(providerError({ statusCode, body: type }))).toBe("model_unavailable");
+    },
+  );
+
+  it("classifies Anthropic's not_found_error as model_unavailable on the anthropic route only", () => {
+    const body = { type: "error", error: { type: "not_found_error", message: "model: retired" } };
+    const error = providerError({ statusCode: 404, body });
+    expect(classifyFailure(error, "anthropic")).toBe("model_unavailable");
+    expect(classifyFailure(error, "openrouter")).toBe("unknown");
+    expect(classifyFailure(error)).toBe("unknown");
+  });
+
+  it("keeps other 400s as an invalid request or an overflow", () => {
+    expect(
+      classifyFailure(
+        providerError({ statusCode: 400, body: { error: { code: "invalid_value" } } }),
+      ),
+    ).toBe("invalid_request");
+    expect(
+      classifyFailure(providerError({ statusCode: 400, rawBody: "<html>Bad Request</html>" })),
+    ).toBe("invalid_request");
+    expect(
+      classifyFailure(
+        providerError({ statusCode: 400, body: { error: { code: "context_length_exceeded" } } }),
+      ),
+    ).toBe("overflow");
+  });
+
+  it("keeps the generic reply outside the desktop Coach", () => {
+    expect(classifyAgentError(apiError(404))).toEqual({
+      kind: "unknown",
+      athleteMessage: "Sorry, something went wrong. Please try again.",
+    });
+  });
+});
+
+describe("OpenAI billing limits on a 429", () => {
+  const quota = { error: { type: "insufficient_quota", code: "insufficient_quota" } };
+
+  it("classifies OpenAI's no-quota 429 as payment_required", () => {
+    expect(classifyFailure(providerError({ statusCode: 429, body: quota }), "openai")).toBe(
+      "payment_required",
+    );
+    expect(
+      classifyFailure(providerError({ statusCode: 429, rawBody: JSON.stringify(quota) }), "openai"),
+    ).toBe("payment_required");
+  });
+
+  it.each([
+    "credit_balance_exhausted",
+    "organization_spend_limit_exceeded",
+    "project_spend_limit_exceeded",
+    "organization_usage_limit_exceeded",
+  ])("classifies OpenAI's %s 429 as payment_required", (code) => {
+    const error = providerError({ statusCode: 429, body: { error: { type: "billing", code } } });
+    expect(classifyFailure(error, "openai")).toBe("payment_required");
+  });
+
+  it("keeps a plain OpenAI 429 a rate limit", () => {
+    const slowDown = { error: { type: "rate_limit_error", code: "slow_down" } };
+    expect(classifyFailure(providerError({ statusCode: 429, body: slowDown }), "openai")).toBe(
+      "rate_limit",
+    );
+    expect(classifyFailure(apiError(429), "openai")).toBe("rate_limit");
+  });
+
+  it("keeps the same 429 a rate limit on every other route", () => {
+    const error = providerError({ statusCode: 429, body: quota });
+    expect(classifyFailure(error)).toBe("rate_limit");
+    expect(classifyFailure(error, "deepseek")).toBe("rate_limit");
+    expect(classifyFailure(error, "openrouter")).toBe("rate_limit");
+  });
+});
