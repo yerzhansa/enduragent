@@ -297,7 +297,7 @@ describe("llm-picker bug 2: revoked ChatGPT sign-in", () => {
         .catch(() => undefined);
       expect(requests.filter((url) => url.includes("/oauth/token"))).toHaveLength(2);
       const chatError = events.find((event) => event.type === "error");
-      expect(chatError).toMatchObject({ kind: "provider-auth" });
+      expect(chatError).toMatchObject({ kind: "subscription-signed-out" });
       expect(chatError?.athleteMessage).toContain("Open Setup and sign in again");
 
       const auth = createChatGptAuth({
