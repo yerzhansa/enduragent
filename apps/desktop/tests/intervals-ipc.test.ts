@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import {
   INTERVALS_CREDENTIAL_REQUEST_TIMEOUT_MS,
   INTERVALS_CREDENTIAL_VERIFICATION_TIMEOUT_MS,
@@ -125,14 +126,14 @@ function runtimeSnapshot(athleteId = "synthetic-athlete"): RuntimeConfigSnapshot
 function rendererSender(url = RENDERER_URL) {
   const state = { destroyed: false, url };
   const send = vi.fn((_channel: string, _payload: unknown) => undefined);
-  const sender = {
+  const sender = Object.assign(new EventEmitter(), {
     send,
     isDestroyed: () => state.destroyed,
     get mainFrame() {
       if (state.destroyed) throw new TypeError("Object has been destroyed");
       return { url: state.url };
     },
-  };
+  });
   return { send, sender, state };
 }
 

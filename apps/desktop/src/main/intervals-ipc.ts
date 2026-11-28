@@ -439,6 +439,12 @@ export function installDesktopIntervalsIpc(input: {
       controller: new AbortController(),
     };
     activeSignIn = session;
+    const endWithPage = (): void => {
+      if (session.approved === true) return;
+      session.controller.abort();
+      if (activeSignIn === session) activeSignIn = undefined;
+    };
+    sender.once("destroyed", endWithPage);
     try {
       let grant: IntervalsOAuthGrant;
       try {
@@ -468,6 +474,7 @@ export function installDesktopIntervalsIpc(input: {
         ? { ...result, athleteName }
         : result;
     } finally {
+      sender.removeListener("destroyed", endWithPage);
       if (activeSignIn === session) activeSignIn = undefined;
     }
   };

@@ -364,6 +364,7 @@ async function llmConfiguration(
 
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {
   let disposed = false;
+  const windowLogins = new Set<string>();
   const pinnedCatalogs = new Map<number, LocalModelCatalogSnapshot>();
   const pinCatalog = (catalog: LocalModelCatalogSnapshot): void => {
     pinnedCatalogs.set(catalog.revision, catalog);
@@ -648,11 +649,16 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
         selection: input.selection,
       };
     }
-    return minimizeChatGptLogin(
-      await options.chatGptAuth.login(input.operationId, input.selection, (phase) => {
-        publishChatGptProgress(event.sender, input.operationId, phase);
-      }),
-    );
+    windowLogins.add(input.operationId);
+    try {
+      return minimizeChatGptLogin(
+        await options.chatGptAuth.login(input.operationId, input.selection, (phase) => {
+          publishChatGptProgress(event.sender, input.operationId, phase);
+        }),
+      );
+    } finally {
+      windowLogins.delete(input.operationId);
+    }
   });
   options.ipcMain.handle(DESKTOP_CHATGPT_LOGIN_CANCEL_CHANNEL, (event, ...args) => {
     requireTrusted(event);
@@ -701,6 +707,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
   });
   return () => {
     disposed = true;
+    for (const operationId of windowLogins) options.chatGptAuth.cancelLogin(operationId);
     disposeOpenRouter();
     pinnedCatalogs.clear();
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_STATUS_CHANNEL);
