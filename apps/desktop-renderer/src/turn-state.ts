@@ -426,15 +426,11 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
         status: "idle",
         progress: null,
         activeTurn: null,
-        messages:
-          state.status === "interrupted"
-            ? state.messages
-            : state.messages.filter(
-                (message) =>
-                  !activeIds.includes(message.id) &&
-                  (message.turnId !== action.turnId ||
-                    (stopped && (message.role === "athlete" || message.stopped === true))),
-              ),
+        messages: state.messages.filter((message) =>
+          message.turnId === action.turnId
+            ? stopped && (message.role === "athlete" || message.stopped === true)
+            : !activeIds.includes(message.id),
+        ),
       };
     }
     case "interrupt": {
