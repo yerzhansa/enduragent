@@ -90,7 +90,7 @@ function phaseKind(v: Vars): "ready" | "active" | "install" | "done" | "broken" 
   if (v.quitPhase === "draining" || v.quitPhase === "handoff" || v.mainState === "downloaded") {
     return "install";
   }
-  if (v.mainState === "checking" || v.mainState === "downloading") {
+  if (v.mainState === "checking" || v.mainState === "downloading" || v.mainState === "preparing") {
     return "active";
   }
   return "ready";
@@ -143,6 +143,11 @@ export const state = (v: Vars): string => {
     }
     if (v.rendActedPreHydration) return `Ready to install ${ver} (pre-hydration click)`;
     return `Ready to install ${ver}`;
+  }
+  if (v.mainState === "preparing") {
+    const ver = versionText(v.mainVersion);
+    const early = v.rendActedPreHydration ? " (pre-hydration click)" : "";
+    return `Preparing ${ver} on macOS${early}`;
   }
   if (v.mainState === "downloading") {
     const ver = versionText(v.mainVersion);

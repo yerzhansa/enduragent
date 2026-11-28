@@ -23,6 +23,10 @@ export const settingsStyles = {
   bareRow: "flex w-full items-center gap-4",
   meter:
     "block h-[3px] w-full appearance-none overflow-hidden rounded-full border-0 bg-line [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-line [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-ok",
+  updateProgressTrack: "h-[3px] w-full overflow-hidden rounded-full bg-line",
+  updateProgressFill:
+    "h-full rounded-full bg-brand transition-[width] duration-300 motion-reduce:transition-none",
+  updateProgressIndeterminate: "h-full rounded-full bg-brand update-progress-indeterminate",
   capError: "flex-[1_0_100%]!",
   amount: "shrink-0 text-[13px] tabular-nums",
   routes: "px-4 pb-1",

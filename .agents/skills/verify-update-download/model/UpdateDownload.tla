@@ -45,7 +45,7 @@ VARIABLES
     updaterConfigured,    \* boolean: security & behavior flags + interval configured cleanly
     periodicScheduled,    \* boolean: 6-hour intervalTimer is scheduled
     \* Main process: published state & hidden operation shadow state (update-controller.ts)
-    mainState,            \* "idle" | "checking" | "current" | "downloading" | "downloaded" | "installing" | "restart-required" | "failed"
+    mainState,            \* "idle" | "checking" | "current" | "downloading" | "preparing" | "downloaded" | "installing" | "restart-required" | "failed"
     mainStage,            \* "none" | "check" | "download"
     mainVersion,          \* 0..2
     opPresent,            \* boolean: activeOperation !== undefined
@@ -77,7 +77,7 @@ VARIABLES
     windowOpen,           \* boolean: trusted main window open
     rendHydrated,         \* boolean: start()'s getUpdateState() or a push has hydrated renderer state
     rendHydrationSawPush, \* boolean: revision !== before for start()'s getUpdateState() (controller.ts:84-87)
-    rendState,            \* "idle" | "checking" | "current" | "downloading" | "downloaded" | "installing" | "restart-required" | "failed"
+    rendState,            \* "idle" | "checking" | "current" | "downloading" | "preparing" | "downloaded" | "installing" | "restart-required" | "failed"
     rendVersion,          \* 0..2
     rendActiveKind,       \* "none" | "check" | "restart" (active !== undefined)
     rendActiveSawPush,    \* boolean: revision !== before during active activate() call
@@ -111,7 +111,7 @@ RequiresNative == Platform = "darwin"
 
 CanCheck ==
     /\ ~closed
-    /\ mainState \notin {"downloading", "downloaded", "installing"}
+    /\ mainState \notin {"downloading", "preparing", "downloaded", "installing"}
     /\ (FenceRestartRequired => mainState # "restart-required")
 
 IsCurrent == ~closed /\ opPresent /\ opCurrent
@@ -535,11 +535,10 @@ ZipUpdateDownloaded ==
                     /\ rendInvokeReplyState' = "downloaded"
                     /\ rendInvokeReplyVer' = opTarget
                ELSE UNCHANGED <<rendInvokePending, rendInvokeReplyState, rendInvokeReplyVer>>
-       ELSE UNCHANGED <<mainState, mainStage, mainVersion, opPresent, opCurrent, opTimersArmed,
-                        readinessWatch, readinessInvalidated,
-                        pendingPush, pendingPushState, pendingPushVer,
-                        rendInvokePending, rendInvokeReplyState, rendInvokeReplyVer,
-                        sawRestartRequired>>
+       ELSE /\ Publish("preparing", "none", opTarget)
+            /\ UNCHANGED <<opPresent, opCurrent, opTimersArmed,
+                           readinessWatch, readinessInvalidated,
+                           rendInvokePending, rendInvokeReplyState, rendInvokeReplyVer>>
     /\ UNCHANGED <<initVars, opStage, opTarget, opPendingCalls, opNativeReady, opNativeReadyVer,
                    opHighWater, opFallbackActive, opKilledOnFallback, closed, installRequested,
                    installInvokedCount, quitVars, windowOpen, rendHydrated, rendHydrationSawPush,
@@ -870,7 +869,7 @@ RendererInvokeRejects ==
        THEN /\ rendState' = "failed"
             /\ rendVersion' = 0
             /\ rendSwallowedReject' = FALSE
-       ELSE /\ rendSwallowedReject' = (rendState \in {"checking", "downloading"})
+       ELSE /\ rendSwallowedReject' = (rendState \in {"checking", "downloading", "preparing"})
             /\ UNCHANGED <<rendState, rendVersion>>
     /\ UNCHANGED <<initVars, mainVars, quitVars, windowOpen, rendHydrated, rendHydrationSawPush,
                    rendInvokeReplyState, rendInvokeReplyVer, rendActedPreHydration,
@@ -925,7 +924,7 @@ Spec == Init /\ [][Next]_vars
 TypeOK ==
     /\ initPhase \in {"idle", "floor", "loading", "ready", "failed"}
     /\ floor \in {"none", "current", "higher"}
-    /\ mainState \in {"idle", "checking", "current", "downloading", "downloaded", "installing", "restart-required", "failed"}
+    /\ mainState \in {"idle", "checking", "current", "downloading", "preparing", "downloaded", "installing", "restart-required", "failed"}
     /\ mainStage \in {"none", "check", "download"}
     /\ mainVersion \in Versions
     /\ opStage \in {"none", "check", "download"}
@@ -937,7 +936,7 @@ TypeOK ==
     /\ quitPhase \in {"running", "draining", "handoff", "exited-clean", "exited-error", "relaunching", "installed"}
     /\ quitReason \in {"none", "ordinary", "update"}
     /\ drainOutcome \in {"none", "drained", "failed", "timed-out"}
-    /\ rendState \in {"idle", "checking", "current", "downloading", "downloaded", "installing", "restart-required", "failed"}
+    /\ rendState \in {"idle", "checking", "current", "downloading", "preparing", "downloaded", "installing", "restart-required", "failed"}
     /\ rendVersion \in Versions
     /\ rendActiveKind \in {"none", "check", "restart"}
     /\ rendInvokePending \in {"none", "in-flight", "settled"}
@@ -1029,7 +1028,7 @@ WitnessDownloadedWithCheckActive == ~(SidebarVisible /\ rendActiveKind = "check"
 WitnessFloorFailReached == ~(started /\ initPhase = "failed" /\ floor = "none")
 WitnessOrdinaryQuitDuringDownloaded == ~(quitReason = "ordinary" /\ quitPhase = "draining" /\ mainState = "downloaded")
 WitnessUnHydratedWindow == ~(~rendHydrated /\ windowOpen)
-WitnessInvokeRejectsAfterPush == ~(rendActiveKind = "check" /\ rendActiveSawPush /\ rendInvokePending = "in-flight" /\ rendState \in {"checking", "downloading"})
+WitnessInvokeRejectsAfterPush == ~(rendActiveKind = "check" /\ rendActiveSawPush /\ rendInvokePending = "in-flight" /\ rendState \in {"checking", "downloading", "preparing"})
 WitnessHigherFloorReached == ~(floor = "higher" /\ mainState = "checking")
 WitnessMacDownloaded == ~(RequiresNative /\ mainState = "downloaded")
 WitnessInstalled == ~(quitPhase = "installed")

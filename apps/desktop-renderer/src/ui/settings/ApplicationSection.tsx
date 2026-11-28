@@ -4,129 +4,214 @@ import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { APP_VERSION } from "../../app-version";
 import type { DesktopUpdateState } from "../../update/controller";
+import {
+  formatUpdateDownloadAnnouncement,
+  formatUpdateDownloadDetail,
+} from "../../update/progress-format";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { settingsStyles as styles } from "./styles";
 
+type UpdateProgressBar =
+  | { readonly kind: "indeterminate" }
+  | { readonly kind: "determinate"; readonly percent: number };
+
 interface UpdateCopy {
   readonly action: string | null;
   readonly label: string;
+  readonly detail: string;
   readonly announcement: string;
+  readonly numericDetail?: boolean;
+  readonly progressBar?: UpdateProgressBar;
 }
 
-function updateCopy(state: DesktopUpdateState, say: Phrasebook["say"]): UpdateCopy {
+function updateCopy(
+  state: DesktopUpdateState,
+  phrasebook: Pick<Phrasebook, "say" | "format">,
+): UpdateCopy {
+  const { say } = phrasebook;
   switch (state.status) {
-    case "disabled":
-      return {
-        action: say("settings.application.unavailable"),
-        label: say("settings.application.unavailable"),
-        announcement: say("settings.application.unavailable"),
-      };
-    case "current":
-      return {
-        action: say("settings.application.check"),
-        label: say("settings.application.check"),
-        announcement: say("settings.application.current", { product: "Enduragent" }),
-      };
-    case "checking":
+    case "disabled": {
+      const text = say("settings.application.unavailable");
+      return { action: text, label: text, detail: text, announcement: text };
+    }
+    case "current": {
+      const action = say("settings.application.check");
+      const detail = say("settings.application.current", { product: "Enduragent" });
+      return { action, label: action, detail, announcement: detail };
+    }
+    case "checking": {
+      const detail = say("settings.application.checking");
       return {
         action: say("settings.application.checkingAction"),
-        label: say("settings.application.checking"),
-        announcement: say("settings.application.checking"),
+        label: detail,
+        detail,
+        announcement: detail,
       };
-    case "downloading":
+    }
+    case "downloading": {
+      const label = say("settings.application.downloading", { version: state.version });
+      if (state.progress === undefined) {
+        return {
+          action: say("settings.application.downloadingAction"),
+          label,
+          detail: label,
+          announcement: label,
+          progressBar: { kind: "indeterminate" },
+        };
+      }
       return {
         action: say("settings.application.downloadingAction"),
-        label: say("settings.application.downloading", { version: state.version }),
-        announcement: say("settings.application.downloading", { version: state.version }),
+        label,
+        detail: formatUpdateDownloadDetail(state.version, state.progress, phrasebook),
+        announcement: formatUpdateDownloadAnnouncement(state.version, state.progress, phrasebook),
+        numericDetail: true,
+        progressBar: { kind: "determinate", percent: state.progress.percent },
       };
-    case "downloaded":
+    }
+    case "preparing": {
+      const detail = say("settings.application.preparing", { version: state.version });
+      return {
+        action: say("settings.application.preparingAction"),
+        label: detail,
+        detail,
+        announcement: detail,
+        progressBar: { kind: "indeterminate" },
+      };
+    }
+    case "downloaded": {
+      const detail = say("settings.application.restart", { version: state.version });
       return {
         action: say("settings.application.restartAction"),
-        label: say("settings.application.restart", { version: state.version }),
-        announcement: say("settings.application.restart", { version: state.version }),
+        label: detail,
+        detail,
+        announcement: detail,
       };
-    case "installing":
+    }
+    case "installing": {
+      const detail = say("settings.application.restarting", { version: state.version });
       return {
         action: say("settings.application.restartingAction"),
-        label: say("settings.application.restarting", { version: state.version }),
-        announcement: say("settings.application.restarting", { version: state.version }),
+        label: detail,
+        detail,
+        announcement: detail,
       };
-    case "failed":
-      return {
-        action: say("settings.application.retry"),
-        label: say("settings.application.retry"),
-        announcement:
-          state.stage === "download"
-            ? say("settings.application.downloadFailed")
-            : say("settings.application.checkFailed"),
-      };
-    case "restart-required":
+    }
+    case "failed": {
+      const action = say("settings.application.retry");
+      const detail =
+        state.stage === "download"
+          ? say("settings.application.downloadFailed")
+          : say("settings.application.checkFailed");
+      return { action, label: action, detail, announcement: detail };
+    }
+    case "restart-required": {
+      const detail =
+        state.stage === "download"
+          ? say("settings.application.downloadTimedOut", { product: "Enduragent" })
+          : say("settings.application.startFailed", { product: "Enduragent" });
       return {
         action: null,
         label: say("settings.application.restartRequired", { product: "Enduragent" }),
-        announcement:
-          state.stage === "download"
-            ? say("settings.application.downloadTimedOut", { product: "Enduragent" })
-            : say("settings.application.startFailed", { product: "Enduragent" }),
+        detail,
+        announcement: detail,
       };
-    default:
-      return {
-        action: say("settings.application.check"),
-        label: say("settings.application.check"),
-        announcement: say("settings.application.check"),
-      };
+    }
+    default: {
+      const text = say("settings.application.check");
+      return { action: text, label: text, detail: text, announcement: text };
+    }
   }
 }
 
 export function ApplicationSection(): ReactElement {
-  const { say } = usePhrasebook();
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   const update = useEnduragentStore((store) => store.settings.update);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const ports = useEnduragentStore((store) => store.settingsPorts);
   const chatActions = useEnduragentStore((store) => store.chatActions);
   const setActiveView = useEnduragentStore((store) => store.setActiveView);
-  const copy = updateCopy(update.state, say);
+  const copy = updateCopy(update.state, phrasebook);
   const updateBusy =
     mutating ||
     update.pendingAction !== "none" ||
-    ["disabled", "checking", "downloading", "installing"].includes(update.state.status);
+    ["disabled", "checking", "downloading", "preparing", "installing"].includes(
+      update.state.status,
+    );
+  const rowContent = (
+    <>
+      <div className={styles.label}>
+        <div className={styles.rowTitle}>
+          {say("settings.application.version", {
+            version:
+              APP_VERSION === "unknown" ? say("settings.application.versionUnknown") : APP_VERSION,
+          })}
+        </div>
+        <div
+          className={
+            copy.numericDetail === true ? `${styles.rowDetail} tabular-nums` : styles.rowDetail
+          }
+        >
+          {copy.detail}
+        </div>
+        <span className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
+          {copy.announcement}
+        </span>
+      </div>
+      {update.state.status === "disabled" || copy.action === null ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          title={copy.label}
+          aria-label={copy.label}
+          disabled={updateBusy}
+          onClick={() => {
+            ports?.update.activate();
+          }}
+        >
+          {copy.action}
+        </Button>
+      )}
+    </>
+  );
 
   return (
     <>
       <h2 className={styles.heading}>{say("settings.application.title")}</h2>
       <section className={styles.group} aria-label={say("settings.application.title")}>
-        <div className={styles.row}>
-          <div className={styles.label}>
-            <div className={styles.rowTitle}>
-              {say("settings.application.version", {
-                version:
-                  APP_VERSION === "unknown"
-                    ? say("settings.application.versionUnknown")
-                    : APP_VERSION,
-              })}
-            </div>
-            <div className={styles.rowDetail}>{copy.announcement}</div>
-            <span className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
-              {copy.announcement}
-            </span>
-          </div>
-          {update.state.status === "disabled" || copy.action === null ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              title={copy.label}
+        {copy.progressBar === undefined ? (
+          <div className={styles.row}>{rowContent}</div>
+        ) : (
+          <div className={`${styles.row} ${styles.rowStacked}`}>
+            <div className={styles.bareRow}>{rowContent}</div>
+            <div
+              role="progressbar"
               aria-label={copy.label}
-              disabled={updateBusy}
-              onClick={() => {
-                ports?.update.activate();
-              }}
+              aria-valuemin={copy.progressBar.kind === "determinate" ? 0 : undefined}
+              aria-valuemax={copy.progressBar.kind === "determinate" ? 100 : undefined}
+              aria-valuenow={
+                copy.progressBar.kind === "determinate" ? copy.progressBar.percent : undefined
+              }
+              aria-valuetext={copy.detail}
+              className={styles.updateProgressTrack}
             >
-              {copy.action}
-            </Button>
-          )}
-        </div>
+              <div
+                className={
+                  copy.progressBar.kind === "determinate"
+                    ? styles.updateProgressFill
+                    : styles.updateProgressIndeterminate
+                }
+                style={
+                  copy.progressBar.kind === "determinate"
+                    ? { width: `${copy.progressBar.percent}%` }
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+        )}
       </section>
       <h2 className={styles.heading}>{say("settings.application.danger")}</h2>
       <section className={styles.group} aria-label={say("settings.application.danger")}>

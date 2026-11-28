@@ -188,8 +188,28 @@
       "sourceHash": "a778d3492af219c3649f527b1219da0eedabb6b0f01190824331d293bd6dea24",
       "translatedBy": "model"
     },
+    "settings.application.downloadingMilestone": {
+      "sourceHash": "f5647cc14b19ec58353f4461ba61a2db4c743a57c501191de24c47d4c1ce40d4",
+      "translatedBy": "model"
+    },
+    "settings.application.downloadingProgress": {
+      "sourceHash": "915a2205dbb7ba3667a1a244aa483f87e8586d67292a11f1ea67b0fa93f4de42",
+      "translatedBy": "model"
+    },
+    "settings.application.downloadingProgressWithSpeed": {
+      "sourceHash": "1178bf0f2dadd098906f06d704feb872209b92a2bc6a0c1652198c2070a2fdc0",
+      "translatedBy": "model"
+    },
     "settings.application.downloadTimedOut": {
       "sourceHash": "ee5cf7359e068c822df8387ea69cacb64b9f5fd137f83e6f728ce0acab6f3e9d",
+      "translatedBy": "model"
+    },
+    "settings.application.preparing": {
+      "sourceHash": "3e91bcfa58a0232c0c3f87c78a457291282404f2f81906a0860fdf3610523252",
+      "translatedBy": "model"
+    },
+    "settings.application.preparingAction": {
+      "sourceHash": "5d1fa38bcf0d88ca03d187718fd6cf8ad128f288f66d402d331476a85774d08d",
       "translatedBy": "model"
     },
     "settings.application.reset": {

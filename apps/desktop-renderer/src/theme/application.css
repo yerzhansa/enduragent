@@ -21,7 +21,30 @@
   }
 }
 
+@keyframes update-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
 @layer utilities {
+  .update-progress-indeterminate {
+    width: 40%;
+    animation: update-progress-sweep 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .update-progress-indeterminate {
+      width: 100%;
+      animation: none;
+      transform: translateX(0);
+      opacity: 0.55;
+    }
+  }
+
   .composer-shell:not(:has(.composer-adjacent > *, .composer)) {
     display: none;
   }

@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, expect, it, vi } from "vitest";
 import {
   createDesktopUpdateController,
@@ -5,6 +6,10 @@ import {
   type DesktopUpdateState,
   type DesktopUpdateView,
 } from "../src/update/controller";
+import {
+  formatUpdateDownloadAnnouncement,
+  formatUpdateDownloadDetail,
+} from "../src/update/progress-format";
 
 function setupController(initial: DesktopUpdateState = { status: "idle" }) {
   let listener: ((state: DesktopUpdateState) => void) | undefined;
@@ -50,9 +55,29 @@ describe("desktop update renderer controller", () => {
     await vi.waitFor(() =>
       expect(subject.view.render).toHaveBeenLastCalledWith({ status: "current" }),
     );
-    subject.publish({ status: "downloading", version: "2026.7.23" });
+    subject.publish({
+      status: "downloading",
+      version: "2026.7.23",
+      progress: {
+        percent: 42,
+        transferredBytes: 14_000_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 4_200_000,
+      },
+    });
     expect(subject.view.render).toHaveBeenLastCalledWith({
       status: "downloading",
+      version: "2026.7.23",
+      progress: {
+        percent: 42,
+        transferredBytes: 14_000_000,
+        totalBytes: 33_000_000,
+        bytesPerSecond: 4_200_000,
+      },
+    });
+    subject.publish({ status: "preparing", version: "2026.7.23" });
+    expect(subject.view.render).toHaveBeenLastCalledWith({
+      status: "preparing",
       version: "2026.7.23",
     });
   });
@@ -60,6 +85,11 @@ describe("desktop update renderer controller", () => {
   it("restarts only from downloaded and ignores actions while busy", async () => {
     const subject = setupController({ status: "checking" });
     await subject.controller.start();
+    subject.action();
+    expect(subject.bridge.checkForUpdates).not.toHaveBeenCalled();
+    expect(subject.bridge.restartToUpdate).not.toHaveBeenCalled();
+
+    subject.publish({ status: "preparing", version: "2026.7.23" });
     subject.action();
     expect(subject.bridge.checkForUpdates).not.toHaveBeenCalled();
     expect(subject.bridge.restartToUpdate).not.toHaveBeenCalled();
@@ -179,10 +209,16 @@ describe("desktop update renderer controller", () => {
     );
   });
 
-  it("moves to failed when checkForUpdates rejects after checking or downloading pushes", async () => {
+  it("moves to failed when checkForUpdates rejects after checking, downloading, or preparing pushes", async () => {
     let rejectCheck: ((reason: unknown) => void) | undefined;
     const subject = setupController({ status: "idle" });
     vi.mocked(subject.bridge.checkForUpdates)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectCheck = reject;
+          }),
+      )
       .mockImplementationOnce(
         () =>
           new Promise((_resolve, reject) => {
@@ -215,5 +251,105 @@ describe("desktop update renderer controller", () => {
         stage: "download",
       }),
     );
+
+    subject.action();
+    await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledTimes(3));
+    subject.publish({ status: "preparing", version: "1998.7.7" });
+    rejectCheck?.(new Error("ipc dropped during preparation"));
+    await vi.waitFor(() =>
+      expect(subject.view.render).toHaveBeenLastCalledWith({
+        status: "failed",
+        stage: "download",
+      }),
+    );
+  });
+});
+
+describe("desktop update progress formatting", () => {
+  it("formats MB transfer totals with speed when speed is at least 0.1 MB/s", async () => {
+    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(
+      formatUpdateDownloadDetail(
+        "0.7.0",
+        {
+          percent: 42,
+          transferredBytes: Math.round(14.2 * 1_048_576),
+          totalBytes: Math.round(33.8 * 1_048_576),
+          bytesPerSecond: Math.round(4.8 * 1_048_576),
+        },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 42% (14.2 / 33.8 MB · 4.8 MB/s)");
+
+    expect(
+      formatUpdateDownloadDetail(
+        "0.7.0",
+        {
+          percent: 42,
+          transferredBytes: Math.round(14.2 * 1_048_576),
+          totalBytes: Math.round(33.8 * 1_048_576),
+          bytesPerSecond: 10_000,
+        },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 42% (14.2 / 33.8 MB)");
+  });
+
+  it("localizes decimal separators and byte units through the active phrasebook", async () => {
+    const french = await createPhrasebook({ tag: "fr", locale: "fr-FR" });
+    expect(
+      formatUpdateDownloadDetail(
+        "0.7.0",
+        {
+          percent: 42,
+          transferredBytes: Math.round(14.2 * 1_048_576),
+          totalBytes: Math.round(33.8 * 1_048_576),
+          bytesPerSecond: Math.round(4.8 * 1_048_576),
+        },
+        french,
+      ),
+    ).toBe("Téléchargement de la mise à jour 0.7.0 — 42 % (14,2 / 33,8 Mo · 4,8 Mo/s)");
+  });
+
+  it("quantizes screen-reader announcements to coarse 25% milestones", async () => {
+    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(formatUpdateDownloadAnnouncement("0.7.0", undefined, english)).toBe(
+      "Downloading update 0.7.0",
+    );
+    expect(
+      formatUpdateDownloadAnnouncement(
+        "0.7.0",
+        { percent: 18, transferredBytes: 18, totalBytes: 100, bytesPerSecond: 10 },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0");
+    expect(
+      formatUpdateDownloadAnnouncement(
+        "0.7.0",
+        { percent: 25, transferredBytes: 25, totalBytes: 100, bytesPerSecond: 10 },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 25%");
+    expect(
+      formatUpdateDownloadAnnouncement(
+        "0.7.0",
+        { percent: 42, transferredBytes: 42, totalBytes: 100, bytesPerSecond: 10 },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 25%");
+    expect(
+      formatUpdateDownloadAnnouncement(
+        "0.7.0",
+        { percent: 74, transferredBytes: 74, totalBytes: 100, bytesPerSecond: 10 },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 50%");
+    expect(
+      formatUpdateDownloadAnnouncement(
+        "0.7.0",
+        { percent: 100, transferredBytes: 100, totalBytes: 100, bytesPerSecond: 10 },
+        english,
+      ),
+    ).toBe("Downloading update 0.7.0 — 100%");
   });
 });

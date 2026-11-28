@@ -1,6 +1,18 @@
+export interface DesktopUpdateDownloadProgress {
+  readonly percent: number;
+  readonly transferredBytes: number;
+  readonly totalBytes: number;
+  readonly bytesPerSecond: number;
+}
+
 export type DesktopUpdateState =
   | { readonly status: "disabled" | "idle" | "checking" | "current" }
-  | { readonly status: "downloading" | "downloaded" | "installing"; readonly version: string }
+  | {
+      readonly status: "downloading";
+      readonly version: string;
+      readonly progress?: DesktopUpdateDownloadProgress;
+    }
+  | { readonly status: "preparing" | "downloaded" | "installing"; readonly version: string }
   | { readonly status: "restart-required"; readonly stage: "check" | "download" }
   | { readonly status: "failed"; readonly stage: "check" | "download" };
 
@@ -42,6 +54,7 @@ function canActivateState(state: DesktopUpdateState): boolean {
     state.status !== "disabled" &&
     state.status !== "checking" &&
     state.status !== "downloading" &&
+    state.status !== "preparing" &&
     state.status !== "installing" &&
     state.status !== "restart-required"
   );
@@ -119,9 +132,13 @@ export function createDesktopUpdateController(input: {
             (revision === before ||
               phase.state.status === "idle" ||
               phase.state.status === "checking" ||
-              phase.state.status === "downloading")
+              phase.state.status === "downloading" ||
+              phase.state.status === "preparing")
           ) {
-            const stage = phase.state.status === "downloading" ? "download" : "check";
+            const stage =
+              phase.state.status === "downloading" || phase.state.status === "preparing"
+                ? "download"
+                : "check";
             revision += 1;
             phase = { kind: "ready", state: { status: "failed", stage } };
             renderCurrent();

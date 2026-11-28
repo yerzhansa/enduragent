@@ -441,7 +441,7 @@
     "apps/desktop/src/main/telegram-control.ts": 2166,
     "apps/desktop/src/main/telegram-credential-vault.ts": 1079,
     "apps/desktop/src/main/telegram-power.ts": 802,
-    "apps/desktop/src/preload/index.ts": 1717,
+    "apps/desktop/src/preload/index.ts": 1682,
     "packages/coach-contract/src/athlete-state.ts": 1031,
     "packages/coach-contract/src/plan-creation.ts": 916,
     "packages/coach-contract/src/planning.ts": 1682,

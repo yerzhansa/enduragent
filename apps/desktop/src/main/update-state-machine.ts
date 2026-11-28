@@ -5,12 +5,26 @@ import type {
   UpdateDownloadedEvent,
 } from "electron-updater";
 
+export const DESKTOP_UPDATE_PROGRESS_THROTTLE_MS = 250;
+
+export interface DesktopUpdateDownloadProgress {
+  readonly percent: number;
+  readonly transferredBytes: number;
+  readonly totalBytes: number;
+  readonly bytesPerSecond: number;
+}
+
 export type DesktopUpdateState =
   | { readonly status: "disabled" }
   | { readonly status: "idle" }
   | { readonly status: "checking" }
   | { readonly status: "current" }
-  | { readonly status: "downloading"; readonly version: string }
+  | {
+      readonly status: "downloading";
+      readonly version: string;
+      readonly progress?: DesktopUpdateDownloadProgress;
+    }
+  | { readonly status: "preparing"; readonly version: string }
   | { readonly status: "downloaded"; readonly version: string }
   | { readonly status: "installing"; readonly version: string }
   | { readonly status: "restart-required"; readonly stage: "check" | "download" }
@@ -75,6 +89,8 @@ export interface DownloadingPhase {
   readonly cancellationToken?: CancellationToken;
   lastTransferred: number;
   lastTotal?: number;
+  lastProgressPublishedAt?: number;
+  lastPublishedProgress?: DesktopUpdateDownloadProgress;
   stallTimer?: TimerHandle;
   absoluteTimer?: TimerHandle;
   errorListener?: () => void;
@@ -127,7 +143,68 @@ export type ControllerPhase =
       readonly installing?: InstallHandoff;
     };
 
+export function copyDownloadProgress(
+  progress: DesktopUpdateDownloadProgress,
+): DesktopUpdateDownloadProgress {
+  return {
+    percent: progress.percent,
+    transferredBytes: progress.transferredBytes,
+    totalBytes: progress.totalBytes,
+    bytesPerSecond: progress.bytesPerSecond,
+  };
+}
+
+export function normalizeDownloadProgress(
+  info: ProgressInfo,
+  previousPercent: number,
+): DesktopUpdateDownloadProgress | undefined {
+  if (!Number.isFinite(info.total) || info.total <= 0) return undefined;
+  if (!Number.isFinite(info.transferred) || info.transferred < 0) return undefined;
+  const totalBytes = Math.round(info.total);
+  if (!Number.isSafeInteger(totalBytes) || totalBytes < 1) return undefined;
+  const transferredBytes = Math.min(totalBytes, Math.max(0, Math.round(info.transferred)));
+  const rawPercent = Number.isFinite(info.percent)
+    ? info.percent
+    : (transferredBytes / totalBytes) * 100;
+  const boundedPercent =
+    transferredBytes >= totalBytes ? 100 : Math.min(99, Math.max(0, Math.round(rawPercent)));
+  const percent = Math.max(previousPercent, boundedPercent);
+  const bytesPerSecond =
+    Number.isFinite(info.bytesPerSecond) && info.bytesPerSecond >= 0
+      ? Math.min(Number.MAX_SAFE_INTEGER, Math.round(info.bytesPerSecond))
+      : 0;
+  return { percent, transferredBytes, totalBytes, bytesPerSecond };
+}
+
+export function shouldPublishProgress(
+  downloading: Pick<DownloadingPhase, "lastPublishedProgress" | "lastProgressPublishedAt">,
+  next: DesktopUpdateDownloadProgress,
+  timestamp: number,
+): boolean {
+  const previous = downloading.lastPublishedProgress;
+  const lastPublishedAt = downloading.lastProgressPublishedAt;
+  if (previous === undefined || lastPublishedAt === undefined) return true;
+  if (next.percent === 100 && previous.percent < 100) return true;
+  const elapsed = timestamp - lastPublishedAt;
+  if (elapsed >= 0 && elapsed < DESKTOP_UPDATE_PROGRESS_THROTTLE_MS) return false;
+  return (
+    next.percent !== previous.percent ||
+    next.transferredBytes !== previous.transferredBytes ||
+    next.totalBytes !== previous.totalBytes ||
+    next.bytesPerSecond !== previous.bytesPerSecond
+  );
+}
+
 export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdateState {
+  if (state.status === "downloading") {
+    return state.progress === undefined
+      ? { status: "downloading", version: state.version }
+      : {
+          status: "downloading",
+          version: state.version,
+          progress: copyDownloadProgress(state.progress),
+        };
+  }
   if ("version" in state) return { status: state.status, version: state.version };
   if (state.status === "failed" || state.status === "restart-required") {
     return { status: state.status, stage: state.stage };
@@ -150,8 +227,15 @@ export function projectPhaseState(phase: ControllerPhase): DesktopUpdateState {
     case "checking":
       return { status: "checking" };
     case "downloading":
+      return phase.lastPublishedProgress === undefined
+        ? { status: "downloading", version: phase.version }
+        : {
+            status: "downloading",
+            version: phase.version,
+            progress: copyDownloadProgress(phase.lastPublishedProgress),
+          };
     case "preparing":
-      return { status: "downloading", version: phase.version };
+      return { status: "preparing", version: phase.version };
     case "ready":
       return { status: "downloaded", version: phase.version };
     case "installing":
@@ -168,13 +252,20 @@ export function isActiveOperation(phase: ControllerPhase): phase is ActiveOperat
 }
 
 export function advanceDownloadTransfer(
-  downloading: Pick<DownloadingPhase, "lastTransferred" | "lastTotal">,
+  downloading: Pick<
+    DownloadingPhase,
+    "lastTransferred" | "lastTotal" | "lastPublishedProgress" | "lastProgressPublishedAt"
+  >,
   info: Pick<ProgressInfo, "transferred"> & { readonly total?: number },
 ): boolean {
   if (!Number.isFinite(info.transferred) || info.transferred < 0) return false;
-  const nextTotal =
+  const roundedTotal =
     typeof info.total === "number" && Number.isFinite(info.total) && info.total > 0
-      ? info.total
+      ? Math.round(info.total)
+      : undefined;
+  const nextTotal =
+    roundedTotal !== undefined && Number.isSafeInteger(roundedTotal) && roundedTotal >= 1
+      ? roundedTotal
       : undefined;
   const totalChanged =
     nextTotal !== undefined &&
@@ -183,6 +274,8 @@ export function advanceDownloadTransfer(
   if (totalChanged || info.transferred < downloading.lastTransferred) {
     downloading.lastTransferred = info.transferred;
     downloading.lastTotal = nextTotal;
+    downloading.lastPublishedProgress = undefined;
+    downloading.lastProgressPublishedAt = undefined;
     return info.transferred > 0;
   }
   if (info.transferred <= downloading.lastTransferred) return false;

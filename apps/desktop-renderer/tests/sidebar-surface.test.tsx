@@ -282,6 +282,17 @@ describe("sidebar update action", () => {
       { status: "checking" },
       { status: "current" },
       { status: "downloading", version: "1998.7.7" },
+      {
+        status: "downloading",
+        version: "1998.7.7",
+        progress: {
+          percent: 42,
+          transferredBytes: 14_000_000,
+          totalBytes: 33_000_000,
+          bytesPerSecond: 4_200_000,
+        },
+      },
+      { status: "preparing", version: "1998.7.7" },
       { status: "failed", stage: "check" },
       { status: "failed", stage: "download" },
     ] as const;
