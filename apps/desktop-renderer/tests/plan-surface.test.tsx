@@ -656,6 +656,87 @@ describe("Plan surface", () => {
     expect(planActions.skipCoachDecision).toHaveBeenCalledWith("decision-1");
   });
 
+  it("locks the Plan coach box, keeping Stop, while a coaching choice's own answer is open", async () => {
+    const user = userEvent.setup();
+    const planActions = actions();
+    const decision = {
+      decisionId: "decision-1",
+      chatId: "plan:00000000000000000000000001",
+      messageId: "message-1",
+      question: "Choose tomorrow’s priority.",
+      status: "unanswered" as const,
+      options: [
+        {
+          id: "recovery",
+          label: "Prioritize recovery",
+          description: "Choose an easy day to protect the weekend session.",
+          recommended: true,
+          consequence: "Tomorrow becomes a recovery day.",
+        },
+        {
+          id: "tempo",
+          label: "Keep the tempo session",
+          description: "Keep the planned workout if your legs feel normal.",
+          recommended: false,
+          consequence: "Tomorrow keeps the planned tempo session.",
+        },
+      ],
+    };
+    const state = planReadModel({
+      lifecycle: "intake",
+      scenarioId: "PL-S017",
+      projection: "coach",
+      data: planCoachData({
+        decision,
+        course: {
+          status: "undecided",
+          accepted: null,
+          candidate: null,
+          fileName: null,
+          detail: null,
+        },
+      }),
+    });
+    useEnduragentStore.setState({
+      plan: { ...EMPTY_PLAN_SURFACE, hydration: { status: "ready", state }, lastReady: state },
+      planActions,
+    });
+    render(<PlanView />);
+    const box = screen.getByRole("combobox", { name: "Reply to your Plan coach" });
+    const attach = screen.getByRole("button", { name: "Attach Race Course" });
+    const withoutCourse = screen.getByRole("button", { name: "Continue without course" });
+
+    await user.click(screen.getByRole("button", { name: /Something else/u }));
+    expect(screen.getByRole("textbox", { name: "What would work better?" })).toHaveFocus();
+    expect(box).toBeVisible();
+    expect(box).toBeDisabled();
+    expect(box).toHaveAttribute("placeholder", "Finish your answer above");
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    expect(attach).toBeDisabled();
+    expect(withoutCourse).toBeDisabled();
+
+    act(() =>
+      useEnduragentStore.setState((current) => ({
+        plan: { ...current.plan, coach: { ...current.plan.coach, status: "streaming" } },
+      })),
+    );
+    const stop = screen.getByRole("button", { name: "Stop responding" });
+    expect(stop).toBeEnabled();
+    expect(box).toHaveAttribute("placeholder", "Coach is responding…");
+    await user.click(stop);
+    expect(planActions.stopCoach).toHaveBeenCalledOnce();
+
+    act(() =>
+      useEnduragentStore.setState((current) => ({
+        plan: { ...current.plan, coach: { ...current.plan.coach, status: "idle" } },
+      })),
+    );
+    await user.click(screen.getByRole("button", { name: "Back", exact: true }));
+    expect(box).toHaveAttribute("placeholder", "Reply to your coach…");
+    expect(attach).toBeEnabled();
+    expect(withoutCourse).toBeEnabled();
+  });
+
   it("returns an omitted-Course persistence failure to the Coach conversation", async () => {
     const user = userEvent.setup();
     const planActions = actions();

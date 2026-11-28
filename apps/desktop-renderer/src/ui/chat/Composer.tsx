@@ -38,7 +38,6 @@ export function Composer(props: {
   readonly planChangeDraftRevision?: number | null;
   readonly onPlanChangeDraftSubmitted?: (revision: number) => string | null;
   readonly inputId?: string;
-  readonly hidden?: boolean;
   readonly leadingAction?: ReactNode;
   readonly lockedPlaceholder?: string;
   readonly surface?: {
@@ -300,7 +299,6 @@ export function Composer(props: {
       data-chat-attachment-dropzone={
         props.surface === undefined && !inputDisabled && canChat ? "true" : undefined
       }
-      hidden={props.hidden}
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
