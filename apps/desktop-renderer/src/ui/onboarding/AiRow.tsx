@@ -158,7 +158,6 @@ export function AiRow(props: {
   const chatGptOnFile = wizard.chatGptCredentialState !== "absent";
   const chatGptLoginPending =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in";
-  const chatGptActivating = chatGptPhase === "activating-coach";
   const openRouter = surface.openRouter;
   const openRouterStored = wizard.credentialStatus.openrouter === "configured";
   const previousOpenRouterPhase = useRef(openRouter.signIn.phase);
