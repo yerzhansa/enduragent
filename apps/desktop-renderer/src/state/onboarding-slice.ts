@@ -1,9 +1,17 @@
 import type { StateCreator } from "zustand";
-import type { OnboardingController, OnboardingSurfaceState } from "../onboarding/controller";
+import {
+  onboardingCredentialMutationActive,
+  type OnboardingController,
+  type OnboardingSurfaceState,
+} from "../onboarding/controller";
 import { createOnboardingState } from "../onboarding/machine";
 import { IDLE_OPENROUTER_SIGN_IN } from "../onboarding/openrouter-sign-in";
-import { repairRequiredCredential } from "../settings/credential-controller";
+import {
+  credentialChangesBlocked,
+  repairRequiredCredential,
+} from "../settings/credential-controller";
 import { IDLE_RIDE_IMPORT } from "./ride-import-slice";
+import { nonTelegramSettingsMutationActive } from "./settings-slice";
 import type { EnduragentState } from "./store";
 
 export const CLOSED_ONBOARDING: OnboardingSurfaceState = Object.freeze({
@@ -63,6 +71,18 @@ export function setupDisposition(
     return state.onboarding.loadUnavailable ? "required" : "unknown";
   }
   return "satisfied";
+}
+
+export function setupSignInBlocked(
+  state: Pick<EnduragentState, "onboarding" | "settings">,
+): boolean {
+  return (
+    onboardingCredentialMutationActive(state.onboarding) ||
+    credentialChangesBlocked(
+      state.settings.credentials,
+      nonTelegramSettingsMutationActive(state.settings),
+    )
+  );
 }
 
 export function setupRequired(state: Pick<EnduragentState, "onboarding" | "settings">): boolean {

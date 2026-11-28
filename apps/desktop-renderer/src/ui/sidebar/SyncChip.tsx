@@ -8,6 +8,7 @@ import {
   setManualSyncFocusFallback,
   setManualSyncFocusTarget,
 } from "../../state/manual-sync-focus";
+import { setupSignInBlocked } from "../../state/onboarding-slice";
 import { useEnduragentStore } from "../../state/store";
 import { intervalsSignInNeedsRenewal } from "../../state/sync-slice";
 import type { TrainingContextViewState } from "../../training-context/controller";
@@ -62,6 +63,7 @@ export function SyncChip(): ReactElement {
   const actions = useEnduragentStore((store) => store.syncActions);
   const setActiveView = useEnduragentStore((store) => store.setActiveView);
   const onboardingActions = useEnduragentStore((store) => store.onboardingActions);
+  const setupBusy = useEnduragentStore(setupSignInBlocked);
   const signInRejected = useEnduragentStore(intervalsSignInNeedsRenewal) && !sync.busy;
   const chip = useRef<HTMLButtonElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -208,8 +210,9 @@ export function SyncChip(): ReactElement {
         {signInRejected ? (
           <button
             type="button"
-            className="pointer-events-auto mt-px block cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-xs text-brand underline-offset-2 hover:underline"
+            className="pointer-events-auto mt-px block cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-xs text-brand underline-offset-2 hover:underline disabled:cursor-default disabled:text-ink-3 disabled:no-underline"
             data-sync-sign-in-again=""
+            disabled={setupBusy}
             onClick={() => {
               setActiveView("settings");
               onboardingActions?.connectTrainingData();
