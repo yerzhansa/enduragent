@@ -1591,6 +1591,42 @@ describe("credential settings controller", () => {
     }
   });
 
+  it("still retries a diverged delete that finishes after the athlete left Settings", async () => {
+    vi.useFakeTimers();
+    try {
+      let finishDelete!: () => void;
+      const deleteHeld = new Promise<void>((resolve) => {
+        finishDelete = resolve;
+      });
+      const { controller, subject, retryFailedCredentials, setStatuses } = createSubject({
+        deleteCredential: async () => {
+          await deleteHeld;
+          return { credential: "anthropic", status: "refused", reason: "runtime-state-diverged" };
+        },
+        retryFailed: async () => {
+          setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "active" }]);
+        },
+      });
+      await controller.activate();
+      setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "failed" }]);
+      subject.requestDelete("anthropic");
+      subject.confirmDelete();
+      controller.close();
+      expect(controller.state()).toEqual({ status: "closed" });
+
+      finishDelete();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(retryFailedCredentials).toHaveBeenCalledOnce();
+      expect(controller.state()).toEqual({ status: "closed" });
+      expect(subject.view.render).toHaveBeenCalledWith({
+        status: "closed",
+        repairCredential: { retrying: "anthropic" },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops retrying when the controller is disposed", async () => {
     vi.useFakeTimers();
     try {

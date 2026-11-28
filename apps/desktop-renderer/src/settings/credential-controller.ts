@@ -616,10 +616,14 @@ export function createCredentialSettingsController(input: {
           entries = entries.filter((entry) => entry.credential !== credential);
         }
       }
-      if (disposed || generation !== operationGeneration) return;
+      const diverged = result.status === "refused" && result.reason === "runtime-state-diverged";
+      const retrying = diverged && DESKTOP_CREDENTIAL_SLOTS.some((slot) => slot === credential);
+      if (disposed) return;
+      if (generation !== operationGeneration) {
+        if (retrying) render({ ...currentState, repairCredential: { retrying: credential } });
+        return;
+      }
       if (result.status === "refused") {
-        const diverged = result.reason === "runtime-state-diverged";
-        const retrying = diverged && DESKTOP_CREDENTIAL_SLOTS.some((slot) => slot === credential);
         releaseMutation();
         render({
           status: "error",
