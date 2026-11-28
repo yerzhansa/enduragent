@@ -80,6 +80,8 @@ import {
   type PendingPlanningRequestCreate,
   type PlanCreationDiscardEvent,
   type QueuedRetry,
+  decisionFailureCopy,
+  unansweredDrainAction,
 } from "./controller-helpers";
 import {
   newConversationEvidence,
@@ -804,7 +806,7 @@ export function createChatController(input: {
           if (headId !== undefined && activeQueueCall?.queuedMessageIds.includes(headId) === true) {
             stalledDrainHeadId = headId;
           }
-          reduce({ type: "discard-submission", requestKey });
+          reduce(unansweredDrainAction(requestKey, queuedResult.refusal));
           return;
         }
         if (interruptedText !== undefined) {
@@ -1367,9 +1369,7 @@ export function createChatController(input: {
     answer: CoachDecisionAnswer | undefined,
   ): Promise<void> => {
     if (decisionActionTask !== undefined) return decisionActionTask;
-    if (disposed || resetBlocksWork() || state.status === "streaming") {
-      return Promise.resolve();
-    }
+    if (disposed || resetBlocksWork() || state.status === "streaming") return Promise.resolve();
     const requestKey = Number(nextId("request").slice("request-".length));
     const userMessageId = nextId("message");
     const assistantMessageId = nextId("message");
@@ -1595,7 +1595,7 @@ export function createChatController(input: {
         }
         reduce({ type: "discard", requestKey });
         decisionPhase = "recovering";
-        decisionError = CHAT_DECISION_FAILURE_COPY;
+        decisionError = decisionFailureCopy(result.refusal);
       } catch {
         if (!current()) return;
         reduce({ type: "discard", requestKey });

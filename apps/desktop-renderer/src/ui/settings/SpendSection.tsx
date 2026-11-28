@@ -1,5 +1,5 @@
 import { msg } from "@enduragent/i18n";
-import type { SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
+import type { SpendCapMode, SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { usePhrasebook } from "@enduragent/i18n/react";
@@ -134,6 +134,10 @@ export function SpendSection(): ReactElement {
   const spend = useEnduragentStore((store) => store.settings.spend);
   const port = useEnduragentStore((store) => store.settingsPorts?.spend ?? null);
   const summary = spend.summary;
+  const modes: readonly { readonly value: SpendCapMode; readonly label: string }[] = [
+    { value: "warn", label: say("settings.spend.mode.warn") },
+    { value: "enforce", label: say("settings.spend.mode.enforce") },
+  ];
   const known =
     summary === null
       ? "—"
@@ -264,6 +268,48 @@ export function SpendSection(): ReactElement {
             </Button>
           </div>
         ) : null}
+        <div
+          className={`${styles.row} ${styles.rowStacked}`}
+          data-spend-cap-mode={summary?.capMode}
+        >
+          <div className={styles.bareRow}>
+            <div className={styles.label}>
+              <div className={styles.rowTitle}>{say("settings.spend.mode.title")}</div>
+              <div className={styles.rowDetail}>
+                {say(
+                  summary?.capMode === "enforce"
+                    ? "settings.spend.mode.detailEnforce"
+                    : "settings.spend.mode.detailWarn",
+                )}
+              </div>
+            </div>
+            <div
+              className="flex shrink-0 rounded-ctl border border-line bg-sunk p-0.5"
+              role="group"
+              aria-label={say("settings.spend.mode.title")}
+            >
+              {modes.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-ink-2 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-elev-1"
+                  aria-pressed={option.value === (summary?.capMode ?? "warn")}
+                  disabled={
+                    port === null || summary === null || spend.capOperation.kind === "saving"
+                  }
+                  onClick={() => {
+                    port?.setMode(option.value);
+                  }}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <p className={styles.note}>{say("settings.spend.mode.overshoot")}</p>
+        </div>
       </section>
     </>
   );

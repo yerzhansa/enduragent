@@ -15,8 +15,9 @@ import {
   type PlanHandoffSuggestion,
   type PlanningRequestDelivery,
   type TranscriptPageEntry,
+  type TurnRefusal,
 } from "@enduragent/coach-contract";
-import type { NewConversationCheck } from "../turn-state";
+import type { ChatAction, NewConversationCheck } from "../turn-state";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "./hydration";
 import type { ChatState } from "./message-state";
 
@@ -119,6 +120,24 @@ export type PendingPlanningRequestCreate =
       readonly kind: "workout";
       readonly request: CreateWorkoutPlanningRequestRpcParams;
     };
+
+export function spendCapRefusalCopy(refusal: TurnRefusal): string {
+  const cap = refusal.dailyCapUsd.toFixed(2);
+  return `Today’s model spend has reached your $${cap} daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.`;
+}
+
+export function unansweredDrainAction(
+  requestKey: number,
+  refusal: TurnRefusal | undefined,
+): ChatAction {
+  return refusal === undefined
+    ? { type: "discard-submission", requestKey }
+    : { type: "fail", requestKey, copy: spendCapRefusalCopy(refusal) };
+}
+
+export function decisionFailureCopy(refusal: TurnRefusal | undefined): string {
+  return refusal === undefined ? CHAT_DECISION_FAILURE_COPY : spendCapRefusalCopy(refusal);
+}
 
 export interface ChatAppendDelta {
   readonly messageId: string;

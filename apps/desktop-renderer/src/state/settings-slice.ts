@@ -1,4 +1,4 @@
-import type { LanguageTag, UnitsPreference } from "@enduragent/coach-contract";
+import type { LanguageTag, SpendCapMode, UnitsPreference } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
 import type { DesktopCredentialId } from "../onboarding/bridge";
 import type { AthleteSettingsState } from "../settings/athlete-controller";
@@ -56,6 +56,7 @@ export interface SpendSettingsPort {
   changeCap(value: string): void;
   commitCap(): void;
   retryCap(): void;
+  setMode(mode: SpendCapMode): void;
 }
 
 export interface TelegramSettingsPort {

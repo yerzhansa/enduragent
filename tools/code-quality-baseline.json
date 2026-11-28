@@ -575,7 +575,6 @@
     "apps/desktop-renderer/src/initial-setup-status.ts": 1,
     "apps/desktop-renderer/src/settings/language-controller.ts": 1,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 1,
-    "apps/desktop-renderer/src/spend-meter/controller.ts": 3,
     "apps/desktop-renderer/src/state/adapters/plan.ts": 3,
     "apps/desktop-renderer/src/ui/chat/use-wire-message-text.ts": 1,
     "apps/desktop/scripts/test-packaged-telegram.ts": 4,
