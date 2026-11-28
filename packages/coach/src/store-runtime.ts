@@ -32,7 +32,11 @@ import {
   laneStanding,
   type CaptureReport,
 } from "@enduragent/sync-intervals-icu";
-import { EMPTY_DROPPED_ACTIVITIES, type DroppedActivities } from "@enduragent/coach-contract";
+import {
+  EMPTY_DROPPED_ACTIVITIES,
+  type CoachRpcMethodName,
+  type DroppedActivities,
+} from "@enduragent/coach-contract";
 import { join } from "node:path";
 import { runAnalyticsCurveRefresh } from "./analytics-curves.js";
 import {
@@ -41,6 +45,7 @@ import {
   runReferenceCapture,
 } from "./capture.js";
 import { createLocalBundleProducer } from "./local-bundle-producer.js";
+import { captureRpcCall, currentRpcMethod } from "./rpc-diagnostics.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import {
   createWallClockScheduler,
@@ -59,6 +64,7 @@ const CANONICAL_KEY = /^[0-9a-f]{64}$/;
 const PUBLICATION_PAGE_SIZE = 200;
 const PUBLICATION_DEADLINE_MS = 30_000;
 const LOGGED_DROPS_PER_LANE = 5;
+export const STORE_LANE_WAIT_LOG_MS = 5_000;
 
 export interface StoreWindowResult {
   readonly published: boolean;
@@ -314,6 +320,9 @@ export class StoreRuntime {
     kind: "window" | "other" = "other",
   ): Promise<T> {
     if (this.closed) return Promise.reject(new Error("Store runtime is closed."));
+    const method = currentRpcMethod();
+    const inRequesterCall = captureRpcCall();
+    const askedAt = this.dependencies.monotonicNow();
     return new Promise<T>((resolve, reject) => {
       const held: Lane[] = [];
       let settled = false;
@@ -330,13 +339,16 @@ export class StoreRuntime {
         try {
           return await wait();
         } finally {
+          const askedBackAt = this.dependencies.monotonicNow();
           await new Promise<void>((resume) => this.enter(this.storeLane, resume));
+          this.reportLaneWait(method, askedBackAt);
           offLane = false;
           if (settled) this.leave(this.storeLane);
           else held.push(this.storeLane);
         }
       };
       const run = (): void => {
+        this.reportLaneWait(method, askedAt);
         const controller = new AbortController();
         this.admissionControllers.add(controller);
         if (kind === "window") {
@@ -346,7 +358,7 @@ export class StoreRuntime {
         }
         let task: Promise<T>;
         try {
-          task = Promise.resolve(work(controller.signal, offStoreLane));
+          task = Promise.resolve(inRequesterCall(() => work(controller.signal, offStoreLane)));
         } catch (error) {
           task = Promise.reject(error);
         }
@@ -374,6 +386,12 @@ export class StoreRuntime {
       };
       enterNext();
     });
+  }
+
+  private reportLaneWait(method: CoachRpcMethodName | undefined, askedAt: number): void {
+    const waitMs = Math.round(this.dependencies.monotonicNow() - askedAt);
+    if (waitMs <= STORE_LANE_WAIT_LOG_MS) return;
+    this.logger.warn("store_lane_wait", undefined, { method: method ?? null, waitMs });
   }
 
   private enter(lane: Lane, proceed: () => void): void {
