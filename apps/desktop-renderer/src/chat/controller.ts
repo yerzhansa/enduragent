@@ -83,9 +83,8 @@ import {
 } from "./controller-helpers";
 import {
   newConversationEvidence,
-  readNewConversationOutcome,
+  readResetOutcome,
   type NewConversationEvidence,
-  type NewConversationReading,
 } from "./new-conversation";
 import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
 import {
@@ -433,9 +432,9 @@ export function createChatController(input: {
     }
     render();
   };
-  const readTranscriptPage = input.readTranscriptPage ?? readEmptyTranscript;
+  const readPage = input.readTranscriptPage ?? readEmptyTranscript;
   const hydrator = createTranscriptHydrator({
-    readPage: readTranscriptPage,
+    readPage,
     onChange(next) {
       hydration = next;
       if (!hydrationRenderSuppressed) render();
@@ -488,16 +487,11 @@ export function createChatController(input: {
   const settleNewConversation = async (
     before: NewConversationEvidence,
     current: () => boolean,
-  ): Promise<NewConversationReading["outcome"]> => {
+  ): Promise<void> => {
     try {
       const client = await input.clients.getClient();
-      const reading = await readNewConversationOutcome(
-        client,
-        readTranscriptPage,
-        before,
-        () => state.messages,
-      );
-      if (!current() || reading.outcome === "unknown") return "unknown";
+      const reading = await readResetOutcome(client, readPage, before, () => state.messages);
+      if (!current() || reading.outcome === "unknown") return;
       if (reading.outcome === "not-started") {
         resetEvidence = null;
         reduce({
@@ -505,15 +499,15 @@ export function createChatController(input: {
           outcome: "not-started",
           announcement: NEW_CONVERSATION_NOT_STARTED_COPY,
         });
-        return "not-started";
+        return;
       }
       const keepDraft = attachmentOperationSequence !== before.draftWrites;
       await attachmentTextSaveTask;
-      if (!current()) return "unknown";
+      if (!current()) return;
       const nextAttachmentSurface = keepDraft
         ? attachmentSurface
         : await client.call("clearChatAttachmentDraft", { chatId: DESKTOP_CHAT_ID });
-      if (!current()) return "unknown";
+      if (!current()) return;
       finishNewConversation(
         nextAttachmentSurface,
         {
@@ -525,9 +519,8 @@ export function createChatController(input: {
         reading.page,
       );
       applyQueueSnapshot(reading.queue);
-      return "landed";
     } catch {
-      return "unknown";
+      return;
     }
   };
   const runNewConversationCheck = (trigger: "automatic" | "athlete"): Promise<void> => {
@@ -543,7 +536,7 @@ export function createChatController(input: {
       () =>
         attachmentGenerationIsCurrent(checkAttachmentGeneration) &&
         state.session.resetPhase === "uncertain",
-    ).then(() => {
+    ).finally(() => {
       if (newConversationCheck?.task === task) newConversationCheck = undefined;
       render();
     });
@@ -3231,7 +3224,12 @@ export function createChatController(input: {
       if (!canChat() || disposed || state.session.resetPhase !== "confirming") {
         return Promise.resolve();
       }
-      resetEvidence = newConversationEvidence(hydration, state, attachmentOperationSequence);
+      resetEvidence = newConversationEvidence(
+        hydration,
+        state,
+        decision?.decisionId,
+        attachmentOperationSequence,
+      );
       updateReset(() => hydrator.beginReset(), { type: "begin-reset" });
       const resetEpoch = ++epoch;
       const resetAttachmentGeneration = ++attachmentGeneration;

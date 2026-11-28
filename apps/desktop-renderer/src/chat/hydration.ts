@@ -107,16 +107,6 @@ function uniqueEntries(
   });
 }
 
-export function transcriptTurnIds(source: {
-  readonly turns: readonly TranscriptTurn[];
-  readonly entries?: readonly TranscriptPageEntry[];
-}): readonly string[] {
-  return [
-    ...source.turns.map((turn) => turn.turnId),
-    ...(source.entries ?? []).flatMap((entry) => ("turnId" in entry ? [entry.turnId] : [])),
-  ];
-}
-
 export function mergeHydratedMessages(
   turns: readonly TranscriptTurn[],
   liveMessages: readonly ChatTranscriptMessage[],
