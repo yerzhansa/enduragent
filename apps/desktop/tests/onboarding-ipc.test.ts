@@ -958,60 +958,77 @@ describe("desktop onboarding IPC", () => {
     ).toContain("new-local-model");
   });
 
-  it("keeps only the two newest pinned catalog revisions", async () => {
+  it("accepts every catalog revision it served and applies the newest catalog", async () => {
     const subject = harness();
-    const pin = async (revision: number) => {
+    const catalogAt = (revision: number) => {
       const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
       snapshot.revision = revision;
       const accepted = acceptModelCatalogSnapshot(snapshot);
       if (accepted === undefined) throw new TypeError("catalog is invalid");
-      subject.modelCatalog.current.mockReturnValue({
-        ...accepted,
-        origin: "installation",
-        revision,
-      });
+      return { ...accepted, origin: "installation" as const, revision };
+    };
+    const serve = async (revision: number) => {
+      subject.modelCatalog.current.mockReturnValue(catalogAt(revision));
       await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     };
     const first = CATALOG_REVISION;
-    const second = first + 1;
-    const third = first + 2;
-    await pin(first);
-    await pin(second);
-    await pin(third);
-    const selectionFor = (revision: number) => ({
-      catalogRevision: revision,
+    await serve(first);
+    await serve(first + 1);
+    await serve(first + 2);
+    subject.modelCatalog.current.mockReturnValue(catalogAt(first + 3));
+    subject.applyExistingLlmSelection.mockResolvedValue(true);
+
+    for (const revision of [first, first + 1, first + 2]) {
+      await expect(
+        subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, {
+          catalogRevision: revision,
+          provider: "anthropic",
+          model: "athlete-selected-model",
+          endpoint: { mode: "automatic" },
+        }),
+      ).resolves.toEqual({ status: "configured", runtimeReady: true });
+    }
+    expect(
+      subject.applyExistingLlmSelection.mock.calls.map(([, snapshot]) => snapshot.revision),
+    ).toEqual([first + 3, first + 3, first + 3]);
+  });
+
+  it("returns a stale draft when the newest catalog no longer offers the provider", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    subject.modelCatalog.current.mockReturnValue({
+      ...LOCAL_CATALOG,
+      effective: {
+        ...LOCAL_CATALOG.effective,
+        providers: LOCAL_CATALOG.effective.providers.filter(
+          (provider) => provider.provider !== "anthropic",
+        ),
+      },
+    });
+    const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "anthropic" as const,
       model: "athlete-selected-model",
       endpoint: { mode: "automatic" as const },
-    });
+    };
 
     await expect(
-      subject.invoke(
-        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
-        subject.trustedEvent,
-        selectionFor(first),
-      ),
+      subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, selection),
+    ).resolves.toEqual({ status: "stale-draft", reason: "catalog-unavailable", selection });
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_WRITE_CHANNEL, subject.trustedEvent, {
+        slot: "anthropic",
+        value: "synthetic",
+        selection,
+      }),
     ).resolves.toEqual({
+      slot: "anthropic",
       status: "stale-draft",
       reason: "catalog-unavailable",
-      selection: selectionFor(first),
+      selection,
     });
-
-    subject.applyExistingLlmSelection.mockResolvedValue(true);
-    await expect(
-      subject.invoke(
-        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
-        subject.trustedEvent,
-        selectionFor(second),
-      ),
-    ).resolves.toEqual({ status: "configured", runtimeReady: true });
-    await expect(
-      subject.invoke(
-        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
-        subject.trustedEvent,
-        selectionFor(third),
-      ),
-    ).resolves.toEqual({ status: "configured", runtimeReady: true });
+    expect(subject.applyExistingLlmSelection).not.toHaveBeenCalled();
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
   });
 
   it("returns a recoverable stale draft when its revision was not pinned", async () => {
