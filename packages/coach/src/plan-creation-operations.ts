@@ -37,18 +37,20 @@ import {
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
-  encodePlanCreationAnswer,
   isPlanCreationDraftCurrent,
   pendingPlanCreationCommitment,
   pendingPlanCreationCheck,
   resolvePlanCreationAnswer,
   projectPlanCreationAnswerSummaries,
-  resolvePlanCreationAnswerFlow,
   resolvePlanCreationDraftAnswers,
   validPlanCreationAnswer,
-  type PlanCreationAnswerKey,
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
+import {
+  encodePlanCreationAnswer,
+  resolvePlanCreationAnswerFlow,
+  type PlanCreationAnswerKey,
+} from "./plan-creation-answer-flow.js";
 
 export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
