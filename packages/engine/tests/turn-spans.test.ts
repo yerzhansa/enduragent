@@ -11,8 +11,10 @@ import {
 import { tool, type LanguageModelUsage } from "ai";
 import { z } from "zod";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import type { CoachDecisionReadModel } from "@enduragent/coach-contract";
 import { CoachAgent } from "../src/agent/coach-agent.js";
-import type { EngineConfig, EngineHostPorts } from "../src/host-ports.js";
+import { createCoachEngine } from "../src/index.js";
+import type { EngineConfig, EngineHostPorts, UsagePort } from "../src/host-ports.js";
 import type { GenerateOptions, GenerateResult, Sport } from "../src/sport.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 
@@ -73,7 +75,7 @@ const sport: Sport = {
       inputSchema: noteSchema,
       tool: tool({
         inputSchema: noteSchema,
-        execute: async () => {
+        execute: async (): Promise<{ saved: boolean }> => {
           throw new Error(MARKERS.toolError);
         },
       }),
@@ -116,7 +118,10 @@ function pricedModels(): EngineConfig["models"] {
   return { catalogRevision: 1, chat: profile, compact: profile, flush: profile };
 }
 
-function agentWith(respond: (options: GenerateOptions) => Promise<GenerateResult>): CoachAgent {
+function agentWith(
+  respond: (options: GenerateOptions) => Promise<GenerateResult>,
+  usagePort: UsagePort = { append: () => undefined },
+): CoachAgent {
   const root = mkdtempSync(join(tmpdir(), "turn-spans-"));
   roots.push(root);
   mkdirSync(join(root, "memory"));
@@ -125,7 +130,7 @@ function agentWith(respond: (options: GenerateOptions) => Promise<GenerateResult
   const ports: EngineHostPorts = {
     ...base,
     config: { ...base.config, models: pricedModels() },
-    usage: { append: () => undefined },
+    usage: usagePort,
     logger: {
       debug: () => undefined,
       info: () => undefined,
@@ -308,5 +313,112 @@ describe("a coach turn's spans", () => {
       spansNamed("llm.generate").every((span) => parentOf(span) === turn.spanContext().spanId),
     ).toBe(true);
     expect(everythingOnSpans()).not.toContain(MARKERS.modelError);
+  });
+
+  it("keeps counting attempts when a queue retry resumes the turn", async () => {
+    let attempt = 0;
+    const agent = agentWith(
+      async () => {
+        attempt += 1;
+        if (attempt === 1) throw new Error("Request timeout while waiting for the model");
+        return reply("Ride easy today.");
+      },
+      {
+        append: () => undefined,
+        callsForTurn: (turnId) => [
+          {
+            ts: 0,
+            kind: "generate",
+            caller: "chat",
+            provider: "openai-codex",
+            model: "gpt-5.4",
+            durationMs: 0,
+            turnId,
+            outcome: "error",
+            errorClass: "server_error",
+          },
+        ],
+      },
+    );
+
+    await agent.chat(
+      MARKERS.chatId,
+      MARKERS.prompt,
+      { resumesTurn: true },
+      undefined,
+      undefined,
+      "turn-spans-4",
+    );
+
+    expect(
+      spansNamed("llm.generate").map((span) => span.attributes["enduragent.llm.attempt"]),
+    ).toEqual([2, 3]);
+  });
+
+  it("gives a Coach decision continuation its own turn span", async () => {
+    const root = mkdtempSync(join(tmpdir(), "turn-spans-decision-"));
+    roots.push(root);
+    const base = baseAgentConfig(root);
+    const ids = ["continuation-1", "turn-decision-resume"];
+    const engine = createCoachEngine({
+      sport: { ...sport, tools: () => [] },
+      ports: {
+        ...base,
+        randomId: () => ids.shift() ?? "unused",
+        modelTransportDecorator: () => ({
+          generate: async () => reply(`Keep tomorrow easy. ${MARKERS.reply}`),
+        }),
+      },
+    });
+    const decision: CoachDecisionReadModel = {
+      status: "unanswered",
+      decisionId: "decision-1",
+      chatId: MARKERS.chatId,
+      messageId: "message-1",
+      question: "Choose tomorrow's priority.",
+      options: [
+        {
+          id: "recovery",
+          label: "Recovery",
+          description: "Ride easy.",
+          recommended: true,
+          consequence: "Tomorrow becomes a recovery day.",
+        },
+        {
+          id: "tempo",
+          label: "Tempo",
+          description: "Keep the planned work.",
+          recommended: false,
+          consequence: "Tomorrow keeps the tempo session.",
+        },
+      ],
+    };
+    const store = base.coachDecisions;
+    if (store === undefined) throw new Error("no decision store");
+    store.appendDecisionRequested({
+      turnId: "turn-decision",
+      decision,
+      toolCallId: "tool-1",
+      athleteText: MARKERS.prompt,
+      requestedAt: "1998-08-24T00:00:00.000Z",
+    });
+
+    await engine.answerCoachDecision({
+      chatId: MARKERS.chatId,
+      decisionId: "decision-1",
+      answer: { kind: "option", optionId: "recovery" },
+    });
+
+    const turn = onlyTurnSpan();
+    expect(turn.attributes).toEqual({
+      "enduragent.turn.id": "turn-decision-resume",
+      "enduragent.outcome": "ok",
+    });
+    const calls = spansNamed("llm.generate");
+    expect(
+      calls.map((span) => [parentOf(span), span.attributes["enduragent.llm.attempt"]]),
+    ).toEqual([[turn.spanContext().spanId, 1]]);
+    const recorded = everythingOnSpans();
+    for (const marker of Object.values(MARKERS)) expect(recorded).not.toContain(marker);
   });
 });

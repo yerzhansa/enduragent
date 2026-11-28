@@ -21,6 +21,7 @@ interface OpenTurnSpan {
   readonly span: Span;
   readonly context: Context;
   failedChatCalls: number;
+  lastErrorClass?: UsageLedgerLine["errorClass"];
 }
 
 export interface ModelCallSpan {
@@ -47,8 +48,7 @@ function finish(span: Span, ending: SpanEnding, attributes: Attributes = {}): vo
   span.end();
 }
 
-export function beginTurnSpan(turnId: string): void {
-  endTurnSpan(turnId, { outcome: "error" });
+export function beginTurnSpan(turnId: string, failedChatCalls = 0): void {
   const span = tracer().startSpan(
     TURN_SPAN_NAME,
     { attributes: { "enduragent.turn.id": turnId } },
@@ -57,7 +57,7 @@ export function beginTurnSpan(turnId: string): void {
   openTurnSpans.set(turnId, {
     span,
     context: trace.setSpan(ROOT_CONTEXT, span),
-    failedChatCalls: 0,
+    failedChatCalls,
   });
 }
 
@@ -68,6 +68,18 @@ export function endTurnSpan(turnId: string, ending: SpanEnding): void {
   finish(turn.span, ending);
 }
 
+export async function traceTurn<T>(turnId: string, run: () => Promise<T>): Promise<T> {
+  beginTurnSpan(turnId);
+  try {
+    const result = await run();
+    endTurnSpan(turnId, { outcome: "ok" });
+    return result;
+  } catch (error) {
+    endTurnSpan(turnId, { outcome: "error", errorClass: openTurn(turnId)?.lastErrorClass });
+    throw error;
+  }
+}
+
 export function startModelCallSpan(turnId: string | undefined): ModelCallSpan {
   const turn = openTurn(turnId);
   const attempt = turn === undefined ? undefined : turn.failedChatCalls + 1;
@@ -75,8 +87,9 @@ export function startModelCallSpan(turnId: string | undefined): ModelCallSpan {
   return {
     end(line) {
       if (line === undefined) return;
-      if (turn !== undefined && line.caller === "chat" && line.outcome === "error") {
-        turn.failedChatCalls += 1;
+      if (turn !== undefined && line.outcome === "error") {
+        turn.lastErrorClass = line.errorClass;
+        if (line.caller === "chat") turn.failedChatCalls += 1;
       }
       finish(span, line, {
         "gen_ai.provider.name": line.provider,
@@ -84,7 +97,7 @@ export function startModelCallSpan(turnId: string | undefined): ModelCallSpan {
         "gen_ai.usage.input_tokens": line.inputTokens,
         "gen_ai.usage.output_tokens": line.outputTokens,
         "enduragent.llm.caller": line.caller,
-        "enduragent.llm.attempt": attempt,
+        "enduragent.llm.attempt": line.caller === "chat" ? attempt : undefined,
         "enduragent.cost_usd": line.cost?.total,
         "enduragent.duration_ms": line.durationMs,
       });

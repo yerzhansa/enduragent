@@ -37,3 +37,8 @@ export function assembleCoachToolSets(input: {
     plan: traceToolSet({ ...decision, [PLAN_INTAKE_TOOL_NAME]: createPlanIntakeTool() }),
   };
 }
+
+export function toolSetForChat(sets: CoachToolSets, chatId: string): ToolSet {
+  if (chatId.startsWith("plan:")) return sets.plan;
+  return chatId === "desktop" ? sets.desktop : sets.chat;
+}

@@ -122,7 +122,8 @@ import {
   decisionRequestInput,
 } from "./coach-decision-tool.js";
 import { PLAN_REFERENCE_TOOL_NAME, createPlanReferenceTool } from "./plan-reference-tool.js";
-import { assembleCoachToolSets } from "./coach-tool-sets.js";
+import { assembleCoachToolSets, toolSetForChat, type CoachToolSets } from "./coach-tool-sets.js";
+import { traceTurn } from "./turn-trace.js";
 import { attachNativeMediaToCurrentUserMessage } from "../native-media-message.js";
 import { assertPlanCoachReplyAuthority } from "./plan-coach-authority.js";
 
@@ -335,9 +336,7 @@ export class CoachAgent {
   private memory: MemoryStorePort;
   private chatStore: ChatStorePort;
   private log: LoggerPort;
-  private tools: ToolSet;
-  private readonly desktopTools: ToolSet;
-  private readonly planTools: ToolSet;
+  private readonly toolSets: CoachToolSets;
   private readonly decisionTool: Tool | undefined;
   private readonly planReferenceTool: Tool | undefined;
   private tz: string;
@@ -483,25 +482,17 @@ export class CoachAgent {
               (options: unknown) => getTurnContext(options)?.readToolCache,
             ),
           );
-    const toolSets = assembleCoachToolSets({
+    this.toolSets = assembleCoachToolSets({
       sportTools,
       decisionTool: this.decisionTool,
       planReferenceTool: this.planReferenceTool,
       maxResultTokens,
     });
-    this.tools = toolSets.chat;
-    this.desktopTools = toolSets.desktop;
-    this.planTools = toolSets.plan;
-    ports.onToolsAssembled?.(Object.freeze(Object.keys(this.tools)));
-  }
-
-  private toolsForChat(chatId: string): ToolSet {
-    if (chatId.startsWith("plan:")) return this.planTools;
-    return chatId === "desktop" ? this.desktopTools : this.tools;
+    ports.onToolsAssembled?.(Object.freeze(Object.keys(this.toolSets.chat)));
   }
 
   private toolsForTurn(chatId: string): ToolSet {
-    const tools = this.toolsForChat(chatId);
+    const tools = toolSetForChat(this.toolSets, chatId);
     if (!("memory_read" in tools) || this.hasUnshownMemorySection()) return tools;
     const { memory_read: _unshown, ...rest } = tools;
     return rest;
@@ -1885,9 +1876,9 @@ export class CoachAgent {
       turnId,
     });
     const isPlan = decision.chatId.startsWith("plan:");
-    const continuationTools = isPlan ? this.planTools : undefined;
+    const continuationTools = isPlan ? this.toolSets.plan : undefined;
     const lineageTemplateHash = isPlan
-      ? this.templateHashForChat(decision.chatId, this.planTools)
+      ? this.templateHashForChat(decision.chatId, this.toolSets.plan)
       : computeTemplateHash({
           soul: this.sport.soul,
           skills: this.sport.skills,
@@ -1963,24 +1954,26 @@ export class CoachAgent {
     const activeTurn = { turnId, controller: abortController };
     this.activeChatTurns.set(decision.chatId, activeTurn);
     try {
-      const result = await this.llm.generate({
-        system,
-        messages,
-        tools: continuationTools,
-        stopWhen: stepCountIs(10),
-        maxSteps: 10,
-        caller: "chat",
-        turnId,
-        context,
-        cacheKey: sha256_16(decision.chatId),
-        signal: abortController.signal,
-        onTextDelta: (delta) => {
-          streamedText += delta;
-          if (!isPlan) {
-            this.notifyDecisionEvent(onEvent, { type: "text_delta", turnId, delta });
-          }
-        },
-      });
+      const result = await traceTurn(turnId, () =>
+        this.llm.generate({
+          system,
+          messages,
+          tools: continuationTools,
+          stopWhen: stepCountIs(10),
+          maxSteps: 10,
+          caller: "chat",
+          turnId,
+          context,
+          cacheKey: sha256_16(decision.chatId),
+          signal: abortController.signal,
+          onTextDelta: (delta) => {
+            streamedText += delta;
+            if (!isPlan) {
+              this.notifyDecisionEvent(onEvent, { type: "text_delta", turnId, delta });
+            }
+          },
+        }),
+      );
       const coachText = result.text.trim();
       if (coachText === "") throw new Error("Decision continuation returned no Coach text.");
       if (isPlan) assertPlanCoachReplyAuthority(coachText);
