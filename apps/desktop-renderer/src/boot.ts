@@ -687,7 +687,10 @@ export function bootRenderer(): Disposer {
     coach: providerModelSettingsController,
     credentials: credentialSettingsController,
     others: [athleteSettingsController, sessionSettingsController],
-    onActivate: () => void languageSettingsController.refresh(),
+    onActivate: () => {
+      void languageSettingsController.refresh();
+      onboarding.refreshSignInStatus();
+    },
   });
   store.getState().bindSettingsPorts({
     panes: settingsPanes,

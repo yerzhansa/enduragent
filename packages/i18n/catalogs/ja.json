@@ -865,6 +865,7 @@
         "activation": "コーチに使用 · サインイン済み · 有効化が必要です",
         "apiKey": "コーチに使用 · キーを追加すると完了します",
         "chatgpt": "コーチに使用 · サインインすると完了します",
+        "chatgptExpired": "コーチに使用 · サインインの期限切れ · もう一度サインインしてください",
         "checkingClaude": "コーチに使用 · {{claudeCode}}のサインイン状態を確認中",
         "claude": "コーチに使用 · ターミナルからサインインすると完了します",
         "openrouterCredits": "サインイン済み · {{openrouter}}でクレジットを追加すると返信を受け取れます"
@@ -893,6 +894,7 @@
         "completingSignIn": "サインインを完了中…",
         "ready": "準備完了",
         "signedIn": "サインイン済み",
+        "signInExpired": "{{chatgpt}}のサインインの有効期限が切れました。コーチを引き続き使うには、もう一度サインインしてください。",
         "waitingForBrowser": "ブラウザの操作を待機中…"
       },
       "refusal": {

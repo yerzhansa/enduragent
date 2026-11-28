@@ -1,6 +1,7 @@
 import { providerLabelMessage } from "../settings/copy";
 import {
   aiRowMessageCopy,
+  chatGptPanelMessages,
   claudeCliIdentityMessage,
   claudeCliNoteMessage,
   modelHintMessage,
@@ -54,12 +55,8 @@ import {
   API_KEY_PANEL_HINT,
   CHATGPT_CANCEL_LABEL,
   CHATGPT_CANCEL_SIGN_IN_LABEL,
-  CHATGPT_ACTIVATION_FAILURE_COPY,
   CHATGPT_PANEL_HINT,
-  CHATGPT_PHASE_COPY,
   CHATGPT_REFUSAL_COPY,
-  CHATGPT_RETRY_ACTIVATION_LABEL,
-  CHATGPT_SIGN_IN_LABEL,
   CLAUDE_CLI_RECHECK_LABEL,
   ERROR_COPY,
   SETUP_LANE_LABELS,
@@ -158,6 +155,7 @@ export function AiRow(props: {
     draftIsActive || showsActiveProviderOutsideCatalogue || (picked === null && idleProviderReady);
   const chatGptPhase = chatGptUiPhase(wizard);
   const chatGptStored = chatGptSignedIn(wizard);
+  const chatGptOnFile = wizard.chatGptCredentialState !== "absent";
   const chatGptLoginPending =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in";
   const chatGptActivating = chatGptPhase === "activating-coach";
@@ -223,7 +221,7 @@ export function AiRow(props: {
     (provider !== null &&
       isKeylessProvider(provider) &&
       provider !== "codex-agent" &&
-      (provider !== "openai-codex" || chatGptStored)) ||
+      (provider !== "openai-codex" || chatGptOnFile)) ||
     DESKTOP_CREDENTIAL_SLOTS.some(
       (slot) => slot === provider && wizard.credentialStatus[slot] === "configured",
     );
@@ -243,7 +241,7 @@ export function AiRow(props: {
       : idleProvider,
   );
   const autoChatGptPanel =
-    panelLane === null && provider === "openai-codex" && chatGptStored && !chatGptIsReady;
+    panelLane === null && provider === "openai-codex" && chatGptOnFile && !chatGptIsReady;
   const openRouterConnected = ready && lane === "openrouter";
   const autoOpenRouterPanel =
     panelLane === null &&
@@ -374,25 +372,8 @@ export function AiRow(props: {
     actions.startChatGptLogin();
   };
 
-  const chatGptPrimaryLabel = chatGptLoginPending
-    ? say(CHATGPT_PHASE_COPY[chatGptPhase])
-    : chatGptActivating
-      ? say(CHATGPT_PHASE_COPY["activating-coach"])
-      : chatGptStored && !chatGptIsReady
-        ? say(CHATGPT_RETRY_ACTIVATION_LABEL)
-        : say(CHATGPT_SIGN_IN_LABEL);
-  const chatGptStatusCopy =
-    chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in"
-      ? say(CHATGPT_PHASE_COPY[chatGptPhase])
-      : chatGptPhase === "signed-in"
-        ? say(CHATGPT_PHASE_COPY["signed-in"])
-        : chatGptPhase === "activating-coach"
-          ? say("setup.ai.chatgptActivating")
-          : chatGptPhase === "ready"
-            ? say(CHATGPT_PHASE_COPY.ready)
-            : chatGptPhase === "activation-failed"
-              ? say(CHATGPT_ACTIVATION_FAILURE_COPY)
-              : null;
+  const chatGptPanel = chatGptPanelMessages(chatGptPhase, chatGptStored && !chatGptIsReady);
+  const chatGptProblem = chatGptPhase === "activation-failed" || chatGptPhase === "sign-in-expired";
 
   return (
     <>
@@ -552,19 +533,19 @@ export function AiRow(props: {
                   else login();
                 }}
               >
-                {chatGptPrimaryLabel}
+                {say(chatGptPanel.action)}
               </Button>
             </div>
           </div>
-          {chatGptStatusCopy === null ? null : (
+          {chatGptPanel.status === null ? null : (
             <p
-              className={`mt-[7px] text-xs ${chatGptPhase === "activation-failed" ? "text-danger" : "text-ink-2"}`}
+              className={`mt-[7px] text-xs ${chatGptProblem ? "text-danger" : "text-ink-2"}`}
               role="status"
               aria-live="polite"
               aria-atomic="true"
               data-chatgpt-phase={chatGptPhase}
             >
-              {chatGptStatusCopy}
+              {say(chatGptPanel.status)}
             </p>
           )}
           {wizard.chatGptRefusal !== null ? (

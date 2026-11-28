@@ -865,6 +865,7 @@
         "activation": "提供教練所需的 AI · 已登入 · 需要啟用",
         "apiKey": "提供教練所需的 AI · 新增金鑰以完成設定",
         "chatgpt": "提供教練所需的 AI · 登入以完成設定",
+        "chatgptExpired": "提供教練所需的 AI · 登入已過期，請重新登入",
         "checkingClaude": "提供教練所需的 AI · 正在檢查 {{claudeCode}} 登入狀態",
         "claude": "提供教練所需的 AI · 從終端機登入以完成設定",
         "openrouterCredits": "已登入 · 在 {{openrouter}} 新增額度後即可收到回覆"
@@ -893,6 +894,7 @@
         "completingSignIn": "正在完成登入…",
         "ready": "已就緒",
         "signedIn": "已登入",
+        "signInExpired": "{{chatgpt}} 登入已過期。請重新登入以繼續使用教練。",
         "waitingForBrowser": "正在等待瀏覽器…"
       },
       "refusal": {

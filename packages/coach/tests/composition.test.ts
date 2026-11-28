@@ -25,6 +25,7 @@ import {
   loadStoredProfileSnapshot,
   recordIntervalsCredentialResponse,
   saveStoredProfile,
+  signInRejected,
   type Config,
 } from "@enduragent/core";
 import type {
@@ -1311,6 +1312,79 @@ describe("local coach composition", () => {
     expect(failure).toMatchObject({ refreshFailureReason: "reauth" });
     expect(received!.ports.classifyFailure(failure)).toBe("reauth");
     expect(fetchStub).toHaveBeenCalledTimes(2);
+    const stored = loadStoredProfileSnapshot(
+      join(home.configDir, "auth-profiles.json"),
+      "openai-codex",
+    );
+    expect(stored?.profile).toMatchObject({ refresh: "synthetic-refresh" });
+    expect(signInRejected(stored!.profile)).toBe(true);
+    await lifecycle.close();
+  });
+
+  it("leaves a new sign-in saved during a rejected refresh unmarked", async () => {
+    const home = await freshHome();
+    await writeExpiredOAuthProfile(home);
+    const profilesPath = join(home.configDir, "auth-profiles.json");
+    let requests = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      requests += 1;
+      if (requests === 2) {
+        saveStoredProfile(profilesPath, "openai-codex", {
+          type: "oauth",
+          access: "synthetic-new-login-access",
+          refresh: "synthetic-new-login-refresh",
+          expires: 0,
+          accountId: "synthetic-account",
+        });
+      }
+      return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+    });
+    const { engineInput, lifecycle } = await composeWithCapturedEngineInput(home);
+
+    vi.useFakeTimers();
+    const settled = engineInput.ports
+      .getAccessToken("openai-codex", undefined, "synthetic-expired-access")
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(await settled).toBeInstanceOf(RefreshTokenReusedError);
+    const stored = loadStoredProfileSnapshot(profilesPath, "openai-codex");
+    expect(stored?.profile).toMatchObject({ refresh: "synthetic-new-login-refresh" });
+    expect(signInRejected(stored!.profile)).toBe(false);
+    await lifecycle.close();
+  });
+
+  it("clears an earlier sign-in rejection once a refresh succeeds", async () => {
+    const home = await freshHome();
+    const profilesPath = join(home.configDir, "auth-profiles.json");
+    await writeFile(
+      profilesPath,
+      JSON.stringify({
+        "openai-codex": {
+          type: "oauth",
+          access: "synthetic-expired-access",
+          refresh: "synthetic-refresh",
+          expires: 0,
+          accountId: "synthetic-account",
+          signInRejected: true,
+        },
+      }),
+      { mode: 0o600 },
+    );
+    const refreshedAccess = codexAccessToken("synthetic-account");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(tokenResponse(refreshedAccess));
+    const { engineInput, lifecycle } = await composeWithCapturedEngineInput(home);
+
+    await expect(
+      engineInput.ports.getAccessToken("openai-codex", undefined, "synthetic-expired-access"),
+    ).resolves.toBe(refreshedAccess);
+
+    const stored = loadStoredProfileSnapshot(profilesPath, "openai-codex");
+    expect(stored?.profile).toMatchObject({ access: refreshedAccess });
+    expect(signInRejected(stored!.profile)).toBe(false);
     await lifecycle.close();
   });
 

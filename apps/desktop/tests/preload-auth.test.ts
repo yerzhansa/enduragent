@@ -2491,6 +2491,27 @@ describe("desktop preload ChatGPT auth", () => {
     ]);
   });
 
+  it("copies an exact expired ChatGPT sign-in status", async () => {
+    mocks.invoke.mockResolvedValueOnce({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+    await expect(bridge.chatgptStatus()).resolves.toEqual({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+    for (const value of [
+      { state: "absent", runtimeReady: false, reason: "sign-in-expired" },
+      { state: "configured", runtimeReady: true, reason: "sign-in-expired" },
+      { state: "configured", runtimeReady: false, reason: "revoked" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(value);
+      await expect(bridge.chatgptStatus()).rejects.toBeInstanceOf(TypeError);
+    }
+  });
+
   it("copies only an exact ChatGPT stale-draft envelope", async () => {
     const selection = {
       catalogRevision: 7,

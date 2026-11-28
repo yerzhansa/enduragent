@@ -423,10 +423,13 @@ interface CredentialSlotStatus {
   readonly runtimeState: CredentialRuntimeState | null;
 }
 
-interface ChatGptStatus {
-  readonly state: "configured" | "absent";
-  readonly runtimeReady: boolean;
-}
+type ChatGptStatus =
+  | { readonly state: "configured" | "absent"; readonly runtimeReady: boolean }
+  | {
+      readonly state: "configured";
+      readonly runtimeReady: false;
+      readonly reason: "sign-in-expired";
+    };
 
 type ClaudeCliState =
   | "absent-binary"

@@ -870,6 +870,7 @@
         "activation": "Valmentajasi tekoäly · kirjautunut · käyttöönotto tarvitaan",
         "apiKey": "Valmentajasi tekoäly · viimeistele lisäämällä avain",
         "chatgpt": "Valmentajasi tekoäly · viimeistele kirjautumalla",
+        "chatgptExpired": "Valmentajasi tekoäly · kirjautuminen vanhentui, kirjaudu uudelleen",
         "checkingClaude": "Valmentajasi tekoäly · tarkistetaan {{claudeCode}}-kirjautumista",
         "claude": "Valmentajasi tekoäly · viimeistele kirjautumalla päätteessä",
         "openrouterCredits": "Kirjautunut · lisää krediittejä palvelussa {{openrouter}}, niin saat vastauksia"
@@ -898,6 +899,7 @@
         "completingSignIn": "Viimeistellään kirjautumista…",
         "ready": "Valmis",
         "signedIn": "Kirjautunut",
+        "signInExpired": "{{chatgpt}}-kirjautumisesi on vanhentunut. Kirjaudu uudelleen, jotta voit jatkaa valmentajasi kanssa.",
         "waitingForBrowser": "Odotetaan selainta…"
       },
       "refusal": {

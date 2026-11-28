@@ -870,6 +870,7 @@
         "activation": "Faz funcionar o teu treinador · sessão iniciada · ativação necessária",
         "apiKey": "Faz funcionar o teu treinador · adiciona uma chave para concluir",
         "chatgpt": "Faz funcionar o teu treinador · inicia sessão para concluir",
+        "chatgptExpired": "Faz funcionar o teu treinador · sessão expirada, inicia sessão novamente",
         "checkingClaude": "Faz funcionar o teu treinador · a verificar o início de sessão do {{claudeCode}}",
         "claude": "Faz funcionar o teu treinador · inicia sessão num terminal para concluir",
         "openrouterCredits": "Sessão iniciada · adiciona créditos em {{openrouter}} para receberes respostas"
@@ -898,6 +899,7 @@
         "completingSignIn": "A concluir o início de sessão…",
         "ready": "Pronto",
         "signedIn": "Sessão iniciada",
+        "signInExpired": "A tua sessão em {{chatgpt}} expirou. Inicia sessão novamente para continuares com o teu treinador.",
         "waitingForBrowser": "À espera do navegador…"
       },
       "refusal": {

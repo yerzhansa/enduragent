@@ -865,6 +865,7 @@
         "activation": "코치에 사용 · 로그인됨 · 활성화 필요",
         "apiKey": "코치에 사용 · 키를 추가하면 완료됩니다",
         "chatgpt": "코치에 사용 · 로그인하면 완료됩니다",
+        "chatgptExpired": "코치에 사용 · 로그인 만료됨 · 다시 로그인하세요",
         "checkingClaude": "코치에 사용 · {{claudeCode}} 로그인 확인 중",
         "claude": "코치에 사용 · 터미널에서 로그인하면 완료됩니다",
         "openrouterCredits": "로그인됨 · 답변을 받으려면 {{openrouter}}에서 크레딧을 추가하세요"
@@ -893,6 +894,7 @@
         "completingSignIn": "로그인 마무리 중…",
         "ready": "준비됨",
         "signedIn": "로그인됨",
+        "signInExpired": "{{chatgpt}} 로그인이 만료되었습니다. 코치를 계속 사용하려면 다시 로그인하세요.",
         "waitingForBrowser": "브라우저 대기 중…"
       },
       "refusal": {

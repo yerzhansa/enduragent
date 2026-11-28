@@ -176,7 +176,37 @@ export const CHATGPT_PHASE_COPY: Readonly<
   "signed-in": msg("setup.chatgpt.phase.signedIn"),
   "activating-coach": msg("setup.chatgpt.phase.activatingCoach"),
   ready: msg("setup.chatgpt.phase.ready"),
+  "sign-in-expired": msg("setup.chatgpt.phase.signInExpired", { chatgpt: "ChatGPT" }),
 };
+
+export function chatGptPanelMessages(
+  phase: ChatGptUiPhase,
+  retryActivation: boolean,
+): { readonly action: Message; readonly status: Message | null } {
+  const action =
+    phase === "waiting-for-browser" ||
+    phase === "completing-sign-in" ||
+    phase === "activating-coach"
+      ? CHATGPT_PHASE_COPY[phase]
+      : retryActivation
+        ? CHATGPT_RETRY_ACTIVATION_LABEL
+        : CHATGPT_SIGN_IN_LABEL;
+  switch (phase) {
+    case "activating-coach":
+      return { action, status: msg("setup.ai.chatgptActivating") };
+    case "activation-failed":
+      return { action, status: CHATGPT_ACTIVATION_FAILURE_COPY };
+    case "idle":
+    case "login-failed":
+      return { action, status: null };
+    case "waiting-for-browser":
+    case "completing-sign-in":
+    case "signed-in":
+    case "ready":
+    case "sign-in-expired":
+      return { action, status: CHATGPT_PHASE_COPY[phase] };
+  }
+}
 
 export const CHATGPT_PANEL_HINT = msg("setup.chatgpt.hint", { openai: "OpenAI" });
 
@@ -363,6 +393,8 @@ export function aiRowMessageCopy(
         title,
         subtitle: msg("setup.ai.pending.checkingClaude", { claudeCode: "Claude Code" }),
       };
+    if (lane === "openai-codex" && wizard.chatGptCredentialState === "expired")
+      return { title, subtitle: msg("setup.ai.pending.chatgptExpired") };
     if (lane === "openai-codex" && chatGptSignedIn(wizard))
       return { title, subtitle: msg("setup.ai.pending.activation") };
     if (lane === "openrouter" && openRouterKeySaved(wizard, openRouter))

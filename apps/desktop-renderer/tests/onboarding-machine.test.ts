@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  chatGptSignedIn,
+  chatGptUiPhase,
   claudeCliReady,
   createOnboardingState,
   hasConfiguredModel,
@@ -97,6 +99,36 @@ describe("desktop onboarding machine", () => {
     expect(nextStep(state).step).toBe("training-data");
     state = withChatGptStatus(state, { state: "absent", runtimeReady: false });
     expect(state.chatGptCredentialState).toBe("absent");
+  });
+
+  it("keeps a rejected ChatGPT sign-in out of activation until a new sign-in is stored", () => {
+    const expired = {
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    } as const;
+    let state = createOnboardingState([], expired);
+    expect(state.chatGptCredentialState).toBe("expired");
+    expect(chatGptUiPhase(state)).toBe("sign-in-expired");
+    expect(chatGptSignedIn(state)).toBe(false);
+    expect(hasConfiguredModel(state)).toBe(false);
+    expect(withChatGptActivationPending(state)).toBe(state);
+    expect(withChatGptActivationResult(state, true)).toBe(state);
+    state = withChatGptStatus(createOnboardingState(), expired);
+    expect(chatGptUiPhase(state)).toBe("sign-in-expired");
+    state = withChatGptPending(state, "operation-again");
+    expect(chatGptUiPhase(state)).toBe("waiting-for-browser");
+    state = withChatGptLoginResult(state, {
+      status: "refused",
+      operationId: "operation-again",
+      reason: "cancelled",
+    });
+    expect(state.chatGptCredentialState).toBe("expired");
+    expect(chatGptUiPhase(state)).toBe("login-failed");
+    state = withChatGptPending(state, "operation-final");
+    state = withChatGptLoginResult(state, { status: "stored", operationId: "operation-final" });
+    expect(state.chatGptCredentialState).toBe("stored");
+    expect(chatGptUiPhase(state)).toBe("signed-in");
   });
 
   it("requires the selected provider to match an active, healthy runtime", () => {

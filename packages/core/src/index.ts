@@ -236,6 +236,11 @@ export type {
   StoredProfile,
   StoredProfileSnapshot,
 } from "./auth/profile-store.js";
+export {
+  markSignInRejected,
+  signInRejected,
+  withoutSignInRejection,
+} from "./auth/sign-in-rejection.js";
 export { TokenRefreshError } from "./auth/refresh-failure.js";
 export type { RefreshFailure, RefreshFailureReason } from "./auth/refresh-failure.js";
 export { runCodexLogin } from "./auth/openai-codex-login.js";

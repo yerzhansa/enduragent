@@ -880,6 +880,7 @@
         "activation": "Obsługuje twojego trenera · zalogowano · wymagana aktywacja",
         "apiKey": "Obsługuje twojego trenera · dodaj klucz, aby zakończyć",
         "chatgpt": "Obsługuje twojego trenera · zaloguj się, aby zakończyć",
+        "chatgptExpired": "Obsługuje twojego trenera · sesja wygasła, zaloguj się ponownie",
         "checkingClaude": "Obsługuje twojego trenera · sprawdzanie logowania {{claudeCode}}",
         "claude": "Obsługuje twojego trenera · zaloguj się w terminalu, aby zakończyć",
         "openrouterCredits": "Zalogowano · dodaj środki w {{openrouter}}, aby otrzymywać odpowiedzi"
@@ -908,6 +909,7 @@
         "completingSignIn": "Kończenie logowania…",
         "ready": "Gotowe",
         "signedIn": "Zalogowano",
+        "signInExpired": "Twoja sesja {{chatgpt}} wygasła. Zaloguj się ponownie, aby dalej korzystać z trenera.",
         "waitingForBrowser": "Oczekiwanie na przeglądarkę…"
       },
       "refusal": {
