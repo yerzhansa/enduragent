@@ -786,14 +786,17 @@ describe("shell", () => {
 
     act(() => {
       useEnduragentStore.getState().patchSettings({
-        credentials: { status: "closed", repairCredential: { retrying: "anthropic" } },
+        credentials: {
+          status: "closed",
+          repairCredential: { retrying: "anthropic", failedResends: 0 },
+        },
       });
       useEnduragentStore.getState().closeSettingsPanes();
     });
 
     expect(useEnduragentStore.getState().settings.credentials).toEqual({
       status: "closed",
-      repairCredential: { retrying: "anthropic" },
+      repairCredential: { retrying: "anthropic", failedResends: 0 },
     });
     expect(requireCompletion).not.toHaveBeenCalled();
     expect(document.querySelector('[data-shell="app"]')).not.toBeNull();

@@ -23,11 +23,13 @@ import {
   UNCERTAIN_DELETE_ANNOUNCEMENT,
 } from "./credential-delete-copy";
 import {
+  afterFailedResend,
   createCredentialRepairRetry,
   RECONNECTING_ANNOUNCEMENT,
   repairCredentialId,
   repairNeedsAthlete,
   repairRetrying,
+  retryingRepair,
   type CredentialRepair,
 } from "./credential-repair";
 import type { ProviderStatusEntry } from "./provider-status-rows";
@@ -230,20 +232,24 @@ export function createCredentialSettingsController(input: {
         }
         if (superseded()) return;
         const repaired = loaded.entries.find((entry) => entry.credential === repairCredential);
-        if (retrying && repairCredential !== null && stillFailed(loaded.entries)) {
+        if (retrying && repair !== null && stillFailed(loaded.entries)) {
+          const next = afterFailedResend(repair);
+          const asking = !repairRetrying(next);
           render(
             closed
-              ? { status: "closed", repairCredential }
+              ? { status: "closed", repairCredential: next }
               : {
                   status: "ready",
                   entries: loaded.entries,
                   providerStatuses: loaded.providerStatuses,
                   confirmation: null,
-                  announcement: refusalCopy("runtime-state-diverged"),
+                  announcement: asking
+                    ? refusalCopy("runtime-state-diverged")
+                    : RECONNECTING_ANNOUNCEMENT,
                   recovery: loaded.recovery,
-                  repairCredential,
+                  repairCredential: next,
                   recoveryAvailable: true,
-                  focus: { target: "feedback" },
+                  focus: asking || !quiet ? { target: "feedback" } : null,
                 },
           );
           return;
@@ -623,7 +629,7 @@ export function createCredentialSettingsController(input: {
         if (retrying) {
           render({
             ...closedCredentialSettings(currentState),
-            repairCredential: { retrying: credential },
+            repairCredential: retryingRepair(credential),
           });
         }
         return;
@@ -640,7 +646,7 @@ export function createCredentialSettingsController(input: {
           announcement: retrying ? RECONNECTING_ANNOUNCEMENT : refusalCopy(result.reason),
           recovery,
           repairCredential: retrying
-            ? { retrying: credential }
+            ? retryingRepair(credential)
             : diverged
               ? credential
               : content.repairCredential,

@@ -2190,7 +2190,7 @@ describe("credential deletion", () => {
       status: "error",
       kind: "delete",
       reason: "runtime-state-diverged",
-      repairCredential: { retrying: "anthropic" },
+      repairCredential: { retrying: "anthropic", failedResends: 0 },
     });
     expect(screen.queryByRole("button", { name: "Reload credential status" })).toBeNull();
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
@@ -2229,6 +2229,8 @@ describe("credential deletion", () => {
 
     await screen.findByText(
       "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
+      undefined,
+      { timeout: 4_000 },
     );
     expect(screen.getByRole("button", { name: "Reload credential status" })).toBeEnabled();
     expect(useEnduragentStore.getState().settings.credentials).toMatchObject({

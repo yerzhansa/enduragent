@@ -1306,7 +1306,7 @@ describe("credential settings controller", () => {
       status: "error",
       kind: "delete",
       reason: "runtime-state-diverged",
-      repairCredential: { retrying: "anthropic" },
+      repairCredential: { retrying: "anthropic", failedResends: 0 },
       announcement: RECONNECTING,
       recoveryAvailable: true,
       focus: { target: "feedback" },
@@ -1395,7 +1395,7 @@ describe("credential settings controller", () => {
       expect(controller.state()).toMatchObject({
         status: "error",
         kind: "delete",
-        repairCredential: { retrying: "anthropic" },
+        repairCredential: { retrying: "anthropic", failedResends: 0 },
         announcement: RECONNECTING,
       });
       expect(connectionListeners.size).toBe(1);
@@ -1419,7 +1419,7 @@ describe("credential settings controller", () => {
     }
   });
 
-  it("asks the athlete to reload only when a finished retry still finds the key failed", async () => {
+  it("asks the athlete to reload only after two re-sends in a row leave the key failed", async () => {
     vi.useFakeTimers();
     try {
       const { controller, subject, retryFailedCredentials, connectionListeners, setStatuses } =
@@ -1439,6 +1439,15 @@ describe("credential settings controller", () => {
       expect(retryFailedCredentials).toHaveBeenCalledOnce();
       expect(controller.state()).toMatchObject({
         status: "ready",
+        repairCredential: { retrying: "anthropic", failedResends: 1 },
+        announcement: RECONNECTING,
+      });
+      expect(repairRequiredCredential(controller.state())).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(2);
+      expect(controller.state()).toMatchObject({
+        status: "ready",
         repairCredential: "anthropic",
         announcement:
           "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
@@ -1447,12 +1456,54 @@ describe("credential settings controller", () => {
       expect(repairRequiredCredential(controller.state())).toBe("anthropic");
       expect(connectionListeners.size).toBe(0);
       await vi.advanceTimersByTimeAsync(60_000);
-      expect(retryFailedCredentials).toHaveBeenCalledOnce();
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(2);
 
       setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "active" }]);
       subject.retry();
       await vi.advanceTimersByTimeAsync(0);
       expect(controller.state()).toMatchObject({ status: "ready", repairCredential: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps retrying without asking when one re-send fails and the next one works", async () => {
+    vi.useFakeTimers();
+    try {
+      let resends = 0;
+      const subject = createSubject({
+        deletion: {
+          credential: "anthropic",
+          status: "refused",
+          reason: "runtime-state-diverged",
+        },
+        retryFailed: async () => {
+          resends += 1;
+          if (resends === 2) {
+            subject.setStatuses([
+              { slot: "anthropic", state: "configured", runtimeState: "active" },
+            ]);
+          }
+        },
+      });
+      const gates: string[] = [];
+      vi.mocked(subject.subject.view.render).mockImplementation((state) => {
+        const required = repairRequiredCredential(state);
+        if (required !== null) gates.push(required);
+      });
+      await subject.controller.activate();
+      subject.setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "failed" }]);
+      subject.subject.requestDelete("anthropic");
+      subject.subject.confirmDelete();
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(resends).toBe(2);
+      expect(subject.controller.state()).toMatchObject({
+        status: "ready",
+        repairCredential: null,
+        announcement: NOT_DELETED,
+      });
+      expect(gates).toEqual([]);
     } finally {
       vi.useRealTimers();
     }
@@ -1515,14 +1566,14 @@ describe("credential settings controller", () => {
       controller.close();
       expect(controller.state()).toEqual({
         status: "closed",
-        repairCredential: { retrying: "anthropic" },
+        repairCredential: { retrying: "anthropic", failedResends: 0 },
       });
 
       await vi.advanceTimersByTimeAsync(1_000);
       expect(runtimeReads).toBe(3);
       expect(controller.state()).toEqual({
         status: "closed",
-        repairCredential: { retrying: "anthropic" },
+        repairCredential: { retrying: "anthropic", failedResends: 0 },
       });
 
       reachable = true;
@@ -1579,7 +1630,7 @@ describe("credential settings controller", () => {
       expect(controller.state()).toMatchObject({
         status: "error",
         kind: "load",
-        repairCredential: { retrying: "anthropic" },
+        repairCredential: { retrying: "anthropic", failedResends: 0 },
         announcement: RECONNECTING,
       });
 
@@ -1620,7 +1671,7 @@ describe("credential settings controller", () => {
       expect(controller.state()).toEqual({ status: "closed" });
       expect(subject.view.render).toHaveBeenCalledWith({
         status: "closed",
-        repairCredential: { retrying: "anthropic" },
+        repairCredential: { retrying: "anthropic", failedResends: 0 },
       });
     } finally {
       vi.useRealTimers();

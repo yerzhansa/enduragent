@@ -17,7 +17,7 @@ import {
 
 const TOKEN = "e".repeat(43);
 const ANTHROPIC_KEY = `sk-ant-api03-${"1".repeat(80)}`;
-const OUTAGE_MS = 5_000;
+const OUTAGE_MS = 10_000;
 const RELOAD_NOTICE = "Saved credential status needs to be reloaded before setup can continue.";
 const RELOAD_BUTTON = "Reload credential status";
 const NOT_DELETED = "The coach could not stop using this credential safely. It was not deleted.";
@@ -33,6 +33,14 @@ interface LlmRuntimeRequest {
   readonly model?: string;
   readonly api_key?: string;
   readonly clear_credential?: boolean;
+}
+
+function describeLlmRequest(params: unknown): string {
+  const llm = (params as { readonly llm?: LlmRuntimeRequest }).llm;
+  if (llm === undefined) return "no-llm";
+  const change =
+    llm.clear_credential === true ? "clear" : llm.api_key === undefined ? "select" : "key";
+  return `${change} ${llm.provider ?? ""}`;
 }
 
 function response(value: unknown): readonly string[] {
@@ -75,6 +83,7 @@ const athleteState = {
 class OutageCoach {
   readonly llmRequests: LlmRuntimeRequest[] = [];
   readonly unexpected: string[] = [];
+  readonly calls: string[] = [];
   private llm = { provider: "anthropic", model: "claude-sonnet-5", configured: false };
   private outageEndsAt = 0;
   refuseStoredKey = false;
@@ -132,8 +141,10 @@ class OutageCoach {
         case "getAthleteState":
           return response(athleteState);
         case "configureRuntime":
+          this.calls.push(`${Date.now()} configureRuntime ${describeLlmRequest(request.params)}`);
           return response(this.configure(request.params));
         case "getRuntimeConfig":
+          this.calls.push(`${Date.now()} getRuntimeConfig unreachable=${this.unreachable()}`);
           if (this.unreachable()) throw new Error("coach unreachable");
           return response(this.runtimeConfig());
         default:
@@ -303,7 +314,11 @@ const test = base.extend<{ desktop: Desktop }>({
         );
         await writeFile(
           testInfo.outputPath("desktop.log"),
-          [`unexpected coach requests: ${coach.unexpected.join(", ")}`, ...surfaces].join("\n\n"),
+          [
+            `unexpected coach requests: ${coach.unexpected.join(", ")}`,
+            `coach calls:\n${coach.calls.join("\n")}`,
+            ...surfaces,
+          ].join("\n\n"),
         ).catch(() => undefined);
       }
       await browser?.close().catch(() => undefined);
@@ -311,6 +326,8 @@ const test = base.extend<{ desktop: Desktop }>({
     }
   },
 });
+
+test.describe.configure({ timeout: 120_000 });
 
 interface ShellHooks {
   __shellStates: string[];
@@ -446,7 +463,7 @@ test("when the coach is back but still refuses the stored key, the athlete is as
   await expect(shell, "The athlete is sent to the Setup screen").toHaveAttribute(
     "data-shell",
     "gate",
-    { timeout: 20_000 },
+    { timeout: 40_000 },
   );
   await expect(
     page.getByText(RELOAD_NOTICE),

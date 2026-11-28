@@ -1,6 +1,10 @@
 import type { DesktopCredentialId } from "../onboarding/bridge";
 
-export type CredentialRepair = DesktopCredentialId | { readonly retrying: DesktopCredentialId };
+export type CredentialRepair =
+  | DesktopCredentialId
+  | { readonly retrying: DesktopCredentialId; readonly failedResends: number };
+
+const FAILED_RESENDS_BEFORE_ASKING = 2;
 
 export const RECONNECTING_ANNOUNCEMENT =
   "The credential was not deleted. Reconnecting to the coach…";
@@ -15,6 +19,18 @@ export function repairNeedsAthlete(repair: CredentialRepair | null): DesktopCred
 
 export function repairRetrying(repair: CredentialRepair | null): boolean {
   return repair !== null && typeof repair !== "string";
+}
+
+export function retryingRepair(credential: DesktopCredentialId): CredentialRepair {
+  return { retrying: credential, failedResends: 0 };
+}
+
+export function afterFailedResend(repair: CredentialRepair): CredentialRepair {
+  if (typeof repair === "string") return repair;
+  const failedResends = repair.failedResends + 1;
+  return failedResends < FAILED_RESENDS_BEFORE_ASKING
+    ? { ...repair, failedResends }
+    : repair.retrying;
 }
 
 const FIRST_RETRY_DELAY_MS = 1_000;
