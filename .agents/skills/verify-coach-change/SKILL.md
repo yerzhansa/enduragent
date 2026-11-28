@@ -54,18 +54,18 @@ Coverage. Each row was confirmed against the code at the sync commit.
 | `runtime-bundle.ts` `replace` (barrier, drain wait, `finally` release) | `ChangeStarts`, `BuildIoDone`, `ChangeFinishes`; constants `ReplaceHonoursDeadline`, `DeadlineRefusesBusy`, `RefuseWhileReplying` |
 | `apps/desktop-renderer/src/chat/controller.ts` `requestStop` (Stop is sent once the turn is bound) | `StopArrives` requires a streaming reply |
 | `operations.ts` `createSerializedLane`, `configureRuntime`, `getRuntimeConfig`, `RUNTIME_CONFIGURATION_DEADLINE_MS` | `LaneHeldByChange`, `ChangeArrives`, `DeadlineFires`, `CfgReadArrives`, `CfgReadRuns`; constant `RuntimeConfigReadOffLane` |
-| `composition.ts` `applyRuntimeConfig` (catalog pin before `replace`, `replace`, commit's `throwIfAborted`, `persistConfig`) | `PinnedBeforeReplace`, `ChangeStarts`, `ChangeFinishes`; constant `PinMovedIntoPrepare` |
+| `composition.ts` `applyRuntimeConfig` (catalog pin inside `replace`'s `prepare`, `replace`, commit's `throwIfAborted`, `persistConfig`) | `PinnedBeforeReplace`, `ChangeStarts`, `ChangeFinishes`; constant `PinMovedIntoPrepare` |
 | `composition.ts` `buildBundle` (`catalogSession`, `persistResolvedModelProfiles`, `currentEngineConfig` for every kind) | `ChangeStarts`, `BuildIoDone`; constant `PrepareIsPure` |
-| `credential-vault.ts` delete (`clearCredential` catch, `setRuntimeState`, `removeStoredCredential`) and `credential-runtime.ts` `clearCredential` | `DesktopSeesError`, `DesktopSeesRefusal`, `DesktopSeesSuccess`; constant `ClearBusyRefusal` (`"throws"`, `"refusal"`, or the wrong `"not-active"`) |
+| `credential-vault.ts` delete and `applyLlmSelection` (`clearCredential`/`applyCredential` catch, `setRuntimeState`, `removeStoredCredential`), `chatgpt-auth.ts` `deleteCredential`, and `credential-runtime.ts` `clearCredential` | `DesktopSeesError`, `DesktopSeesRefusal`, `DesktopSeesSuccess`; constant `ClearBusyRefusal` (`"throws"`, `"refusal"`, or the wrong `"not-active"`) |
 | `packages/coach-client/src/call-timeouts.ts` (`stopChat`, `configureRuntime`, `getRuntimeConfig`, `getTranscriptPage`), `chatgpt-auth.ts` `CHATGPT_ACTIVATION_TIMEOUT_MS` | `StopTimesOut`, `ClientGivesUp`, `CfgReadTimesOut`, `PageReadTimesOut` and their order |
 | `runtime-config.ts` `resolveRuntimeConfig` | Run directly by `summary-model-check.ts` |
 | `composition.ts` `runtimePatch`, `persistConfig` summary fields; `config.ts` `loadConfig` llm patch | Mirrored in `summary-model-check.ts` `runtimePatch` and the restart step |
 | `engine-host-adapter.ts` `compactModel ?? model`, `flushModel ?? model` | `usedCompact`, `usedFlush` in `summary-model-check.ts` |
 
-Sync commit: `878cf624` (2026-11-28, the issue 403 fix rebased on `b4c2cc23`). List what changed since then:
+Sync commit: `d52146af` (2026-11-28, the issue 403 fix rebased on `e5cd8df5`). List what changed since then:
 
 ```sh
-git diff --stat 878cf624 -- packages/coach/src/runtime-bundle.ts packages/coach/src/operations.ts packages/coach/src/composition.ts packages/core/src/runtime-config.ts packages/core/src/config.ts packages/core/src/agent/engine-host-adapter.ts packages/coach-client/src/call-timeouts.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/chatgpt-auth.ts
+git diff --stat d52146af -- packages/coach/src/runtime-bundle.ts packages/coach/src/operations.ts packages/coach/src/composition.ts packages/core/src/runtime-config.ts packages/core/src/config.ts packages/core/src/agent/engine-host-adapter.ts packages/coach-client/src/call-timeouts.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/chatgpt-auth.ts
 ```
 
 If a covered function changed:
