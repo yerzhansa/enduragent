@@ -13,7 +13,7 @@ import {
 } from "./usage-baseline.js";
 
 const DAY = 24 * 60 * 60 * 1000;
-const T0 = 1_700_000_000_000; // fixed anchor; the tool never reads wall-clock
+const T0 = 1_700_000_000_000;
 
 function line(over: Partial<UsageLedgerLine>): UsageLedgerLine {
   return {
@@ -98,9 +98,36 @@ describe("selectLines — kind + caller filter", () => {
   });
 });
 
+describe("selectLines — outcome filter", () => {
+  const lines = [
+    line({ turnId: "turn-legacy" }),
+    line({ turnId: "turn-ok", outcome: "ok" }),
+    line({ turnId: "turn-failed", outcome: "error", errorClass: "server_error" }),
+    line({ turnId: "turn-stopped", outcome: "error", errorClass: "aborted" }),
+  ];
+  const ids = (selected: UsageLedgerLine[]) => selected.map((l) => l.turnId);
+  it("defaults to ok rows and reads a row with no outcome as ok", () => {
+    expect(ids(selectLines(lines, "turn", "chat"))).toEqual(["turn-legacy", "turn-ok"]);
+  });
+  it("selects only failed rows with outcome=error", () => {
+    expect(ids(selectLines(lines, "turn", "chat", "error"))).toEqual([
+      "turn-failed",
+      "turn-stopped",
+    ]);
+  });
+  it("keeps every row with outcome=all", () => {
+    expect(selectLines(lines, "turn", "chat", "all")).toHaveLength(4);
+  });
+});
+
 describe("parseCli", () => {
-  it("defaults to kind=turn caller=chat json=false", () => {
-    expect(parseCli([])).toEqual({ kind: "turn", caller: "chat", json: false });
+  it("defaults to kind=turn caller=chat outcome=ok json=false", () => {
+    expect(parseCli([])).toEqual({ kind: "turn", caller: "chat", outcome: "ok", json: false });
+  });
+  it("accepts --outcome ok|error|all and rejects anything else", () => {
+    expect(parseCli(["--outcome", "error"])).toMatchObject({ outcome: "error" });
+    expect(parseCli(["--outcome=all"])).toMatchObject({ outcome: "all" });
+    expect(() => parseCli(["--outcome", "failed"])).toThrow(/--outcome/);
   });
   it("accepts --flag value and --flag=value spellings", () => {
     expect(parseCli(["--data-dir", "/tmp/x", "--kind", "generate"])).toMatchObject({
@@ -157,11 +184,11 @@ describe("buildReport", () => {
     const raw = jsonl([
       line({ ts: T0, templateHash: "aaa" }),
       line({ ts: T0 + DAY, templateHash: "aaa" }),
-      line({ ts: T0 + 2 * DAY }), // no templateHash
+      line({ ts: T0 + 2 * DAY }),
     ]);
     const r = buildReport({ ledgerPath: "/p", dataDirSource: "--data-dir", raw, kind: "turn", caller: "chat" });
     const hashes = r.groups.map((g) => g.templateHash);
-    expect(hashes).toEqual(["aaa", "unknown"]); // sorted
+    expect(hashes).toEqual(["aaa", "unknown"]);
     expect(r.groups.find((g) => g.templateHash === "aaa")!.count).toBe(2);
   });
 
@@ -188,16 +215,16 @@ describe("buildReport", () => {
 
   it("cache-read: per-line mean/p50 + overall ratio, divide-by-zero safe", () => {
     const raw = jsonl([
-      line({ inputTokens: 100, cacheReadTokens: 50 }), // ratio 0.5
-      line({ inputTokens: 200, cacheReadTokens: 200 }), // ratio 1.0
-      line({ inputTokens: 0, cacheReadTokens: 0 }), // excluded (no positive input)
-      line({ inputTokens: undefined, cacheReadTokens: 10 }), // excluded
+      line({ inputTokens: 100, cacheReadTokens: 50 }),
+      line({ inputTokens: 200, cacheReadTokens: 200 }),
+      line({ inputTokens: 0, cacheReadTokens: 0 }),
+      line({ inputTokens: undefined, cacheReadTokens: 10 }),
     ]);
     const g = buildReport({ ledgerPath: "/p", dataDirSource: "x", raw, kind: "turn", caller: "chat" }).groups[0];
     expect(g.cacheRead.ratioSampleSize).toBe(2);
     expect(g.cacheRead.perLineRatioMean).toBeCloseTo(0.75);
-    expect(g.cacheRead.perLineRatioP50).toBe(0.5); // nearest-rank p50 of [0.5,1.0] -> rank ceil(0.5*2)=1 -> sorted[0]=0.5
-    expect(g.cacheRead.overallRatio).toBeCloseTo(250 / 300); // sum-based
+    expect(g.cacheRead.perLineRatioP50).toBe(0.5);
+    expect(g.cacheRead.overallRatio).toBeCloseTo(250 / 300);
   });
 
   it("an all-zero-input group yields null ratios, never NaN", () => {
@@ -226,6 +253,28 @@ describe("buildReport", () => {
     expect(g.cost.costedLines).toBe(2);
     expect(g.cost.total).toBeCloseTo(2 * perLine, 9);
     expect(g.cost.meanPerTurn).toBeCloseTo(perLine, 9);
+  });
+
+  it("reports the outcome filter and counts only the rows it selects", () => {
+    const raw = jsonl([
+      line({ durationMs: 1000 }),
+      line({ durationMs: 9000, outcome: "error", errorClass: "timeout" }),
+    ]);
+    const okOnly = buildReport({ ledgerPath: "/p", dataDirSource: "x", raw, kind: "turn", caller: "chat" });
+    const every = buildReport({
+      ledgerPath: "/p",
+      dataDirSource: "x",
+      raw,
+      kind: "turn",
+      caller: "chat",
+      outcome: "all",
+    });
+    expect(okOnly.outcome).toBe("ok");
+    expect(okOnly.linesSelected).toBe(1);
+    expect(okOnly.groups[0]?.latencyMs.max).toBe(1000);
+    expect(every.outcome).toBe("all");
+    expect(every.linesSelected).toBe(2);
+    expect(every.groups[0]?.latencyMs.max).toBe(9000);
   });
 
   it("latency percentiles use durationMs", () => {
