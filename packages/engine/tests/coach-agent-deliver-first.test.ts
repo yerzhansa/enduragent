@@ -1,12 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-  existsSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
@@ -158,8 +151,6 @@ describe("coach-agent deliver-first persistence", () => {
     resetNotice();
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    // Seed a session last touched long before today's daily reset hour so the
-    // automatic daily reset fires (and is NOT deferred).
     const oldTs = "1998-01-01T00:00:00.000Z";
     mkdirSync(join(dataDir, "sessions"), { recursive: true });
     writeFileSync(
@@ -175,21 +166,22 @@ describe("coach-agent deliver-first persistence", () => {
 
     expect(reply).toBe(`${POST_RESET_NOTICE}\n\n${"here is the answer"}`);
 
-    const sawMarker = complete.mock.calls.some((call) => {
+    const archiveMarkers = complete.mock.calls.flatMap((call) => {
       const params = call[0] as { messages?: Array<{ role: string; content: unknown }> };
-      return (
-        Array.isArray(params.messages) &&
-        params.messages.some(
-          (m) =>
-            m.role === "system" &&
-            typeof m.content === "string" &&
-            m.content.includes("Previous session archived at"),
-        )
-      );
+      return Array.isArray(params.messages)
+        ? params.messages
+            .filter(
+              (m): m is { role: string; content: string } =>
+                m.role === "system" &&
+                typeof m.content === "string" &&
+                m.content.includes("Previous session archived at"),
+            )
+            .map((m) => m.content)
+        : [];
     });
-    expect(sawMarker).toBe(true);
+    expect(archiveMarkers).toHaveLength(1);
+    expect(archiveMarkers[0]).not.toMatch(/disclose/i);
 
-    // The prior transcript was archived (renamed away).
     const currentSession = readFileSync(sessionFile("reset-chat"), "utf-8");
     expect(currentSession).not.toContain("old q");
     const currentLines = currentSession
