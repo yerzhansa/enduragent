@@ -186,7 +186,8 @@ export function createCredentialSettingsController(input: {
     input.view.render(state);
   };
 
-  const loadEntries = createCredentialEntriesReader(input);
+  const credentialEntries = createCredentialEntriesReader(input);
+  const loadEntries = credentialEntries.load;
 
   const startLoad = (retryRecovery = false, quiet = false): Promise<void> => {
     if (disposed || operation !== undefined) return operation ?? Promise.resolve();
@@ -225,6 +226,7 @@ export function createCredentialSettingsController(input: {
           entries.some(
             (entry) => entry.credential === repairCredential && entry.runtimeState === "failed",
           );
+        if (retrying && quiet) await credentialEntries.reachCoach();
         let loaded = await loadEntries();
         if (retrying && stillFailed(loaded.entries)) {
           await input.retryFailedCredentials?.();

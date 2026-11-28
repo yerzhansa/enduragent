@@ -309,6 +309,30 @@ const test = base.extend<{ desktop: Desktop }>({
           .catch(() => undefined);
       }
       if (failed && fixture !== undefined) {
+        const statuses = await page
+          ?.evaluate(async () =>
+            JSON.stringify(
+              await (
+                window as unknown as {
+                  enduragentAuth: { credentialStatuses(): Promise<unknown> };
+                }
+              ).enduragentAuth.credentialStatuses(),
+            ),
+          )
+          .catch((error: unknown) => String(error));
+        coach.calls.push(`${Date.now()} saved-key statuses ${statuses ?? "none"}`);
+        const recovery = await page
+          ?.evaluate(async () =>
+            JSON.stringify(
+              await (
+                window as unknown as {
+                  enduragentAuth: { credentialRecoveryStatus(): Promise<unknown> };
+                }
+              ).enduragentAuth.credentialRecoveryStatus(),
+            ),
+          )
+          .catch((error: unknown) => String(error));
+        coach.calls.push(`${Date.now()} storage recovery ${recovery ?? "none"}`);
         const surfaces = (["console", "stdout", "stderr"] as const).map(
           (surface) => `${surface}\n${fixture?.readCapturedSurface(surface) ?? ""}`,
         );

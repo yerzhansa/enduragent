@@ -136,7 +136,10 @@ export function createCredentialEntriesReader(input: {
   readonly loadChatGptStatus: () => Promise<ChatGptStatus>;
   readonly loadRecoveryStatus?: () => Promise<CredentialRecoveryStatus>;
   readonly loadClaudeCliStatus?: () => Promise<ClaudeCliStatus>;
-}): () => Promise<LoadedCredentialEntries> {
+}): {
+  readonly reachCoach: () => Promise<void>;
+  readonly load: () => Promise<LoadedCredentialEntries>;
+} {
   let reconnectRequired = false;
   let failedClient: DesktopCoachClient | undefined;
   const runtimeClient = async (): Promise<DesktopCoachClient> => {
@@ -149,29 +152,10 @@ export function createCredentialEntriesReader(input: {
     failedClient = undefined;
     return client;
   };
-  return async () => {
+  const withCoach = async <T>(read: (client: DesktopCoachClient) => Promise<T>): Promise<T> => {
     const client = await runtimeClient();
     try {
-      const [statuses, chatGpt, runtime, recovery] = await Promise.all([
-        input.loadStatuses(),
-        input.loadChatGptStatus(),
-        client.call("getRuntimeConfig", {}),
-        input.loadRecoveryStatus?.() ??
-          Promise.resolve({ state: "ready" as const, unverifiedEnvelopes: 0 }),
-      ]);
-      const loadClaudeCli = input.loadClaudeCliStatus;
-      const claudeCli =
-        loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
-          ? "not-loaded"
-          : await loadClaudeCli().catch(() => "not-loaded" as const);
-      return {
-        entries: entriesFrom(statuses, chatGpt, runtime),
-        providerStatuses: providerStatusesFrom(
-          runtime,
-          claudeCli === "not-loaded" ? null : claudeCli,
-        ),
-        recovery,
-      };
+      return await read(client);
     } catch (error) {
       if (error instanceof CoachClientDisconnectedError) {
         reconnectRequired = true;
@@ -179,5 +163,34 @@ export function createCredentialEntriesReader(input: {
       }
       throw error;
     }
+  };
+  return {
+    reachCoach: () =>
+      withCoach(async (client) => {
+        await client.call("getRuntimeConfig", {});
+      }),
+    load: () =>
+      withCoach(async (client) => {
+        const [statuses, chatGpt, runtime, recovery] = await Promise.all([
+          input.loadStatuses(),
+          input.loadChatGptStatus(),
+          client.call("getRuntimeConfig", {}),
+          input.loadRecoveryStatus?.() ??
+            Promise.resolve({ state: "ready" as const, unverifiedEnvelopes: 0 }),
+        ]);
+        const loadClaudeCli = input.loadClaudeCliStatus;
+        const claudeCli =
+          loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
+            ? "not-loaded"
+            : await loadClaudeCli().catch(() => "not-loaded" as const);
+        return {
+          entries: entriesFrom(statuses, chatGpt, runtime),
+          providerStatuses: providerStatusesFrom(
+            runtime,
+            claudeCli === "not-loaded" ? null : claudeCli,
+          ),
+          recovery,
+        };
+      }),
   };
 }

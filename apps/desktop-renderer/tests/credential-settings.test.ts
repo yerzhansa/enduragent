@@ -1361,12 +1361,17 @@ describe("credential settings controller", () => {
     }
   });
 
-  it("keeps retrying with backoff while the coach is unreachable and retries at once on reconnect", async () => {
+  it("keeps probing with backoff while the coach is unreachable, without reading storage, and retries at once on reconnect", async () => {
     vi.useFakeTimers();
     try {
       let reachable = true;
       let runtimeReads = 0;
+      let storageReads = 0;
       const { controller, subject, retryFailedCredentials, connectionListeners } = createSubject({
+        loadRecoveryStatus: async () => {
+          storageReads += 1;
+          return { state: "ready", unverifiedEnvelopes: 0 };
+        },
         deletion: {
           credential: "anthropic",
           status: "refused",
@@ -1381,6 +1386,7 @@ describe("credential settings controller", () => {
       await controller.activate();
       reachable = false;
       runtimeReads = 0;
+      storageReads = 0;
       subject.requestDelete("anthropic");
       subject.confirmDelete();
       await vi.advanceTimersByTimeAsync(0);
@@ -1400,11 +1406,13 @@ describe("credential settings controller", () => {
       });
       expect(connectionListeners.size).toBe(1);
       expect(retryFailedCredentials).not.toHaveBeenCalled();
+      expect(storageReads).toBe(1);
 
       reachable = true;
       for (const listener of connectionListeners) listener();
       await vi.advanceTimersByTimeAsync(0);
-      expect(runtimeReads).toBe(5);
+      expect(runtimeReads).toBe(6);
+      expect(storageReads).toBe(2);
       expect(controller.state()).toMatchObject({
         status: "ready",
         repairCredential: null,
@@ -1413,7 +1421,7 @@ describe("credential settings controller", () => {
       expect(connectionListeners.size).toBe(0);
 
       await vi.advanceTimersByTimeAsync(60_000);
-      expect(runtimeReads).toBe(5);
+      expect(runtimeReads).toBe(6);
     } finally {
       vi.useRealTimers();
     }
@@ -1578,7 +1586,7 @@ describe("credential settings controller", () => {
 
       reachable = true;
       await vi.advanceTimersByTimeAsync(2_000);
-      expect(runtimeReads).toBe(4);
+      expect(runtimeReads).toBe(5);
       expect(controller.state()).toEqual({ status: "closed" });
       expect(onReconciled).toHaveBeenCalledExactlyOnceWith(false);
 
