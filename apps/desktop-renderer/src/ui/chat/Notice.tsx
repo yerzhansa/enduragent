@@ -1,6 +1,6 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
-import { chatFeedbackMessage } from "./copy";
+import { chatFeedbackMessage, repeatsSpendBanner } from "./copy";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -13,6 +13,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const tone = useEnduragentStore((state) => state.chat.noticeTone);
   const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const noticeAddCredits = useEnduragentStore((state) => state.chat.noticeAddCredits);
+  const spendSummary = useEnduragentStore((state) => state.settings.spend.summary);
   const message = notice === null ? null : chatFeedbackMessage(notice);
   const text = useWireMessageText(
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
@@ -21,10 +22,12 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const hasNoticeText = /\S/u.test(text);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
-  const danger = tone === "danger";
+  const repeated = repeatsSpendBanner(notice, spendSummary);
+  const quiet = repeated && !noticeRetry;
+  const danger = tone === "danger" && !quiet;
   return (
     <div
-      className={`chat-notice flex items-center justify-between gap-inset rounded-ctl p-row ${
+      className={`chat-notice ${quiet ? "sr-only" : "flex items-center justify-between gap-inset rounded-ctl p-row"} ${
         danger
           ? "border border-danger/40 bg-surface text-sm leading-5 text-danger"
           : "bg-surface-2 text-xs leading-4 text-ink-2"
@@ -33,7 +36,8 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
       data-tone={tone}
       hidden={!hasNoticeText && !noticeRetry}
     >
-      {hasNoticeText || !noticeRetry ? (
+      {repeated && noticeRetry ? <span className="sr-only">{text}</span> : null}
+      {(hasNoticeText && !repeated) || !noticeRetry ? (
         <span className="flex min-w-0 items-center gap-inset">
           {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
           <span>{text}</span>

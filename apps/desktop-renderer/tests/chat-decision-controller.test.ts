@@ -88,6 +88,7 @@ function subject(
   decisionRead?:
     | Promise<CoachDecisionReadModel | null>
     | (() => Promise<CoachDecisionReadModel | null>),
+  canChat?: () => boolean,
 ) {
   const states: ChatState[] = [];
   const controls: ChatViewControls[] = [];
@@ -196,6 +197,7 @@ function subject(
     refreshTrainingContext: async () => {},
     refreshSpend: async () => {},
     initialQueueSnapshot: { schemaVersion: 1, revision: 0, items: [] },
+    ...(canChat === undefined ? {} : { canChat }),
   });
   const submittedController = {
     ...controller,
@@ -271,6 +273,75 @@ describe("Coach decision controller", () => {
         "Today’s model spend has reached your $0.50 daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.",
     });
     expect(states.at(-1)?.messages.map((message) => message.role)).toEqual(["athlete"]);
+  });
+
+  it("clears the cap message from an open question when the cap lifts", async () => {
+    const refusal = { kind: "spend-cap-reached", dailyCapUsd: 0.5, knownSpendUsd: 0.62 } as const;
+    const { controller, controls } = subject(null, async (_method, options) => {
+      options?.onTerminalEnvelope?.({
+        jsonrpc: "2.0",
+        id: 2,
+        result: { decision: unanswered(), refusal },
+      });
+      return { decision: unanswered(), refusal };
+    });
+    await controller.start();
+    await controller.submit("What should I do tomorrow?");
+    await controller.answerDecision("decision-1", { kind: "option", optionId: "recovery" });
+    expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+
+    await controller.resume();
+    expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+
+    await controller.capLifted();
+
+    expect(controls.at(-1)?.decision).toMatchObject({
+      value: { status: "unanswered", decisionId: "decision-1" },
+      phase: "idle",
+      error: null,
+    });
+  });
+
+  it("resumes a refused saved choice when the cap lifts", async () => {
+    const refusal = { kind: "spend-cap-reached", dailyCapUsd: 0.5, knownSpendUsd: 0.62 } as const;
+    const pending: CoachDecisionReadModel = {
+      ...unanswered(),
+      status: "answered",
+      answer: { kind: "option", optionId: "recovery" },
+      consequence: "Tomorrow becomes a recovery day.",
+      continuation: { continuationId: "continuation-1", status: "pending" },
+    };
+    const resumes: string[] = [];
+    let chatReady = true;
+    const { controller, controls } = subject(
+      pending,
+      async (method, options) => {
+        resumes.push(method);
+        const result = { decision: pending, resumed: false, refusal };
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result });
+        return result;
+      },
+      undefined,
+      () => chatReady,
+    );
+    await controller.start();
+    await vi.waitFor(() => {
+      expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+    });
+    expect(resumes).toEqual(["resumeCoachDecision"]);
+
+    await controller.resume();
+    expect(resumes).toEqual(["resumeCoachDecision"]);
+
+    chatReady = false;
+    await controller.capLifted();
+    expect(resumes).toEqual(["resumeCoachDecision"]);
+    expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+
+    chatReady = true;
+    await controller.capLifted();
+
+    expect(resumes).toEqual(["resumeCoachDecision", "resumeCoachDecision"]);
   });
 
   it("skips without starting a continuation", async () => {
