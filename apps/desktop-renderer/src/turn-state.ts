@@ -454,13 +454,22 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
           };
     }
     case "fail": {
-      const active = current(state, action.requestKey);
+      const claimTurnId = state.retryRequired?.turnId;
+      const bound =
+        current(state, action.requestKey)?.turnId === null && claimTurnId !== undefined
+          ? reduceChatState(state, {
+              type: "bind-turn",
+              requestKey: action.requestKey,
+              turnId: claimTurnId,
+            })
+          : state;
+      const active = current(bound, action.requestKey);
       if (active === null) return state;
       return {
-        ...state,
+        ...bound,
         status: "idle",
         progress: active.error === null ? action.copy : null,
-        messages: updateAssistant(state, active, visibleDraft(active.draft), "interrupted"),
+        messages: updateAssistant(bound, active, visibleDraft(active.draft), "interrupted"),
       };
     }
     case "queue-snapshot": {

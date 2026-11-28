@@ -693,20 +693,51 @@ describe("desktop turn state", () => {
         },
       );
 
-    for (const failed of [
-      failRetry(stopped, 2, ""),
-      failRetry(failRetry(stopped, 2, "Failed draft"), 3, ""),
-      stopAgain(failRetry(stopped, 2, "Failed draft"), 3),
-    ]) {
+    const saved = [
+      { id: "message-1", text: "How should I train?" },
+      { id: "message-2", text: "Partial" },
+    ];
+    for (const [failed, expected] of [
+      [failRetry(stopped, 2, ""), saved],
+      [failRetry(failRetry(stopped, 2, "Failed draft"), 3, ""), saved],
+      [
+        stopAgain(failRetry(stopped, 2, "Failed draft"), 3),
+        [...saved, { id: "retry-coach-3", text: "" }],
+      ],
+    ] as const) {
       const discarded = reduceChatState(failed, { type: "discard-recovery", turnId: "turn-1" });
-      const visible = discarded.messages.filter(
-        (message) => message.role === "athlete" || message.text !== "",
-      );
-      expect(visible.map(({ id, text }) => ({ id, text }))).toEqual([
-        { id: "message-1", text: "How should I train?" },
-        { id: "message-2", text: "Partial" },
-      ]);
+      expect(discarded.messages.map(({ id, text }) => ({ id, text }))).toEqual(expected);
     }
+  });
+
+  it("binds a failure before turn-start to the retry claim so Discard drops every attempt", () => {
+    const claim = {
+      claimId: "claim-1",
+      queuedMessageIds: ["queued-1"],
+      turnId: "turn-1",
+      status: "retry-required" as const,
+    };
+    const firstFailure = reduceChatState(
+      { ...started(), retryRequired: claim },
+      { type: "fail", requestKey: 1, copy: "failed" },
+    );
+    expect(firstFailure.messages.map(({ turnId }) => turnId)).toEqual(["turn-1", "turn-1"]);
+    const retryFailure = reduceChatState(
+      reduceChatState(firstFailure, {
+        type: "submit",
+        requestKey: 2,
+        occurredAtMs: 2,
+        userMessage: "How should I train?",
+        userMessageId: "message-3",
+        assistantMessageId: "message-4",
+        includeUser: false,
+      }),
+      { type: "fail", requestKey: 2, copy: "failed" },
+    );
+
+    expect(
+      reduceChatState(retryFailure, { type: "discard-recovery", turnId: "turn-1" }).messages,
+    ).toEqual([]);
   });
 
   it("drops a failed attempt's draft when the turn is stopped on a later retry", () => {

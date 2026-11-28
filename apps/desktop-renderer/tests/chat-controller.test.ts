@@ -1187,6 +1187,20 @@ describe("chat controller", () => {
     ]);
   });
 
+  it("drops a message that failed twice before Coach started, once it is discarded", async () => {
+    const fake = client(async () => {
+      throw new Error("synthetic attachment preparation failure");
+    });
+    const { controller, states } = subject(fake);
+    await controller.submit("Read my ride file");
+    await controller.retry();
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+
+    await controller.discardRetry();
+
+    expect(states.at(-1)).toMatchObject({ messages: [], retryRequired: null, status: "idle" });
+  });
+
   it("keeps the retry and says so when Discard cannot be saved", async () => {
     const fake = client(
       async (_request, options) => {
