@@ -423,7 +423,7 @@
     "tools/shift-to-synthetic-epoch.ts": 3
   },
   "file-length": {
-    "apps/desktop-renderer/src/chat/controller.ts": 3360,
+    "apps/desktop-renderer/src/chat/controller.ts": 3356,
     "apps/desktop-renderer/src/onboarding/controller.ts": 1081,
     "apps/desktop-renderer/src/settings/credential-controller.ts": 838,
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 862,

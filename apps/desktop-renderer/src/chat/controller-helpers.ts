@@ -2,9 +2,10 @@ import {
   PLAN_CREATION_ANSWER_KEYS,
   type AttachmentAdmissionReadModel,
   type ChatAttachmentComposerReadModel,
-  type ChatQueueSnapshot,
   type CoachDecisionAnswer,
   type CoachDecisionReadModel,
+  type CreatePlanningRequestRpcParams,
+  type CreateWorkoutPlanningRequestRpcParams,
   type PlanChangeIntent,
   type PlanChangeRequest,
   type PlanCreationAnswerInput,
@@ -16,12 +17,7 @@ import {
   type TranscriptPageEntry,
 } from "@enduragent/coach-contract";
 import type { NewConversationCheck } from "../turn-state";
-import {
-  transcriptTurnIds,
-  type TranscriptHydrationChange,
-  type TranscriptHydrationStatus,
-  type TranscriptPage,
-} from "./hydration";
+import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "./hydration";
 import type { ChatState } from "./message-state";
 
 export type ActivePlanKnowledge =
@@ -78,30 +74,51 @@ export const FEEDBACK_TOO_LONG_COPY =
 export const FEEDBACK_SENT_COPY = "Thanks — we received your note.";
 export const FEEDBACK_FAILED_COPY = "Couldn't send that note. It's still in the box — try again.";
 
-export interface NewConversationEvidence {
-  readonly turnIds: ReadonlySet<string>;
-  readonly historyLoaded: boolean;
-  readonly queuedIds: ReadonlySet<string>;
-  readonly draftWrites: number;
+export interface QueuedRetry {
+  readonly requestKey: number;
+  readonly promise: Promise<void>;
+  readonly token: object;
 }
 
-export function newConversationOutcome(
-  before: NewConversationEvidence,
-  page: TranscriptPage,
-  queue: ChatQueueSnapshot,
-  sentTurnIds: ReadonlySet<string>,
-): "landed" | "not-started" | "unknown" {
-  if (page.status !== "page") return "unknown";
-  const pageTurnIds = transcriptTurnIds(page);
-  if (
-    pageTurnIds.some((turnId) => before.turnIds.has(turnId)) ||
-    (!before.historyLoaded && pageTurnIds.some((turnId) => !sentTurnIds.has(turnId))) ||
-    queue.items.some((item) => before.queuedIds.has(item.queuedMessageId))
-  ) {
-    return "not-started";
-  }
-  return page.nextCursor === null ? "landed" : "unknown";
+export type ChatQueueCall =
+  | {
+      readonly method: "runQueuedCommand";
+      readonly queuedMessageId: string;
+      readonly queuedMessageIds: readonly string[];
+    }
+  | {
+      readonly method: "retryQueuedTurn";
+      readonly claimId: string;
+      readonly queuedMessageIds: readonly string[];
+    }
+  | { readonly method: "resumeChatQueue"; readonly queuedMessageIds: readonly string[] };
+
+export interface InterruptedQueueOrigin {
+  readonly requestKey: number;
+  readonly call: ChatQueueCall;
 }
+
+export interface ChatRun {
+  readonly task: Promise<void>;
+  allowInterruptedDrain(): boolean;
+}
+
+export type BootProbeStatus = "idle" | "succeeded" | "failed";
+
+export interface ActiveStopRequest {
+  readonly requestKey: number;
+  request(): void;
+}
+
+export type PendingPlanningRequestCreate =
+  | {
+      readonly kind: "generic";
+      readonly request: CreatePlanningRequestRpcParams;
+    }
+  | {
+      readonly kind: "workout";
+      readonly request: CreateWorkoutPlanningRequestRpcParams;
+    };
 
 export interface ChatAppendDelta {
   readonly messageId: string;

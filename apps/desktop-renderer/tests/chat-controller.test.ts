@@ -36,6 +36,7 @@ import type {
   QueuedChatMessage,
   TurnEvent,
 } from "@enduragent/coach-contract";
+import { createChatController } from "../src/chat/controller";
 import {
   CHAT_ATTACHMENT_FAILURE_COPY,
   CHAT_CONNECTION_INTERRUPTED_COPY,
@@ -53,8 +54,7 @@ import {
   FEEDBACK_TOO_LONG_COPY,
   FEEDBACK_USAGE_COPY,
   type ChatViewControls,
-  createChatController,
-} from "../src/chat/controller";
+} from "../src/chat/controller-helpers";
 import type { TranscriptPage } from "../src/chat/hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "../src/chat/limits";
 import type { DesktopCoachClientProvider } from "../src/coach-client";

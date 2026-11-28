@@ -5,7 +5,8 @@ import type {
   CoachTurnEventNotificationEnvelope,
   TurnEvent,
 } from "@enduragent/coach-contract";
-import { createChatController, type ChatViewControls } from "../src/chat/controller";
+import { createChatController } from "../src/chat/controller";
+import { type ChatViewControls } from "../src/chat/controller-helpers";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import type { ChatState } from "../src/turn-state";
 

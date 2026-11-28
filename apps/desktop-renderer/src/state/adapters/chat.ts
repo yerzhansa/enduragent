@@ -4,7 +4,7 @@ import {
   type ChatView,
   type ChatViewControls,
   type PlanCreationDiscardEvent,
-} from "../../chat/controller";
+} from "../../chat/controller-helpers";
 import type { ChatState, WireMessage } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,

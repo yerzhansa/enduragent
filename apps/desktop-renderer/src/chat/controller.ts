@@ -42,15 +42,12 @@ import {
   CHAT_PLANNING_REQUEST_FAILURE_COPY,
   CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
   CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY,
-  CHAT_PLAN_CREATION_DISCARD_CONFLICT_COPY,
   CHAT_PLAN_CREATION_DISCARD_MISSING_COPY,
-  CHAT_PLAN_CREATION_DISCARD_STALE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
   CHAT_QUEUE_LOAD_FAILURE_COPY,
   CHAT_QUEUE_REMOVE_FAILURE_COPY,
   CHAT_RESPONSE_STOPPED_COPY,
-  CHAT_SEND_CONNECTING_COPY,
   DROPPED_ATTACHMENT_ADMISSION_TIMEOUT_MS,
   FEEDBACK_FAILED_COPY,
   FEEDBACK_SENT_COPY,
@@ -62,7 +59,6 @@ import {
   NEW_CONVERSATION_UNCERTAIN_COPY,
   PLAN_CHANGE_TEXT_LENGTH_COPY,
   clearPlanCreationPause,
-  newConversationOutcome,
   planChangeApplyRejectionCopy,
   planChangeParameterCopy,
   planCreationBuildRejectionCopy,
@@ -73,13 +69,24 @@ import {
   reportBestEffortSync,
   writePlanCreationPause,
   type ActivePlanKnowledge,
+  type ActiveStopRequest,
+  type BootProbeStatus,
   type ChatAppendDelta,
   type ChatController,
+  type ChatQueueCall,
+  type ChatRun,
   type ChatView,
-  type ChatViewControls,
-  type NewConversationEvidence,
+  type InterruptedQueueOrigin,
+  type PendingPlanningRequestCreate,
   type PlanCreationDiscardEvent,
+  type QueuedRetry,
 } from "./controller-helpers";
+import {
+  newConversationEvidence,
+  readNewConversationOutcome,
+  type NewConversationEvidence,
+  type NewConversationReading,
+} from "./new-conversation";
 import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
 import {
   EMPTY_PLAN_CHANGE_SURFACE,
@@ -98,98 +105,13 @@ import {
 } from "../turn-state";
 import { reduceChatState } from "./message-state";
 import {
-  TRANSCRIPT_HYDRATION_PAGE_LIMIT,
   createTranscriptHydrator,
   emptyTranscriptHydration,
   mergeHydratedMessages,
-  transcriptTurnIds,
+  readEmptyTranscript,
   type TranscriptPage,
 } from "./hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "./limits";
-
-export {
-  CHAT_ATTACHMENT_FAILURE_COPY,
-  CHAT_CONNECTION_INTERRUPTED_COPY,
-  CHAT_DECISION_FAILURE_COPY,
-  CHAT_DECISION_LOAD_FAILURE_COPY,
-  CHAT_DECISION_SKIP_FAILURE_COPY,
-  CHAT_DRAFT_SAVE_FAILURE_COPY,
-  CHAT_EMPTY_RESPONSE_COPY,
-  CHAT_FAILURE_COPY,
-  CHAT_PLANNING_REQUEST_FAILURE_COPY,
-  CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
-  CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY,
-  CHAT_PLAN_CREATION_DISCARD_CONFLICT_COPY,
-  CHAT_PLAN_CREATION_DISCARD_MISSING_COPY,
-  CHAT_PLAN_CREATION_DISCARD_STALE_COPY,
-  CHAT_PLAN_CREATION_FAILURE_COPY,
-  CHAT_PROTOCOL_FAILURE_COPY,
-  CHAT_QUEUE_LOAD_FAILURE_COPY,
-  CHAT_QUEUE_REMOVE_FAILURE_COPY,
-  CHAT_RESPONSE_STOPPED_COPY,
-  CHAT_SEND_CONNECTING_COPY,
-  DROPPED_ATTACHMENT_ADMISSION_TIMEOUT_MS,
-  FEEDBACK_FAILED_COPY,
-  FEEDBACK_SENT_COPY,
-  FEEDBACK_TOO_LONG_COPY,
-  FEEDBACK_USAGE_COPY,
-  NEW_CONVERSATION_MEMORY_WARNING_COPY,
-  NEW_CONVERSATION_NOT_STARTED_COPY,
-  NEW_CONVERSATION_SUCCESS_COPY,
-  NEW_CONVERSATION_UNCERTAIN_COPY,
-  type ActivePlanKnowledge,
-  type ChatAppendDelta,
-  type ChatController,
-  type ChatView,
-  type ChatViewControls,
-  type PlanCreationDiscardEvent,
-};
-
-interface QueuedRetry {
-  readonly requestKey: number;
-  readonly promise: Promise<void>;
-  readonly token: object;
-}
-
-type ChatQueueCall =
-  | {
-      readonly method: "runQueuedCommand";
-      readonly queuedMessageId: string;
-      readonly queuedMessageIds: readonly string[];
-    }
-  | {
-      readonly method: "retryQueuedTurn";
-      readonly claimId: string;
-      readonly queuedMessageIds: readonly string[];
-    }
-  | { readonly method: "resumeChatQueue"; readonly queuedMessageIds: readonly string[] };
-
-interface InterruptedQueueOrigin {
-  readonly requestKey: number;
-  readonly call: ChatQueueCall;
-}
-
-interface ChatRun {
-  readonly task: Promise<void>;
-  allowInterruptedDrain(): boolean;
-}
-
-type BootProbeStatus = "idle" | "succeeded" | "failed";
-
-interface ActiveStopRequest {
-  readonly requestKey: number;
-  request(): void;
-}
-
-type PendingPlanningRequestCreate =
-  | {
-      readonly kind: "generic";
-      readonly request: CreatePlanningRequestRpcParams;
-    }
-  | {
-      readonly kind: "workout";
-      readonly request: CreateWorkoutPlanningRequestRpcParams;
-    };
 
 export function createChatController(input: {
   readonly clients: DesktopCoachClientProvider;
@@ -511,14 +433,7 @@ export function createChatController(input: {
     }
     render();
   };
-  const readTranscriptPage =
-    input.readTranscriptPage ??
-    (async (): Promise<TranscriptPage> => ({
-      schemaVersion: 1,
-      status: "page",
-      turns: [],
-      nextCursor: null,
-    }));
+  const readTranscriptPage = input.readTranscriptPage ?? readEmptyTranscript;
   const hydrator = createTranscriptHydrator({
     readPage: readTranscriptPage,
     onChange(next) {
@@ -573,44 +488,47 @@ export function createChatController(input: {
   const settleNewConversation = async (
     before: NewConversationEvidence,
     current: () => boolean,
-  ): Promise<void> => {
-    const client = await input.clients.getClient();
-    await client.call("hasSession", { chatId: DESKTOP_CHAT_ID });
-    const page = await readTranscriptPage({
-      cursor: null,
-      limit: TRANSCRIPT_HYDRATION_PAGE_LIMIT,
-    });
-    const queue = await client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID });
-    const sentTurnIds = new Set(
-      state.messages.flatMap((message) =>
-        message.turnId === undefined || before.turnIds.has(message.turnId) ? [] : [message.turnId],
-      ),
-    );
-    const outcome = newConversationOutcome(before, page, queue, sentTurnIds);
-    if (!current() || outcome === "unknown" || page.status !== "page") return;
-    if (outcome === "not-started") {
-      resetEvidence = null;
-      reduce({ type: "reset-checked", outcome, announcement: NEW_CONVERSATION_NOT_STARTED_COPY });
-      return;
+  ): Promise<NewConversationReading["outcome"]> => {
+    try {
+      const client = await input.clients.getClient();
+      const reading = await readNewConversationOutcome(
+        client,
+        readTranscriptPage,
+        before,
+        () => state.messages,
+      );
+      if (!current() || reading.outcome === "unknown") return "unknown";
+      if (reading.outcome === "not-started") {
+        resetEvidence = null;
+        reduce({
+          type: "reset-checked",
+          outcome: "not-started",
+          announcement: NEW_CONVERSATION_NOT_STARTED_COPY,
+        });
+        return "not-started";
+      }
+      const keepDraft = attachmentOperationSequence !== before.draftWrites;
+      await attachmentTextSaveTask;
+      if (!current()) return "unknown";
+      const nextAttachmentSurface = keepDraft
+        ? attachmentSurface
+        : await client.call("clearChatAttachmentDraft", { chatId: DESKTOP_CHAT_ID });
+      if (!current()) return "unknown";
+      finishNewConversation(
+        nextAttachmentSurface,
+        {
+          type: "reset-checked",
+          outcome: "landed",
+          announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY,
+          keepDraft,
+        },
+        reading.page,
+      );
+      applyQueueSnapshot(reading.queue);
+      return "landed";
+    } catch {
+      return "unknown";
     }
-    const keepDraft = attachmentOperationSequence !== before.draftWrites;
-    await attachmentTextSaveTask;
-    if (!current()) return;
-    const nextAttachmentSurface = keepDraft
-      ? attachmentSurface
-      : await client.call("clearChatAttachmentDraft", { chatId: DESKTOP_CHAT_ID });
-    if (!current()) return;
-    finishNewConversation(
-      nextAttachmentSurface,
-      {
-        type: "reset-checked",
-        outcome,
-        announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY,
-        keepDraft,
-      },
-      page,
-    );
-    applyQueueSnapshot(queue);
   };
   const runNewConversationCheck = (trigger: "automatic" | "athlete"): Promise<void> => {
     if (newConversationCheck !== undefined) return newConversationCheck.task;
@@ -625,12 +543,10 @@ export function createChatController(input: {
       () =>
         attachmentGenerationIsCurrent(checkAttachmentGeneration) &&
         state.session.resetPhase === "uncertain",
-    )
-      .catch(() => undefined)
-      .finally(() => {
-        if (newConversationCheck?.task === task) newConversationCheck = undefined;
-        render();
-      });
+    ).then(() => {
+      if (newConversationCheck?.task === task) newConversationCheck = undefined;
+      render();
+    });
     newConversationCheck = { trigger, task };
     render();
     return task;
@@ -3315,58 +3231,26 @@ export function createChatController(input: {
       if (!canChat() || disposed || state.session.resetPhase !== "confirming") {
         return Promise.resolve();
       }
-      resetEvidence = {
-        turnIds: new Set([
-          ...transcriptTurnIds(hydration),
-          ...state.messages.flatMap((message) =>
-            message.turnId === undefined ? [] : [message.turnId],
-          ),
-        ]),
-        historyLoaded: hydration.status === "ready",
-        queuedIds: new Set(state.queued.map((message) => message.id)),
-        draftWrites: attachmentOperationSequence,
-      };
+      resetEvidence = newConversationEvidence(hydration, state, attachmentOperationSequence);
       updateReset(() => hydrator.beginReset(), { type: "begin-reset" });
       const resetEpoch = ++epoch;
       const resetAttachmentGeneration = ++attachmentGeneration;
+      const resetIsCurrent = (): boolean =>
+        epoch === resetEpoch && attachmentGenerationIsCurrent(resetAttachmentGeneration);
       claimAttachmentSurface();
       const task = (async () => {
         try {
           if (attachmentWriteTokens.size > 0) await waitForAttachmentWrites();
-          if (
-            disposed ||
-            epoch !== resetEpoch ||
-            !attachmentGenerationIsCurrent(resetAttachmentGeneration)
-          ) {
-            return;
-          }
+          if (!resetIsCurrent()) return;
           const client = await input.clients.getClient();
           const result = await client.call("resetSession", { chatId: DESKTOP_CHAT_ID });
-          if (
-            disposed ||
-            epoch !== resetEpoch ||
-            !attachmentGenerationIsCurrent(resetAttachmentGeneration)
-          ) {
-            return;
-          }
+          if (!resetIsCurrent()) return;
           await attachmentTextSaveTask;
-          if (
-            disposed ||
-            epoch !== resetEpoch ||
-            !attachmentGenerationIsCurrent(resetAttachmentGeneration)
-          ) {
-            return;
-          }
+          if (!resetIsCurrent()) return;
           const clearedAttachmentSurface = await client.call("clearChatAttachmentDraft", {
             chatId: DESKTOP_CHAT_ID,
           });
-          if (
-            disposed ||
-            epoch !== resetEpoch ||
-            !attachmentGenerationIsCurrent(resetAttachmentGeneration)
-          ) {
-            return;
-          }
+          if (!resetIsCurrent()) return;
           finishNewConversation(clearedAttachmentSurface, {
             type: "reset-succeeded",
             announcement: result.memoryFlushed
@@ -3374,13 +3258,7 @@ export function createChatController(input: {
               : NEW_CONVERSATION_MEMORY_WARNING_COPY,
           });
         } catch {
-          if (
-            disposed ||
-            epoch !== resetEpoch ||
-            !attachmentGenerationIsCurrent(resetAttachmentGeneration)
-          ) {
-            return;
-          }
+          if (!resetIsCurrent()) return;
           updateReset(() => hydrator.resetFailed(), {
             type: "reset-failed",
             announcement: NEW_CONVERSATION_UNCERTAIN_COPY,

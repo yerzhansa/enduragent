@@ -73,6 +73,10 @@ const EMPTY_HYDRATION: TranscriptHydrationSnapshot = Object.freeze({
   change: "none",
 });
 
+export async function readEmptyTranscript(): Promise<TranscriptPage> {
+  return { schemaVersion: 1, status: "page", turns: [], nextCursor: null };
+}
+
 export function emptyTranscriptHydration(): TranscriptHydrationSnapshot {
   return EMPTY_HYDRATION;
 }

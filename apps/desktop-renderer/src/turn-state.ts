@@ -208,11 +208,7 @@ export function hasClearableConversation(state: ChatState): boolean {
   );
 }
 
-function startedConversation(
-  state: ChatState,
-  announcement: string,
-  keepDraft = false,
-): ChatState {
+function startedConversation(state: ChatState, announcement: string, keepDraft = false): ChatState {
   return {
     status: "idle",
     messages: [],

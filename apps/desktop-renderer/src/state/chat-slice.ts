@@ -14,7 +14,7 @@ import type {
   PlanChangeRequest,
   PlanChangePendingCheck,
 } from "@enduragent/coach-contract";
-import type { ActivePlanKnowledge } from "../chat/controller";
+import type { ActivePlanKnowledge } from "../chat/controller-helpers";
 import type { WireMessage } from "../chat/message-state";
 import type { StateCreator } from "zustand";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "../chat/hydration";
