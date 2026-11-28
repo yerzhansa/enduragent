@@ -11,6 +11,8 @@ import {
 import { runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { workoutContent } from "@enduragent/sport-cycling";
+import { landIcuRideSettings } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
 import { readPlanCalendar } from "../src/plan-calendar-read.js";
 
 const MONDAY = 19980105;
@@ -88,7 +90,42 @@ async function ride(
 }
 
 function deps(opened: Store) {
-  return { store: opened, todayDateKey: TODAY, calendarConnected: true, dateKeyOfMs: () => TODAY };
+  return {
+    store: opened,
+    todayDateKey: TODAY,
+    calendarConnected: true,
+    dateKeyOfMs: () => TODAY,
+    athleteId: "i1998",
+  };
+}
+
+async function activePlan(opened: Store, workouts: readonly PlanWorkoutRecord[]) {
+  await createPlanRepository(opened).replace(
+    {
+      id: PLAN_ID,
+      originId: null,
+      name: "Synthetic base",
+      primaryGoal: "Ride longer",
+      startDateKey: MONDAY,
+      targetDateKey: null,
+      status: "active",
+      kind: "full_plan",
+      totalWeeks: 12,
+      weekStartDay: 1,
+      structureJson: "{}",
+      createdAtMs: 1,
+      updatedAtMs: 1,
+      deviceId: "test-device",
+      hlcPhysicalMs: 1,
+      hlcCounter: 0,
+    },
+    [...workouts],
+  );
+  await opened.run(
+    `INSERT INTO planning_plan (plan_id,status,version,current_revision_number,activated_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+     VALUES (?,'active',1,1,1,1,'test-device',1,0)`,
+    [PLAN_ID],
+  );
 }
 
 function planWorkout(index: number, dateKey: number): PlanWorkoutRecord {
@@ -124,6 +161,7 @@ describe("the calendar read", () => {
       weekDelivery: "send-each-week",
       plan: null,
       replacing: null,
+      ftp: null,
       activities: [
         {
           activityId: "a".repeat(64),
@@ -255,6 +293,42 @@ describe("the calendar read", () => {
       name: "Ride 1",
       workoutId: workouts[0]?.id,
     });
+    await opened.close();
+  });
+
+  it("carries each Chat Plan workout's content and the one FTP, and none for older rows", async () => {
+    const opened = await store();
+    const content = workoutContent("hard", 45);
+    const structure = (value: unknown) => canonicalJson({ id: "w1-template-1", content: value });
+    await activePlan(opened, [
+      { ...planWorkout(1, MONDAY), durationS: 2_700, structureJson: structure(content) },
+      planWorkout(2, MONDAY + 1),
+      { ...planWorkout(3, MONDAY + 2), structureJson: structure({ version: 2, steps: [] }) },
+      { ...planWorkout(4, MONDAY + 3), structureJson: '"not an object"' },
+    ]);
+    const range = { startDateKey: MONDAY, endDateKey: 19980118 };
+    const before = PlanCalendarRpcResultSchema.parse(await readPlanCalendar(deps(opened), range));
+    if (before.status !== "calendar" || before.plan === null) throw new Error("Expected a Plan");
+    expect(before.ftp).toBeNull();
+    expect(before.plan.workouts.map((workout) => workout.content)).toEqual([
+      content,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(before.plan.workouts[1]).not.toHaveProperty("content");
+    await landIcuRideSettings(opened, {
+      id: 77,
+      ftp: 210,
+      indoorFtp: 200,
+      updated: "1998-01-02T08:00:00.000+00:00",
+    });
+    const civil = (ms: number) =>
+      Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", ""));
+    const after = PlanCalendarRpcResultSchema.parse(
+      await readPlanCalendar({ ...deps(opened), dateKeyOfMs: civil }, range),
+    );
+    expect(after.status === "calendar" && after.ftp).toEqual({ watts: 210, dateKey: 19980102 });
     await opened.close();
   });
 });

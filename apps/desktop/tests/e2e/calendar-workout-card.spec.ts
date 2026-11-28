@@ -32,7 +32,7 @@ function nameOf(structureJson: string): string {
 
 async function launchWithWorkout(
   playwright: Playwright,
-  options: { readonly sync?: boolean } = {},
+  options: { readonly sync?: boolean; readonly ftp?: number } = {},
 ): Promise<{
   readonly scenario: Scenario;
   readonly chosen: Chosen;
@@ -46,6 +46,15 @@ async function launchWithWorkout(
       await backend.calendarIdle();
       if (options.sync === true) {
         await backend.recordSuccessfulSync(Date.parse(`${isoDay(MONDAY)}T06:00:00Z`));
+      }
+      if (options.ftp !== undefined) {
+        backend.icuFtp.settings = {
+          id: 77,
+          ftp: options.ftp,
+          indoorFtp: null,
+          updated: "1998-01-02T08:00:00.000+00:00",
+        };
+        await backend.syncFtp();
       }
       const workouts = (await backend.physicalWorkouts(seed.planId))
         .filter((workout) => workout.dateKey !== null && workout.dateKey > MONDAY)
@@ -76,6 +85,22 @@ async function launchWithWorkout(
   );
   if (chosen === null) throw new TypeError("No workout was chosen");
   return { scenario, chosen };
+}
+
+async function expectWorkoutContent(
+  card: ReturnType<Scenario["page"]["getByRole"]>,
+  targets: RegExp,
+  ftpLine: string,
+) {
+  await expect(card.locator("[data-workout-load]")).toHaveText(/^Load ≈ \d+$/u);
+  await expect(card.locator("[data-workout-zone]")).toHaveText(
+    /^(Sweet spot|Endurance|Recovery)$/u,
+  );
+  const steps = card.getByRole("list", { name: "Steps", exact: true }).getByRole("listitem");
+  await expect(steps.first()).toHaveText(targets);
+  await expect(card.locator("[data-workout-ftp]")).toHaveText(ftpLine);
+  await expect(card.getByRole("heading", { name: "Why this workout", exact: true })).toBeVisible();
+  await expect(card.locator("[data-workout-why] p")).toHaveText(/^Builds |^Lets you recover/u);
 }
 
 async function previewUncovered(scenario: Scenario, dateKey: number, workoutId: string) {
@@ -264,6 +289,11 @@ test.describe("The workout card", () => {
       await expect(card.locator("[data-workout-copy]")).toHaveText("On intervals.icu");
       await expect(card.getByRole("heading", { name: workoutName })).toBeFocused();
       await expect(source).toHaveAttribute("aria-expanded", "true");
+      await expectWorkoutContent(
+        card,
+        /^\d+mWarm-up\d+–\d+%$/u,
+        "Targets by feel until an FTP is set.",
+      );
       await snap(scenario, "workout-card-light");
       await card.getByRole("button", { name: "Move…", exact: true }).click();
       await expect(card).toBeHidden();
@@ -324,6 +354,36 @@ test.describe("The workout card", () => {
       await snap(scenario, "workout-card-ask-light");
       expect(scenario.backend.chatSubmissions, "asking the coach sent a message").toBe(0);
       expect(previews(), "asking the coach asked for a Plan change").toBe(previewsBefore);
+    } finally {
+      await close(scenario);
+    }
+  });
+
+  test("shows each step with watts from the one FTP in intervals.icu", async ({ playwright }) => {
+    const { scenario, chosen } = await launchWithWorkout(playwright, { ftp: 210 });
+    try {
+      await openCalendar(scenario);
+      await scenario.page.locator(`[data-workout-id="${chosen.id}"]`).click();
+      const card = scenario.page.getByRole("dialog", { name: chosen.name, exact: true });
+      await expect(card, "clicking a workout opens no card").toBeVisible();
+      await expectWorkoutContent(
+        card,
+        /^\d+mWarm-up45–\d+% · 95–\d+ W$/u,
+        "Targets use FTP 210 W from intervals.icu.",
+      );
+      await snap(scenario, "workout-card-content-ftp-light");
+      await card.getByRole("button", { name: "Close", exact: true }).click();
+      await scenario.page
+        .locator("[data-workout-id]")
+        .filter({ hasText: "Controlled effort" })
+        .first()
+        .click();
+      const hard = scenario.page.getByRole("dialog", { name: "Controlled effort", exact: true });
+      await expect(hard.locator("[data-workout-zone]")).toHaveText("Sweet spot");
+      await expect(
+        hard.getByRole("list", { name: "Steps", exact: true }).getByRole("listitem").nth(1),
+      ).toHaveText(/^3 × \d+mIntervals, 3m easy after each88–94% · 185–197 W$/u);
+      await snap(scenario, "workout-card-sweet-spot-ftp-light");
     } finally {
       await close(scenario);
     }

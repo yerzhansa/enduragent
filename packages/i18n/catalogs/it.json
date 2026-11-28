@@ -1537,6 +1537,8 @@
       },
       "goalLabel": "Obiettivo principale",
       "guidance": "Frequenza cardiaca o sforzo percepito. Nessun test FTP.",
+      "guidanceByFeel": "Obiettivi a sensazione finché non è impostata un’FTP.",
+      "guidanceFtp": "Obiettivi in % della tua FTP su intervals.icu.",
       "guidanceLabel": "Indicazioni",
       "improveFitness": "Migliora il fitness",
       "inProgress": "In corso",
@@ -2054,16 +2056,48 @@
       "workout": {
         "ask": "Chiedi al coach di modificarlo",
         "askDraft": "Modifica «{{name}}» di {{day}}:",
+        "byFeel": "Obiettivi a sensazione finché non è impostata un’FTP.",
         "close": "Chiudi",
         "export": "Esporta gli allenamenti di questo giorno",
+        "ftpLine": "Gli obiettivi usano un’FTP di {{watts}} W da intervals.icu.",
+        "load": "Carico ≈ {{load}}",
         "move": "Sposta…",
         "moving": "Spostamento su intervals.icu",
         "onIntervals": "Su intervals.icu",
         "onIntervalsYours": "Su intervals.icu, con la tua modifica",
+        "part": {
+          "coolDown": "Defaticamento",
+          "interval": "Intervallo",
+          "main": "Costante",
+          "recovery": "Facile",
+          "warmUp": "Riscaldamento"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Solo nel piano, non ancora inviato",
         "planOnlyGoesOut": "Solo nel piano, invio il {{date}}",
         "planWorkout": "Allenamento del piano",
-        "today": "Oggi"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervalli, {{duration}} a ritmo facile dopo ciascuno",
+        "steps": "Fasi",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Oggi",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Costruisce la tua base aerobica.",
+          "endurance": "Costruisce la resistenza per le giornate lunghe.",
+          "recover": "Ti fa recuperare continuando a muovere le gambe.",
+          "sustainedPower": "Costruisce potenza sostenuta appena sotto la tua soglia."
+        },
+        "whyTitle": "Perché questo allenamento",
+        "zone": {
+          "endurance": "Resistenza",
+          "recovery": "Recupero",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {

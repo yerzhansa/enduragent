@@ -1561,6 +1561,8 @@
       },
       "goalLabel": "Główny cel",
       "guidance": "Tętno lub odczuwany wysiłek. Bez testu FTP.",
+      "guidanceByFeel": "Wartości docelowe według odczuć, dopóki FTP nie jest ustawione.",
+      "guidanceFtp": "Wartości docelowe jako % twojego FTP w intervals.icu.",
       "guidanceLabel": "Wskazówki",
       "improveFitness": "Popraw wytrenowanie",
       "inProgress": "W toku",
@@ -2144,16 +2146,48 @@
       "workout": {
         "ask": "Poproś trenera o zmianę",
         "askDraft": "Zmień, proszę, „{{name}}” z dnia {{day}}:",
+        "byFeel": "Wartości docelowe według odczuć, dopóki FTP nie jest ustawione.",
         "close": "Zamknij",
         "export": "Eksportuj treningi z tego dnia",
+        "ftpLine": "Wartości docelowe korzystają z FTP {{watts}} W z intervals.icu.",
+        "load": "Obciążenie treningowe ≈ {{load}}",
         "move": "Przenieś…",
         "moving": "Przenoszenie w intervals.icu",
         "onIntervals": "W intervals.icu",
         "onIntervalsYours": "W intervals.icu, z twoją zmianą",
+        "part": {
+          "coolDown": "Schłodzenie",
+          "interval": "Interwał",
+          "main": "Równe tempo",
+          "recovery": "Lekko",
+          "warmUp": "Rozgrzewka"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Tylko w planie, jeszcze niewysłany",
         "planOnlyGoesOut": "Tylko w planie, wysyłka {{date}}",
         "planWorkout": "Trening z planu",
-        "today": "Dzisiaj"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Interwały, po każdym {{duration}} lekko",
+        "steps": "Kroki",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Dzisiaj",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Buduje twoją bazę tlenową.",
+          "endurance": "Buduje wytrzymałość na długie dni.",
+          "recover": "Regenerujesz się, nie przestając kręcić nogami.",
+          "sustainedPower": "Buduje długotrwałą moc tuż poniżej twojego progu."
+        },
+        "whyTitle": "Dlaczego ten trening",
+        "zone": {
+          "endurance": "Wytrzymałość",
+          "recovery": "Regeneracja",
+          "sweetSpot": "Sweet spot"
+        }
       }
     },
     "details": {

@@ -1,5 +1,6 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
+import { projectCreationCard } from "./plan-creation-card.js";
 import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
 import { closedPlanCalendar } from "./plan-calendar-status.js";
 import { z } from "zod";
@@ -60,7 +61,6 @@ import {
   pendingPlanCreationCommitment,
   pendingPlanCreationCheck,
   resolvePlanCreationAnswer,
-  projectPlanCreationCard,
   projectPlanCreationAnswerSummaries,
   resolvePlanCreationAnswerFlow,
   resolvePlanCreationDraftAnswers,
@@ -122,6 +122,7 @@ export function createPlanCreationOperations(input: {
   eventSources: { read(): Promise<PlanChangeEventSource[]> };
   baselineEvidence?: BaselineEvidenceSource;
   calendarConnected?: () => boolean;
+  ftp?: { readonly athleteId: () => string | null };
   intervalsConfigured?: () => boolean;
   legacyPlan?: () => Promise<LegacyPlanSummary | null>;
   translator?: IntentTranslationPort;
@@ -195,21 +196,14 @@ export function createPlanCreationOperations(input: {
       throw error;
     }
   };
-  const project = async (
-    snapshot: PlanCreationSnapshot,
-    questionToday = today(),
-  ): Promise<PlanCreationCardModel> => {
-    let calendarWindow: PlanCreationCardModel["calendarWindow"] = null;
-    if (calendarConnected()) {
-      const active = await input.store.get("SELECT id FROM plan WHERE status='active' LIMIT 1");
-      const today = todayDateKey();
-      calendarWindow = {
-        startDate: dateText(addCivilDays(today, active === undefined ? 0 : 1)),
-        endDate: dateText(addCivilDays(today, 6)),
-      };
-    }
-    return projectPlanCreationCard(snapshot, { today: questionToday, calendarWindow });
-  };
+  const project = (snapshot: PlanCreationSnapshot, questionToday = today()) =>
+    projectCreationCard(snapshot, {
+      store: input.store,
+      today: questionToday,
+      todayDateKey: todayDateKey(),
+      calendarConnected: calendarConnected(),
+      ftp: input.ftp === undefined ? null : { athleteId: input.ftp.athleteId() },
+    });
   const replayRow = async (
     name: "plan_creation.start" | "plan_creation.answer",
     commandId: string,

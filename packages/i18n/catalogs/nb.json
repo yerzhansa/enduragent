@@ -1537,6 +1537,8 @@
       },
       "goalLabel": "Hovedmål",
       "guidance": "Puls eller opplevd anstrengelse. Ingen FTP-test.",
+      "guidanceByFeel": "Mål etter følelse til en FTP er satt.",
+      "guidanceFtp": "Mål som % av FTP-en din i intervals.icu.",
       "guidanceLabel": "Veiledning",
       "improveFitness": "Kom i bedre form",
       "inProgress": "Pågår",
@@ -2054,16 +2056,48 @@
       "workout": {
         "ask": "Be treneren endre den",
         "askDraft": "Endre «{{name}}» {{day}}:",
+        "byFeel": "Mål etter følelse til en FTP er satt.",
         "close": "Lukk",
         "export": "Eksporter dagens treningsøkter",
+        "ftpLine": "Målene bruker FTP {{watts}} W fra intervals.icu.",
+        "load": "Belastning ≈ {{load}}",
         "move": "Flytt…",
         "moving": "Flyttes i intervals.icu",
         "onIntervals": "På intervals.icu",
         "onIntervalsYours": "På intervals.icu, med endringen din",
+        "part": {
+          "coolDown": "Nedtrapping",
+          "interval": "Intervall",
+          "main": "Jevnt",
+          "recovery": "Rolig",
+          "warmUp": "Oppvarming"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Bare i planen, ikke sendt ennå",
         "planOnlyGoesOut": "Bare i planen, sendes {{date}}",
         "planWorkout": "Treningsøkt i planen",
-        "today": "I dag"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervaller, {{duration}} rolig etter hvert",
+        "steps": "Trinn",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "I dag",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Bygger den aerobe basen din.",
+          "endurance": "Bygger utholdenhet for lange dager.",
+          "recover": "Du restituerer og holder beina i gang.",
+          "sustainedPower": "Bygger vedvarende effekt rett under terskelen din."
+        },
+        "whyTitle": "Hvorfor denne økten",
+        "zone": {
+          "endurance": "Utholdenhet",
+          "recovery": "Restitusjon",
+          "sweetSpot": "Sweet spot"
+        }
       }
     },
     "details": {

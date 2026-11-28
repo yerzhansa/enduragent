@@ -32,6 +32,7 @@ import {
 import { createChatPlanOutboxRepository, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { landIcuRideSettings } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
 import { createCalendarMirrorAdapter } from "../src/planning-calendar.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
@@ -1108,6 +1109,7 @@ async function previewHarness(
     eventCandidates: { read: async () => [candidateSource] },
     eventSources: { read: async () => [] },
     calendarConnected: () => connected,
+    ftp: { athleteId: () => "i1998" },
     legacyPlan,
     baselineEvidence,
     today: () => currentToday,
@@ -1309,6 +1311,19 @@ describe("Plan Creation read projections", () => {
       endDate: "1998-09-07",
     });
   });
+
+  it("tells the Draft card whether intervals.icu has an FTP", async () => {
+    const test = await previewHarness();
+    expect((await test.host.readCard())?.ftpWatts).toBeNull();
+    await landIcuRideSettings(test.store, {
+      id: 77,
+      ftp: 210,
+      indoorFtp: null,
+      updated: "1998-08-01T08:00:00.000+00:00",
+    });
+    expect((await test.host.readCard())?.ftpWatts).toBe(210);
+    expect((await test.host["plan.list"]({})).creation?.ftpWatts).toBe(210);
+  });
 });
 
 describe("Plan Creation command replay", () => {
@@ -1336,7 +1351,7 @@ describe("Plan Creation command replay", () => {
     const originalStart = {
       status: "started",
       outcome: "created",
-      planCreation: projectPlanCreationCard(started.snapshot, { today }),
+      planCreation: { ...projectPlanCreationCard(started.snapshot, { today }), ftpWatts: null },
     };
     const answerRequest = {
       commandId: "recorded-answer",
@@ -1354,7 +1369,7 @@ describe("Plan Creation command replay", () => {
     });
     const originalAnswer = {
       status: "answered",
-      planCreation: projectPlanCreationCard(result.snapshot, { today }),
+      planCreation: { ...projectPlanCreationCard(result.snapshot, { today }), ftpWatts: null },
     };
     await test.host["plan_creation.discard"]({
       commandId: "discard-recorded",
@@ -2279,6 +2294,12 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     const workouts = await plans.readWorkouts(result.planId);
     expect(workouts).toHaveLength(draftWorkouts.length);
     expect(workouts.map((workout) => JSON.parse(workout.structureJson))).toEqual(draftWorkouts);
+    expect(test.draft.builderVersion).toBe("3");
+    for (const workout of workouts)
+      expect(JSON.parse(workout.structureJson).content).toMatchObject({
+        version: 1,
+        load: expect.any(Number),
+      });
     const model = await createPlanningReadService({
       store: test.store,
       timezone: "UTC",

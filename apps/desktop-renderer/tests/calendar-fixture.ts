@@ -105,5 +105,6 @@ export function calendarRead(
     plan: planned,
     replacing: null,
     activities: [...activities],
+    ftp: null,
   };
 }

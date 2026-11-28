@@ -105,6 +105,7 @@ export function createPlanCalendarOperations(
               todayDateKey: deps.todayDateKey(),
               calendarConnected: deps.calendarConnected(),
               dateKeyOfMs: deps.dateKeyOfMs,
+              athleteId: ftp.athleteId(),
             },
             request,
           );
