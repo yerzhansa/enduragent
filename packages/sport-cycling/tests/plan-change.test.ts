@@ -13,6 +13,7 @@ import {
 
 import type { CommitmentRule } from "../src/commitments.js";
 import { readTodayChoice } from "../src/today-choice.js";
+import { workoutContent } from "../src/workout-steps.js";
 
 const todayDateKey = 19980824;
 
@@ -147,7 +148,12 @@ describe("Schedule Plan Changes", () => {
     const result = run({ kind: "hard-weekday", day: 1 });
     expect(result.diff).toHaveLength(5);
     for (const row of result.diff) {
-      expect(row.after).toEqual({ ...row.before, kind: "easy", name: "Easy ride" });
+      expect(row.after).toEqual({
+        ...row.before,
+        kind: "easy",
+        name: "Easy ride",
+        content: workoutContent("easy", 45),
+      });
     }
     expect(result.totals.after).toEqual(result.totals.before);
   });
@@ -1610,4 +1616,101 @@ it("keeps current metadata when Undo retains a completed event Workout with a co
   });
   expect(inverse.after.supportingEvents).toEqual(corrected.after.supportingEvents);
   expect(workouts(inverse.after).find((workout) => workout.id === linked.id)).toEqual(linked);
+});
+
+function withContent(draft: CreationDraft): CreationDraft {
+  for (const workout of workouts(draft)) {
+    const content = workoutContent(workout.kind, workout.minutes);
+    if (content !== undefined) workout.content = content;
+  }
+  return draft;
+}
+
+describe("workout content through Plan Changes", () => {
+  it("recomputes content for every workout whose minutes or kind change", () => {
+    const draft = withContent(fixture());
+    const capped = applyScheduleIntent({
+      draft,
+      intent: { kind: "longest-workout", minutes: 50 },
+      todayDateKey,
+    });
+    for (const workout of workouts(capped.after))
+      expect(workout.content).toEqual(workoutContent(workout.kind, workout.minutes));
+    expect(workouts(capped.after).find((workout) => workout.id === "w3-long")?.content).toEqual(
+      workoutContent("long", 50),
+    );
+    const eased = applyScheduleIntent({
+      draft,
+      intent: { kind: "hard-weekday", day: 1 },
+      todayDateKey,
+    });
+    expect(workouts(eased.after).find((workout) => workout.id === "w3-hard")).toMatchObject({
+      kind: "easy",
+      content: workoutContent("easy", 45),
+    });
+  });
+
+  it("restores each workout's content as it was through Undo", () => {
+    for (const previousDraft of [withContent(fixture()), fixture()]) {
+      const changed = applyScheduleIntent({
+        draft: previousDraft,
+        intent: { kind: "weekday-duration", day: 1, minutes: 30 },
+        todayDateKey,
+      });
+      const undone = applyScheduleIntent({
+        draft: changed.after,
+        previousDraft,
+        intent: { kind: "inverse", changeId: "applied-change" },
+        todayDateKey,
+      });
+      expect(undone.after).toEqual(previousDraft);
+    }
+  });
+
+  it("gives an old Plan content only on the workouts a change touches", () => {
+    const capped = applyScheduleIntent({
+      draft: fixture(),
+      intent: { kind: "longest-workout", minutes: 60 },
+      todayDateKey,
+    });
+    const changedIds = new Set(capped.diff.map((row) => row.workoutId));
+    expect([...changedIds]).toEqual(["w2-long", "w3-long", "w4-long", "w5-long", "w6-long"]);
+    for (const workout of workouts(capped.after)) {
+      if (changedIds.has(workout.id))
+        expect(workout.content).toEqual(workoutContent(workout.kind, workout.minutes));
+      else expect(workout).not.toHaveProperty("content");
+    }
+    const again = applyScheduleIntent({
+      draft: capped.after,
+      intent: { kind: "longest-workout", minutes: 60 },
+      todayDateKey,
+    });
+    expect(again.diff).toEqual([]);
+  });
+
+  it("recomputes content under an Important event's cap and adds none to the event workout", () => {
+    const result = eventChange(
+      {
+        kind: "supporting-event",
+        operation: "add",
+        name: "River ride",
+        date: "1998-09-02",
+        role: "Important",
+      },
+      withContent(fixture()),
+    );
+    if (result.status !== "changed") throw new Error(result.explanation);
+    const after = workouts(result.after);
+    expect(after.find((workout) => workout.id === "w3-hard")).toMatchObject({
+      kind: "endurance",
+      minutes: 30,
+      content: workoutContent("endurance", 30),
+    });
+    expect(
+      after.find((workout) => workout.kind === "event" && workout.supportingEventId),
+    ).not.toHaveProperty("content");
+    for (const workout of after)
+      if (workout.kind !== "event")
+        expect(workout.content).toEqual(workoutContent(workout.kind, workout.minutes));
+  });
 });

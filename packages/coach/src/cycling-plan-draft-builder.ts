@@ -22,6 +22,11 @@ import {
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
   BUILD_RECOVERY_RATIOS,
+  COOL_DOWN_PERCENT,
+  POWER_RANGE,
+  SET_RECOVERY_PERCENT,
+  SWEET_SPOT_SET,
+  WARM_UP_PERCENT,
   buildPlanSkeleton,
   getSampleWeek,
   intervalsWorkoutInputSchema,
@@ -203,17 +208,6 @@ const WEEKDAY_NAME: Readonly<Record<string, PlanIntakeWeekday>> = Object.freeze(
   sun: "sun",
   sunday: "sun",
 });
-
-const POWER_RANGE: Readonly<Record<GeneratedWorkoutType, readonly [number, number]>> =
-  Object.freeze({
-    endurance: [0.56, 0.75],
-    sweet_spot: [0.88, 0.94],
-    threshold: [0.91, 1.05],
-    long: [0.56, 0.75],
-    recovery: [0.45, 0.54],
-    opener: [0.91, 1.05],
-    race: [0.65, 0.85],
-  });
 
 function completeIntake(value: PlanIntakeRecord | undefined): DraftIntakeFacts {
   if (
@@ -737,19 +731,22 @@ function workoutDocument(input: {
     duration: { value: warmupMinutes, unit: "minutes" as const },
     power: {
       kind: "percent_ftp" as const,
-      low: 45,
-      high: input.workoutType === "recovery" ? 54 : 65,
+      low: WARM_UP_PERCENT.low,
+      high:
+        input.workoutType === "recovery"
+          ? Math.round(POWER_RANGE.recovery[1] * 100)
+          : WARM_UP_PERCENT.high,
     },
   };
   const cooldown = {
     type: "cooldown" as const,
     duration: { value: cooldownMinutes, unit: "minutes" as const },
-    power: { kind: "percent_ftp" as const, value: 45 },
+    power: { kind: "percent_ftp" as const, value: COOL_DOWN_PERCENT },
   };
   let steps: IntervalsWorkoutInput["steps"];
   if (input.workoutType === "sweet_spot" || input.workoutType === "threshold") {
-    const repeat = input.workoutType === "sweet_spot" ? 3 : 4;
-    const recoveryMinutes = input.workoutType === "sweet_spot" ? 3 : 2;
+    const repeat = input.workoutType === "sweet_spot" ? SWEET_SPOT_SET.repeats : 4;
+    const recoveryMinutes = input.workoutType === "sweet_spot" ? SWEET_SPOT_SET.recoveryMinutes : 2;
     const intervalMinutes = (mainMinutes - recoveryMinutes * repeat) / repeat;
     const range = POWER_RANGE[input.workoutType];
     steps = [
@@ -770,7 +767,7 @@ function workoutDocument(input: {
         recovery: {
           type: "recovery",
           duration: { value: recoveryMinutes, unit: "minutes" },
-          power: { kind: "percent_ftp", value: 50 },
+          power: { kind: "percent_ftp", value: SET_RECOVERY_PERCENT },
         },
       },
       cooldown,
@@ -795,7 +792,7 @@ function workoutDocument(input: {
         recovery: {
           type: "recovery",
           duration: { value: 2, unit: "minutes" },
-          power: { kind: "percent_ftp", value: 50 },
+          power: { kind: "percent_ftp", value: SET_RECOVERY_PERCENT },
         },
       },
       cooldown,
@@ -899,13 +896,11 @@ function generateWeekWorkouts(
 ): readonly PlanWorkoutRecord[] {
   const range = planWeekRange(input.plan, input.week.weekIndex);
   const scheduled: readonly ScheduledWorkout[] = input.sample
-    .map(
-      (workout, sessionIndex): ScheduledWorkout => ({
-        workout,
-        sessionIndex,
-        dateKey: weekdayDate(range.startDateKey, sampleDay(workout)),
-      }),
-    )
+    .map((workout, sessionIndex): ScheduledWorkout => ({
+      workout,
+      sessionIndex,
+      dateKey: weekdayDate(range.startDateKey, sampleDay(workout)),
+    }))
     .filter(({ dateKey }) => dateKey <= input.targetDateKey && dateKey !== input.targetDateKey);
   const isRaceWeek = input.week.weekIndex === input.plan.totalWeeks;
   const selected = isRaceWeek
@@ -1491,14 +1486,15 @@ function applyWeekdayMove(
       : weekdayForDateKey(workout.dateKey) === WEEKDAY_NUMBER[parsed.sourceWeekday];
   });
   if (candidates.length === 0) throw new CyclingPlanDraftBuildError("unsupported-revision");
+  const durationRule = parsed.duration;
   const durationCandidates =
-    parsed.duration === null
+    durationRule === null
       ? []
       : previous.draft.workouts.filter((workout) => {
           const structure = JSON.parse(workout.structureJson) as Record<string, unknown>;
           return (
             structure.slot !== "race" &&
-            weekdayForDateKey(workout.dateKey) === WEEKDAY_NUMBER[parsed.duration!.weekday]
+            weekdayForDateKey(workout.dateKey) === WEEKDAY_NUMBER[durationRule.weekday]
           );
         });
   if (parsed.duration !== null && durationCandidates.length === 0) {
@@ -1533,9 +1529,9 @@ function applyWeekdayMove(
     const structure = JSON.parse(workout.structureJson) as Record<string, unknown>;
     const durationS =
       adjustsDuration && workout.durationS !== null
-        ? duration!.shorten
-          ? Math.max(600, Math.min(duration!.maximumDurationS, workout.durationS - 300))
-          : Math.min(duration!.maximumDurationS, workout.durationS)
+        ? duration.shorten
+          ? Math.max(600, Math.min(duration.maximumDurationS, workout.durationS - 300))
+          : Math.min(duration.maximumDurationS, workout.durationS)
         : workout.durationS;
     const workoutType = structure.workoutType;
     if (!isGeneratedWorkoutType(workoutType) || durationS === null) {
@@ -1559,8 +1555,8 @@ function applyWeekdayMove(
         ...(dateKey === undefined ? {} : { movedToWeekday: parsed.targetWeekday }),
         ...(adjustsDuration
           ? {
-              durationWeekday: duration!.weekday,
-              maximumDurationS: duration!.maximumDurationS,
+              durationWeekday: duration.weekday,
+              maximumDurationS: duration.maximumDurationS,
             }
           : {}),
         ...content,

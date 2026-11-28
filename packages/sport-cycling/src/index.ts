@@ -64,6 +64,21 @@ export {
 
 export { buildCreationDraft, creationStart, pickedStart } from "./creation-draft-builder.js";
 export {
+  COOL_DOWN_PERCENT,
+  POWER_RANGE,
+  SET_RECOVERY_PERCENT,
+  SWEET_SPOT_SET,
+  WARM_UP_PERCENT,
+  workoutContent,
+} from "./workout-steps.js";
+export type {
+  StepSession,
+  WorkoutBlock,
+  WorkoutContent,
+  WorkoutStep,
+  WorkoutTarget,
+} from "./workout-steps.js";
+export {
   applyScheduleIntent,
   applySupportingEventIntent,
   supportingEventWorkoutLimitExplanation,

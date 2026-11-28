@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { CommitmentRule } from "./commitments.js";
+import { workoutContent, type WorkoutContent } from "./workout-steps.js";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
@@ -62,6 +63,7 @@ interface DraftWorkout {
   supportingEventId?: string;
   guidance: string;
   power: number | null;
+  content?: WorkoutContent;
 }
 
 interface DraftWeek {
@@ -303,15 +305,18 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
             ? "Hard training replaced with an easy ride under the confirmed restriction."
             : "Hard training replaced with an endurance ride under your confirmed limits.",
         );
+      const kind = replacement ?? template.kind;
+      const content = workoutContent(kind, minutes);
       week.workouts.push({
         id: `w${number}-template-${index + 1}`,
         name,
-        kind: replacement ?? template.kind,
+        kind,
         date: assigned === undefined ? null : civilText(assigned),
         minutes,
         pinned: false,
         power: null,
         guidance,
+        ...(content === undefined ? {} : { content }),
       });
       remaining -= minutes;
     }
@@ -339,7 +344,7 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
     guidance,
     ftp: null,
     builderId: "cycling-creation-draft",
-    builderVersion: "2",
+    builderVersion: "3",
   };
   return { ...draft, inputFingerprint: digest(input), outputFingerprint: digest(draft) };
 }
