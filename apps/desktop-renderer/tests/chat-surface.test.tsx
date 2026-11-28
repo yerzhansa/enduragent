@@ -15,6 +15,7 @@ import type {
   PlanCreationOpenQuestion,
   PlanningRequestDelivery,
   PlanningRequestReadModel,
+  PlanWorkoutContent,
 } from "@enduragent/coach-contract";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -384,6 +385,27 @@ function planCreationModel(
     })),
   };
 }
+
+const enduranceContent: PlanWorkoutContent = {
+  version: 1,
+  zone: "endurance",
+  load: 45,
+  why: "aerobic-base",
+  blocks: [
+    {
+      kind: "step",
+      step: { part: "warm-up", seconds: 600, target: { kind: "range", low: 45, high: 65 } },
+    },
+    {
+      kind: "step",
+      step: { part: "main", seconds: 2_400, target: { kind: "range", low: 56, high: 75 } },
+    },
+    {
+      kind: "step",
+      step: { part: "cool-down", seconds: 600, target: { kind: "steady", percent: 45 } },
+    },
+  ],
+};
 
 const ATTACHMENT_CAPABILITIES: AttachmentCapabilitiesReadModel = {
   schemaVersion: 1,
@@ -3735,34 +3757,7 @@ describe("chat surface", () => {
       const draft = planCreationDraft();
       if (withContent)
         for (const workout of draft.weeks.flatMap((week) => week.workouts))
-          workout.content = {
-            version: 1,
-            zone: "endurance",
-            load: 45,
-            why: "aerobic-base",
-            blocks: [
-              {
-                kind: "step",
-                step: {
-                  part: "warm-up",
-                  seconds: 600,
-                  target: { kind: "range", low: 45, high: 65 },
-                },
-              },
-              {
-                kind: "step",
-                step: {
-                  part: "main",
-                  seconds: 2_400,
-                  target: { kind: "range", low: 56, high: 75 },
-                },
-              },
-              {
-                kind: "step",
-                step: { part: "cool-down", seconds: 600, target: { kind: "steady", percent: 45 } },
-              },
-            ],
-          };
+          workout.content = structuredClone(enduranceContent);
       const model: PlanCreationCardModel = {
         ...planCreationModel(null),
         status: "review",
@@ -3957,6 +3952,58 @@ describe("chat surface", () => {
         "Confirm this answer before continuing.",
       );
       expect(screen.queryByRole("region", { name: "Edit Plan answers" })).toBeNull();
+    });
+
+    it("leaves the guidance off a Draft row whose workout has content", () => {
+      const draft = planCreationDraft();
+      const workouts = [
+        {
+          id: "pinned-event",
+          name: "Autumn event",
+          kind: "event",
+          date: "1998-10-04",
+          minutes: 120,
+          pinned: true,
+          guidance: "Ride at a sustainable effort",
+          power: null,
+        },
+        {
+          id: "monday-endurance",
+          name: "Monday endurance ride",
+          kind: "endurance",
+          date: "1998-09-28",
+          minutes: 60,
+          pinned: false,
+          guidance: "Use comfortable perceived effort or your known heart-rate guidance",
+          power: null,
+          content: structuredClone(enduranceContent),
+        },
+      ] satisfies (typeof draft.weeks)[number]["workouts"];
+      draft.weeks = draft.weeks.map((week) =>
+        week.number === 4 ? { ...week, start: "1998-09-28", end: "1998-10-04", workouts } : week,
+      );
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft,
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+
+      const rows = within(screen.getByRole("list", { name: "Week 4 Workouts" })).getAllByRole(
+        "listitem",
+      );
+      expect(rows.map((row) => row.querySelector("strong")?.textContent)).toEqual([
+        "Autumn event · 120 min · Ride at a sustainable effort",
+        "Monday endurance ride · 60 min",
+      ]);
+      expect(draft.weeks[3]?.workouts[1]?.guidance).toBe(
+        "Use comfortable perceived effort or your known heart-rate guidance",
+      );
     });
 
     it("preserves pinned-event-first Workout order within the Draft week", () => {

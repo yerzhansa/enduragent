@@ -268,7 +268,12 @@ export function PlanCreationDraftCards(props: {
                         : formatDate(workout.date)}
                     </span>
                     <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
-                      {workoutSummary({ say, format }, workout)}
+                      {workout.content === undefined
+                        ? workoutSummary({ say, format }, workout)
+                        : say("chat.planCreation.workoutSummaryNoGuidance", {
+                            name: workout.name,
+                            minutes: format.number(workout.minutes, { useGrouping: false }),
+                          })}
                     </strong>
                     <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
                       {workout.pinned

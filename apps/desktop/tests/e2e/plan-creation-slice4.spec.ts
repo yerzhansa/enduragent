@@ -290,9 +290,14 @@ for (const appearance of [
           .getByRole("listitem");
         await expect(rows).toHaveCount(week.workouts.length);
         for (const [index, workout] of week.workouts.entries()) {
-          await expect(rows.nth(index)).toContainText(
-            `${workout.name} · ${workout.minutes} min · ${workout.guidance}`,
-          );
+          if (workout.content === undefined) {
+            await expect(rows.nth(index)).toContainText(
+              `${workout.name} · ${workout.minutes} min · ${workout.guidance}`,
+            );
+          } else {
+            await expect(rows.nth(index)).toContainText(`${workout.name} · ${workout.minutes} min`);
+            await expect(rows.nth(index)).not.toContainText(workout.guidance);
+          }
         }
       }
       await expect(scenario.page.getByText("Priority 1 · Undated", { exact: true })).toHaveCount(4);
