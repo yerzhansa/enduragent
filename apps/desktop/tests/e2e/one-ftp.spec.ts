@@ -127,6 +127,7 @@ test.describe("One FTP", () => {
         "288 WCoach’s proposal from intervals.icu’s estimate; you chose Use",
       );
       await expect(sheet.getByRole("region", { name: "The coach’s FTP proposal" })).toHaveCount(0);
+      await expect(page.getByText("Sync needs attention")).toHaveCount(0);
       await snap(scenario, "one-ftp-written");
       await sheet.getByRole("button", { name: "Close" }).click();
 
@@ -191,6 +192,7 @@ test.describe("One FTP", () => {
       const composer = page.locator("textarea#message");
       await expect(composer).toBeVisible();
       await composer.fill("Keep my existing draft");
+      await snap(scenario, "one-ftp-plan-test-before");
       await page
         .getByRole("navigation", { name: "Main navigation" })
         .getByRole("button", { name: "Activity review", exact: true })
@@ -201,12 +203,74 @@ test.describe("One FTP", () => {
         .getByRole("complementary", { name: "FTP" })
         .getByRole("region", { name: "The coach’s FTP proposal" });
       await expect(card).toBeVisible();
+      await snap(scenario, "one-ftp-plan-test-sheet");
       await card.getByRole("button", { name: "Plan a 20-minute test" }).click();
       await expect(composer).toHaveValue(
-        "Keep my existing draft\n\nPlease add a 20-minute FTP test to my Plan.",
+        "Keep my existing draft\n\nPlease add a 20-minute FTP test to my Plan, so we can check my FTP.",
       );
       await snap(scenario, "one-ftp-plan-test-draft");
+      await composer.click();
+      await page.keyboard.press("PageDown");
+      await snap(scenario, "one-ftp-plan-test-appended");
       expect(scenario.backend.icuFtp.writes).toEqual([]);
+    } finally {
+      await close(scenario);
+    }
+  });
+
+  test("shows the FTP line and FTP history on Activity review and drops Correct FTP from Change one thing", async ({
+    playwright,
+  }) => {
+    const scenario = await launch(playwright, async (backend) => {
+      const seed = await backend.seedActiveTraining();
+      if (seed.planId === null) throw new TypeError("Training Plan was not activated");
+      await backend.calendarIdle();
+      const today = 19980115;
+      backend.setCivilDate(isoDay(today));
+      await backend.seedCalendarRide({
+        key: rideKey(1),
+        dateKey: addCivilDays(today, -1),
+        name: "Synthetic road ride",
+        movingS: 3_600,
+        distanceM: 28_000,
+      });
+      return isoDay(today);
+    });
+    try {
+      const page = scenario.page;
+      const nav = page.getByRole("navigation", { name: "Main navigation" });
+      await nav.getByRole("button", { name: "Activity review", exact: true }).click();
+      await expect(page.locator('[data-activity-review-state="ready"]')).toBeVisible();
+      const line = page.locator("[data-ride-ftp]");
+      await expect(line, "Activity review shows no ride FTP line").toContainText(
+        "No FTP is known for this ride.",
+      );
+      await line.getByRole("button", { name: "FTP history" }).click();
+      const sheet = page.getByRole("complementary", { name: "FTP" });
+      await expect(sheet, "FTP history sheet did not open").toContainText(
+        "intervals.icu has no FTP set yet.",
+      );
+      await expect(sheet).toContainText("There is one FTP, the one in intervals.icu.");
+      await sheet.getByRole("button", { name: "Close" }).click();
+
+      await nav.getByRole("button", { name: /^Plan\b/u }).click();
+      await page
+        .getByRole("region", { name: "Plan library", exact: true })
+        .getByRole("button", { name: "Change one thing", exact: true })
+        .click();
+      const editor = page
+        .locator('[data-conversation-projection^="plan-change"]')
+        .getByRole("region", { name: "What needs to change?", exact: true });
+      await expect(editor, "Change one thing editor lacks the one-FTP note").toContainText(
+        "To change your FTP, set it in intervals.icu, or use FTP history in Activity review.",
+      );
+      await editor.getByRole("combobox", { name: "Change", exact: true }).click();
+      await expect(
+        page.getByRole("option", { name: "Correct FTP" }),
+        "Change one thing still offers Correct FTP",
+      ).toHaveCount(0);
+      await snap(scenario, "one-ftp-change-editor");
+      await page.keyboard.press("Escape");
     } finally {
       await close(scenario);
     }

@@ -371,6 +371,20 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
             if (fail) await this.requireStore().run("DROP TRIGGER reject_close");
           }
         }
+        if (request.method === "sync") {
+          const empty = { total: 0, visible: 0, restrictions: [], other: 0 };
+          return [
+            JSON.stringify({ event: { phase: "started", completed: 0, total: 1 } }),
+            JSON.stringify({ event: { phase: "completed", completed: 1, total: 1 } }),
+            JSON.stringify({
+              schemaVersion: 1,
+              published: false,
+              referenceSucceeded: true,
+              requests: { store: 0, reference: 0, total: 0 },
+              droppedActivities: { overall: empty, recent7Days: empty },
+            }),
+          ];
+        }
         if (request.method === "plan.calendar") {
           return response(
             await this.calendarOperations()["plan.calendar"](
