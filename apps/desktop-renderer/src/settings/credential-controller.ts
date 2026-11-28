@@ -620,7 +620,12 @@ export function createCredentialSettingsController(input: {
       const retrying = diverged && DESKTOP_CREDENTIAL_SLOTS.some((slot) => slot === credential);
       if (disposed) return;
       if (generation !== operationGeneration) {
-        if (retrying) render({ ...currentState, repairCredential: { retrying: credential } });
+        if (retrying) {
+          render({
+            ...closedCredentialSettings(currentState),
+            repairCredential: { retrying: credential },
+          });
+        }
         return;
       }
       if (result.status === "refused") {
@@ -712,7 +717,9 @@ export function createCredentialSettingsController(input: {
   const close = (): void => {
     if (disposed) return;
     ++generation;
-    if (currentState.resetUncertain !== true) operation = undefined;
+    if (currentState.resetUncertain !== true && currentState.status !== "deleting") {
+      operation = undefined;
+    }
     currentState = closedCredentialSettings(currentState);
   };
 
@@ -740,11 +747,7 @@ export function createCredentialSettingsController(input: {
         await operation;
         return;
       }
-      const reopenBarrier =
-        currentState.resetUncertain === true || pendingCredentialRepair(currentState) !== null
-          ? operation
-          : undefined;
-      if (reopenBarrier !== undefined) await reopenBarrier;
+      while (operation !== undefined) await operation;
       if (disposed || currentState.status !== "closed") return;
       await startLoad();
     },
