@@ -122,7 +122,7 @@ export type ChatAction =
   | { readonly type: "event"; readonly requestKey: number; readonly event: TurnEvent }
   | { readonly type: "complete"; readonly requestKey: number }
   | { readonly type: "discard"; readonly requestKey: number }
-  | { readonly type: "discard-submission"; readonly requestKey: number }
+  | { readonly type: "discard-submission"; readonly requestKey: number; readonly copy?: string }
   | { readonly type: "interrupt"; readonly requestKey: number; readonly copy: string }
   | { readonly type: "retry-pending"; readonly requestKey: number }
   | { readonly type: "fail"; readonly requestKey: number; readonly copy: string }
@@ -427,7 +427,7 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
       return {
         ...state,
         status: "idle",
-        progress: null,
+        progress: action.copy ?? null,
         activeTurn: null,
         messages: state.messages.filter(
           (message) =>

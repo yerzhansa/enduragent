@@ -155,6 +155,7 @@ const spendSummary = {
   malformedLineCount: 0,
   spendComplete: true,
   capStatus: "below",
+  capMode: "warn",
   cacheReadTokens: 0,
   knownCacheReadSavingsUsd: 0,
   cacheSavingsComplete: true,

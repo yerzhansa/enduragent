@@ -338,12 +338,12 @@ export function createSpendMeterController(input: {
 
   const setMode = (mode: SpendCapMode): Promise<void> => {
     if (disposed) return Promise.resolve();
-    const value =
-      currentState.capDraft.kind === "valid"
-        ? currentState.capDraft.value
-        : currentState.summary?.dailyCapUsd;
-    if (value === undefined) return Promise.resolve();
-    queuedCap = { revision: draftRevision, value: value as DailyCapUsd, mode };
+    const draft =
+      currentState.capDraft.kind === "valid" || currentState.summary === null
+        ? currentState.capDraft
+        : capDraftFromSummary(currentState.summary);
+    if (draft.kind !== "valid") return Promise.resolve();
+    queuedCap = { revision: draftRevision, value: draft.value, mode };
     if (recoveryRequired || isSaveFailure(currentState.capOperation)) return recoverAndDrain();
     return startDrain();
   };

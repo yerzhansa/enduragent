@@ -183,10 +183,7 @@ export function bootRenderer(): Disposer {
   const spendAdapter = createSpendSettingsAdapter({
     publish: (next) => store.getState().patchSettings({ spend: next }),
   });
-  const spendController = createSpendMeterController({
-    clients,
-    view: spendAdapter.view,
-  });
+  const spendController = createSpendMeterController({ clients, view: spendAdapter.view });
   const chatAdapter = createChatViewAdapter({
     publish: (next) =>
       flushSync(() => {

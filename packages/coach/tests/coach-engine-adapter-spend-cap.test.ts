@@ -155,7 +155,7 @@ const calls: ReadonlyArray<{
     name: "chat",
     run: (engine, chatId) => engine.chat({ chatId, message: "How should I ride today?" }),
     refused: {
-      text: "Today's model spend has reached your $0.01 daily cap, so the coach didn't answer this message. To keep going today, raise the cap or switch it back to a warning in Settings › Spending.",
+      text: "Today’s model spend has reached your $0.01 daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.",
       message: { key: "coach.refusal.spendCapReached", vars: { cap: "$0.01" } },
       refusal,
     },

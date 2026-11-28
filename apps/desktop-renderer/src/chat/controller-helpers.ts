@@ -132,7 +132,7 @@ export function unansweredDrainAction(
 ): ChatAction {
   return refusal === undefined
     ? { type: "discard-submission", requestKey }
-    : { type: "fail", requestKey, copy: spendCapRefusalCopy(refusal) };
+    : { type: "discard-submission", requestKey, copy: spendCapRefusalCopy(refusal) };
 }
 
 export function decisionFailureCopy(refusal: TurnRefusal | undefined): string {

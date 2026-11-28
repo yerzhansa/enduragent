@@ -1,6 +1,11 @@
 import { LANGUAGE_OPTIONS } from "@enduragent/i18n";
 import type { CoachClient } from "@enduragent/coach-client";
-import type { LanguageTag, RuntimeConfigSnapshot, SpendSummary } from "@enduragent/coach-contract";
+import type {
+  LanguageTag,
+  RuntimeConfigSnapshot,
+  SpendCapMode,
+  SpendSummary,
+} from "@enduragent/coach-contract";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -204,6 +209,7 @@ function spendSummary(overrides: Partial<SpendSummary> = {}): SpendSummary {
     malformedLineCount: 0,
     spendComplete: false,
     capStatus: "reached",
+    capMode: "warn",
     cacheReadTokens: 400,
     knownCacheReadSavingsUsd: 0,
     cacheSavingsComplete: false,
@@ -317,9 +323,16 @@ function createHarness(options: HarnessOptions = {}) {
         return options.spend === undefined ? spendSummary() : await options.spend();
       }
       if (method === "setDailySpendCap") {
-        const cap = (params as { readonly dailyCapUsd: number }).dailyCapUsd;
+        const { dailyCapUsd: cap, mode } = params as {
+          readonly dailyCapUsd: number;
+          readonly mode?: SpendCapMode;
+        };
         return options.setSpendCap === undefined
-          ? spendSummary({ dailyCapUsd: cap, capStatus: "unknown" })
+          ? spendSummary({
+              dailyCapUsd: cap,
+              capStatus: "unknown",
+              ...(mode === undefined ? {} : { capMode: mode }),
+            })
           : await options.setSpendCap(cap);
       }
       throw new TypeError(`unexpected rpc ${method}`);
@@ -3266,6 +3279,72 @@ describe("application section", () => {
 });
 
 describe("spending", () => {
+  it("switches the daily cap to Stop and back to Warn, keeping the saved amount", async () => {
+    const user = userEvent.setup();
+    const subject = await renderSettings();
+    act(() => {
+      subject.spendController.start();
+    });
+    const group = await screen.findByRole("group", { name: "When today’s cap is reached" });
+    const warn = within(group).getByRole("button", { name: "Warn" });
+    const stop = within(group).getByRole("button", { name: "Stop" });
+    await waitFor(() => {
+      expect(stop).toBeEnabled();
+    });
+    expect(warn).toHaveAttribute("aria-pressed", "true");
+    expect(stop).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByText("Warn: the coach keeps answering and Chat shows a notice."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The cap is checked when a message starts, so one long reply can still go a little over it.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(stop);
+
+    await waitFor(() => {
+      expect(stop).toHaveAttribute("aria-pressed", "true");
+    });
+    expect(warn).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByText(
+        "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send waits and goes out then.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(warn);
+
+    await waitFor(() => {
+      expect(warn).toHaveAttribute("aria-pressed", "true");
+    });
+    expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toEqual([
+      { method: "setDailySpendCap", params: { dailyCapUsd: 0.5, mode: "enforce" } },
+      { method: "setDailySpendCap", params: { dailyCapUsd: 0.5, mode: "warn" } },
+    ]);
+  });
+
+  it("publishes the Stop banner when an enforced cap is reached", async () => {
+    const subject = await renderSettings({
+      spend: async () => spendSummary({ capMode: "enforce" }),
+    });
+    act(() => {
+      subject.spendController.start();
+    });
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.spend.warning).toBe(
+        "You’ve reached today’s $0.50 spend cap. New messages wait until tomorrow, or raise the cap or switch to Warn in Settings › Spending.",
+      );
+    });
+    expect(
+      within(screen.getByRole("group", { name: "When today’s cap is reached" })).getByRole(
+        "button",
+        { name: "Stop" },
+      ),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("publishes the cap warning and saves a valid cap when the input loses focus", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings();
