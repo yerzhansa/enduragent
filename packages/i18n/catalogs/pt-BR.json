@@ -254,7 +254,9 @@
   },
   "language": {
     "chooseTitle": "Escolha seu idioma",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "retry": "Tentar novamente",
+    "saveFailed": "Não foi possível salvar seu idioma. Tente novamente."
   },
   "settings": {
     "appearance": {

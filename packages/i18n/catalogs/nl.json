@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Kies je taal",
-    "continue": "Doorgaan"
+    "continue": "Doorgaan",
+    "retry": "Opnieuw proberen",
+    "saveFailed": "Je taal kon niet worden opgeslagen. Probeer het opnieuw."
   },
   "settings": {
     "appearance": {

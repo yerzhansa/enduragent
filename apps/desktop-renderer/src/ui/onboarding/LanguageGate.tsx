@@ -16,19 +16,29 @@ import { SetupCard } from "./SetupCard";
 
 const ITEMS = LANGUAGE_OPTIONS.map(({ tag, endonym }) => ({ value: tag, label: endonym }));
 
-export function LanguageGate(): ReactElement {
+export function LanguageGate(props: {
+  readonly saveFailed: boolean;
+  readonly onSave: () => void;
+}): ReactElement {
   const [tag, setTag] = useState<LanguageTag>("en");
 
   return (
     <LanguageProvider tag={tag} locale={rendererLocale(tag)}>
-      <LanguageChoice tag={tag} onChange={setTag} />
+      <LanguageChoice
+        tag={tag}
+        saveFailed={props.saveFailed}
+        onChange={setTag}
+        onSave={props.onSave}
+      />
     </LanguageProvider>
   );
 }
 
 function LanguageChoice(props: {
   readonly tag: LanguageTag;
+  readonly saveFailed: boolean;
   readonly onChange: (tag: LanguageTag) => void;
+  readonly onSave: () => void;
 }): ReactElement {
   const { say, tag } = usePhrasebook();
   const ready = useLanguageReady();
@@ -75,14 +85,22 @@ function LanguageChoice(props: {
                 ))}
               </SelectContent>
             </Select>
+            {props.saveFailed ? (
+              <p className="mt-2 mb-0 text-xs text-danger" role="alert">
+                {say("language.saveFailed")}
+              </p>
+            ) : null}
           </div>
           <div className="flex justify-end border-t border-line p-4">
             <Button
               type="button"
               disabled={disabled || !ready}
-              onClick={() => port?.set(props.tag)}
+              onClick={() => {
+                props.onSave();
+                port?.set(props.tag);
+              }}
             >
-              {say("language.continue")}
+              {props.saveFailed ? say("language.retry") : say("language.continue")}
             </Button>
           </div>
         </SetupCard>

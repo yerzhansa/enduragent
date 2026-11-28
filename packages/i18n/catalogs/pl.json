@@ -228,7 +228,9 @@
   },
   "language": {
     "chooseTitle": "Wybierz swój język",
-    "continue": "Kontynuuj"
+    "continue": "Kontynuuj",
+    "retry": "Spróbuj ponownie",
+    "saveFailed": "Nie udało się zapisać języka. Spróbuj ponownie."
   },
   "settings": {
     "appearance": {
