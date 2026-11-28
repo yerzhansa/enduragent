@@ -59,7 +59,7 @@ const CLAUDE_CONFIGURATION: OnboardingLlmConfiguration = {
       models: [{ value: "sonnet", label: "Claude Sonnet" }],
     },
   ],
-  active: { provider: "claude-cli", model: "sonnet" },
+  active: { provider: "claude-cli", model: "sonnet", kind: "listed" },
 };
 
 function coldBridge(): TestBridge {
@@ -269,7 +269,7 @@ describe("setup card", () => {
     const bridge = readyEverythingBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "codex-agent", model: "synthetic-codex" },
+      active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
     });
     const wizard = mountWizard({ bridge, placement: "settings" });
     await wizard.open();
@@ -298,7 +298,7 @@ describe("setup card", () => {
     const bridge = readyEverythingBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "codex-agent", model: "synthetic-codex" },
+      active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
     });
     const wizard = mountWizard({
       bridge,
@@ -449,7 +449,7 @@ describe("setup card", () => {
     const bridge = claudeReadyBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
     });
     bridge.chatGptStatus.mockResolvedValue({ state: "configured", runtimeReady: true });
     const wizard = mountWizard({ bridge, placement: "settings" });
@@ -476,7 +476,7 @@ describe("setup card", () => {
     const bridge = claudeReadyBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...CLAUDE_CONFIGURATION,
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
     });
     bridge.chatGptStatus
       .mockResolvedValueOnce({ state: "configured", runtimeReady: false })
@@ -1039,7 +1039,7 @@ describe("setup card", () => {
     const bridge = coldBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openrouter", model: "saved/custom-model" },
+      active: { provider: "openrouter", model: "saved/custom-model", kind: "custom" },
     });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "openrouter", state: "configured", runtimeState: "active" },
@@ -1245,7 +1245,7 @@ describe("setup card", () => {
     const bridge = coldBridge();
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "anthropic", model: "claude-sonnet-4-6" },
+      active: { provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" },
     });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },

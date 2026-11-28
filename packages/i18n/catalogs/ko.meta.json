@@ -11735,6 +11735,38 @@
     "coach.error.modelUnavailable": {
       "sourceHash": "6889bfaa2f4fcf84cc73f189d1af6fde0124666505b1b02ec08284383118ea3a",
       "translatedBy": "model"
+    },
+    "settings.coach.retiredModel": {
+      "sourceHash": "5c29f4f633e212ad8dd7d6aa5900b65c2a9e7f4e00f0c839f1018edf22b0a900",
+      "translatedBy": "model"
+    },
+    "settings.coach.retiredNotice": {
+      "sourceHash": "4cae7fa7bb57839400f5bab9187ea767bba49b26e4d843fcba3d25592a6e37b4",
+      "translatedBy": "model"
+    },
+    "settings.coach.retiredNoticeNoReplacement": {
+      "sourceHash": "05eced8b8761dd10fcb2606bdb8dddcde94b00c795a70be28a9c848436d6a714",
+      "translatedBy": "model"
+    },
+    "settings.coach.switchModel": {
+      "sourceHash": "39a9866d461c2de8ec3b943e98dd2d48541368a07ed2fabcc8cbe3f1810cf77d",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredModel": {
+      "sourceHash": "5c29f4f633e212ad8dd7d6aa5900b65c2a9e7f4e00f0c839f1018edf22b0a900",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredNotice": {
+      "sourceHash": "4cae7fa7bb57839400f5bab9187ea767bba49b26e4d843fcba3d25592a6e37b4",
+      "translatedBy": "model"
+    },
+    "setup.ai.retiredNoticeNoReplacement": {
+      "sourceHash": "05eced8b8761dd10fcb2606bdb8dddcde94b00c795a70be28a9c848436d6a714",
+      "translatedBy": "model"
+    },
+    "setup.ai.switchModel": {
+      "sourceHash": "39a9866d461c2de8ec3b943e98dd2d48541368a07ed2fabcc8cbe3f1810cf77d",
+      "translatedBy": "model"
     }
   }
 }

@@ -4,8 +4,6 @@ import {
   chatGptPanelMessages,
   claudeCliIdentityMessage,
   claudeCliNoteMessage,
-  modelHintMessage,
-  modelLabelMessage,
 } from "./copy";
 import { msg } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
@@ -15,7 +13,6 @@ import { Check } from "lucide-react";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { Button, buttonVariants, cn } from "@enduragent/ui";
 import {
-  CUSTOM_MODEL_SELECTION,
   DESKTOP_CREDENTIAL_SLOTS,
   ONBOARDING_LLM_PROVIDER_LABELS,
 } from "../../onboarding/constants";
@@ -36,7 +33,6 @@ import {
 } from "../../onboarding/lanes";
 import { llmSelectionFromDraft, type LlmSelectionDraft } from "../../onboarding/selection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
-import { SELECT_LIST_FIT_CLASS } from "../select-list";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -80,6 +76,7 @@ import {
   SETUP_LABEL_CLASS,
   SETUP_SELECT_CLASS,
 } from "./SetupCard";
+import { SetupModelFields } from "./SetupModelFields";
 import { SetupError, SetupRow, SetupSubPanel } from "./SetupRow";
 import type { SetupPlacement } from "./OnboardingWizard";
 
@@ -263,14 +260,6 @@ export function AiRow(props: {
     wizard.claudeCliIdentity === null ? null : claudeCliIdentityMessage(wizard.claudeCliIdentity);
   const providerLabel = (value: string): string => {
     const message = providerLabelMessage(value);
-    return message === null ? value : say(message);
-  };
-  const modelLabel = (value: string): string => {
-    const message = modelLabelMessage(value);
-    return message === null ? value : say(message);
-  };
-  const modelHint = (value: string): string => {
-    const message = modelHintMessage(value);
     return message === null ? value : say(message);
   };
   const outsideCatalogue = showsActiveProviderOutsideCatalogue ? configuration.active : null;
@@ -642,72 +631,17 @@ export function AiRow(props: {
                   {say("setup.ai.advanced")}
                 </summary>
                 <div className="grid gap-[11px] pt-1.5">
-                  <div>
-                    <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-llm-model">
-                      {say("setup.ai.model")}
-                    </label>
-                    <Select
-                      disabled={controlsDisabled}
-                      items={draft.provider.models
-                        .map((model) => ({
-                          value: model.value,
-                          label:
-                            model.hint === undefined
-                              ? modelLabel(model.label)
-                              : say("setup.ai.modelHint", {
-                                  model: modelLabel(model.label),
-                                  hint: modelHint(model.hint),
-                                }),
-                        }))
-                        .concat({
-                          value: CUSTOM_MODEL_SELECTION,
-                          label: say("setup.ai.otherModel"),
-                        })}
-                      value={draft.modelChoice}
-                      onValueChange={(value) => {
-                        if (value !== null) actions?.selectModel(value);
-                      }}
-                    >
-                      <SelectTrigger id="onboarding-llm-model" className={SETUP_SELECT_CLASS}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent align="start" className={SELECT_LIST_FIT_CLASS}>
-                        {draft.provider.models.map((model) => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.hint === undefined
-                              ? modelLabel(model.label)
-                              : say("setup.ai.modelHint", {
-                                  model: modelLabel(model.label),
-                                  hint: modelHint(model.hint),
-                                })}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value={CUSTOM_MODEL_SELECTION}>
-                          {say("setup.ai.otherModel")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {draft.modelChoice === CUSTOM_MODEL_SELECTION ? (
-                    <div>
-                      <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-custom-model">
-                        {say("setup.ai.customModel")}
-                      </label>
-                      <input
-                        id="onboarding-custom-model"
-                        className={SETUP_FIELD_CLASS}
-                        type="text"
-                        autoComplete="off"
-                        maxLength={512}
-                        disabled={controlsDisabled}
-                        value={draft.customModel}
-                        aria-describedby={describedBy}
-                        onChange={(event) => {
-                          actions?.setCustomModel(event.target.value);
-                        }}
-                      />
-                    </div>
-                  ) : null}
+                  <SetupModelFields
+                    draft={draft}
+                    active={configuration.active}
+                    actions={actions}
+                    disabled={controlsDisabled}
+                    describedBy={describedBy}
+                    onSwitch={(model) => {
+                      actions?.selectModel(model);
+                      save();
+                    }}
+                  />
                   {draft.provider.defaultBaseUrl === undefined ? null : (
                     <>
                       <div>

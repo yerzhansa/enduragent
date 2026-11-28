@@ -9,6 +9,7 @@ import type {
   ProviderModelSettingsState,
 } from "../../settings/provider-model-controller";
 import { onboardingCredentialMutationActive } from "../../onboarding/controller";
+import { retiredModel } from "../../onboarding/selection";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
@@ -92,6 +93,29 @@ export function CoachSection(): ReactElement {
   const editable = formState(state);
   const draft = editable?.draft ?? null;
   const custom = draft?.modelChoice === CUSTOM_MODEL_SELECTION;
+  const retired = draft === null ? null : retiredModel(editable?.active ?? null, draft.provider);
+  const modelOptions =
+    draft === null
+      ? []
+      : [
+          ...draft.provider.models.map((entry) => ({
+            value: entry.value,
+            label:
+              entry.hint === undefined
+                ? modelText(entry.label, say)
+                : `${modelText(entry.label, say)} · ${modelHint(entry.hint, say)}`,
+          })),
+          ...(retired === null
+            ? []
+            : [
+                {
+                  value: retired.model,
+                  label: say("settings.coach.retiredModel", { model: retired.model }),
+                },
+              ]),
+          { value: CUSTOM_MODEL_SELECTION, label: say("settings.coach.otherModel") },
+        ];
+  const replacedBy = retired?.replacedBy ?? null;
 
   useEffect(() => {
     if (!focusCustomModel.current) return;
@@ -193,22 +217,7 @@ export function CoachSection(): ReactElement {
                 <span className={styles.rowTitle}>{say("settings.coach.model")}</span>
               </div>
               <Select
-                items={
-                  draft === null
-                    ? []
-                    : draft.provider.models
-                        .map((entry) => ({
-                          value: entry.value,
-                          label:
-                            entry.hint === undefined
-                              ? modelText(entry.label, say)
-                              : `${modelText(entry.label, say)} · ${modelHint(entry.hint, say)}`,
-                        }))
-                        .concat({
-                          value: CUSTOM_MODEL_SELECTION,
-                          label: say("settings.coach.otherModel"),
-                        })
-                }
+                items={modelOptions}
                 value={draft?.modelChoice ?? null}
                 disabled={controlsDisabled || draft === null}
                 onValueChange={(value) => {
@@ -225,23 +234,46 @@ export function CoachSection(): ReactElement {
                   <SelectValue placeholder={say("settings.coach.chooseProviderFirst")} />
                 </SelectTrigger>
                 <SelectContent align="end" className={SELECT_LIST_FIT_CLASS}>
-                  {draft === null ? null : (
-                    <>
-                      {draft.provider.models.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.hint === undefined
-                            ? modelText(entry.label, say)
-                            : `${modelText(entry.label, say)} · ${modelHint(entry.hint, say)}`}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value={CUSTOM_MODEL_SELECTION}>
-                        {say("settings.coach.otherModel")}
-                      </SelectItem>
-                    </>
-                  )}
+                  {modelOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+            {retired !== null && draft?.modelChoice === retired.model ? (
+              <div className={`${styles.row} ${styles.rowStacked}`}>
+                <p className={styles.help} role="status">
+                  {say(
+                    replacedBy === null
+                      ? "settings.coach.retiredNoticeNoReplacement"
+                      : "settings.coach.retiredNotice",
+                    { model: retired.model },
+                  )}
+                </p>
+                {replacedBy === null ? null : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    disabled={controlsDisabled}
+                    onClick={() => {
+                      port?.changeModel(replacedBy);
+                    }}
+                  >
+                    {say("settings.coach.switchModel", {
+                      model: modelText(
+                        draft.provider.models.find((entry) => entry.value === replacedBy)?.label ??
+                          replacedBy,
+                        say,
+                      ),
+                    })}
+                  </Button>
+                )}
+              </div>
+            ) : null}
             {custom && draft !== null ? (
               <div className={`${styles.row} ${styles.rowStacked}`}>
                 <label className={styles.rowTitle} htmlFor="coach-custom-model">

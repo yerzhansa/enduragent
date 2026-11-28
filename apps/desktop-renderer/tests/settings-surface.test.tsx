@@ -136,7 +136,7 @@ function llmConfiguration(): OnboardingLlmConfiguration {
         models: [{ value: "vendor/synthetic", label: "Vendor synthetic" }],
       },
     ],
-    active: { provider: "anthropic", model: "synthetic-model" },
+    active: { provider: "anthropic", model: "synthetic-model", kind: "listed" },
   };
 }
 
@@ -837,7 +837,7 @@ describe("settings setup inventory", () => {
   it("shows Active ChatGPT in the first Setup row when draft still points at another provider", async () => {
     seedOnboardingPrimaryAi({
       draftProvider: "anthropic",
-      active: { provider: "openai-codex", model: "gpt-5.5" },
+      active: { provider: "openai-codex", model: "gpt-5.5", kind: "listed" },
       chatGpt: { state: "configured", runtimeReady: true },
     });
     await renderSettings({
@@ -850,7 +850,12 @@ describe("settings setup inventory", () => {
         { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
         { slot: "intervals-icu", state: "configured", runtimeState: "active" },
       ],
-      llm: () => catalogueWith([CHATGPT_PROVIDER], { provider: "openai-codex", model: "gpt-5.5" }),
+      llm: () =>
+        catalogueWith([CHATGPT_PROVIDER], {
+          provider: "openai-codex",
+          model: "gpt-5.5",
+          kind: "listed",
+        }),
     });
 
     const setup = document.querySelector('[data-setup-host="settings"]');
@@ -950,7 +955,7 @@ describe("settings setup inventory", () => {
   it("shows Claude Code in the first Setup row when draft still points at an API key", async () => {
     seedOnboardingPrimaryAi({
       draftProvider: "anthropic",
-      active: { provider: "claude-cli", model: "sonnet" },
+      active: { provider: "claude-cli", model: "sonnet", kind: "listed" },
       extraProviders: [CLAUDE_PROVIDER],
     });
     await renderSettings({
@@ -1006,6 +1011,7 @@ describe("settings setup inventory", () => {
     expect(useEnduragentStore.getState().onboarding.configuration?.active).toEqual({
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -1536,7 +1542,11 @@ describe("settings lifecycle", () => {
 });
 
 describe("settings after a setup change", () => {
-  const OPENROUTER_ACTIVE = { provider: "openrouter", model: "vendor/synthetic" } as const;
+  const OPENROUTER_ACTIVE = {
+    provider: "openrouter",
+    model: "vendor/synthetic",
+    kind: "listed",
+  } as const;
 
   function recordPaneStatuses() {
     const coach: string[] = [];
@@ -1563,6 +1573,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     let statuses: readonly CredentialSlotStatus[] = [
       { slot: "anthropic", state: "configured", runtimeState: "active" },
@@ -1597,6 +1608,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({ llm: () => ({ ...llmConfiguration(), active }) });
     await user.click(screen.getByRole("combobox", { name: /^Model$/u }));
@@ -1627,6 +1639,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({
       llm: () => ({ ...llmConfiguration(), active }),
@@ -1651,6 +1664,7 @@ describe("settings after a setup change", () => {
     let active: OnboardingLlmConfiguration["active"] = {
       provider: "anthropic",
       model: "synthetic-model",
+      kind: "listed",
     };
     const subject = await renderSettings({
       llm: () => ({ ...llmConfiguration(), active }),
@@ -3027,7 +3041,7 @@ describe("coach route", () => {
     await renderSettings({
       llm: () => ({
         ...llmConfiguration(),
-        active: { provider: "codex-agent", model: "synthetic-codex" },
+        active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
       }),
     });
 
@@ -3046,7 +3060,7 @@ describe("coach route", () => {
       codexAgentSupported: false,
       llm: () => ({
         ...llmConfiguration(),
-        active: { provider: "codex-agent", model: "synthetic-codex" },
+        active: { provider: "codex-agent", model: "synthetic-codex", kind: "custom" },
       }),
     });
 

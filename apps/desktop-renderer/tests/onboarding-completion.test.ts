@@ -68,7 +68,7 @@ const KEYLESS_CONFIGURATION: OnboardingLlmConfiguration = {
       models: [{ value: "gpt-5.5", label: "GPT-5.5" }],
     },
   ],
-  active: { provider: "anthropic", model: "claude-sonnet-4-6" },
+  active: { provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" },
 };
 
 function deferred<T>(): {
@@ -417,6 +417,7 @@ describe("onboarding runtime completion gate", () => {
     expect(harness.surface().configuration?.active).toEqual({
       provider: "claude-cli",
       model: "sonnet",
+      kind: "listed",
     });
 
     harness.controller.finish();
@@ -557,6 +558,7 @@ describe("onboarding runtime completion gate", () => {
     expect(harness.surface().configuration?.active).toEqual({
       provider: "anthropic",
       model: "claude-sonnet-4-6",
+      kind: "listed",
     });
     harness.controller.dispose();
   });

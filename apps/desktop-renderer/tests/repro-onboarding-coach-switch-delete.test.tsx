@@ -25,7 +25,7 @@ describe("repro onboarding A: Coach switch then key delete", () => {
       durableTrainingData: true,
     }));
     bridge.llmConfiguration.mockResolvedValue(
-      configuration({ provider: "anthropic", model: "claude-sonnet-4-6" }),
+      configuration({ provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" }),
     );
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },
@@ -40,7 +40,11 @@ describe("repro onboarding A: Coach switch then key delete", () => {
     expect(setupDisposition(useEnduragentStore.getState())).toBe("satisfied");
 
     bridge.llmConfiguration.mockResolvedValue(
-      configuration({ provider: "openrouter", model: "deepseek/deepseek-v4-flash" }),
+      configuration({
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
+        kind: "listed",
+      }),
     );
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "openrouter", state: "configured", runtimeState: "active" },
@@ -55,7 +59,7 @@ describe("repro onboarding A: Coach switch then key delete", () => {
       readiness: state.onboarding.readiness,
       disposition: setupDisposition(state),
     }).toEqual({
-      active: { provider: "openrouter", model: "deepseek/deepseek-v4-flash" },
+      active: { provider: "openrouter", model: "deepseek/deepseek-v4-flash", kind: "listed" },
       readiness: { provider: true, trainingData: true },
       disposition: "satisfied",
     });
@@ -65,7 +69,7 @@ describe("repro onboarding A: Coach switch then key delete", () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
     bridge.llmConfiguration.mockResolvedValue(
-      configuration({ provider: "anthropic", model: "claude-sonnet-4-6" }),
+      configuration({ provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" }),
     );
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },
@@ -74,7 +78,11 @@ describe("repro onboarding A: Coach switch then key delete", () => {
     const wizard = mountWizard({ bridge, placement: "settings" });
     await wizard.open();
     bridge.llmConfiguration.mockResolvedValue(
-      configuration({ provider: "openrouter", model: "deepseek/deepseek-v4-flash" }),
+      configuration({
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
+        kind: "listed",
+      }),
     );
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "stored-inactive" },

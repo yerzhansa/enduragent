@@ -1,5 +1,6 @@
 import {
   claudeCliDisabledByEnvironment,
+  droppedModel,
   LLM_PROVIDERS,
   PROVIDER_BASE_URLS,
   modelCatalogSelectorConfiguration,
@@ -21,14 +22,34 @@ export interface OnboardingLlmProviderConfiguration {
   readonly defaultBaseUrl?: string;
 }
 
+export type SavedModel = { readonly provider: LlmProvider; readonly model: string } & (
+  | { readonly kind: "listed" }
+  | { readonly kind: "retired"; readonly replacedBy: string | null }
+  | { readonly kind: "custom" }
+);
+
 export interface OnboardingLlmConfiguration {
   readonly schemaVersion: 1;
   readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
-  readonly active: {
-    readonly provider: LlmProvider;
-    readonly model: string;
-  } | null;
+  readonly active: SavedModel | null;
+}
+
+export function savedModel(
+  providers: readonly OnboardingLlmProviderConfiguration[],
+  provider: LlmProvider,
+  model: string,
+): SavedModel {
+  const listed = (id: string): boolean =>
+    providers.some(
+      (entry) => entry.provider === provider && entry.models.some((option) => option.value === id),
+    );
+  if (listed(model)) return { provider, model, kind: "listed" };
+  const dropped = droppedModel(provider, model);
+  if (dropped === null) return { provider, model, kind: "custom" };
+  const replacedBy =
+    dropped.replacedBy !== null && listed(dropped.replacedBy) ? dropped.replacedBy : null;
+  return { provider, model, kind: "retired", replacedBy };
 }
 
 export type OnboardingLlmEndpointSelection =

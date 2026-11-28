@@ -601,7 +601,7 @@ describe("mounted onboarding", () => {
     bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "anthropic", model: "claude-sonnet-4-6" },
+      active: { provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" },
     });
     bridge.credentialStatuses.mockResolvedValue([]);
     const wizard = mountWizard({ bridge });
@@ -629,7 +629,7 @@ describe("mounted onboarding", () => {
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openai-codex", model: "custom-chat-model" },
+      active: { provider: "openai-codex", model: "custom-chat-model", kind: "custom" },
     });
     bridge.chatGptStatus.mockResolvedValue({ state: "configured", runtimeReady: true });
     const wizard = mountWizard({ bridge });
@@ -647,7 +647,7 @@ describe("mounted onboarding", () => {
     bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
     bridge.llmConfiguration.mockResolvedValue({
       ...TEST_LLM_CONFIGURATION,
-      active: { provider: "openrouter", model: "deepseek/deepseek-v4-flash" },
+      active: { provider: "openrouter", model: "deepseek/deepseek-v4-flash", kind: "listed" },
     });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "openrouter", state: "configured", runtimeState: "active" },

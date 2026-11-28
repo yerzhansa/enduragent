@@ -151,14 +151,17 @@ export interface OnboardingLlmProviderConfiguration {
   readonly defaultBaseUrl?: string;
 }
 
+export type SavedModel = { readonly provider: LlmProvider; readonly model: string } & (
+  | { readonly kind: "listed" }
+  | { readonly kind: "retired"; readonly replacedBy: string | null }
+  | { readonly kind: "custom" }
+);
+
 export interface OnboardingLlmConfiguration {
   readonly schemaVersion: 1;
   readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
-  readonly active: {
-    readonly provider: LlmProvider;
-    readonly model: string;
-  } | null;
+  readonly active: SavedModel | null;
 }
 
 export type OnboardingLlmEndpointSelection =

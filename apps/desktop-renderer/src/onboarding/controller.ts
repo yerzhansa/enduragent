@@ -55,6 +55,7 @@ import {
   initialLlmDraft,
   llmSelectionFromDraft,
   parseEndpointMode,
+  withSavedSelection,
   type LlmSelectionDraft,
 } from "./selection";
 import { ONBOARDING_STATUS_REFRESH_TIMEOUT_MS, readSetupStatus } from "./status-read";
@@ -300,10 +301,7 @@ export function createOnboardingController(
 
   const recordActiveSelection = (selection: OnboardingLlmSelection): void => {
     if (llmConfiguration === undefined) return;
-    llmConfiguration = {
-      ...llmConfiguration,
-      active: { provider: selection.provider, model: selection.model },
-    };
+    llmConfiguration = withSavedSelection(llmConfiguration, selection);
     draftOrigin = "configuration";
     options.onActiveSelectionChanged?.();
   };

@@ -73,7 +73,7 @@ function bridgeWith(
     ...TEST_LLM_CONFIGURATION,
     active:
       options.active === "openrouter"
-        ? { provider: "openrouter", model: "deepseek/deepseek-v4-flash" }
+        ? { provider: "openrouter", model: "deepseek/deepseek-v4-flash", kind: "listed" }
         : null,
   });
   bridge.credentialStatuses.mockResolvedValue(options.statuses ?? []);
