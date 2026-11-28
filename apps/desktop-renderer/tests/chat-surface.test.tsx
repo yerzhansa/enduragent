@@ -2757,13 +2757,16 @@ describe("chat surface", () => {
       expect(status()).toHaveTextContent(uncertainCopy);
       expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
 
-      setChat({ newConversationCheck: "ready", announcement: null });
+      setChat({ newConversationCheck: "ready", announcement: "Thanks — we received your note." });
       expect(status()).toHaveTextContent(uncertainCopy);
       await user.click(screen.getByRole("button", { name: "Check again" }));
       expect(actions.checkNewConversation).toHaveBeenCalledTimes(1);
 
       setChat({ newConversationCheck: "busy" });
-      expect(screen.getByRole("button", { name: "Check again" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Check again" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
 
       setChat({
         resetPhase: "idle",

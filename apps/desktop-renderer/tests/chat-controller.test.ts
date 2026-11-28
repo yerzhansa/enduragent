@@ -4243,14 +4243,60 @@ describe("chat controller", () => {
     ).toHaveLength(1);
   });
 
-  it("offers Check again when the outcome stays unreadable and settles it later", async () => {
+  it("lets Check again finish a landed reset whose draft clear failed", async () => {
     const surface = imageComposer(true);
     let clearFails = true;
     const clearAttachmentDraft = vi.fn(async () => {
       if (clearFails) throw new Error("private attachment clear failure");
       return emptyComposer();
     });
+    const fake = client(replies(), {
+      composer: async () => surface,
+      resetSession: async () => ({ memoryFlushed: true }),
+      clearAttachmentDraft,
+    });
+    const { controller, states, controls } = subject(fake);
+    await controller.start();
+    await controller.submit("Original");
+    const beforeMessages = structuredClone(states.at(-1)?.messages);
+    expect(controller.openNewConversation()).toBe(true);
+
+    await controller.confirmNewConversation();
+
+    expect(states.at(-1)).toMatchObject({
+      messages: beforeMessages,
+      session: {
+        presence: "present",
+        resetPhase: "uncertain",
+        announcement: NEW_CONVERSATION_UNCERTAIN_COPY,
+      },
+    });
+    expect(controls.at(-1)?.attachments?.value).toEqual(surface);
+    expect(controls.at(-1)?.newConversationCheck).toBe("ready");
+    expect(controller.openNewConversation()).toBe(false);
+
+    clearFails = false;
+    await controller.checkNewConversation();
+
+    expect(states.at(-1)).toMatchObject({
+      messages: [],
+      session: {
+        resetPhase: "idle",
+        resetCount: 1,
+        announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY,
+      },
+    });
+    expect(controls.at(-1)?.attachments?.value).toEqual(emptyComposer());
+    expect(controls.at(-1)?.newConversationCheck).toBe("hidden");
+    expect(
+      vi.mocked(fake.call).mock.calls.filter(([method]) => method === "resetSession"),
+    ).toHaveLength(1);
+  });
+
+  it("keeps what the athlete sent and typed while uncertain when Check again lands", async () => {
+    let checkFails = true;
     let turns: Extract<TranscriptPage, { readonly status: "page" }>["turns"] = [];
+    const clearAttachmentDraft = vi.fn(async () => emptyComposer());
     const fake = client(
       async (request, options) => {
         const turnId = request.message === "Original" ? "turn-1" : "turn-2";
@@ -4273,10 +4319,13 @@ describe("chat controller", () => {
         return { text: `Reply to ${request.message}` };
       },
       {
-        composer: async () => surface,
+        hasSession: async () => {
+          if (checkFails) throw new Error("private blocked read");
+          return { hasSession: true };
+        },
         resetSession: async () => {
           turns = [];
-          return { memoryFlushed: true };
+          throw new CoachClientDisconnectedError(1006, "synthetic");
         },
         clearAttachmentDraft,
       },
@@ -4295,43 +4344,168 @@ describe("chat controller", () => {
     );
     await controller.start();
     await controller.submit("Original");
-    const beforeMessages = structuredClone(states.at(-1)?.messages);
     expect(controller.openNewConversation()).toBe(true);
-
     await controller.confirmNewConversation();
-
-    expect(states.at(-1)).toMatchObject({
-      messages: beforeMessages,
-      session: {
-        presence: "present",
-        resetPhase: "uncertain",
-        announcement: NEW_CONVERSATION_UNCERTAIN_COPY,
-      },
-    });
-    expect(controls.at(-1)?.attachments?.value).toEqual(surface);
+    expect(states.at(-1)?.session.resetPhase).toBe("uncertain");
     expect(controls.at(-1)?.newConversationCheck).toBe("ready");
-    expect(controller.openNewConversation()).toBe(false);
-    expect(clearAttachmentDraft).toHaveBeenCalledTimes(2);
 
     await controller.submit("After the failure");
-    expect(states.at(-1)?.messages.at(-1)?.text).toBe("Reply to After the failure");
-    clearFails = false;
+    controller.saveAttachmentDraftText("Words typed after the failure");
+    await vi.waitFor(() => expect(controls.at(-1)?.newConversationCheck).toBe("ready"));
+    checkFails = false;
     await controller.checkNewConversation();
 
     expect(states.at(-1)?.session).toMatchObject({
       resetPhase: "idle",
+      resetCount: 0,
       announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY,
     });
     expect(states.at(-1)?.messages.map((message) => message.text)).toEqual([
       "After the failure",
       "Reply to After the failure",
     ]);
-    expect(controls.at(-1)?.attachments?.value).toEqual(emptyComposer());
-    expect(controls.at(-1)?.newConversationCheck).toBe("hidden");
-    expect(clearAttachmentDraft).toHaveBeenCalledTimes(3);
+    expect(clearAttachmentDraft).not.toHaveBeenCalled();
     expect(
       vi.mocked(fake.call).mock.calls.filter(([method]) => method === "resetSession"),
     ).toHaveLength(1);
+  });
+
+  it("reports a reset that never started when history had not loaded yet", async () => {
+    const oldTurn = {
+      turnId: "turn-old",
+      completedAt: "1998-08-25T08:00:00.000Z",
+      athleteText: "Earlier question",
+      coachText: "Earlier answer",
+    };
+    let historyFails = true;
+    const fake = client(replies(), {
+      hasSession: async () => ({ hasSession: true }),
+      resetSession: async () => Promise.reject(new Error("private reset detail")),
+    });
+    const { controller, states } = subject(
+      fake,
+      fake,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => {
+        if (historyFails) throw new Error("private history failure");
+        return { schemaVersion: 1, status: "page", turns: [oldTurn], nextCursor: null };
+      },
+    );
+    await controller.start();
+    expect(controller.openNewConversation()).toBe(true);
+    historyFails = false;
+
+    await controller.confirmNewConversation();
+
+    expect(states.at(-1)?.session).toMatchObject({
+      resetPhase: "idle",
+      resetCount: 0,
+      announcement: NEW_CONVERSATION_NOT_STARTED_COPY,
+    });
+  });
+
+  it("stays uncertain when the newest page no longer reaches what was showing", async () => {
+    let page: Extract<TranscriptPage, { readonly status: "page" }> = {
+      schemaVersion: 1,
+      status: "page",
+      turns: [
+        {
+          turnId: "turn-old",
+          completedAt: "1998-08-25T08:00:00.000Z",
+          athleteText: "Earlier question",
+          coachText: "Earlier answer",
+        },
+      ],
+      nextCursor: null,
+    };
+    const fake = client(replies(), {
+      resetSession: async () => {
+        page = {
+          schemaVersion: 1,
+          status: "page",
+          turns: [
+            {
+              turnId: "turn-newer",
+              completedAt: "1998-08-25T09:00:00.000Z",
+              athleteText: "Newer question",
+              coachText: "Newer answer",
+            },
+          ],
+          nextCursor: "older",
+        };
+        throw new Error("private reset detail");
+      },
+    });
+    const { controller, states, controls } = subject(
+      fake,
+      fake,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => page,
+    );
+    await controller.start();
+    expect(controller.openNewConversation()).toBe(true);
+
+    await controller.confirmNewConversation();
+
+    expect(states.at(-1)?.session.resetPhase).toBe("uncertain");
+    expect(states.at(-1)?.messages.map((message) => message.text)).toEqual([
+      "Earlier question",
+      "Earlier answer",
+    ]);
+    expect(controls.at(-1)?.newConversationCheck).toBe("ready");
+  });
+
+  it("runs one Check again at a time and ignores its result after dispose", async () => {
+    let settleCheck!: (value: { hasSession: boolean }) => void;
+    let gateChecks = false;
+    const fake = client(replies(), {
+      hasSession: async () => {
+        if (!gateChecks) throw new Error("private blocked read");
+        return new Promise<{ hasSession: boolean }>((resolve) => {
+          settleCheck = resolve;
+        });
+      },
+      resetSession: async () => Promise.reject(new Error("private reset detail")),
+    });
+    const { controller, states, controls } = subject(fake);
+    await controller.submit("Original");
+    expect(controller.openNewConversation()).toBe(true);
+    await controller.confirmNewConversation();
+    expect(controls.at(-1)?.newConversationCheck).toBe("ready");
+    gateChecks = true;
+    vi.mocked(fake.call).mockClear();
+
+    const first = controller.checkNewConversation();
+    const second = controller.checkNewConversation();
+    await Promise.resolve();
+
+    expect(second).toBe(first);
+    expect(controls.at(-1)?.newConversationCheck).toBe("busy");
+    expect(controls.at(-1)?.workBlocked).toBe(true);
+    expect(
+      vi.mocked(fake.call).mock.calls.filter(([method]) => method === "hasSession"),
+    ).toHaveLength(1);
+    const renders = states.length;
+    controller.dispose();
+    settleCheck({ hasSession: false });
+    await first;
+
+    expect(states).toHaveLength(renders);
+    expect(vi.mocked(fake.call).mock.calls.filter(([method]) => method === "resetSession")).toEqual(
+      [],
+    );
   });
 
   it("blocks reset while a durable retry is unresolved and preserves retry ownership", async () => {

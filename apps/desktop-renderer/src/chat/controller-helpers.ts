@@ -80,23 +80,27 @@ export const FEEDBACK_FAILED_COPY = "Couldn't send that note. It's still in the 
 
 export interface NewConversationEvidence {
   readonly turnIds: ReadonlySet<string>;
+  readonly historyLoaded: boolean;
   readonly queuedIds: ReadonlySet<string>;
+  readonly draftWrites: number;
 }
 
 export function newConversationOutcome(
   before: NewConversationEvidence,
   page: TranscriptPage,
   queue: ChatQueueSnapshot,
+  sentTurnIds: ReadonlySet<string>,
 ): "landed" | "not-started" | "unknown" {
   if (page.status !== "page") return "unknown";
-  if (before.turnIds.size > 0) {
-    return transcriptTurnIds(page).some((turnId) => before.turnIds.has(turnId))
-      ? "not-started"
-      : "landed";
+  const pageTurnIds = transcriptTurnIds(page);
+  if (
+    pageTurnIds.some((turnId) => before.turnIds.has(turnId)) ||
+    (!before.historyLoaded && pageTurnIds.some((turnId) => !sentTurnIds.has(turnId))) ||
+    queue.items.some((item) => before.queuedIds.has(item.queuedMessageId))
+  ) {
+    return "not-started";
   }
-  return queue.items.some((item) => before.queuedIds.has(item.queuedMessageId))
-    ? "not-started"
-    : "landed";
+  return page.nextCursor === null ? "landed" : "unknown";
 }
 
 export interface ChatAppendDelta {

@@ -143,7 +143,13 @@ export type ChatAction =
   | { readonly type: "reset-failed"; readonly announcement: string }
   | {
       readonly type: "reset-checked";
-      readonly outcome: "landed" | "not-started";
+      readonly outcome: "landed";
+      readonly announcement: string;
+      readonly keepDraft: boolean;
+    }
+  | {
+      readonly type: "reset-checked";
+      readonly outcome: "not-started";
       readonly announcement: string;
     }
   | { readonly type: "announce"; readonly announcement: string | null };
@@ -202,7 +208,11 @@ export function hasClearableConversation(state: ChatState): boolean {
   );
 }
 
-function startedConversation(state: ChatState, announcement: string): ChatState {
+function startedConversation(
+  state: ChatState,
+  announcement: string,
+  keepDraft = false,
+): ChatState {
   return {
     status: "idle",
     messages: [],
@@ -214,7 +224,7 @@ function startedConversation(state: ChatState, announcement: string): ChatState 
     session: {
       presence: "absent",
       resetPhase: "idle",
-      resetCount: state.session.resetCount + 1,
+      resetCount: keepDraft ? state.session.resetCount : state.session.resetCount + 1,
       announcement,
     },
   };
@@ -589,7 +599,7 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
     case "reset-checked":
       if (state.session.resetPhase !== "uncertain") return state;
       return action.outcome === "landed"
-        ? startedConversation(state, action.announcement)
+        ? startedConversation(state, action.announcement, action.keepDraft)
         : {
             ...state,
             session: { ...state.session, resetPhase: "idle", announcement: action.announcement },

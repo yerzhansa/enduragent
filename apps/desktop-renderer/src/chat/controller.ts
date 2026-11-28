@@ -335,7 +335,7 @@ export function createChatController(input: {
   const resetBlocksWork = (): boolean =>
     state.session.resetPhase === "confirming" ||
     state.session.resetPhase === "resetting" ||
-    newConversationCheck !== undefined;
+    (state.session.resetPhase === "uncertain" && newConversationCheck !== undefined);
   const decisionBlocksWork = (): boolean =>
     !decisionLoaded ||
     decision?.status === "unanswered" ||
@@ -540,7 +540,7 @@ export function createChatController(input: {
     render();
   };
   const finishNewConversation = (
-    clearedAttachmentSurface: ChatAttachmentComposerReadModel,
+    nextAttachmentSurface: ChatAttachmentComposerReadModel | null,
     action: Extract<
       Parameters<typeof reduceChatState>[1],
       { readonly type: "reset-succeeded" | "reset-checked" }
@@ -548,7 +548,7 @@ export function createChatController(input: {
     page?: Extract<TranscriptPage, { readonly status: "page" }>,
   ): void => {
     resetEvidence = null;
-    attachmentSurface = clearedAttachmentSurface;
+    attachmentSurface = nextAttachmentSurface;
     attachmentAdmissions = [];
     clearDroppedAttachmentAdmissions();
     draftError = null;
@@ -581,22 +581,33 @@ export function createChatController(input: {
       limit: TRANSCRIPT_HYDRATION_PAGE_LIMIT,
     });
     const queue = await client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID });
-    const outcome = newConversationOutcome(before, page, queue);
+    const sentTurnIds = new Set(
+      state.messages.flatMap((message) =>
+        message.turnId === undefined || before.turnIds.has(message.turnId) ? [] : [message.turnId],
+      ),
+    );
+    const outcome = newConversationOutcome(before, page, queue, sentTurnIds);
     if (!current() || outcome === "unknown" || page.status !== "page") return;
     if (outcome === "not-started") {
       resetEvidence = null;
       reduce({ type: "reset-checked", outcome, announcement: NEW_CONVERSATION_NOT_STARTED_COPY });
       return;
     }
+    const keepDraft = attachmentOperationSequence !== before.draftWrites;
     await attachmentTextSaveTask;
     if (!current()) return;
-    const clearedAttachmentSurface = await client.call("clearChatAttachmentDraft", {
-      chatId: DESKTOP_CHAT_ID,
-    });
+    const nextAttachmentSurface = keepDraft
+      ? attachmentSurface
+      : await client.call("clearChatAttachmentDraft", { chatId: DESKTOP_CHAT_ID });
     if (!current()) return;
     finishNewConversation(
-      clearedAttachmentSurface,
-      { type: "reset-checked", outcome, announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY },
+      nextAttachmentSurface,
+      {
+        type: "reset-checked",
+        outcome,
+        announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY,
+        keepDraft,
+      },
       page,
     );
     applyQueueSnapshot(queue);
@@ -3311,7 +3322,9 @@ export function createChatController(input: {
             message.turnId === undefined ? [] : [message.turnId],
           ),
         ]),
+        historyLoaded: hydration.status === "ready",
         queuedIds: new Set(state.queued.map((message) => message.id)),
+        draftWrites: attachmentOperationSequence,
       };
       updateReset(() => hydrator.beginReset(), { type: "begin-reset" });
       const resetEpoch = ++epoch;

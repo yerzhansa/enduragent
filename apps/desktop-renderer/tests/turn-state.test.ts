@@ -816,6 +816,7 @@ describe("desktop turn state", () => {
       type: "reset-checked",
       outcome: "landed",
       announcement: "Started",
+      keepDraft: false,
     });
     expect(landed).toMatchObject({ status: "idle", messages: [], activeTurn: null, queued: [] });
     expect(landed.session).toEqual({
@@ -824,12 +825,25 @@ describe("desktop turn state", () => {
       resetCount: uncertain.session.resetCount + 1,
       announcement: "Started",
     });
+    expect(
+      reduceChatState(uncertain, {
+        type: "reset-checked",
+        outcome: "landed",
+        announcement: "Started",
+        keepDraft: true,
+      }).session.resetCount,
+    ).toBe(uncertain.session.resetCount);
   });
 
   it("ignores a reset check outside an uncertain reset", () => {
     const idle = started();
     expect(
-      reduceChatState(idle, { type: "reset-checked", outcome: "landed", announcement: "Started" }),
+      reduceChatState(idle, {
+        type: "reset-checked",
+        outcome: "landed",
+        announcement: "Started",
+        keepDraft: false,
+      }),
     ).toBe(idle);
   });
 

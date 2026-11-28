@@ -110,12 +110,10 @@ export function ChatView(): ReactElement {
   const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
   const newConversationCheck = useEnduragentStore((state) => state.chat.newConversationCheck);
   const newConversationStatus =
-    announcement === null
-      ? resetPhase === "uncertain"
-        ? say("chat.notice.newConversationUncertain")
-        : ""
+    resetPhase === "uncertain"
+      ? say("chat.notice.newConversationUncertain")
       : announcementMessage === null
-        ? announcement
+        ? (announcement ?? "")
         : say(announcementMessage);
   const composerStatus = useEnduragentStore((state) => state.chat.composerStatus);
   const composerStatusMessage =
@@ -598,6 +596,7 @@ export function ChatView(): ReactElement {
                       variant="ghost"
                       size="xs"
                       disabled={newConversationCheck === "busy"}
+                      focusableWhenDisabled
                       onClick={() => actions?.checkNewConversation()}
                     >
                       {say("chat.notice.checkNewConversation")}
