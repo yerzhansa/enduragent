@@ -7,7 +7,8 @@
 // state appears, so it covers every sequence of steps of any length over the
 // alphabet below, and each counterexample is a shortest one. It starts from a
 // fresh install and from every config.yaml that main wrote after a Setup save,
-// so an install that upgrades is checked too.
+// and after a Setup save followed by one Settings → Coach pick, so an install
+// that upgrades is checked too.
 //
 // Run: pnpm exec tsx .agents/skills/verify-coach-change/scripts/summary-model-check.ts
 
@@ -285,25 +286,57 @@ function keyOf(state: State): string {
 // compact_model and flush_model as resolved: after a Setup save, compact_model
 // is the provider's summary default, else the chat model, and flush_model is
 // absent; on GPT-6 Astra both are the model the athlete used before Astra
-// (gpt-6.2-sol from a fresh install or another provider).
+// (gpt-6.2-sol from a fresh install or another provider). After a Setup save
+// and one Settings → Coach pick, mainCoachPick below gives the file.
 const NO_CHOICE: Ghost = { explicitCompact: null, explicitFlush: null, beforeAstra: null };
 const starts: { readonly words: string | null; readonly state: State }[] = [
   { words: null, state: { config: resolveRuntimeConfig({ llm: {} }), ghost: NO_CHOICE } },
 ];
-function startFromMain(llm: LlmYaml, ghost: Ghost): void {
+function startFromMain(llm: LlmYaml, ghost: Ghost, history = ""): void {
   const state = load(llm, ghost);
   if (state === "refused") throw new Error(`main's config.yaml refused: ${JSON.stringify(llm)}`);
   const { api_key: _key, ...shown } = llm;
-  starts.push({ words: `upgrade from main with config.yaml llm ${JSON.stringify(shown)}`, state });
+  const words = `upgrade from main${history} with config.yaml llm ${JSON.stringify(shown)}`;
+  starts.push({ words, state });
+}
+// main's resolveRuntimeConfig for a same-provider model change, mirrored from
+// origin/main packages/core/src/runtime-config.ts (cad513a0a):
+// - lines 570-575: the background model is the picked model; on GPT-6 Astra it
+//   is the chat model before the pick (the Setup model is never Astra here);
+// - lines 576-582: flush_model stays, else on GPT-6 Astra it is that model;
+// - lines 584-595: compact_model moves to that model only when it equalled the
+//   old chat model; otherwise it stays.
+// The Setup model is never Astra: main's Setup on Astra leaves compact_model
+// and flush_model on the model before Astra, and a later pick keeps both. After
+// a pick to any other model they match no derived choice, so the loader keeps
+// them as explicit (the PR's Tradeoffs).
+function mainCoachPick(llm: LlmYaml, picked: string): { llm: LlmYaml; ghost: Ghost } {
+  const previous = llm.model as string;
+  const astra = llm.provider === "openai" && picked === ASTRA;
+  const background = astra ? previous : picked;
+  const flush = llm.flush_model ?? (astra ? background : undefined);
+  return {
+    llm: {
+      ...llm,
+      model: picked,
+      compact_model: llm.compact_model === previous ? background : llm.compact_model,
+      ...(flush === undefined ? {} : { flush_model: flush }),
+    },
+    ghost: { ...NO_CHOICE, beforeAstra: astra ? previous : null },
+  };
 }
 for (const provider of PROVIDERS) {
   const compactDefault = (COMPACT_MODEL_DEFAULTS as Partial<Record<string, string>>)[provider];
   for (const model of MODELS[provider]) {
     if (model === ASTRA) continue;
-    startFromMain(
-      { provider, model, api_key: KEY, compact_model: compactDefault ?? model },
-      NO_CHOICE,
-    );
+    const setup = { provider, model, api_key: KEY, compact_model: compactDefault ?? model };
+    startFromMain(setup, NO_CHOICE);
+    for (const picked of MODELS[provider]) {
+      if (picked === model) continue;
+      const afterPick = mainCoachPick(setup, picked);
+      const history = ` after Setup on ${model} and a Settings → Coach pick of ${picked}`;
+      startFromMain(afterPick.llm, afterPick.ghost, history);
+    }
     if (provider !== "openai") continue;
     const astra = {
       provider,

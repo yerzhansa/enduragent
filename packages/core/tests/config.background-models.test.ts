@@ -1,10 +1,19 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { stringify as toYaml } from "yaml";
 import { assignPersistedLlmBackgroundModels } from "../src/background-model-persistence.js";
-import { loadConfigFromYaml } from "../src/config.js";
+import { loadConfig, loadConfigFromYaml, type Config } from "../src/config.js";
 import { resolveRuntimeConfig, type EffectiveRuntimeConfig } from "../src/runtime-config.js";
 import { setupConfigEnvSandbox } from "./helpers/config-env-sandbox.js";
 
-setupConfigEnvSandbox("cc-background-models-");
+const home = setupConfigEnvSandbox("cc-background-models-");
+
+function restartFromConfigYaml(llm: Record<string, unknown>): Config {
+  const configDir = join(home(), ".cycling-coach");
+  writeFileSync(join(configDir, "config.yaml"), toYaml({ llm }));
+  return loadConfig(configDir);
+}
 
 function pickAfterRestart(llm: Record<string, unknown>, model: string): EffectiveRuntimeConfig {
   return resolveRuntimeConfig({ llm: { model } }, loadConfigFromYaml({ llm }));
@@ -46,6 +55,32 @@ describe("summary and memory models saved by an older version", () => {
     expect(next.llm.compactModel).toBe("claude-haiku-5-5");
     expect(next.llm.flushModel).toBeUndefined();
   });
+
+  it.each([
+    [
+      "openrouter",
+      "anthropic/claude-opus-5.5",
+      "openai/gpt-6.2-sol",
+      "deepseek/deepseek-v4.1-flash-1017",
+    ],
+    ["anthropic", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+  ])(
+    "moves %s summaries that main moved onto the picked %s back to the summary default",
+    (provider, saved, picked, summaryDefault) => {
+      const loaded = restartFromConfigYaml({
+        provider,
+        model: saved,
+        api_key: "fake-key",
+        compact_model: saved,
+      });
+      const next = resolveRuntimeConfig({ llm: { model: picked } }, loaded);
+      expect(next.llm.model).toBe(picked);
+      expect([loaded.llm.compactModel, next.llm.compactModel]).toEqual([
+        summaryDefault,
+        summaryDefault,
+      ]);
+    },
+  );
 
   it.each(["gpt-6.2-sol", "gpt-6-luna"])(
     "reads a GPT-6 Astra file saved after %s as the model used before Astra",
