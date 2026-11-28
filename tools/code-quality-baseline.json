@@ -680,7 +680,6 @@
     "packages/coach/src/enduragent.ts": 40,
     "packages/coach/src/local-bot.ts": 1,
     "packages/coach/src/local-bundle-producer.ts": 1,
-    "packages/coach/src/local-runner.ts": 1,
     "packages/coach/src/planning-operations.ts": 12,
     "packages/coach/src/soak-record.ts": 2,
     "packages/coach/src/store-gate-command.ts": 23,
