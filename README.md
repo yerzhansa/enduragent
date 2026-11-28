@@ -176,10 +176,13 @@ once per installation in any 24 hours. The request contains the product, version
 and a random installation UUID — no athlete data, messages, or credentials. Set
 `CYCLING_COACH_NO_UPDATE_CHECK=1` for the bot or `ENDURAGENT_NO_USAGE_PING=1` for Desktop to switch
 it off. Manual commands never initiate telemetry; Desktop update checks remain separate and go
-to `https://updates.enduragent.icu/`. Tracing is off by default: only when you set both
-`ENDURAGENT_OTEL=1` and `OTEL_EXPORTER_OTLP_ENDPOINT` does the coach send OpenTelemetry traces of
-its turns, to that endpoint only. The spans carry token counts, cost, outcomes and durations, never
-your messages, replies, tool data or training data ([guides/privacy.md](./guides/privacy.md#tracing-off-by-default)).
+to `https://updates.enduragent.icu/`.
+
+Tracing is separate and off by default. Only when the coach starts with both `ENDURAGENT_OTEL=1`
+and `OTEL_EXPORTER_OTLP_ENDPOINT` set does it send OpenTelemetry traces of its turns, including
+turns you start by hand, and only to that endpoint. The spans carry token counts, cost, outcomes
+and durations, never your messages, replies, tool data or training data
+([guides/privacy.md](./guides/privacy.md#tracing-off-by-default)).
 
 Full policy: [enduragent.icu/privacy.html](https://enduragent.icu/privacy.html).
 

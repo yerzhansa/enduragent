@@ -500,37 +500,49 @@ describe("local coach runner", () => {
     ]);
   });
 
-  it.each([
-    ["completes", async () => "done"],
-    [
-      "fails",
-      async () => {
-        throw new Error("operation failed");
-      },
-    ],
-  ])(
-    "starts tracing from its environment and flushes it last when the operation %s",
-    async (_label, operation) => {
-      mocks.startTracing.mockImplementation(async () => {
-        trace.push("tracing-start");
-        return {
-          shutdown: async () => {
-            trace.push("tracing-flush");
-            return { kind: "flushed" };
-          },
-        };
-      });
-      await withLocalCoach(
+  it("starts tracing from its environment and awaits its flush last when the operation completes", async () => {
+    mocks.startTracing.mockImplementation(async () => {
+      trace.push("tracing-start");
+      return {
+        shutdown: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          trace.push("tracing-flush");
+          return { kind: "flushed" };
+        },
+      };
+    });
+    await expect(
+      withLocalCoach(
         input(async () => {
           trace.push("operation");
-          return operation();
+          return "done";
         }),
-      ).catch(() => undefined);
-      expect(mocks.startTracing).toHaveBeenCalledExactlyOnceWith({ SYNTHETIC: "1" });
-      expect(trace[0]).toBe("tracing-start");
-      expect(trace.slice(-3)).toEqual(["writer-release", "catalog-close", "tracing-flush"]);
-    },
-  );
+      ),
+    ).resolves.toEqual({ status: "completed", value: "done" });
+    expect(mocks.startTracing).toHaveBeenCalledExactlyOnceWith({ SYNTHETIC: "1" });
+    expect(trace[0]).toBe("tracing-start");
+    expect(trace.slice(-3)).toEqual(["writer-release", "catalog-close", "tracing-flush"]);
+  });
+
+  it("awaits the tracing flush before rethrowing a failed operation", async () => {
+    const failure = { kind: "operation-failure" };
+    mocks.startTracing.mockImplementation(async () => ({
+      shutdown: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        trace.push("tracing-flush");
+        return { kind: "flushed" };
+      },
+    }));
+    await expect(
+      withLocalCoach(
+        input(async () => {
+          trace.push("operation");
+          throw failure;
+        }),
+      ),
+    ).rejects.toBe(failure);
+    expect(trace.slice(-2)).toEqual(["catalog-close", "tracing-flush"]);
+  });
 
   it("gives operation failure precedence over close failures and otherwise propagates cleanup failure", async () => {
     const operationFailure = { kind: "operation" };

@@ -32,12 +32,23 @@ launch to disable it; disabled and unofficial builds create no heartbeat state.
 ### Tracing (off by default)
 
 The coach can send OpenTelemetry traces of its turns to a collector you run, such as a local
-Jaeger. It is off unless the process that runs the coach starts with both `ENDURAGENT_OTEL=1` and
-`OTEL_EXPORTER_OTLP_ENDPOINT` set, for example `http://localhost:4318`. That process is the
-`enduragent` CLI, its background coach, or the Mac app's coach when you start the app from a
-terminal with these variables; a normal launch from Finder or the Dock does not have them. When
-both are set, the coach sends OTLP over HTTP to `<endpoint>/v1/traces` and nowhere else. When
-either is missing, the tracing code is not even loaded and nothing is sent.
+Jaeger. It is off unless the coach starts with both `ENDURAGENT_OTEL=1` and
+`OTEL_EXPORTER_OTLP_ENDPOINT` set to an `http://` or `https://` address, for example
+`http://localhost:4318`. When both are set, the coach sends OTLP over HTTP to
+`<endpoint>/v1/traces` and nowhere else. When either is missing, the tracing SDK is not loaded and
+nothing is sent. If the switch is on but the address is not usable, the coach prints a warning and
+keeps tracing off.
+
+The coach reads the two settings once, when it starts, and keeps them until it stops:
+
+- `enduragent ask --local` and the other `--local` commands run their own coach, so the variables
+  in that shell apply.
+- Without `--local`, the `enduragent` CLI hands turns to its background coach. A background coach
+  that is already running keeps the settings it started with, so set the variables before it
+  starts, and restart it to turn tracing on or off.
+- The Mac and Windows apps start their coach with the app's environment. On a Mac, a launch from
+  Finder or the Dock has neither variable. On Windows, the app inherits your user environment
+  variables, so setting both there turns tracing on for the app too.
 
 Each coach turn becomes one trace: a `coach.turn` span, an `llm.generate` span for each model call
 and a `tool.call` span for each tool the coach runs. A span carries the turn's random ID, the
@@ -45,7 +56,8 @@ outcome and error class, the model provider and model, which part of the coach m
 attempt number, input and output token counts, the known cost in US dollars, durations, and tool
 names. A span never carries your messages, the coach's replies, tool arguments or results, error
 messages, memory, your chat ID, or your training data. Whoever runs the collector can read what is
-on the spans.
+on the spans. If the collector cannot be reached, the coach gives up on that batch after about two
+seconds, prints a warning, and carries on.
 
 ### /feedback
 

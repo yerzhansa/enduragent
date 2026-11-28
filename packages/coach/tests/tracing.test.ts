@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { createCoachEngine } from "../../engine/src/index.js";
 import type { GenerateResult, Sport } from "../../engine/src/sport.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
-import { TRACING_SERVICE_NAME, startCoachTracing, tracesUrl } from "../src/tracing.js";
+import { TRACING_SERVICE_NAME, startCoachTracing, tracingTarget } from "../src/tracing.js";
 
 const loaded = vi.hoisted((): string[] => []);
 
@@ -138,17 +138,31 @@ function exported(): { readonly services: string[]; readonly spans: ExportedSpan
 }
 
 describe("coach tracing start-up", () => {
-  it("builds the traces URL only when the switch and the endpoint are both set", () => {
-    expect(tracesUrl({})).toBeUndefined();
-    expect(tracesUrl({ ENDURAGENT_OTEL: "1" })).toBeUndefined();
-    expect(tracesUrl({ ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: " " })).toBeUndefined();
-    expect(tracesUrl({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318" })).toBeUndefined();
+  it("turns on only for the switch plus an http or https endpoint", () => {
+    expect(tracingTarget({})).toEqual({ kind: "off" });
+    expect(tracingTarget({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318" })).toEqual({
+      kind: "off",
+    });
     expect(
-      tracesUrl({ ENDURAGENT_OTEL: "true", OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318" }),
-    ).toBeUndefined();
+      tracingTarget({
+        ENDURAGENT_OTEL: "true",
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318",
+      }),
+    ).toEqual({ kind: "off" });
+    for (const endpoint of [undefined, " ", "127.0.0.1:4318", "localhost:4318", "ftp://host"]) {
+      expect(
+        tracingTarget({ ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: endpoint }),
+      ).toMatchObject({
+        kind: "invalid",
+        reason: expect.stringContaining("OTEL_EXPORTER_OTLP_ENDPOINT"),
+      });
+    }
     expect(
-      tracesUrl({ ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/" }),
-    ).toBe("http://127.0.0.1:4318/v1/traces");
+      tracingTarget({
+        ENDURAGENT_OTEL: "1",
+        OTEL_EXPORTER_OTLP_ENDPOINT: "https://collector.example/",
+      }),
+    ).toEqual({ kind: "on", url: "https://collector.example/v1/traces" });
   });
 
   it("with the switch off, loads no tracing SDK module and sends nothing", async () => {
@@ -163,6 +177,21 @@ describe("coach tracing start-up", () => {
       await tracing.shutdown();
     }
 
+    expect(received).toEqual([]);
+    expect(loaded).toEqual([]);
+  });
+
+  it("warns, stays off and loads nothing when the switch is on but the endpoint is unusable", async () => {
+    for (const endpoint of [undefined, "127.0.0.1:4318"]) {
+      const warnings: string[] = [];
+      const tracing = await startCoachTracing(
+        { ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: endpoint },
+        { warn: (message) => warnings.push(message) },
+      );
+      await runTurn();
+      await expect(tracing.shutdown()).resolves.toEqual({ kind: "off" });
+      expect(warnings).toEqual([expect.stringContaining("OTEL_EXPORTER_OTLP_ENDPOINT")]);
+    }
     expect(received).toEqual([]);
     expect(loaded).toEqual([]);
   });
@@ -199,17 +228,38 @@ describe("coach tracing start-up", () => {
     expect(bodies).not.toContain("chat-tracing");
   });
 
-  it("shuts down without failing when the endpoint is unreachable", async () => {
+  it("gives up within the export deadline when the endpoint is unreachable", async () => {
     const closed = createServer();
     await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
     const port = (closed.address() as AddressInfo).port;
     await new Promise<void>((resolve) => closed.close(() => resolve()));
-    const tracing = await startCoachTracing({
-      ENDURAGENT_OTEL: "1",
-      OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}`,
-    });
+    const warnings: string[] = [];
+    const tracing = await startCoachTracing(
+      { ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}` },
+      { warn: (message) => warnings.push(message) },
+    );
     await runTurn();
 
+    const started = performance.now();
     await expect(tracing.shutdown()).resolves.toMatchObject({ kind: "export-failed" });
+    expect(performance.now() - started).toBeLessThan(3_000);
+    expect(warnings).toEqual([expect.stringContaining("could not send")]);
+  }, 30_000);
+
+  it("gives up within the export deadline when the endpoint never answers", async () => {
+    const silent = createServer(() => undefined);
+    await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+    const port = (silent.address() as AddressInfo).port;
+    const tracing = await startCoachTracing(
+      { ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}` },
+      { warn: () => undefined },
+    );
+    await runTurn();
+
+    const started = performance.now();
+    await expect(tracing.shutdown()).resolves.toMatchObject({ kind: "export-failed" });
+    expect(performance.now() - started).toBeLessThan(3_000);
+    silent.closeAllConnections();
+    await new Promise<void>((resolve) => silent.close(() => resolve()));
   }, 30_000);
 });
