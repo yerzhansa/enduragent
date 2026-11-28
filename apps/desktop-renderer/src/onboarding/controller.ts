@@ -56,6 +56,7 @@ import {
   llmSelectionFromDraft,
   type LlmSelectionDraft,
 } from "./selection";
+import { ONBOARDING_STATUS_REFRESH_TIMEOUT_MS, readSetupStatus } from "./status-read";
 import { afterNextPaint, settleWithin } from "./timing";
 
 export interface OnboardingReadiness {
@@ -130,7 +131,7 @@ export interface OnboardingActions {
 
 export interface OnboardingController extends OnboardingActions {
   open(): Promise<void>;
-  refresh(): Promise<void>;
+  refresh(moveFocus?: boolean): Promise<void>;
   requireCompletion(): void;
   close(): void;
   dispose(): void;
@@ -158,17 +159,6 @@ export interface OnboardingControllerOptions {
 
 export const CHATGPT_PROGRESS_DETAIL_DELAY_MS = 3_000;
 export const CHATGPT_ACTIVATION_TRANSPORT_TIMEOUT_MS = 12_000;
-export const ONBOARDING_STATUS_REFRESH_TIMEOUT_MS = 3_000;
-export const ONBOARDING_STATUS_COLD_START_TIMEOUT_MS = 8_000;
-export const ONBOARDING_STATUS_LOAD_ATTEMPTS = 4;
-export const ONBOARDING_STATUS_RETRY_BASE_DELAY_MS = 500;
-export const ONBOARDING_STATUS_RETRY_MAX_DELAY_MS = 2_000;
-export function onboardingStatusRetryDelayMs(attempt: number): number {
-  const delay = ONBOARDING_STATUS_RETRY_BASE_DELAY_MS * 2 ** attempt;
-  return delay > ONBOARDING_STATUS_RETRY_MAX_DELAY_MS
-    ? ONBOARDING_STATUS_RETRY_MAX_DELAY_MS
-    : delay;
-}
 
 export function setupStatusKnown(
   surface: Pick<OnboardingSurfaceState, "initialized" | "loadUnavailable">,
@@ -204,6 +194,7 @@ export function createOnboardingController(
   let presentingRideImports = false;
   let llmConfiguration: OnboardingLlmConfiguration | undefined;
   let llmDraft: LlmSelectionDraft | undefined;
+  let draftOrigin: "configuration" | "athlete" = "configuration";
   let llmDrafts: Record<string, LlmSelectionDraft> = {};
   let lastCommit: SetupCommit = null;
   let actionStatus: OnboardingActionStatus = null;
@@ -286,8 +277,12 @@ export function createOnboardingController(
     focusSeq += 1;
   };
 
-  const setLlmDraft = (next: LlmSelectionDraft | undefined): void => {
+  const setLlmDraft = (
+    next: LlmSelectionDraft | undefined,
+    origin: "configuration" | "athlete",
+  ): void => {
     llmDraft = next;
+    draftOrigin = origin;
     if (next !== undefined) llmDrafts[next.provider.provider] = next;
   };
 
@@ -308,6 +303,7 @@ export function createOnboardingController(
       ...llmConfiguration,
       active: { provider: selection.provider, model: selection.model },
     };
+    draftOrigin = "configuration";
     options.onActiveSelectionChanged?.();
   };
 
@@ -734,11 +730,11 @@ export function createOnboardingController(
     publish();
   });
 
-  const load = async (hydrate: boolean, retryWhileStarting: boolean): Promise<void> => {
+  const load = async (fromOpen: boolean, moveFocus = true): Promise<void> => {
     if (disposed || opening) return;
     const currentDraft = llmDraft;
     const currentDrafts = llmDrafts;
-    const hydrateAuthoritativeState = hydrate || !hasSuccessfulLoad;
+    const keepAthleteDraft = !fromOpen && hasSuccessfulLoad && draftOrigin === "athlete";
     opening = true;
     presenting = true;
     loading = true;
@@ -757,44 +753,15 @@ export function createOnboardingController(
       initialized = true;
       loading = false;
       setRideImportPresentation(true);
-      focusTitle();
+      if (moveFocus) focusTitle();
       publish();
       opening = false;
     };
-    const coldStart = retryWhileStarting && !hasSuccessfulLoad;
-    const attemptTimeoutMs = coldStart
-      ? ONBOARDING_STATUS_COLD_START_TIMEOUT_MS
-      : ONBOARDING_STATUS_REFRESH_TIMEOUT_MS;
-    const maxAttempts = coldStart ? ONBOARDING_STATUS_LOAD_ATTEMPTS : 1;
-    const readAuthoritativeStatus = () =>
-      Promise.all([
-        settleWithin(options.bridge.credentialStatuses(), attemptTimeoutMs),
-        settleWithin(options.bridge.chatGptStatus(), attemptTimeoutMs),
-        settleWithin(options.bridge.llmConfiguration(), attemptTimeoutMs),
-        settleWithin(
-          options.bridge.getSetupStatus?.() ??
-            Promise.resolve({
-              schemaVersion: 1 as const,
-              durableTrainingData: false,
-            }),
-          attemptTimeoutMs,
-        ),
-      ]);
-    let read = await readAuthoritativeStatus();
-    let attempt = 0;
-    while (
-      read.some((entry) => entry.status !== "fulfilled") &&
-      attempt + 1 < maxAttempts &&
-      !disposed &&
-      visit === openVisit
-    ) {
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, onboardingStatusRetryDelayMs(attempt));
-      });
-      if (disposed || visit !== openVisit) break;
-      attempt += 1;
-      read = await readAuthoritativeStatus();
-    }
+    const read = await readSetupStatus(
+      options.bridge,
+      fromOpen && !hasSuccessfulLoad,
+      () => !disposed && visit === openVisit,
+    );
     const [statusesResult, chatGptResult, configurationResult, setupResult] = read;
     if (disposed || visit !== openVisit) {
       opening = false;
@@ -811,13 +778,16 @@ export function createOnboardingController(
     }
     const statuses = statusesResult.value;
     const restoredChatGptStatus = chatGptResult.value;
-    if (hydrateAuthoritativeState) {
-      llmConfiguration = configurationResult.value;
-      llmDrafts = {};
-      setLlmDraft(initialLlmDraft(llmConfiguration, statuses, restoredChatGptStatus));
-    } else {
+    llmConfiguration = configurationResult.value;
+    if (keepAthleteDraft) {
       llmDrafts = currentDrafts;
-      setLlmDraft(currentDraft);
+      setLlmDraft(currentDraft, "athlete");
+    } else {
+      llmDrafts = {};
+      setLlmDraft(
+        initialLlmDraft(llmConfiguration, statuses, restoredChatGptStatus),
+        "configuration",
+      );
     }
     credentialStatuses = statuses;
     state = withBusy(
@@ -839,7 +809,7 @@ export function createOnboardingController(
     initialized = true;
     loading = false;
     setRideImportPresentation(true);
-    focusTitle();
+    if (moveFocus) focusTitle();
     publish();
     openRouter.refreshCredit();
     opening = false;
@@ -848,11 +818,11 @@ export function createOnboardingController(
   return {
     open(): Promise<void> {
       if (disposed || presenting || opening) return Promise.resolve();
-      return load(true, true);
+      return load(true);
     },
-    refresh(): Promise<void> {
+    refresh(moveFocus = true): Promise<void> {
       if (disposed || opening) return Promise.resolve();
-      return load(false, false);
+      return load(false, moveFocus);
     },
     requireCompletion(): void {
       if (disposed || completionRequired) return;
@@ -988,6 +958,7 @@ export function createOnboardingController(
         }
         setLlmDraft(
           llmDrafts[chatGpt.provider] ?? draftForProvider(chatGpt, configuration.catalogRevision),
+          "athlete",
         );
       }
       const parsedSelection = llmSelectionFromDraft(llmDraft);
@@ -1117,6 +1088,7 @@ export function createOnboardingController(
       if (next === undefined || configuration === undefined) return;
       setLlmDraft(
         llmDrafts[next.provider] ?? draftForProvider(next, configuration.catalogRevision),
+        "athlete",
       );
       setFixedError(null);
       if (provider === "openai-codex" && chatGptSignedIn(state) && !selectedProviderIsReady()) {
@@ -1140,28 +1112,31 @@ export function createOnboardingController(
     },
     selectModel(model): void {
       if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft({
-        ...llmDraft,
-        modelChoice: model,
-        customModel: model === CUSTOM_MODEL_SELECTION ? llmDraft.customModel : "",
-      });
+      setLlmDraft(
+        {
+          ...llmDraft,
+          modelChoice: model,
+          customModel: model === CUSTOM_MODEL_SELECTION ? llmDraft.customModel : "",
+        },
+        "athlete",
+      );
       setFixedError(null);
     },
     setCustomModel(model): void {
       if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft({ ...llmDraft, customModel: model });
+      setLlmDraft({ ...llmDraft, customModel: model }, "athlete");
       setFixedError(null);
     },
     setEndpointMode(mode): void {
       if (setupStatusBlocksMutations() || llmDraft === undefined) return;
       const parsed = ENDPOINT_MODES.find((candidate) => candidate === mode);
       if (parsed === undefined) return;
-      setLlmDraft({ ...llmDraft, endpointMode: parsed });
+      setLlmDraft({ ...llmDraft, endpointMode: parsed }, "athlete");
       setFixedError(null);
     },
     setCustomEndpoint(endpoint): void {
       if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft({ ...llmDraft, customEndpoint: endpoint });
+      setLlmDraft({ ...llmDraft, customEndpoint: endpoint }, "athlete");
       setFixedError(null);
     },
   };
