@@ -7,7 +7,7 @@ description: Model-check the desktop app's auto-update, download, macOS native p
 
 Tests check the event orders someone wrote down. This skill runs TLC 1.7.4 across every interleaving of the main update controller, version floor, macOS Squirrel readiness, quit coordinator, update IPC, and renderer update UI inside the bounds below.
 
-Sync commit: `99a8d1c6`. Every model action and fingerprint in `references/coverage.json` was last confirmed at that commit.
+Sync commit: `24dd158f`. Every model action and fingerprint in `references/coverage.json` was last confirmed at that commit.
 
 ## When to run it
 

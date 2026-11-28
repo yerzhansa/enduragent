@@ -1,5 +1,5 @@
 {
-  "syncCommit": "99a8d1c6",
+  "syncCommit": "24dd158f",
   "fingerprints": {
     "apps/desktop/src/main/update-controller.ts :: const canCheck =": "d35b14ac61fd",
     "apps/desktop/src/main/update-controller.ts :: const isCurrent =": "2fab6590ccf5",
@@ -14,7 +14,7 @@
     "apps/desktop/src/main/update-state-machine.ts :: export function advanceDownloadTransfer(": "a504fc2e85ed",
     "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "6fb6d5cb9632",
     "apps/desktop/src/main/update-controller.ts :: const runCheck =": "a76435e02ca7",
-    "apps/desktop/src/main/update-controller.ts :: const initializeUpdater =": "0438b43b039c",
+    "apps/desktop/src/main/update-controller.ts :: const initializeUpdater =": "be7b042c80f5",
     "apps/desktop/src/main/update-controller.ts :: const check =": "c164e1357464",
     "apps/desktop/src/main/update-controller.ts :: const start =": "d18f0aeea662",
     "apps/desktop/src/main/update-controller.ts :: restart() {": "aecfae0a6b4a",
