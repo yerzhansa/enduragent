@@ -38,10 +38,8 @@ import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
 import { createPlanningRequestDeliveryService } from "../src/planning-request-delivery.js";
-import {
-  readPlanCreationAnswers,
-  resolvePlanCreationDraftAnswers,
-} from "../src/plan-creation-answers.js";
+import { readPlanCreationAnswers } from "../src/plan-creation-answer-flow.js";
+import { resolvePlanCreationDraftAnswers } from "../src/plan-creation-answers.js";
 
 const unusedStore = () => {
   const store = openSqliteStorage(":memory:");
