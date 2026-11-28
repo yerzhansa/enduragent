@@ -244,7 +244,11 @@ async function answerThroughBaseline(scenario: Scenario): Promise<void> {
 
 async function answerAuthoredSuccess(scenario: Scenario): Promise<void> {
   await scenario.page.locator('[data-parity="choice.custom"][data-answer="custom"]').click();
-  await expect(scenario.page.locator('[data-parity="composer"]')).toHaveCount(0);
+  await expect(scenario.page.locator("#message")).toBeDisabled();
+  await expect(scenario.page.locator("#message")).toHaveAttribute(
+    "placeholder",
+    "Finish the Plan question above",
+  );
   const editor = scenario.page.locator('[data-parity="custom.textarea"]');
   await editor.fill("Ride four steady hours");
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -349,7 +353,11 @@ test("edits the goal, pauses, and resumes the Event success Card", async ({ play
       "true",
     );
     await scenario.page.locator('[data-answer="event-not-listed"]').click();
-    await expect(scenario.page.locator('[data-parity="composer"]')).toHaveCount(0);
+    await expect(scenario.page.locator("#message")).toBeDisabled();
+    await expect(scenario.page.locator("#message")).toHaveAttribute(
+      "placeholder",
+      "Finish the Plan question above",
+    );
     await scenario.page
       .getByRole("textbox", { name: "Event name", exact: true })
       .fill("Highland Classic");
@@ -454,7 +462,11 @@ for (const appearance of [
       await expect(editor).toBeFocused();
       if (title === "Commitments") await expect(editor).toHaveValue("Fridays off");
       await editor.fill("Unsaved change");
-      await expect(scenario.page.locator('[data-parity="composer"]')).toHaveCount(0);
+      await expect(scenario.page.locator("#message")).toBeDisabled();
+      await expect(scenario.page.locator("#message")).toHaveAttribute(
+        "placeholder",
+        "Finish the Plan question above",
+      );
       await capture(`edit-${title}`);
       if (appearance.width === 760 && title === "Goal") {
         const cdp = await scenario.page.context().newCDPSession(scenario.page);

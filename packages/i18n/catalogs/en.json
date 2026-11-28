@@ -323,6 +323,7 @@
     },
     "composer": {
       "attach": "Attach files",
+      "finishAnswer": "Finish your answer above",
       "finishPlanQuestion": "Finish the Plan question above",
       "label": "Message your coach",
       "messagePlaceholder": "Message your coach",

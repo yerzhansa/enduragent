@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Vedhæft filer",
+      "finishAnswer": "Gør dit svar ovenfor færdigt",
       "finishPlanQuestion": "Besvar først spørgsmålet om træningsplanen ovenfor",
       "label": "Skriv til din træner",
       "messagePlaceholder": "Skriv til din træner",

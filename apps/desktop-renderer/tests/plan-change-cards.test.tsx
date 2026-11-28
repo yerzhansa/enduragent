@@ -1639,7 +1639,9 @@ describe("typed Plan Change dock", () => {
     expect(editor).toHaveValue(check.submission.text);
     expect(editor).toHaveFocus();
     expect(editor).toHaveAttribute("maxlength", "2000");
-    expect(document.querySelector("#message")).toBeNull();
+    const composer = screen.getByRole("combobox", { name: "Message your coach" });
+    expect(composer).toBeDisabled();
+    expect(composer).toHaveAttribute("placeholder", "Finish your answer above");
     await userEvent.clear(editor);
     await userEvent.type(editor, "Keep my week to five hours");
     await userEvent.click(within(dock).getByRole("button", { name: "Continue" }));

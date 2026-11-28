@@ -1231,6 +1231,7 @@
     },
     "composer": {
       "attach": "ファイルを添付",
+      "finishAnswer": "上の回答を完了してください",
       "finishPlanQuestion": "上のプランの質問への回答を完了してください",
       "label": "コーチにメッセージを送る",
       "messagePlaceholder": "コーチにメッセージを送る",

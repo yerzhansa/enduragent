@@ -1231,6 +1231,7 @@
     },
     "composer": {
       "attach": "파일 첨부",
+      "finishAnswer": "위의 답변을 마치세요",
       "finishPlanQuestion": "위의 계획 질문에 답변을 마치세요",
       "label": "코치에게 메시지 보내기",
       "messagePlaceholder": "코치에게 메시지 보내기",

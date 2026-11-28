@@ -1231,6 +1231,7 @@
     },
     "composer": {
       "attach": "新增附件",
+      "finishAnswer": "請先完成上方的回答",
       "finishPlanQuestion": "請先回答上方的計畫問題",
       "label": "傳送訊息給教練",
       "messagePlaceholder": "傳送訊息給教練",

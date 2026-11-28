@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Liitä tiedostoja",
+      "finishAnswer": "Viimeistele vastauksesi yllä",
       "finishPlanQuestion": "Vastaa ensin yllä olevaan suunnitelmakysymykseen",
       "label": "Lähetä viesti valmentajallesi",
       "messagePlaceholder": "Lähetä viesti valmentajallesi",

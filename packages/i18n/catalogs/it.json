@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Allega file",
+      "finishAnswer": "Completa la tua risposta qui sopra",
       "finishPlanQuestion": "Completa la domanda sul piano qui sopra",
       "label": "Scrivi al tuo coach",
       "messagePlaceholder": "Scrivi al tuo coach",

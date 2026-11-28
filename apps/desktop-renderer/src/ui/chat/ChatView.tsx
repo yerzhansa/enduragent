@@ -82,8 +82,6 @@ export function ChatView(): ReactElement {
   const conversation = useRef<HTMLElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const composerDraft = useRef("");
-  const prefilled = useRef<string | null>(null);
-  const [composerKey, setComposerKey] = useState(0);
   const [planChangeDraft, setPlanChangeDraftState] = useState<PlanChangeDraftState>({
     kind: "none",
   });
@@ -147,13 +145,8 @@ export function ChatView(): ReactElement {
   const applyComposerDraft = useCallback(
     (next: string, persist: boolean): void => {
       composerDraft.current = next;
-      if (composer.current !== null) {
-        composer.current.replace(next);
-        if (persist) actions?.saveAttachmentDraftText(next);
-      } else {
-        prefilled.current = persist ? next : null;
-        setComposerKey((key) => key + 1);
-      }
+      composer.current?.replace(next);
+      if (persist) actions?.saveAttachmentDraftText(next);
     },
     [actions],
   );
@@ -232,12 +225,6 @@ export function ChatView(): ReactElement {
     const next = base.trim().length === 0 ? prefill.text : `${base}\n\n${prefill.text}`;
     applyComposerDraft(next, true);
   }, [prefill, clearPrefill, actions, applyComposerDraft, setPlanChangeDraft]);
-  useEffect(() => {
-    const next = prefilled.current;
-    if (next === null) return;
-    prefilled.current = null;
-    actions?.saveAttachmentDraftText(next);
-  }, [composerKey, actions]);
   const mountedView = useRef(activeView);
   const previousConversationTop = useRef<number | null>(null);
   const pending = useMemo(
@@ -429,10 +416,14 @@ export function ChatView(): ReactElement {
 
   const hasSetAsideDraft =
     planChangeDraft.kind === "clean" && planChangeDraft.earlierDraft !== null;
+  const inlineEditorOpen = decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen;
+  const composerLockedPlaceholder = planCreationEditorOpen
+    ? say("chat.composer.finishPlanQuestion")
+    : inlineEditorOpen
+      ? say("chat.composer.finishAnswer")
+      : undefined;
   const planChangeBarVisible =
-    !decisionCustomOpen &&
-    !planCreationEditorOpen &&
-    !planChangeEditorOpen &&
+    !inlineEditorOpen &&
     (hasSetAsideDraft ||
       (planChangeRouting &&
         !planChangeSurfaceEditorOpen &&
@@ -614,19 +605,17 @@ export function ChatView(): ReactElement {
                 <AttachmentPanel />
                 <QueuedMessages />
               </div>
-              {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
-                <Composer
-                  key={composerKey}
-                  handle={composer}
-                  draftMemory={composerDraft}
-                  draftSetAside={hasSetAsideDraft}
-                  draftSetAsideRef={draftSetAsideRef}
-                  planChangeDraftRevision={
-                    planChangeDraft.kind === "clean" ? planChangeDraft.revision : null
-                  }
-                  onPlanChangeDraftSubmitted={onPlanChangeDraftSubmitted}
-                />
-              )}
+              <Composer
+                handle={composer}
+                draftMemory={composerDraft}
+                draftSetAside={hasSetAsideDraft}
+                draftSetAsideRef={draftSetAsideRef}
+                planChangeDraftRevision={
+                  planChangeDraft.kind === "clean" ? planChangeDraft.revision : null
+                }
+                onPlanChangeDraftSubmitted={onPlanChangeDraftSubmitted}
+                lockedPlaceholder={composerLockedPlaceholder}
+              />
             </div>
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">
               {changeSurfaceVisible ? say("chat.view.confirmation") : say("chat.view.disclaimer")}

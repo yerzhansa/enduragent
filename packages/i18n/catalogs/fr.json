@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Joindre des fichiers",
+      "finishAnswer": "Termine ta réponse ci-dessus",
       "finishPlanQuestion": "Termine la question sur le plan ci-dessus",
       "label": "Écris à ton coach",
       "messagePlaceholder": "Écris à ton coach",

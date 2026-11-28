@@ -40,6 +40,7 @@ export function Composer(props: {
   readonly inputId?: string;
   readonly hidden?: boolean;
   readonly leadingAction?: ReactNode;
+  readonly lockedPlaceholder?: string;
   readonly surface?: {
     readonly status: "idle" | "streaming" | "interrupted";
     readonly sendDisabled: boolean;
@@ -86,8 +87,11 @@ export function Composer(props: {
   const attachmentSurface = useEnduragentStore((state) => state.chat.attachments);
   const attachmentIds =
     attachmentSurface?.draft?.attachments.map((attachment) => attachment.attachmentId) ?? [];
-  const sendDisabled = props.surface?.sendDisabled ?? (chatSendDisabled || changeCheckDocked);
-  const inputDisabled = props.surface?.inputDisabled ?? (chatInputDisabled || changeCheckDocked);
+  const locked = props.lockedPlaceholder !== undefined;
+  const sendDisabled =
+    locked || (props.surface?.sendDisabled ?? (chatSendDisabled || changeCheckDocked));
+  const inputDisabled =
+    locked || (props.surface?.inputDisabled ?? (chatInputDisabled || changeCheckDocked));
   const status = props.surface?.status ?? chatStatus;
   const canChat = props.surface === undefined ? chatReady : true;
   const inputId = props.inputId ?? "message";
@@ -369,7 +373,8 @@ export function Composer(props: {
           placeholder={
             status === "streaming"
               ? say("chat.composer.responding")
-              : (props.surface?.placeholder ??
+              : (props.lockedPlaceholder ??
+                props.surface?.placeholder ??
                 (chatPlaceholderMessage === null ? chatPlaceholder : say(chatPlaceholderMessage)))
           }
           disabled={inputDisabled || !canChat}
