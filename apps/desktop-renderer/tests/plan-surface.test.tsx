@@ -733,7 +733,7 @@ describe("Plan surface", () => {
     );
     expect(screen.getByRole("textbox", { name: "What would work better?" })).toBeVisible();
     expect(box).toHaveAttribute("placeholder", "Finish your answer above");
-    await user.click(screen.getByRole("button", { name: "Back", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
     expect(box).toHaveAttribute("placeholder", "Reply to your coach…");
     expect(attach).toBeEnabled();
     expect(withoutCourse).toBeEnabled();
