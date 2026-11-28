@@ -36,8 +36,8 @@ Jaeger. It is off unless the coach starts with both `ENDURAGENT_OTEL=1` and
 `OTEL_EXPORTER_OTLP_ENDPOINT` set to an `http://` or `https://` address, for example
 `http://localhost:4318`. When both are set, the coach sends OTLP over HTTP to
 `<endpoint>/v1/traces` and nowhere else. When either is missing, the tracing SDK is not loaded and
-nothing is sent. If the switch is on but the address is not usable, the coach prints a warning and
-keeps tracing off.
+nothing is sent. If the switch is on but the address is not usable, tracing stays off; a coach run
+from a terminal prints a warning there, while the apps' coach has no terminal to print to.
 
 The coach reads the two settings once, when it starts, and keeps them until it stops:
 
@@ -57,7 +57,7 @@ attempt number, input and output token counts, the known cost in US dollars, dur
 names. A span never carries your messages, the coach's replies, tool arguments or results, error
 messages, memory, your chat ID, or your training data. Whoever runs the collector can read what is
 on the spans. If the collector cannot be reached, the coach gives up on that batch after about two
-seconds, prints a warning, and carries on.
+seconds and carries on, with a warning when it runs in a terminal.
 
 ### /feedback
 

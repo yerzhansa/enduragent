@@ -256,10 +256,33 @@ describe("coach tracing start-up", () => {
     );
     await runTurn();
 
-    const started = performance.now();
-    await expect(tracing.shutdown()).resolves.toMatchObject({ kind: "export-failed" });
-    expect(performance.now() - started).toBeLessThan(3_000);
-    silent.closeAllConnections();
-    await new Promise<void>((resolve) => silent.close(() => resolve()));
+    try {
+      const started = performance.now();
+      await expect(tracing.shutdown()).resolves.toMatchObject({ kind: "export-failed" });
+      expect(performance.now() - started).toBeLessThan(3_000);
+    } finally {
+      silent.closeAllConnections();
+      await new Promise<void>((resolve) => silent.close(() => resolve()));
+    }
   }, 30_000);
+
+  it("warns and stays off when the tracing SDK cannot start", async () => {
+    const otlp = await import("@opentelemetry/exporter-trace-otlp-http");
+    const failing = vi.spyOn(otlp, "OTLPTraceExporter").mockImplementation(() => {
+      throw new Error("exporter unavailable");
+    });
+    const warnings: string[] = [];
+    try {
+      const tracing = await startCoachTracing(
+        { ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: collectorUrl },
+        { warn: (message) => warnings.push(message) },
+      );
+      await runTurn();
+      await expect(tracing.shutdown()).resolves.toEqual({ kind: "off" });
+    } finally {
+      failing.mockRestore();
+    }
+    expect(warnings).toEqual([expect.stringContaining("could not start")]);
+    expect(received).toEqual([]);
+  });
 });

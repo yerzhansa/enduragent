@@ -79,12 +79,12 @@ export async function startCoachTracing(
       shutdown: async () => {
         try {
           await provider.forceFlush();
-          await provider.shutdown();
           return { kind: "flushed" };
         } catch (error) {
           warn(`Tracing could not send its last spans to ${target.url}: ${errorText(error)}`);
           return { kind: "export-failed", error };
         } finally {
+          await provider.shutdown();
           trace.disable();
         }
       },
