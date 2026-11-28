@@ -29,6 +29,24 @@ that preferences directory. It contains no athlete data, message content, creden
 configuration, hardware identifier, or feature activity. Set `ENDURAGENT_NO_USAGE_PING=1` before
 launch to disable it; disabled and unofficial builds create no heartbeat state.
 
+### Tracing (off by default)
+
+The coach can send OpenTelemetry traces of its turns to a collector you run, such as a local
+Jaeger. It is off unless the process that runs the coach starts with both `ENDURAGENT_OTEL=1` and
+`OTEL_EXPORTER_OTLP_ENDPOINT` set, for example `http://localhost:4318`. That process is the
+`enduragent` CLI, its background coach, or the Mac app's coach when you start the app from a
+terminal with these variables; a normal launch from Finder or the Dock does not have them. When
+both are set, the coach sends OTLP over HTTP to `<endpoint>/v1/traces` and nowhere else. When
+either is missing, the tracing code is not even loaded and nothing is sent.
+
+Each coach turn becomes one trace: a `coach.turn` span, an `llm.generate` span for each model call
+and a `tool.call` span for each tool the coach runs. A span carries the turn's random ID, the
+outcome and error class, the model provider and model, which part of the coach made the call, the
+attempt number, input and output token counts, the known cost in US dollars, durations, and tool
+names. A span never carries your messages, the coach's replies, tool arguments or results, error
+messages, memory, your chat ID, or your training data. Whoever runs the collector can read what is
+on the spans.
+
 ### /feedback
 
 `/feedback` is opt-in. Nothing is sent unless you run the command with a note. Telegram and Desktop
