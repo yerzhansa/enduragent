@@ -418,6 +418,13 @@ describe("Plan Intervals calendar adapter", () => {
         row.id,
       ]);
     }
+    const stripped = await withoutContent.store.all(
+      "SELECT structure_json FROM plan_workout WHERE plan_id=?",
+      [withoutContent.plan.id],
+    );
+    expect(stripped).toHaveLength(rows.length);
+    for (const row of stripped)
+      expect(JSON.parse(String(row.structure_json))).not.toHaveProperty("content");
     const sent = await drainTwoWeeks(withContent);
     const sentBefore = await drainTwoWeeks(withoutContent);
     expect(sent.create.mock.calls.length).toBeGreaterThan(0);
