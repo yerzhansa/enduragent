@@ -20,7 +20,7 @@ import {
   SETUP_STATUS_CHECKING_COPY,
   SETUP_STATUS_UNAVAILABLE_COPY,
 } from "./copy";
-import { setupStatusKnown } from "../../onboarding/controller";
+import { onboardingCredentialMutationActive, setupStatusKnown } from "../../onboarding/controller";
 import { idleAiProvider } from "../../onboarding/lanes";
 import { chatGptReady } from "../../onboarding/machine";
 import {
@@ -107,10 +107,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   const importCopy = importMessage === null ? "" : say(importMessage);
   const blocked =
     credentialMutationBlocked ||
-    surface.loading ||
-    surface.loadUnavailable ||
-    wizard.busy ||
-    surface.rideImport.status === "running" ||
+    onboardingCredentialMutationActive(surface) ||
     !readiness.provider ||
     !readiness.trainingData;
   return (
