@@ -107,6 +107,22 @@ export function initialLlmDraft(
   };
 }
 
+export function draftOnConfiguration(
+  draft: LlmSelectionDraft,
+  configuration: OnboardingLlmConfiguration,
+): LlmSelectionDraft | undefined {
+  if (draft.catalogRevision === configuration.catalogRevision) return draft;
+  const provider = configuration.providers.find(
+    (entry) => entry.provider === draft.provider.provider,
+  );
+  const modelOffered =
+    draft.modelChoice === CUSTOM_MODEL_SELECTION ||
+    provider?.models.some((model) => model.value === draft.modelChoice) === true;
+  return provider === undefined || !modelOffered
+    ? undefined
+    : { ...draft, catalogRevision: configuration.catalogRevision, provider };
+}
+
 function hasControlCharacters(value: string): boolean {
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);

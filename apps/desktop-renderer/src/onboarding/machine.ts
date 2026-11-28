@@ -303,6 +303,13 @@ export function chatGptReady(state: OnboardingState): boolean {
   return state.chatGptCredentialState === "stored" && state.chatGptRuntimeState === "ready";
 }
 
+export function chatGptStatusFor(state: OnboardingState): ChatGptStatus {
+  return {
+    state: chatGptSignedIn(state) ? "configured" : "absent",
+    runtimeReady: chatGptReady(state),
+  };
+}
+
 export function withCredentialStatuses(
   state: OnboardingState,
   statuses: readonly CredentialSlotStatus[],
