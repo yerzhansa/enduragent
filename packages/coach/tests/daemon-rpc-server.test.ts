@@ -2024,6 +2024,16 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     client.ws.send(
       JSON.stringify({
         jsonrpc: "2.0",
+        id: "spend-stop",
+        method: "setDailySpendCap",
+        params: { dailyCapUsd: 0.75, mode: "enforce" },
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toMatchObject({ id: "spend-stop" });
+    expect(setDailySpendCap).toHaveBeenLastCalledWith({ dailyCapUsd: 0.75, mode: "enforce" });
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
         id: "spend-invalid",
         method: "setDailySpendCap",
         params: { dailyCapUsd: 0 },
