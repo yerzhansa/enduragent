@@ -2851,6 +2851,10 @@ describe("coach route", () => {
     expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent(
       "claude-opus-5 (no longer listed)",
     );
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveAccessibleDescription(
+      "claude-opus-5 is no longer on the model list. Your coach keeps using it until you switch.",
+    );
+    expect(coach.queryByRole("status")).toBeNull();
     expect(coach.queryByLabelText("Custom model name")).toBeNull();
     expect(coach.getByText("Anthropic → claude-opus-5")).toBeInTheDocument();
     expect(
@@ -2907,6 +2911,7 @@ describe("coach route", () => {
     const coach = within(screen.getByRole("region", { name: "Coach" }));
 
     expect(coach.getByRole("combobox", { name: /^Model$/u })).toHaveTextContent("Claude Opus 5.5");
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).not.toHaveAccessibleDescription();
     expect(coach.queryByText(/no longer/u)).toBeNull();
   });
 

@@ -996,6 +996,7 @@ describe("setup card", () => {
     });
 
     expect(control("onboarding-llm-model")).toHaveTextContent("Claude Sonnet 4.6");
+    expect(control("onboarding-llm-model")).not.toHaveAccessibleDescription();
     expect(document.querySelector("#onboarding-custom-model")).toBeNull();
     expect(apiKey.queryByText(/no longer on the model list/u)).toBeNull();
     expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
@@ -1022,6 +1023,10 @@ describe("setup card", () => {
     const { bridge, wizard, apiKey } = await openRetiredAnthropic(user, "claude-sonnet-4-6");
 
     expect(control("onboarding-llm-model")).toHaveTextContent("claude-sonnet-4 (no longer listed)");
+    expect(control("onboarding-llm-model")).toHaveAccessibleDescription(
+      "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch.",
+    );
+    expect(apiKey.queryByRole("status")).toBeNull();
     expect(document.querySelector("#onboarding-custom-model")).toBeNull();
     expect(
       apiKey.getByText(
