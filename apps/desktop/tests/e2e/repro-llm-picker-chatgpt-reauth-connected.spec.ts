@@ -158,7 +158,7 @@ class ScriptedCoach {
           turnId: TURN_ID,
           chatId: "desktop",
           error_class: "unknown",
-          kind: "provider-auth",
+          kind: "subscription-signed-out",
           athleteMessage: REAUTH_COPY,
           overflowAttempts: 0,
           timeoutAttempts: 0,
