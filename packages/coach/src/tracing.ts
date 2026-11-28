@@ -77,16 +77,22 @@ export async function startCoachTracing(
     }
     return {
       shutdown: async () => {
+        let failure: { readonly error: unknown } | undefined;
         try {
           await provider.forceFlush();
-          return { kind: "flushed" };
         } catch (error) {
-          warn(`Tracing could not send its last spans to ${target.url}: ${errorText(error)}`);
-          return { kind: "export-failed", error };
-        } finally {
+          failure = { error };
+        }
+        try {
           await provider.shutdown();
+        } catch (error) {
+          failure ??= { error };
+        } finally {
           trace.disable();
         }
+        if (failure === undefined) return { kind: "flushed" };
+        warn(`Tracing could not send its last spans to ${target.url}: ${errorText(failure.error)}`);
+        return { kind: "export-failed", error: failure.error };
       },
     };
   } catch (error) {

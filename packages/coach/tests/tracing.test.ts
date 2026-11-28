@@ -266,6 +266,25 @@ describe("coach tracing start-up", () => {
     }
   }, 30_000);
 
+  it("returns export-failed instead of throwing when the provider fails to shut down", async () => {
+    const sdk = await import("@opentelemetry/sdk-trace-base");
+    const failing = vi
+      .spyOn(sdk.BasicTracerProvider.prototype, "shutdown")
+      .mockRejectedValue(new Error("shutdown timed out"));
+    const warnings: string[] = [];
+    try {
+      const tracing = await startCoachTracing(
+        { ENDURAGENT_OTEL: "1", OTEL_EXPORTER_OTLP_ENDPOINT: collectorUrl },
+        { warn: (message) => warnings.push(message) },
+      );
+      await runTurn();
+      await expect(tracing.shutdown()).resolves.toMatchObject({ kind: "export-failed" });
+    } finally {
+      failing.mockRestore();
+    }
+    expect(warnings).toEqual([expect.stringContaining("shutdown timed out")]);
+  });
+
   it("warns and stays off when the tracing SDK cannot start", async () => {
     const otlp = await import("@opentelemetry/exporter-trace-otlp-http");
     const failing = vi.spyOn(otlp, "OTLPTraceExporter").mockImplementation(() => {
