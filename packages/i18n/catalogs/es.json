@@ -1534,6 +1534,8 @@
       },
       "goalLabel": "Objetivo principal",
       "guidance": "Frecuencia cardiaca o esfuerzo percibido. Sin prueba de FTP.",
+      "guidanceByFeel": "Objetivos por sensaciones hasta que se establezca un FTP.",
+      "guidanceFtp": "Objetivos como % de tu FTP en intervals.icu.",
       "guidanceLabel": "Indicaciones",
       "improveFitness": "Mejorar la condición física",
       "inProgress": "En curso",
@@ -2051,16 +2053,48 @@
       "workout": {
         "ask": "Pedir al entrenador que lo cambie",
         "askDraft": "Por favor, cambia «{{name}}» del {{day}}:",
+        "byFeel": "Objetivos por sensaciones hasta que se establezca un FTP.",
         "close": "Cerrar",
         "export": "Exportar los entrenamientos de este día",
+        "ftpLine": "Los objetivos usan un FTP de {{watts}} W de intervals.icu.",
+        "load": "Carga ≈ {{load}}",
         "move": "Mover…",
         "moving": "Moviéndose en intervals.icu",
         "onIntervals": "En intervals.icu",
         "onIntervalsYours": "En intervals.icu, con tu cambio",
+        "part": {
+          "coolDown": "Enfriamiento",
+          "interval": "Intervalo",
+          "main": "Constante",
+          "recovery": "Suave",
+          "warmUp": "Calentamiento"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Solo en el plan, aún sin enviar",
         "planOnlyGoesOut": "Solo en el plan, se envía el {{date}}",
         "planWorkout": "Entrenamiento del plan",
-        "today": "Hoy"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervalos, {{duration}} a ritmo suave tras cada uno",
+        "steps": "Pasos",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Hoy",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Desarrolla tu base aeróbica.",
+          "endurance": "Desarrolla resistencia para los días largos.",
+          "recover": "Te permite recuperar sin dejar de mover las piernas.",
+          "sustainedPower": "Desarrolla potencia sostenida justo por debajo de tu umbral."
+        },
+        "whyTitle": "Por qué este entrenamiento",
+        "zone": {
+          "endurance": "Resistencia",
+          "recovery": "Recuperación",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {

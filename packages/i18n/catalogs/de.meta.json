@@ -12008,6 +12008,118 @@
       "sourceHash": "57c221ebd18f5409e984abc65b9684b8755ca3a844fdb7843d16732697d3a67c",
       "translatedBy": "model"
     },
+    "chat.planCreation.guidanceByFeel": {
+      "sourceHash": "bdb168c48da281e639ca9d0614e19e3d39d357da56b4cdb3c8c535a08ad777b3",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.guidanceFtp": {
+      "sourceHash": "d93f78820b6a96dc176c3e5b48bfa64485ef54b3c9fed26236060d6606c81584",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.byFeel": {
+      "sourceHash": "bdb168c48da281e639ca9d0614e19e3d39d357da56b4cdb3c8c535a08ad777b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.ftpLine": {
+      "sourceHash": "1aaac576c5e2a1d1f75779c254df16ee56a2022ee8058588f23db2f366d43924",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.load": {
+      "sourceHash": "d3bc3442dd933983e48ddc07b5f1565a827381c42fcfa4978c211b5c5fdd0360",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.part.coolDown": {
+      "sourceHash": "fe21157593976b517e5f024ff641371a26c95ab5529b9717ee3c64d25dfac163",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.part.interval": {
+      "sourceHash": "6f45b0005e3b7c18ecd474b906b61876b7bb18e969e89d8728187e4417c364f8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.part.main": {
+      "sourceHash": "b3ee96c93ce5de1caaf8161a254f5fe9553b851649e85c049e2ace8a6bf7648c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.part.recovery": {
+      "sourceHash": "d6915875decb6e43dbf131d2453a2f065d78b915a3d0580777e834b9bf6afafd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.part.warmUp": {
+      "sourceHash": "ba4470f124b2fcdc9f6d515688fc6abe0e3410832fa1db0012538947dfae3d16",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.percent": {
+      "sourceHash": "6eae0dff5b4b3c72aaa73b1a40acf7a63534303708c5923d056d1d1f7406880c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.percentRamp": {
+      "sourceHash": "60d2bb70e83194160899c2299aac8fe5a9f379522e33b14ec43f1ff355d61582",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.percentRange": {
+      "sourceHash": "6b6571f851f7f5ae3d0c1a41c5857ba5a77cf0990ebfdccef3e211abb1411611",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.repeat": {
+      "sourceHash": "89c71fbed3e018db790769ec6d6c90eac8961400a71ee29e007b21903d28c539",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.repeatDetail": {
+      "sourceHash": "686c7fb7597e3c6a60daca1fe9babdd5ceb0af672d8e94c6adb7faa26a27fe3c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.steps": {
+      "sourceHash": "1de3df70ddf4faab9d799e3c45ea53c465aae9fccacd7ac77d8e85435828e6dc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.targetWatts": {
+      "sourceHash": "3841cad98bfdb82983a77dee808562cc9124984760e6fc9a791a4a27481a3adc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.watts": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.wattsRamp": {
+      "sourceHash": "3a667033ed90de1f8406f49727433573a1ec0355c711abf4443d9ce29df9f46d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.wattsRange": {
+      "sourceHash": "c64baa570376b7443c494113e2d3b18cd8fb29a7f2d3a0de1e269d14848fb814",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.why.aerobicBase": {
+      "sourceHash": "e90dbeb59a2c44a1281ed7775a4ef0a6b8a978c788b38198b4ee5caf16e0d488",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.why.endurance": {
+      "sourceHash": "06693b4bc0f93c38cdffe2434560b2bc272a3fa20701b0a003309451647a7e03",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.why.recover": {
+      "sourceHash": "c19e23af6ee221d325c9b1c1ff54ce8963a95edf4346e3b2d567e435200c0ec2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.why.sustainedPower": {
+      "sourceHash": "25bbc7832ea33f20570b57b05226346e125631a423a9fc41ab5535eb245bf291",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.whyTitle": {
+      "sourceHash": "ad8b6de592306069fab62a5c33289a092655a5e4d37d99f178478a5d7b7b99ca",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.zone.endurance": {
+      "sourceHash": "98c8abf84e23ff3f2a659b3077ece7a75697e7b0c215e05d86c1f28241689220",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.zone.recovery": {
+      "sourceHash": "48f6a8d5688b0cf59fb8109b7903507ed9d2e1580be2ad7ae169df659e1ddeea",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.zone.sweetSpot": {
+      "sourceHash": "22475b9efba6188fd3369f7cf94cf6782bbf11e957a019631a02dcb88a32a0a5",
+      "translatedBy": "model"
+    },
     "coach.error.providerCredits": {
       "sourceHash": "614d96bdc11f59d0ac93e8815dd6fbb6e516195774e3db9004e7f9847caaafaf",
       "translatedBy": "model"

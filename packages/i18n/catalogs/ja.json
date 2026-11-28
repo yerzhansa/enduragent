@@ -1522,6 +1522,8 @@
       },
       "goalLabel": "主な目標",
       "guidance": "心拍数または自覚的運動強度を使用します。FTPテストは行いません。",
+      "guidanceByFeel": "FTPが設定されるまでは感覚で目標を決めます。",
+      "guidanceFtp": "intervals.icuのFTPに対する%で目標を示します。",
       "guidanceLabel": "強度の目安",
       "improveFitness": "フィットネスを向上",
       "inProgress": "進行中",
@@ -2006,16 +2008,48 @@
       "workout": {
         "ask": "コーチに変更を依頼",
         "askDraft": "{{day}}の「{{name}}」を変更してください:",
+        "byFeel": "FTPが設定されるまでは感覚で目標を決めます。",
         "close": "閉じる",
         "export": "この日のワークアウトをエクスポート",
+        "ftpLine": "目標値はintervals.icuから取得したFTP {{watts}} Wを使用しています。",
+        "load": "負荷 ≈ {{load}}",
         "move": "移動…",
         "moving": "intervals.icuで移動中",
         "onIntervals": "intervals.icuに送信済み",
         "onIntervalsYours": "intervals.icuに送信済み（自分の変更あり）",
+        "part": {
+          "coolDown": "クールダウン",
+          "interval": "インターバル",
+          "main": "一定強度",
+          "recovery": "軽め",
+          "warmUp": "ウォームアップ"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}〜{{high}}%",
         "planOnly": "プランのみ、まだ送信されていません",
         "planOnlyGoesOut": "プランのみ、{{date}}に送信",
         "planWorkout": "プランのワークアウト",
-        "today": "今日"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "インターバル、各回の後に{{duration}}軽め",
+        "steps": "ステップ",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "今日",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}〜{{high}} W",
+        "why": {
+          "aerobicBase": "有酸素ベースを作ります。",
+          "endurance": "長い日に備えてエンデュランスを高めます。",
+          "recover": "脚を動かし続けながら回復できます。",
+          "sustainedPower": "閾値のすぐ下で持続パワーを高めます。"
+        },
+        "whyTitle": "このワークアウトの目的",
+        "zone": {
+          "endurance": "エンデュランス",
+          "recovery": "リカバリー",
+          "sweetSpot": "スイートスポット"
+        }
       }
     },
     "details": {

@@ -1522,6 +1522,8 @@
       },
       "goalLabel": "주요 목표",
       "guidance": "심박수 또는 자각 강도를 기준으로 합니다. FTP 테스트는 없습니다.",
+      "guidanceByFeel": "FTP가 설정될 때까지는 느낌에 따라 목표를 정합니다.",
+      "guidanceFtp": "intervals.icu의 FTP 대비 %로 목표를 정합니다.",
       "guidanceLabel": "훈련 기준",
       "improveFitness": "체력 향상",
       "inProgress": "진행 중",
@@ -2006,16 +2008,48 @@
       "workout": {
         "ask": "코치에게 변경 요청",
         "askDraft": "{{day}} “{{name}}” 워크아웃을 변경해 주세요:",
+        "byFeel": "FTP가 설정될 때까지는 느낌에 따라 목표를 정합니다.",
         "close": "닫기",
         "export": "이 날의 워크아웃 내보내기",
+        "ftpLine": "목표 기준 FTP는 intervals.icu에서 가져온 {{watts}} W입니다.",
+        "load": "부하 ≈ {{load}}",
         "move": "이동…",
         "moving": "intervals.icu에서 이동 중",
         "onIntervals": "intervals.icu에 있음",
         "onIntervalsYours": "intervals.icu에 있음, 내 수정 반영",
+        "part": {
+          "coolDown": "쿨다운",
+          "interval": "인터벌",
+          "main": "일정 강도",
+          "recovery": "가볍게",
+          "warmUp": "웜업"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}~{{high}}%",
         "planOnly": "계획에만 있음, 아직 전송 안 됨",
         "planOnlyGoesOut": "계획에만 있음, {{date}}에 전송",
         "planWorkout": "계획 워크아웃",
-        "today": "오늘"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "인터벌, 매회 후 {{duration}} 가볍게",
+        "steps": "단계",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "오늘",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}~{{high}} W",
+        "why": {
+          "aerobicBase": "유산소 기반을 다집니다.",
+          "endurance": "긴 훈련일을 위한 지구력을 기릅니다.",
+          "recover": "다리를 계속 움직이면서 회복할 수 있습니다.",
+          "sustainedPower": "역치 바로 아래에서 지속 파워를 기릅니다."
+        },
+        "whyTitle": "이 워크아웃을 하는 이유",
+        "zone": {
+          "endurance": "지구력",
+          "recovery": "회복",
+          "sweetSpot": "스윗스팟"
+        }
       }
     },
     "details": {

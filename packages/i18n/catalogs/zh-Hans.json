@@ -1522,6 +1522,8 @@
       },
       "goalLabel": "主要目标",
       "guidance": "根据心率或主观用力程度训练，无需 FTP 测试。",
+      "guidanceByFeel": "设置 FTP 之前按体感设定目标。",
+      "guidanceFtp": "目标以 intervals.icu 中 FTP 的 % 表示。",
       "guidanceLabel": "训练指引",
       "improveFitness": "提升体能",
       "inProgress": "进行中",
@@ -2006,16 +2008,48 @@
       "workout": {
         "ask": "请教练修改",
         "askDraft": "请修改 {{day}} 的“{{name}}”：",
+        "byFeel": "设置 FTP 之前按体感设定目标。",
         "close": "关闭",
         "export": "导出这一天的训练课程",
+        "ftpLine": "目标使用来自 intervals.icu 的 FTP {{watts}} W。",
+        "load": "训练负荷 ≈ {{load}}",
         "move": "移动…",
         "moving": "正在 intervals.icu 中移动",
         "onIntervals": "已在 intervals.icu 上",
         "onIntervalsYours": "已在 intervals.icu 上，含你的修改",
+        "part": {
+          "coolDown": "放松",
+          "interval": "间歇",
+          "main": "匀速",
+          "recovery": "轻松",
+          "warmUp": "热身"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "仅在计划中，尚未发送",
         "planOnlyGoesOut": "仅在计划中，{{date}} 发送",
         "planWorkout": "计划训练课程",
-        "today": "今天"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "间歇，每组后轻松骑 {{duration}}",
+        "steps": "步骤",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "今天",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "打好有氧基础。",
+          "endurance": "为长时间训练日积累耐力。",
+          "recover": "让双腿保持转动的同时得到恢复。",
+          "sustainedPower": "提升略低于阈值的持续功率。"
+        },
+        "whyTitle": "为何安排此训练课程",
+        "zone": {
+          "endurance": "耐力",
+          "recovery": "恢复",
+          "sweetSpot": "甜区"
+        }
       }
     },
     "details": {

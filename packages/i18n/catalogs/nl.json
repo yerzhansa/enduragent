@@ -1534,6 +1534,8 @@
       },
       "goalLabel": "Hoofddoel",
       "guidance": "Hartslag of ervaren inspanning. Geen FTP-test.",
+      "guidanceByFeel": "Streefwaarden op gevoel tot er een FTP is ingesteld.",
+      "guidanceFtp": "Streefwaarden als % van je FTP in intervals.icu.",
       "guidanceLabel": "Trainingssturing",
       "improveFitness": "Conditie verbeteren",
       "inProgress": "Bezig",
@@ -2051,16 +2053,48 @@
       "workout": {
         "ask": "De coach vragen dit te wijzigen",
         "askDraft": "Wijzig “{{name}}” op {{day}}:",
+        "byFeel": "Streefwaarden op gevoel tot er een FTP is ingesteld.",
         "close": "Sluiten",
         "export": "Trainingen van deze dag exporteren",
+        "ftpLine": "Streefwaarden gebruiken FTP {{watts}} W uit intervals.icu.",
+        "load": "Trainingsbelasting ≈ {{load}}",
         "move": "Verplaatsen…",
         "moving": "Wordt verplaatst in intervals.icu",
         "onIntervals": "Op intervals.icu",
         "onIntervalsYours": "Op intervals.icu, met jouw wijziging",
+        "part": {
+          "coolDown": "Cooling-down",
+          "interval": "Interval",
+          "main": "Constant",
+          "recovery": "Rustig",
+          "warmUp": "Warming-up"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Alleen in het trainingsschema, nog niet verzonden",
         "planOnlyGoesOut": "Alleen in het trainingsschema, wordt verzonden op {{date}}",
         "planWorkout": "Training uit het trainingsschema",
-        "today": "Vandaag"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervallen, na elk {{duration}} rustig",
+        "steps": "Stappen",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Vandaag",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Bouwt je aerobe basis op.",
+          "endurance": "Bouwt uithoudingsvermogen op voor lange dagen.",
+          "recover": "Je herstelt terwijl je benen in beweging blijven.",
+          "sustainedPower": "Bouwt vermogen op dat je lang volhoudt, net onder je drempel."
+        },
+        "whyTitle": "Waarom deze training",
+        "zone": {
+          "endurance": "Duur",
+          "recovery": "Herstel",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {
