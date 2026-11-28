@@ -4,11 +4,19 @@ import { localTodayDateKey } from "../calendar/dates";
 import { planChangePendingCheck } from "../state/chat-slice";
 import type { EnduragentState, useEnduragentStore } from "../state/store";
 import { createActivityReviewController } from "./controller";
-import { createFtpController } from "./ftp-controller";
+import { createFtpController, type FtpPanelState } from "./ftp-controller";
 import { createRideReviewController } from "./review-controller";
 import { selectedRide } from "./rides";
 
 const POLL_MS = 1_500;
+
+function ftpHistorySignature(panel: Extract<FtpPanelState, { readonly kind: "ready" }>): string {
+  const current = panel.read.current;
+  return JSON.stringify([
+    current === null ? null : [current.watts, current.dateKey, current.source],
+    panel.read.history.map((entry) => [entry.watts, entry.dateKey, entry.source]),
+  ]);
+}
 
 function shownRideId(state: EnduragentState): string | null {
   if (state.activeView !== "activity-review" || state.activityReview.kind !== "ready") return null;
@@ -55,11 +63,20 @@ export function startActivityReview(
     },
     publish: (next) => store.getState().setRideReview(next),
   });
+  let lastFtpHistory: string | null = null;
   const ftp = createFtpController({
     read: async () => (await clients.getClient()).call("plan.calendar", { action: "ftp" }),
     answer: async (request) =>
       (await clients.getClient()).call("plan.calendar", { action: "ftp-answer", ...request }),
-    publish: (next) => store.getState().setFtpPanel(next),
+    publish: (next) => {
+      store.getState().setFtpPanel(next);
+      if (next.kind === "ready") {
+        const signature = ftpHistorySignature(next);
+        const changed = lastFtpHistory !== null && lastFtpHistory !== signature;
+        lastFtpHistory = signature;
+        if (changed && next.notice !== "written") void controller.refresh();
+      }
+    },
     written: () => {
       void controller.refresh();
       store.getState().syncActions?.refreshQuietly();

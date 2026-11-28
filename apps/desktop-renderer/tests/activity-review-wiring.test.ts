@@ -2,6 +2,7 @@ import type { CoachClient } from "@enduragent/coach-client";
 import type { PlanCalendarFtpOutcome, PlanCalendarFtpRead } from "@enduragent/coach-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ACTIVITY_REVIEW_START } from "../src/activity-review/controller";
+import { FTP_PANEL_START } from "../src/activity-review/ftp-controller";
 import { refreshOpenCalendarPage, startCalendarPages } from "../src/page-wiring";
 import { useEnduragentStore as store } from "../src/state/store";
 import { TODAY, ride, rides } from "./activity-review-fixture";
@@ -70,7 +71,12 @@ function started(answered: PlanCalendarFtpOutcome | null = null) {
 }
 
 afterEach(() => {
-  store.setState({ activeView: "chat", activityReview: ACTIVITY_REVIEW_START, syncActions: null });
+  store.setState({
+    activeView: "chat",
+    activityReview: ACTIVITY_REVIEW_START,
+    ftpPanel: FTP_PANEL_START,
+    syncActions: null,
+  });
 });
 
 describe("the Activity review wiring", () => {
@@ -136,6 +142,51 @@ describe("the Activity review wiring", () => {
     expect(test.actions().filter((action) => !action.startsWith("plan.calendar:"))).toEqual([]);
     test.dispose();
     store.setState({ composerPrefill: null });
+  });
+
+  it("refreshes the rides list when reopening FTP history shows a changed FTP, and not when unchanged", async () => {
+    let currentWatts = 268;
+    const call = vi.fn(async (_method: string, params: CallParams) => {
+      if (params.action === "rides") return rides([ride("a", TODAY)]);
+      if (params.action === "ftp") {
+        return {
+          ...ftpRead("none"),
+          current: { watts: currentWatts, dateKey: 19980713, source: "intervals" as const },
+          history: [{ watts: currentWatts, dateKey: 19980713, source: "intervals" as const }],
+        };
+      }
+      return { status: "refused", reason: "no-active-plan" };
+    });
+    const client: CoachClient = {
+      handshake: {} as CoachClient["handshake"],
+      call: call as never,
+      close: vi.fn(async () => undefined),
+    };
+    const dispose = startCalendarPages(store, {
+      getClient: async () => client,
+      reconnect: async () => client,
+      onConnectionOpen: () => () => undefined,
+      close: async () => undefined,
+    });
+    const rideReads = () =>
+      call.mock.calls.filter(([, params]) => params.action === "rides").length;
+    store.getState().setActiveView("activity-review");
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"));
+    await vi.waitFor(() => expect(store.getState().ftpPanel.kind).toBe("ready"));
+    expect(rideReads()).toBe(1);
+
+    store.getState().ftpActions?.open();
+    await vi.waitFor(() =>
+      expect(call.mock.calls.filter(([, params]) => params.action === "ftp")).toHaveLength(2),
+    );
+    await Promise.resolve();
+    expect(rideReads()).toBe(1);
+
+    store.getState().ftpActions?.close();
+    currentWatts = 282;
+    store.getState().ftpActions?.open();
+    await vi.waitFor(() => expect(rideReads()).toBe(2));
+    dispose();
   });
 
   it("opens the Calendar on the ride's week from Show in calendar", async () => {

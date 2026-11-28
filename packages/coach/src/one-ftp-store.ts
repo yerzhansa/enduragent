@@ -253,13 +253,13 @@ export async function readFtpRecord(
   athleteId: string | null,
 ): Promise<FtpProposalRecord> {
   const start = { ...FTP_RECORD_START, athleteId };
+  if (athleteId === null) return start;
   const row = await store.get("SELECT state_json FROM ftp_proposal_state WHERE id=1");
   if (typeof row?.state_json !== "string") return start;
   const parsed = StateSchema.safeParse(JSON.parse(row.state_json));
   if (!parsed.success) return start;
-  const owner = parsed.data.athleteId;
-  if (athleteId !== null && owner !== null && owner !== athleteId) return start;
-  return { ...parsed.data, athleteId: athleteId ?? owner };
+  if (parsed.data.athleteId !== athleteId) return start;
+  return { ...parsed.data, athleteId };
 }
 
 export async function saveFtpRecord(

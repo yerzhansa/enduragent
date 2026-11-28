@@ -181,7 +181,9 @@ function checkedRecord(
 export async function check(deps: OneFtpDeps): Promise<void> {
   const results = await deps.tests.read();
   await deps.store.transaction(async () => {
-    const record = await readFtpRecord(deps.store, await ftpOwner(deps.store, deps.athleteId()));
+    const owner = await ftpOwner(deps.store, deps.athleteId());
+    if (owner === null) return;
+    const record = await readFtpRecord(deps.store, owner);
     const next = checkedRecord(deps, record, await snapshot(deps), results);
     if (JSON.stringify(next) !== JSON.stringify(record)) {
       await saveFtpRecord(deps.store, next, deps.now());

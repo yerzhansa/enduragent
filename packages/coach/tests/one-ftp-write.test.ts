@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { IntervalsClient } from "intervals-icu-api";
 import { FAKE_SETTINGS_EXTRA } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
+import { storeOwnerFingerprint } from "../src/account-identity.js";
 import { createIcuSportSettingsPort } from "../src/one-ftp-icu.js";
 import { RIDE, ftpHarness, msOf } from "./one-ftp-harness.js";
 
@@ -199,6 +200,59 @@ describe("one FTP: the confirm and the write", () => {
       proposal: { memory: { ftpSeen: { kind: "seen", watts: 300 } } },
     });
   });
+
+  it.each([
+    ["ambiguous unowned store", "ambiguous"],
+    ["store_owner bound to another athlete with no Ride settings", "owned-new"],
+  ] as const)(
+    "hides i1998's confirming and shown proposals, refuses confirm writes, and leaves stored state intact under %s",
+    async (_label, mode) => {
+      for (const stage of ["confirming", "shown"] as const) {
+        const test = await ftpHarness();
+        await test.estimates(14, 291);
+        await test.sync();
+        expect((await test.read()).proposal).toMatchObject({ kind: "shown", watts: 288 });
+        if (stage === "confirming") {
+          await test.answer("use", { kind: "shown", watts: 288 });
+        }
+        const beforeRow = await test.store.get(
+          "SELECT state_json FROM ftp_proposal_state WHERE id=1",
+        );
+        expect(JSON.parse(String(beforeRow?.state_json))).toMatchObject({
+          athleteId: "i1998",
+          proposal: { kind: stage, watts: 288 },
+        });
+        if (mode === "ambiguous") {
+          await test.land({
+            ...RIDE,
+            ftp: 300,
+            updated: "1998-08-10T08:00:00.100+00:00",
+            athleteId: "i1999",
+          });
+          test.setAthlete("0");
+        } else {
+          await test.store.run(
+            "INSERT INTO store_owner (singleton, account_fingerprint) VALUES (1, ?)",
+            [storeOwnerFingerprint("i2000")],
+          );
+          test.setAthlete("i2000");
+        }
+        const read = await test.read();
+        expect(read.current).toBeNull();
+        expect(read.history).toEqual([]);
+        expect(read.proposal).toEqual({ kind: "none" });
+        const refused = await test.answer("confirm", { kind: stage, watts: 288 });
+        expect(refused.outcome).toBe("refused");
+        expect(refused.proposal).toEqual({ kind: "none" });
+        expect(test.icu.writes).toEqual([]);
+        await test.sync();
+        const afterRow = await test.store.get(
+          "SELECT state_json FROM ftp_proposal_state WHERE id=1",
+        );
+        expect(afterRow?.state_json).toBe(beforeRow?.state_json);
+      }
+    },
+  );
 
   it("sends one write when two confirms arrive at once", async () => {
     const test = await confirming();

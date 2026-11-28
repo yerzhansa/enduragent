@@ -55,6 +55,7 @@ test.describe("One FTP", () => {
       await activities.locator(`[data-ride-id="${rideKey(1)}"]`).click();
       const line = page.locator("[data-ride-ftp]");
       await expect(line).toContainText("FTP 268 W from intervals.icu.");
+      await snap(scenario, "one-ftp-ride-before");
       await line.getByRole("button", { name: "FTP history" }).click();
       const sheet = page.getByRole("complementary", { name: "FTP" });
       const history = sheet.getByRole("table", { name: "FTP history" }).locator("tbody");
@@ -81,6 +82,7 @@ test.describe("One FTP", () => {
 
       await line.getByRole("button", { name: "FTP history" }).click();
       await expect(history.getByRole("row")).toHaveCount(2);
+      await expect(line).toContainText("FTP 282 W, set by you in intervals.icu on");
       await expect(history.getByRole("row").first()).toContainText(
         "282 WSet by you in intervals.icu",
       );
