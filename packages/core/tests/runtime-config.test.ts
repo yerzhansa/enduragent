@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { currentModelId, resolveRuntimeConfig, type LlmProvider } from "../src/runtime-config.js";
+import {
+  currentModelId,
+  persistedLlmBackgroundModels,
+  resolveRuntimeConfig,
+  type LlmProvider,
+} from "../src/runtime-config.js";
 
 describe("runtime configuration authority", () => {
   it("preserves same-provider custom fields for a credential-only patch", () => {
@@ -288,4 +293,93 @@ it("keeps implicit OpenAI background work on its previous model when opting into
   });
   expect(fresh.llm.flushModel).toBe("gpt-6.2-sol");
   expect(fresh.llm.compactModel).toBe("gpt-6.2-sol");
+});
+
+describe("background summary and memory model choices", () => {
+  it("moves OpenAI background models to the new chat model after leaving Astra", () => {
+    const sol = resolveRuntimeConfig({
+      llm: { provider: "openai", model: "gpt-6.2-sol", apiKey: "fake-key" },
+    });
+    const astra = resolveRuntimeConfig({ llm: { model: "gpt-6-astra" } }, sol);
+    expect(persistedLlmBackgroundModels(astra)).toEqual({
+      flushModel: undefined,
+      compactModel: undefined,
+      beforeAstraModel: "gpt-6.2-sol",
+    });
+    const luna = resolveRuntimeConfig({ llm: { model: "gpt-6-luna" } }, astra);
+    expect(luna.llm.compactModel).toBe("gpt-6-luna");
+    expect(luna.llm.flushModel).toBeUndefined();
+    expect(persistedLlmBackgroundModels(luna)).toEqual({
+      flushModel: undefined,
+      compactModel: undefined,
+      beforeAstraModel: undefined,
+    });
+  });
+
+  it("preserves beforeAstra across restart and drops it when leaving Astra", () => {
+    const luna = resolveRuntimeConfig({
+      llm: { provider: "openai", model: "gpt-6-luna", apiKey: "fake-key" },
+    });
+    const astra = resolveRuntimeConfig({ llm: { model: "gpt-6-astra" } }, luna);
+    const persisted = persistedLlmBackgroundModels(astra);
+    const reloaded = resolveRuntimeConfig(
+      {
+        llm: {
+          provider: "openai",
+          model: "gpt-6-astra",
+          apiKey: "fake-key",
+          flushModel: persisted.flushModel,
+          compactModel: persisted.compactModel,
+        },
+      },
+      undefined,
+      { beforeAstraModel: persisted.beforeAstraModel },
+    );
+    expect(reloaded.llm.compactModel).toBe("gpt-6-luna");
+    expect(reloaded.llm.flushModel).toBe("gpt-6-luna");
+
+    const sol = resolveRuntimeConfig({ llm: { model: "gpt-6.2-sol" } }, reloaded);
+    expect(sol.llm.compactModel).toBe("gpt-6.2-sol");
+    expect(sol.llm.flushModel).toBeUndefined();
+  });
+
+  it("keeps OpenRouter and Anthropic compaction on the provider default across model changes", () => {
+    const orDefault = resolveRuntimeConfig({
+      llm: {
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4.1-flash-1017",
+        apiKey: "fake-key",
+      },
+    });
+    const orPremium = resolveRuntimeConfig({ llm: { model: "moonshotai/kimi-k3" } }, orDefault);
+    expect(orPremium.llm.compactModel).toBe("deepseek/deepseek-v4.1-flash-1017");
+    expect(orPremium.llm.flushModel).toBeUndefined();
+
+    const haiku = resolveRuntimeConfig({
+      llm: { provider: "anthropic", model: "claude-haiku-5-5", apiKey: "fake-key" },
+    });
+    const sonnet = resolveRuntimeConfig({ llm: { model: "claude-sonnet-5-5" } }, haiku);
+    expect(sonnet.llm.compactModel).toBe("claude-haiku-5-5");
+    expect(sonnet.llm.flushModel).toBeUndefined();
+  });
+
+  it("keeps explicit background models equal to the chat model across model changes", () => {
+    const initial = resolveRuntimeConfig({
+      llm: {
+        provider: "openai",
+        model: "gpt-6-luna",
+        apiKey: "fake-key",
+        compactModel: "gpt-6-luna",
+        flushModel: "gpt-6-luna",
+      },
+    });
+    expect(persistedLlmBackgroundModels(initial)).toEqual({
+      flushModel: "gpt-6-luna",
+      compactModel: "gpt-6-luna",
+      beforeAstraModel: undefined,
+    });
+    const next = resolveRuntimeConfig({ llm: { model: "gpt-6.2-sol" } }, initial);
+    expect(next.llm.compactModel).toBe("gpt-6-luna");
+    expect(next.llm.flushModel).toBe("gpt-6-luna");
+  });
 });

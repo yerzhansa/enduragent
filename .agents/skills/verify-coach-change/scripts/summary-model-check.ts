@@ -12,6 +12,7 @@
 import {
   COMPACT_MODEL_DEFAULTS,
   DEFAULT_MODELS,
+  persistedLlmBackgroundModels,
   resolveRuntimeConfig,
   type EffectiveRuntimeConfig,
   type LlmProvider,
@@ -164,25 +165,32 @@ steps.push({
   words: `the athlete clears the memory model: configureRuntime {"llm":{"flush_model":null}}`,
   next: (state) => apply(state, { flush_model: null }, { ...state.ghost, explicitFlush: null }),
 });
-// Restart: composition.ts persistConfig writes flush_model and compact_model
-// (lines 500-501) and config.ts loadConfig reads them back with no current
-// config (lines 313-321).
+// Restart: composition.ts persistRuntimeConfig writes only explicit flush_model
+// and compact_model plus before_astra_model via assignPersistedLlmBackgroundModels,
+// and config.ts loadConfigFromYaml reads them back with no current config.
 steps.push({
   kind: "restart",
   words: "the app restarts and reloads config.yaml",
   next: (state) => {
     const llm = state.config.llm;
+    const persisted = persistedLlmBackgroundModels(state.config);
     try {
-      const config = resolveRuntimeConfig({
-        llm: {
-          provider: llm.provider,
-          model: llm.model,
-          apiKey: llm.apiKey,
-          flushModel: llm.flushModel,
-          compactModel: llm.compactModel,
-          baseUrl: llm.baseUrl,
+      const config = resolveRuntimeConfig(
+        {
+          llm: {
+            provider: llm.provider,
+            model: llm.model,
+            apiKey: llm.apiKey,
+            flushModel: persisted.flushModel,
+            compactModel: persisted.compactModel,
+            baseUrl: llm.baseUrl,
+          },
         },
-      });
+        undefined,
+        persisted.beforeAstraModel === undefined
+          ? {}
+          : { beforeAstraModel: persisted.beforeAstraModel },
+      );
       return { config, ghost: state.ghost };
     } catch {
       return "refused";
@@ -267,7 +275,7 @@ const rules: Rule[] = [
 
 function keyOf(state: State): string {
   const { apiKey: _apiKey, ...llm } = state.config.llm;
-  return JSON.stringify([llm, state.ghost]);
+  return JSON.stringify([llm, state.config.llmBackgroundModels, state.ghost]);
 }
 
 // A fresh install: config.ts loads an empty config.yaml.

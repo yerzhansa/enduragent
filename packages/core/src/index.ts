@@ -335,12 +335,15 @@ export {
   LLM_MODEL_CATALOGUE,
   LLM_PROVIDERS,
   PROVIDER_BASE_URLS,
+  assignPersistedLlmBackgroundModels,
   contextWindowForModel,
   isKeylessProvider,
+  persistedLlmBackgroundModels,
   resolveLlmProvider,
   resolveRuntimeConfig,
 } from "./runtime-config.js";
 export type {
+  BackgroundModelChoice,
   ClaudeCliBilling,
   ClaudeCliRuntimeConfigPatch,
   ClaudeCliRuntimeSettings,
@@ -349,9 +352,11 @@ export type {
   CodexAgentRuntimeSettings,
   EffectiveRuntimeConfig,
   KeylessLlmProvider,
+  LlmBackgroundModelChoices,
   LlmModelCatalogueEntry,
   LlmModelOption,
   LlmProvider,
+  PersistedLlmBackgroundModels,
   RuntimeConfigPatch,
   RuntimeConfigResolverOptions,
 } from "./runtime-config.js";

@@ -23,6 +23,7 @@ import {
   RefreshTokenReusedError,
   appendUsageLine,
   acceptModelCatalogSnapshot,
+  assignPersistedLlmBackgroundModels,
   bootstrapReference,
   classifyFailure,
   compareAndSaveStoredProfile,
@@ -495,8 +496,7 @@ function persistRuntimeConfig(
       llm.auth_profile = candidate.llm.authProfile ?? "openai-codex";
     } else delete llm.auth_profile;
     assignOptionalField(llm, "base_url", candidate.llm.baseUrl);
-    assignOptionalField(llm, "flush_model", candidate.llm.flushModel);
-    assignOptionalField(llm, "compact_model", candidate.llm.compactModel);
+    assignPersistedLlmBackgroundModels(llm, candidate);
     if (request.llm.claude_cli !== undefined) {
       const block: Record<string, unknown> = isRecord(llm.claude_cli) ? { ...llm.claude_cli } : {};
       for (const [field, value] of Object.entries(request.llm.claude_cli)) {

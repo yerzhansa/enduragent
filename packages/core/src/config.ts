@@ -24,10 +24,6 @@ export {
 } from "./runtime-config.js";
 export type { LlmProvider } from "./runtime-config.js";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export const DATA_SOURCES = ["platform", "store"] as const;
 export type DataSource = (typeof DATA_SOURCES)[number];
 export function resolveDataSource(value: unknown): DataSource {
@@ -48,10 +44,6 @@ export interface LoadConfigOptions {
   defaultDataDir?: string;
 }
 
-// ============================================================================
-// CONFIG LOADING
-// ============================================================================
-
 export const CONFIG_DIR = getCoachHome("cycling-coach");
 export const CONFIG_FILE = join(CONFIG_DIR, "config.yaml");
 
@@ -69,10 +61,6 @@ function readConfigYamlFrom(configDir: string): Record<string, unknown> {
 export function readConfigYaml(): Record<string, unknown> {
   return readConfigYamlFrom(CONFIG_DIR);
 }
-
-// ============================================================================
-// CONFIG LOADING
-// ============================================================================
 
 type RuntimeEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -119,16 +107,11 @@ interface SessionEnvironmentOverrides {
   readonly timezone?: string;
 }
 
-function sessionEnvironmentOverrides(
-  environment: RuntimeEnvironment,
-): SessionEnvironmentOverrides {
+function sessionEnvironmentOverrides(environment: RuntimeEnvironment): SessionEnvironmentOverrides {
   const historyTokenBudgetRatio = envFloatFrom(environment, "HISTORY_TOKEN_BUDGET_RATIO");
   const idleMinutes = envIntFrom(environment, "SESSION_IDLE_MINUTES");
   const dailyResetHour = envIntFrom(environment, "SESSION_DAILY_RESET_HOUR");
-  const resetArchiveRetentionDays = envIntFrom(
-    environment,
-    "SESSION_RESET_ARCHIVE_RETENTION_DAYS",
-  );
+  const resetArchiveRetentionDays = envIntFrom(environment, "SESSION_RESET_ARCHIVE_RETENTION_DAYS");
   const timezone = envFrom(environment, "COACH_TZ");
   return {
     historyTokenBudgetRatio,
@@ -196,10 +179,6 @@ export function codexAgentPatchFrom(
     ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
   };
 }
-
-// ============================================================================
-// SECRET REF HANDLING
-// ============================================================================
 
 type SecretFieldPath = "llm.api_key" | "intervals.api_key" | "telegram.bot_token";
 
@@ -338,8 +317,7 @@ export function loadConfigFromYaml(
         idleMinutes:
           sessionEnvironment.idleMinutes ?? (sessionYaml.idleMinutes as number | undefined),
         dailyResetHour:
-          sessionEnvironment.dailyResetHour ??
-          (sessionYaml.dailyResetHour as number | undefined),
+          sessionEnvironment.dailyResetHour ?? (sessionYaml.dailyResetHour as number | undefined),
         resetArchiveRetentionDays:
           sessionEnvironment.resetArchiveRetentionDays ??
           (sessionYaml.resetArchiveRetentionDays as number | undefined),
@@ -353,6 +331,9 @@ export function loadConfigFromYaml(
         : {}),
       ...(provider === "openai-codex" && typeof llmYaml.auth_profile === "string"
         ? { authProfile: llmYaml.auth_profile }
+        : {}),
+      ...(typeof llmYaml.before_astra_model === "string"
+        ? { beforeAstraModel: llmYaml.before_astra_model }
         : {}),
     },
   );

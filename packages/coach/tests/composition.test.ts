@@ -6727,7 +6727,6 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "anthropic",
         model: "new-model",
         api_key: "obviously-fake-implicit-provider-key",
-        compact_model: "claude-haiku-5-5",
         retained_llm_field: true,
       },
     });
@@ -6735,6 +6734,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       provider: "anthropic",
       model: "new-model",
       apiKey: "obviously-fake-implicit-provider-key",
+      compactModel: "claude-haiku-5-5",
     });
     const snapshot = await lifecycle.operations.getRuntimeConfig({});
     expect(snapshot.llm).toMatchObject({
@@ -7157,8 +7157,12 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "zai",
         model: "glm-4.7",
         base_url: "https://api.z.ai/api/openai/v1",
-        compact_model: "glm-4.7",
       },
+    });
+    expect(loadConfig(home.configDir).llm).toMatchObject({
+      provider: "zai",
+      model: "glm-4.7",
+      compactModel: "glm-4.7",
     });
     await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
       llm: {
@@ -7225,7 +7229,6 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       llm: {
         provider: "google",
         model: "replacement-model",
-        compact_model: "replacement-model",
       },
     });
     expect(loadConfig(home.configDir).llm).toMatchObject({
@@ -7233,6 +7236,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       model: "replacement-model",
       apiKey: "",
       authProfile: undefined,
+      compactModel: "replacement-model",
     });
     await lifecycle.operations.configureRuntime({
       llm: { provider: "openai-codex", model: "gpt-5.5" },
@@ -7247,7 +7251,6 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "openai-codex",
         model: "gpt-5.5",
         auth_profile: "openai-codex",
-        compact_model: "gpt-5.5",
       },
     });
     expect(loadConfig(home.configDir).llm).toMatchObject({
@@ -7255,6 +7258,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       model: "gpt-5.5",
       apiKey: "",
       authProfile: "openai-codex",
+      compactModel: "gpt-5.5",
     });
     await lifecycle.close();
   });
