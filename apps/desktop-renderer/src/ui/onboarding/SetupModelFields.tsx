@@ -41,6 +41,7 @@ export function SetupModelFields(props: {
   };
   const retired = retiredModel(props.active, draft.provider);
   const replacedBy = retired?.replacedBy ?? null;
+  const noticeShown = retired !== null && draft.modelChoice === retired.model;
   const options = [
     ...draft.provider.models.map((model) => ({
       value: model.value,
@@ -71,7 +72,11 @@ export function SetupModelFields(props: {
             if (value !== null) actions?.selectModel(value);
           }}
         >
-          <SelectTrigger id="onboarding-llm-model" className={SETUP_SELECT_CLASS}>
+          <SelectTrigger
+            id="onboarding-llm-model"
+            className={SETUP_SELECT_CLASS}
+            aria-describedby={noticeShown ? "onboarding-llm-model-retired" : undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent align="start" className={SELECT_LIST_FIT_CLASS}>
@@ -82,9 +87,9 @@ export function SetupModelFields(props: {
             ))}
           </SelectContent>
         </Select>
-        {retired === null || draft.modelChoice !== retired.model ? null : (
+        {noticeShown ? (
           <>
-            <p className={SETUP_HINT_CLASS} role="status">
+            <p className={SETUP_HINT_CLASS} id="onboarding-llm-model-retired">
               {say(
                 replacedBy === null
                   ? "setup.ai.retiredNoticeNoReplacement"
@@ -112,7 +117,7 @@ export function SetupModelFields(props: {
               </Button>
             )}
           </>
-        )}
+        ) : null}
       </div>
       {draft.modelChoice === CUSTOM_MODEL_SELECTION ? (
         <div>

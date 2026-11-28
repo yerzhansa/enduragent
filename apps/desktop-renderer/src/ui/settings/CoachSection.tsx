@@ -116,6 +116,7 @@ export function CoachSection(): ReactElement {
           { value: CUSTOM_MODEL_SELECTION, label: say("settings.coach.otherModel") },
         ];
   const replacedBy = retired?.replacedBy ?? null;
+  const noticeShown = retired !== null && draft?.modelChoice === retired.model;
 
   useEffect(() => {
     if (!focusCustomModel.current) return;
@@ -230,6 +231,7 @@ export function CoachSection(): ReactElement {
                   id="coach-model"
                   className={styles.control}
                   aria-labelledby="coach-model-label"
+                  aria-describedby={noticeShown ? "coach-model-retired" : undefined}
                 >
                   <SelectValue placeholder={say("settings.coach.chooseProviderFirst")} />
                 </SelectTrigger>
@@ -242,9 +244,9 @@ export function CoachSection(): ReactElement {
                 </SelectContent>
               </Select>
             </div>
-            {retired !== null && draft?.modelChoice === retired.model ? (
+            {noticeShown ? (
               <div className={`${styles.row} ${styles.rowStacked}`}>
-                <p className={styles.help} role="status">
+                <p className={styles.help} id="coach-model-retired">
                   {say(
                     replacedBy === null
                       ? "settings.coach.retiredNoticeNoReplacement"
