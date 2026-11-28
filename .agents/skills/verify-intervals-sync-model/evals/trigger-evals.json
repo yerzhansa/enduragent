@@ -16,6 +16,10 @@
     "should_trigger": true
   },
   {
+    "query": "I made the quiet sync after an FTP confirm ask the coach again when the connection comes back. Check that Training catches up and a quiet failure stays hidden.",
+    "should_trigger": true
+  },
+  {
     "query": "Add a new translation string for the Plan calendar empty state and run the i18n check.",
     "should_trigger": false
   },

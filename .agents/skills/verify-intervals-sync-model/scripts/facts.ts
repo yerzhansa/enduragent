@@ -10,7 +10,8 @@ export type FlagName =
   | "RereadOnOpen"
   | "TransientRetry"
   | "SkippedIsFailure"
-  | "ClearCancelsWindow";
+  | "ClearCancelsWindow"
+  | "QuietRereads";
 
 export type Flags = Record<FlagName, boolean>;
 
@@ -50,6 +51,9 @@ const MANUAL_SYNC = "apps/desktop-renderer/src/training-context/manual-sync.ts";
 const TRAINING = "apps/desktop-renderer/src/training-context/controller.ts";
 const RUNTIME = "apps/desktop/src/main/credential-runtime.ts";
 const VAULT = "apps/desktop/src/main/credential-vault.ts";
+const RETRY = "apps/desktop/src/main/intervals-sign-in-retry.ts";
+const BUNDLE = "packages/coach/src/runtime-bundle.ts";
+const REVIEW_WIRING = "apps/desktop-renderer/src/activity-review/wiring.ts";
 
 export const FLAGS: readonly FlagFact[] = [
   {
@@ -96,6 +100,14 @@ export const FLAGS: readonly FlagFact[] = [
     says: "an intervals.icu credential clear cancels the sync window that holds the lane",
     read: (s) => /abortActiveWindow/.test(s.code(s.read(STORE_RUNTIME))),
   },
+  {
+    name: "QuietRereads",
+    says: "a quiet sync that a dropped connection cut off is asked again, quietly, when the provider opens a new connection",
+    read: (s) =>
+      /\binterruptedQuietly\b/.test(
+        s.code(s.block(SYNC, "export function createTrainingSyncCoordinator(")),
+      ),
+  },
 ];
 
 // A rule breaks for a cause. A cause with an issue is a known, open finding.
@@ -115,8 +127,9 @@ export interface RuleFact {
   readonly harm: string;
   // The rule breaks exactly when one of these causes is present.
   readonly breaksWhen: readonly BreakCause[];
-  // Flag values that must break the rule, whatever the code says today.
-  readonly breakWith: Partial<Flags>;
+  // Flag values that must break the rule, whatever the code says today. One
+  // set per cause.
+  readonly breakWith: readonly Partial<Flags>[];
   readonly witness: string;
 }
 
@@ -138,17 +151,18 @@ export const RULES: readonly RuleFact[] = [
         because: "a call's timeout closes the shared connection again (PR 1185 undone)",
       },
     ],
-    breakWith: { TimeoutLatches: true },
+    breakWith: [{ TimeoutLatches: true }],
     witness: "WitnessOtherCallsPendingDuringAnalysis",
   },
   {
     name: "WindowCatchesUpAfterReconnect",
-    says: "Once the connection is open again and nothing runs by itself, the sidebar shows the coach's last sync result and the training context is not older than it.",
-    harm: "After a dropped connection the sidebar keeps \"Connection interrupted\" and old Training and Plan data until the athlete presses Try again.",
+    says: "Once the connection is open again and nothing runs by itself, the sidebar shows the coach's last sync result (a quiet sync's failure leaves it as it was) and the training context is not older than it.",
+    harm: "After a dropped connection the sidebar keeps \"Connection interrupted\", or after an FTP confirm the sidebar and Training keep their pre-sync state, until the athlete presses Sync now.",
     breaksWhen: [
       { when: (f) => !f.RereadOnOpen, fixedWith: { RereadOnOpen: true }, issue: "413", because: "nothing re-reads the sync after a reconnect" },
+      { when: (f) => !f.QuietRereads, fixedWith: { QuietRereads: true }, issue: "426", because: "a quiet sync cut off by a dropped connection is hidden and never asked again" },
     ],
-    breakWith: { RereadOnOpen: false },
+    breakWith: [{ RereadOnOpen: false }, { QuietRereads: false }],
     witness: "WitnessQuiescentAfterOrphanedSync",
   },
   {
@@ -158,7 +172,7 @@ export const RULES: readonly RuleFact[] = [
     breaksWhen: [
       { when: (f) => !f.TransientRetry, fixedWith: { TransientRetry: true }, issue: "410", because: "only Retry saved keys re-applies the sign-in" },
     ],
-    breakWith: { TransientRetry: false },
+    breakWith: [{ TransientRetry: false }],
     witness: "WitnessNetworkRefusal",
   },
   {
@@ -168,7 +182,7 @@ export const RULES: readonly RuleFact[] = [
     breaksWhen: [
       { when: (f) => !f.SkippedIsFailure, fixedWith: { SkippedIsFailure: true }, issue: "410", because: "skipped-no-credential maps to a no-change success" },
     ],
-    breakWith: { SkippedIsFailure: false },
+    breakWith: [{ SkippedIsFailure: false }],
     witness: "WitnessEmptySyncWithSignIn",
   },
   {
@@ -178,7 +192,7 @@ export const RULES: readonly RuleFact[] = [
     breaksWhen: [
       { when: (f) => !f.ClearCancelsWindow, fixedWith: { ClearCancelsWindow: true }, issue: "412", because: "the clear waits behind the whole sync with no way out" },
     ],
-    breakWith: { ClearCancelsWindow: false },
+    breakWith: [{ ClearCancelsWindow: false }],
     witness: "WitnessDisconnectDuringSync",
   },
 ];
@@ -191,8 +205,9 @@ export const STEPS: Record<string, string> = {
   AthleteRetriesSavedKeys: "the athlete presses Retry saved keys",
   NetworkChanges: "the network goes up or down",
   AthletePressesSync: "the athlete presses Sync now or Try again (training-sync.ts request)",
+  AthleteConfirmsFtp: "the athlete confirms an FTP on Activity review; the window starts a quiet sync (request({ quiet: true }))",
   WindowRereadsSyncState: "the window asks the coach again, or refreshes Training, by itself",
-  WindowSettlesRejectedSync: "the window publishes failed/indeterminate: \"Connection interrupted\"",
+  WindowSettlesRejectedSync: "the window publishes failed/indeterminate: \"Connection interrupted\", or for a quiet sync puts back what the sidebar showed",
   WindowStartsRefresh: "after the coach answers, the window reloads the open analysis and refreshes Training and Plan (boot.ts refreshTrainingContext)",
   TrainingRefreshLands: "the Training and Plan refresh answers",
   WindowPublishesSyncResult: "the window publishes the sync result in the sidebar",
@@ -202,10 +217,10 @@ export const STEPS: Record<string, string> = {
   CoachFinishesWindow: "the coach finishes the sync window and answers",
   CoachCancelsWindowForClear: "the coach cancels the sync so the Disconnect can run",
   AthleteDisconnects: "the athlete confirms Disconnect in Settings (configureRuntime clear_credential)",
-  CoachAppliesClear: "the coach applies the clear, or throws if its deadline passed",
+  CoachAppliesClear: "the coach applies the clear, throws if its deadline passed, or refuses it while a reply runs (busy-replying)",
   CoachDeadlinePasses: "25 s pass: the coach's configureRuntime deadline expires while it waits",
   MainClientTimesOut: "30 s pass: main's client gives up; the vault marks the slot failed, runtime-state-diverged",
-  MainFinishesDisconnect: "main revokes (or says it could not, offline) and removes the token, or reports runtime-state-diverged",
+  MainFinishesDisconnect: "main revokes (or says it could not, offline) and removes the token, reports runtime-state-diverged, or keeps the token and says the coach could not stop using it",
   AthleteOpensAnalysis: "the athlete opens a ride's analysis (getActivityAnalysis with signal)",
   AthleteChangesRide: "the athlete clicks another ride, so the open or loading analysis goes away",
   CoachAnswersAnalysis: "the coach answers the analysis and it shows",
@@ -239,6 +254,8 @@ export const COVERED: readonly Covered[] = [
   { file: PROVIDER, needle: "export function createDesktopCoachClientProvider(", kind: "block", models: "ProviderReconnects; LatchTo onTerminal" },
   { file: SYNC, needle: "export function createTrainingSyncCoordinator(", kind: "block", models: "AthletePressesSync; WindowSettlesRejectedSync; WindowStartsRefresh; WindowPublishesSyncResult; WindowRereadsSyncState; Shown; RereadOnOpen; SkippedIsFailure" },
   { file: BOOT, needle: "refreshTrainingContext: async () =>", kind: "block", models: "WindowStartsRefresh (invalidate and reload, then the Training and Plan refresh)" },
+  { file: BOOT, needle: "refreshQuietly: () =>", kind: "statement", models: "AthleteConfirmsFtp (request({ quiet: true }))" },
+  { file: REVIEW_WIRING, needle: "written: () => {", kind: "block", models: "AthleteConfirmsFtp (a quiet sync after the FTP write)" },
   { file: ANALYSIS, needle: "export function createRideAnalysisController(", kind: "block", models: "AthleteOpensAnalysis; AthleteChangesRide; CoachAnswersStaleAnalysis; AnalysisPassesSignal" },
   { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", models: "ChatDetectsProtocolFault (chat turn)" },
   { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", nth: 2, models: "ChatDetectsProtocolFault (decision turn)" },
@@ -260,6 +277,10 @@ export const COVERED: readonly Covered[] = [
   { file: OPERATIONS, needle: "configureRuntime(\n      request: ConfigureRuntimeRpcParams,", kind: "block", models: "CoachAppliesClear; CoachDeadlinePasses" },
   { file: RPC_SERVER, needle: 'case "sync":', kind: "block", models: "orphan windows: the sync handler gets no detach signal" },
   { file: COMPOSITION, needle: "pendingOwnerClaim = await assertIntervalsOwner(", kind: "statement", models: "ApplyStoredSignIn (owner check needs the network)" },
+  { file: COMPOSITION, needle: "const changesNothing =", kind: "statement", models: "ReplyRuns (a clear with no key changes nothing and waits)" },
+  { file: COMPOSITION, needle: 'changesNothing ? "wait" : "refuse"', kind: "statement", models: "ReplyRuns (a change is refused while a reply runs)" },
+  { file: BUNDLE, needle: 'if (whileReplying === "refuse" && runningTurns > 0)', kind: "statement", models: "ReplyRuns (busy-replying: CoachAppliesClear, ApplyStoredSignIn)" },
+  { file: RETRY, needle: "async observe(slot, reapply) {", kind: "block", models: "ApplyStoredSignIn; RetryFires (an offline or busy-replying refusal schedules a retry)" },
   { file: RUNTIME, needle: "reapplyStoredCredential(slot, value, storedCredentialSlots) {", kind: "block", models: "ApplyStoredSignIn" },
   { file: RUNTIME, needle: "async clearCredential(credential) {", kind: "block", models: "AthleteDisconnects; MainClientTimesOut" },
   { file: VAULT, needle: "const reapplyConfigured = async", kind: "block", models: "LaunchReappliesSignIn" },
