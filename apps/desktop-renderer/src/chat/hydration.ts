@@ -311,18 +311,19 @@ export function createTranscriptHydrator(input: {
       if (disposed || resetPending) return;
       resetPending = true;
       epoch += 1;
+      const empty = snapshot.turns.length === 0 && snapshot.entries.length === 0;
       interruptedRequest =
         snapshot.status === "loading"
           ? (failedRequest ?? {
-              cursor: snapshot.turns.length === 0 ? null : snapshot.nextCursor,
-              mode: snapshot.turns.length === 0 ? "initial" : "earlier",
+              cursor: empty ? null : snapshot.nextCursor,
+              mode: empty ? "initial" : "earlier",
             })
           : undefined;
       task = undefined;
       if (snapshot.status === "loading") {
         publish({
           ...snapshot,
-          status: snapshot.turns.length === 0 ? "idle" : "ready",
+          status: empty ? "idle" : "ready",
           change: "none",
         });
       }

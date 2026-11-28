@@ -43,6 +43,8 @@ export function CoachDecisionPanel(props: {
   const chatError = useEnduragentStore((state) => state.chat.decisionError);
   const chatLoadError = useEnduragentStore((state) => state.chat.decisionLoadError);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const activeView = useEnduragentStore((state) => state.activeView);
+  const shortcutsActive = props.surface !== undefined || activeView === "chat";
   const decision = props.surface?.decision ?? chatDecision;
   const phase = props.surface?.phase ?? chatPhase;
   const rawAnswerLabel = props.surface?.answerLabel ?? chatAnswerLabel;
@@ -114,8 +116,11 @@ export function CoachDecisionPanel(props: {
   }, [decision?.status, phase]);
 
   useEffect(() => {
-    if (decision?.status !== "unanswered" || phase !== "idle") return;
+    if (!shortcutsActive || decision?.status !== "unanswered" || phase !== "idle") return;
     const onShortcut = (event: KeyboardEvent): void => {
+      if (props.surface === undefined && useEnduragentStore.getState().activeView !== "chat") {
+        return;
+      }
       if (event.defaultPrevented) return;
       if (document.querySelector('[role="dialog"]') !== null) return;
       if (event.key === "Escape") {
@@ -141,7 +146,7 @@ export function CoachDecisionPanel(props: {
     return () => {
       document.removeEventListener("keydown", onShortcut);
     };
-  }, [answer, decision, displayedOptions, phase, skipDecision]);
+  }, [answer, decision, displayedOptions, phase, props.surface, shortcutsActive, skipDecision]);
 
   if (decision === null && loadError !== null) {
     return (

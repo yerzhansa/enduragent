@@ -254,6 +254,7 @@ function choiceFromDecision(
 function historicalTimeline(
   entries: readonly TranscriptPageEntry[],
   liveDecisionIds: ReadonlySet<string>,
+  liveTurnIds: ReadonlySet<string>,
 ): readonly ChatTranscriptItemView[] {
   const requested = new Map<string, CoachDecisionReadModel>();
   const answered = new Map<
@@ -264,6 +265,7 @@ function historicalTimeline(
   const timeline: ChatTranscriptItemView[] = [];
   for (const entry of entries) {
     if (entry.kind === "turn") {
+      if (liveTurnIds.has(entry.turnId)) continue;
       const attempt = (turnAttempts.get(entry.turnId) ?? 0) + 1;
       turnAttempts.set(entry.turnId, attempt);
       if (
@@ -363,7 +365,7 @@ function historicalTimeline(
           },
         });
       }
-      if (!/\S/u.test(entry.coachText)) continue;
+      if (liveTurnIds.has(entry.turnId) || !/\S/u.test(entry.coachText)) continue;
       timeline.push({
         kind: "message",
         message: {
@@ -483,10 +485,21 @@ export function createChatViewAdapter(input: {
         command: message.command,
         restored: message.restored === true,
       }));
-    const liveDecisionIds = new Set(
-      messages.flatMap((message) => (message.decisionId === undefined ? [] : [message.decisionId])),
+    const liveTurnIds = new Set(
+      messages.flatMap((message) =>
+        !message.historical && message.turnId !== undefined ? [message.turnId] : [],
+      ),
     );
-    const historicalItems = historicalTimeline(hydration?.entries ?? [], liveDecisionIds);
+    const liveDecisionIds = new Set(
+      messages.flatMap((message) =>
+        !message.historical && message.decisionId !== undefined ? [message.decisionId] : [],
+      ),
+    );
+    const historicalItems = historicalTimeline(
+      hydration?.entries ?? [],
+      liveDecisionIds,
+      liveTurnIds,
+    );
     const historicalMessageIds = new Set(
       historicalItems.flatMap((item) => (item.kind === "message" ? [item.message.id] : [])),
     );

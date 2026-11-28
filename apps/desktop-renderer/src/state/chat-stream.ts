@@ -52,7 +52,11 @@ export function createChatStreamBuffer(): ChatStreamBuffer {
     },
     attach(messageId, host) {
       if (host === null) {
-        entries.delete(messageId);
+        const existing = entries.get(messageId);
+        if (existing !== undefined) {
+          existing.host = null;
+          existing.node = null;
+        }
         return;
       }
       const target = entry(messageId);

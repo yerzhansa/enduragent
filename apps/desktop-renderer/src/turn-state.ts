@@ -436,7 +436,15 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
       };
     }
     case "queue-snapshot": {
-      if (action.snapshot.revision <= (state.queueRevision ?? 0)) return state;
+      const staleRevision =
+        state.queueRevision !== undefined &&
+        action.snapshot.revision < state.queueRevision &&
+        !(
+          action.snapshot.revision === 0 &&
+          state.status !== "streaming" &&
+          (state.activeQueueClaimIds?.length ?? 0) === 0
+        );
+      if (staleRevision) return state;
       const activeQueueClaimIds =
         action.snapshot.retryRequired === undefined
           ? (state.activeQueueClaimIds ?? []).filter((id) =>
@@ -548,7 +556,6 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             activeTurn: null,
             progress: null,
             queued: [],
-            ...(state.queueRevision === undefined ? {} : { queueRevision: state.queueRevision }),
             ...(state.activeQueueClaimIds === undefined ? {} : { activeQueueClaimIds: [] }),
             ...(state.retryRequired === undefined ? {} : { retryRequired: null }),
             session: {

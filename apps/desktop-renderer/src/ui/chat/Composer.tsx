@@ -60,7 +60,8 @@ export function Composer(props: {
   const [submitting, setSubmitting] = useState(false);
   const inFlight = useRef<string | null>(null);
   const restoredRevision = useRef<string | null>(null);
-  const [saveTimer] = useState(createDraftSaveTimer);
+  const latestDraft = useRef(props.draftMemory?.current ?? "");
+  const [draftSaveTimer] = useState(createDraftSaveTimer);
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const changeCheckDocked = useEnduragentStore(
@@ -75,6 +76,12 @@ export function Composer(props: {
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const chatStatus = useEnduragentStore((state) => state.chat.status);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  const surfaceRef = useRef(props.surface);
+  surfaceRef.current = props.surface;
+  const draftSetAsidePropRef = useRef(props.draftSetAsideRef);
+  draftSetAsidePropRef.current = props.draftSetAsideRef;
   const chatReady = useEnduragentStore(setupReady);
   const attachmentSurface = useEnduragentStore((state) => state.chat.attachments);
   const attachmentIds =
@@ -108,24 +115,18 @@ export function Composer(props: {
     const input = textarea.current;
     if (input === null || input.value === restored.text) return;
     if (input.value.length > 0 && restored.state !== "restored") return;
+    draftSaveTimer.cancel();
     input.value = restored.text;
+    latestDraft.current = restored.text;
     if (props.draftMemory !== undefined) props.draftMemory.current = restored.text;
     setDraft(restored.text);
-  }, [attachmentSurface, props.draftMemory, props.draftSetAside, props.surface]);
+  }, [attachmentSurface, draftSaveTimer, props.draftMemory, props.draftSetAside, props.surface]);
 
   useEffect(
     () => () => {
-      if (
-        props.surface === undefined &&
-        props.draftSetAsideRef?.current !== true &&
-        textarea.current !== null &&
-        useEnduragentStore.getState().chat.composerStatus === null
-      ) {
-        actions?.saveAttachmentDraftText(textarea.current.value);
-      }
-      saveTimer.cancel();
+      draftSaveTimer.flush();
     },
-    [actions, props.draftSetAsideRef, props.surface, saveTimer],
+    [draftSaveTimer],
   );
 
   useImperativeHandle(
@@ -135,21 +136,23 @@ export function Composer(props: {
         textarea.current?.focus();
       },
       reset() {
-        saveTimer.cancel();
+        draftSaveTimer.cancel();
         const input = textarea.current;
         if (input !== null) {
           input.value = "";
           input.focus();
         }
+        latestDraft.current = "";
         if (props.draftMemory !== undefined) props.draftMemory.current = "";
         setDraft("");
         setSelected(0);
         setDismissed(false);
       },
       replace(text: string) {
-        saveTimer.cancel();
+        draftSaveTimer.cancel();
         const input = textarea.current;
         if (input !== null) input.value = text;
+        latestDraft.current = text;
         if (props.draftMemory !== undefined) props.draftMemory.current = text;
         setDraft(text);
         setSelected(0);
@@ -157,8 +160,27 @@ export function Composer(props: {
       },
       sending: () => inFlight.current,
     }),
-    [],
+    [draftSaveTimer],
   );
+
+  const persistDraft = (value: string): void => {
+    if (
+      surfaceRef.current === undefined &&
+      draftSetAsidePropRef.current?.current !== true &&
+      useEnduragentStore.getState().chat.composerStatus === null
+    ) {
+      actionsRef.current?.saveAttachmentDraftText(value);
+    }
+  };
+
+  const recordDraft = (value: string): void => {
+    latestDraft.current = value;
+    if (props.draftMemory !== undefined) props.draftMemory.current = value;
+    setDraft(value);
+    setSelected(0);
+    setDismissed(false);
+    draftSaveTimer.schedule(() => persistDraft(latestDraft.current));
+  };
 
   const submit = async (): Promise<void> => {
     const input = textarea.current;
@@ -175,7 +197,7 @@ export function Composer(props: {
     if (input === null || send === null || sendDisabled || submitting || !canChat) return;
     const value = input.value;
     if (!/\S/u.test(value) && (surface !== undefined || attachmentIds.length === 0)) return;
-    saveTimer.cancel();
+    draftSaveTimer.cancel();
     const draftSetAside = props.draftSetAsideRef?.current === true;
     const submittedPlanChangeRevision = props.planChangeDraftRevision ?? null;
     if (surface === undefined && !draftSetAside) actions?.saveAttachmentDraftText(value);
@@ -191,6 +213,7 @@ export function Composer(props: {
       if (input.value === value) {
         const next = restored ?? "";
         input.value = next;
+        latestDraft.current = next;
         if (
           props.draftMemory !== undefined &&
           (input === textarea.current || props.draftMemory.current === value)
@@ -218,10 +241,7 @@ export function Composer(props: {
     if (match === undefined || input === null) return;
     const inserted = `${match.command} `;
     input.value = inserted;
-    if (props.draftMemory !== undefined) props.draftMemory.current = inserted;
-    setDraft(inserted);
-    setSelected(0);
-    setDismissed(false);
+    recordDraft(inserted);
     input.focus();
   };
 
@@ -359,20 +379,7 @@ export function Composer(props: {
           aria-controls={open ? listboxId : undefined}
           aria-activedescendant={open ? `${listboxId}-option-${active}` : undefined}
           onChange={(event) => {
-            const value = event.currentTarget.value;
-            if (props.draftMemory !== undefined) props.draftMemory.current = value;
-            setDraft(value);
-            setSelected(0);
-            setDismissed(false);
-            saveTimer.schedule(() => {
-              if (
-                props.surface === undefined &&
-                props.draftSetAsideRef?.current !== true &&
-                useEnduragentStore.getState().chat.composerStatus === null
-              ) {
-                actions?.saveAttachmentDraftText(value);
-              }
-            });
+            recordDraft(event.currentTarget.value);
           }}
           onKeyDown={onKeyDown}
           onPaste={props.surface === undefined ? onPaste : undefined}

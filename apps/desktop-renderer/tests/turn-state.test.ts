@@ -227,16 +227,16 @@ describe("desktop turn state", () => {
     expect(state.progress).toBeNull();
   });
 
-  it("ignores an equal queue revision after successful reset", () => {
-    const snapshot = {
+  it("accepts equal and lower queue revisions after a successful reset", () => {
+    const preReset = {
       schemaVersion: 1 as const,
-      revision: 2,
+      revision: 3,
       items: [
         {
           queuedMessageId: "queued-1",
           messageId: "message-1",
           submissionId: "submission-1",
-          text: "Later",
+          text: "Before reset",
           kind: "ordinary" as const,
           attachmentIds: [],
           position: 0,
@@ -244,7 +244,42 @@ describe("desktop turn state", () => {
         },
       ],
     };
-    const queuedState = reduceChatState(EMPTY_CHAT_STATE, { type: "queue-snapshot", snapshot });
+    const postResetEqual = {
+      schemaVersion: 1 as const,
+      revision: 3,
+      items: [
+        {
+          queuedMessageId: "queued-equal",
+          messageId: "message-equal",
+          submissionId: "submission-equal",
+          text: "Equal after reset",
+          kind: "ordinary" as const,
+          attachmentIds: [],
+          position: 0,
+          restored: false,
+        },
+      ],
+    };
+    const postResetLower = {
+      schemaVersion: 1 as const,
+      revision: 1,
+      items: [
+        {
+          queuedMessageId: "queued-lower",
+          messageId: "message-lower",
+          submissionId: "submission-lower",
+          text: "Restarted after reset",
+          kind: "ordinary" as const,
+          attachmentIds: [],
+          position: 0,
+          restored: false,
+        },
+      ],
+    };
+    const queuedState = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: preReset,
+    });
     const resetting = {
       ...queuedState,
       session: {
@@ -257,7 +292,87 @@ describe("desktop turn state", () => {
       type: "reset-succeeded",
       announcement: "Done",
     });
-    expect(reduceChatState(reset, { type: "queue-snapshot", snapshot }).queued).toEqual([]);
+    expect(reset.queueRevision).toBeUndefined();
+    expect(
+      reduceChatState(reset, { type: "queue-snapshot", snapshot: postResetEqual }).queued.map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["queued-equal"]);
+    expect(
+      reduceChatState(reset, { type: "queue-snapshot", snapshot: postResetLower }).queued.map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["queued-lower"]);
+  });
+
+  it("accepts initial zero, equal, and idle restarted zero revisions while ignoring stale out-of-order snapshots", () => {
+    const item = (id: string, position: number) => ({
+      queuedMessageId: id,
+      messageId: `message-${id}`,
+      submissionId: `submission-${id}`,
+      text: id,
+      kind: "ordinary" as const,
+      attachmentIds: [],
+      position,
+      restored: false,
+    });
+    const initialZero = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 0, items: [] },
+    });
+    expect(initialZero.queueRevision).toBe(0);
+
+    let state = reduceChatState(initialZero, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 2, items: [item("first", 0)] },
+    });
+    state = reduceChatState(state, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 2, items: [] },
+    });
+    expect(state.queued).toEqual([]);
+    expect(state.queueRevision).toBe(2);
+
+    const streaming = reduceChatState(
+      reduceChatState(started(), {
+        type: "queue-snapshot",
+        snapshot: { schemaVersion: 1, revision: 3, items: [item("keep", 0)] },
+      }),
+      {
+        type: "queue-snapshot",
+        snapshot: { schemaVersion: 1, revision: 2, items: [item("stale", 0)] },
+      },
+    );
+    expect(streaming.queued.map(({ id }) => id)).toEqual(["keep"]);
+    expect(streaming.queueRevision).toBe(3);
+
+    const streamingZero = reduceChatState(streaming, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 0, items: [] },
+    });
+    expect(streamingZero).toBe(streaming);
+
+    const idleHigh = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 4, items: [item("old", 0)] },
+    });
+    const idleStale = reduceChatState(idleHigh, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 3, items: [item("stale-idle", 0)] },
+    });
+    expect(idleStale).toBe(idleHigh);
+
+    const idleRestarted = reduceChatState(idleHigh, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 0, items: [] },
+    });
+    expect(idleRestarted.queueRevision).toBe(0);
+    expect(idleRestarted.queued).toEqual([]);
+    const afterRestart = reduceChatState(idleRestarted, {
+      type: "queue-snapshot",
+      snapshot: { schemaVersion: 1, revision: 1, items: [item("fresh", 0)] },
+    });
+    expect(afterRestart.queued.map(({ id }) => id)).toEqual(["fresh"]);
   });
   it("owns the one desktop conversation identity", () => {
     expect(DESKTOP_CHAT_ID).toBe("desktop");
@@ -727,9 +842,12 @@ describe("desktop turn state", () => {
     expect(announced.status).toBe("idle");
     expect(announced.messages).toEqual([]);
     expect(announced.session.announcement).toBe("Thanks — we received your note.");
-    expect(reduceChatState(announced, { type: "announce", announcement: "Thanks — we received your note." })).toBe(
-      announced,
-    );
+    expect(
+      reduceChatState(announced, {
+        type: "announce",
+        announcement: "Thanks — we received your note.",
+      }),
+    ).toBe(announced);
   });
 
   it("ignores old turn events after reset success", () => {
