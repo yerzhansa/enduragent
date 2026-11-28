@@ -71,6 +71,7 @@ describe("Chat status catalog rendering", () => {
             malformedLineCount: 0,
             spendComplete: false,
             capStatus: "reached",
+            capMode: "warn",
             cacheReadTokens: 0,
             knownCacheReadSavingsUsd: 0,
             cacheSavingsComplete: false,

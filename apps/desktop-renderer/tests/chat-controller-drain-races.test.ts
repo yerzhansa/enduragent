@@ -1545,6 +1545,77 @@ describe("Recovery and drain race guards", () => {
     controller.dispose();
   });
 
+  it("keeps a message refused by an enforced spend cap queued and sends it when resumed", async () => {
+    let resumeCalls = 0;
+    const item = {
+      queuedMessageId: "q-refused-1",
+      messageId: "m-refused-1",
+      submissionId: "s-refused-1",
+      attachmentIds: [],
+      text: "Waits for the cap",
+      kind: "ordinary" as const,
+      position: 0,
+      restored: false,
+    };
+    const snapshot = { schemaVersion: 1, revision: 1, items: [item] };
+    const client: CoachClient = {
+      handshake: {} as CoachClient["handshake"],
+      call: vi.fn((method) => {
+        if (method === "getChatQueue") return Promise.resolve(snapshot) as never;
+        if (method === "resumeChatQueue") {
+          resumeCalls += 1;
+          return Promise.resolve({
+            snapshot,
+            refusal: { kind: "spend-cap-reached", dailyCapUsd: 0.5, knownSpendUsd: 0.62 },
+          }) as never;
+        }
+        if (method === "getCoachDecision") return Promise.resolve({ decision: null }) as never;
+        if (method === "hasSession") return Promise.resolve({ hasSession: false }) as never;
+        if (method === "getChatAttachmentComposer")
+          return Promise.resolve(emptyComposer()) as never;
+        if (method === "getTranscriptPage") {
+          return Promise.resolve({
+            schemaVersion: 1,
+            status: "page",
+            turns: [],
+            nextCursor: null,
+          }) as never;
+        }
+        if (method === "resumePlanningRequests")
+          return Promise.resolve({ deliveries: [] }) as never;
+        if (method === "listPlanningRequests") {
+          return Promise.resolve({ deliveries: [], planCreation: null }) as never;
+        }
+        throw new TypeError(String(method));
+      }),
+      close: vi.fn(async () => undefined),
+    };
+    const states: ChatState[] = [];
+    const controller = createChatController({
+      clients: makeProvider(client),
+      view: { render: (next) => states.push(structuredClone(next)) },
+      refreshTrainingContext: async () => undefined,
+      refreshSpend: async () => undefined,
+    });
+
+    await controller.start();
+    await vi.waitFor(() =>
+      expect(states.at(-1)?.progress).toBe(
+        "Today’s model spend has reached your $0.50 daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.",
+      ),
+    );
+    expect(states.at(-1)?.status).toBe("idle");
+    expect(states.at(-1)?.queued.map((queued) => queued.id)).toEqual(["q-refused-1"]);
+    expect(states.at(-1)?.messages.filter((message) => message.role === "athlete")).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(resumeCalls).toBe(1);
+
+    await controller.resume();
+
+    await vi.waitFor(() => expect(resumeCalls).toBe(2));
+    controller.dispose();
+  });
+
   it("retries hasSession on resume when an earlier session probe resolved in a stale epoch", async () => {
     let releaseFirstSession!: (value: { readonly hasSession: boolean }) => void;
     const firstSession = new Promise<{ readonly hasSession: boolean }>((resolve) => {

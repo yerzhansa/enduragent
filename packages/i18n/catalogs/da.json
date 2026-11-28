@@ -551,6 +551,14 @@
       "date": "{{day}}. {{month}}",
       "detail": "Sprogmodelforbrug i forhold til dagens grænse",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Stop: coachen svarer ikke på nye beskeder før i morgen, eller før du hæver grænsen. En besked, du sender i appen, venter og bliver sendt til den tid.",
+        "detailWarn": "Advar: coachen bliver ved med at svare, og Chat viser en besked.",
+        "enforce": "Stop",
+        "overshoot": "Grænsen tjekkes, når en besked starter, så et langt svar kan stadig gå over den.",
+        "title": "Når dagens grænse er nået",
+        "warn": "Advar"
+      },
       "month": {
         "april": "apr.",
         "august": "aug.",
@@ -1667,7 +1675,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Du har nået dagens forbrugsgrænse på {{amount}}. Du kan fortsætte med at chatte. Dette er en advarsel, ikke en blokering."
+      "capReached": "Du har nået dagens forbrugsgrænse på {{amount}}. Du kan fortsætte med at chatte. Dette er en advarsel, ikke en blokering.",
+      "capReachedStop": "Du har nået dagens forbrugsgrænse på {{amount}}. Nye beskeder venter til i morgen, eller hæv grænsen eller skift til Advar under Indstillinger › Forbrug."
     },
     "supportingEvent": {
       "accepted": "Accepteret supplerende begivenhed",
@@ -3466,6 +3475,9 @@
       "trainingLoad": "træningsbelastning til {{load}}",
       "unnamed": "Unavngiven træning",
       "update": "Opdater træningen \"{{name}}\" den {{date}} — {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Dagens forbrug til sprogmodellen har nået din daglige grænse på {{cap}}, så coachen svarede ikke. Hvis du vil fortsætte i dag, så hæv grænsen eller skift til Advar under Indstillinger › Forbrug."
     }
   },
   "desktop": {

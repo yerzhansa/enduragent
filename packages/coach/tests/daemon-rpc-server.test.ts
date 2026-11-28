@@ -284,6 +284,7 @@ const spendSummary: SpendSummary = {
   malformedLineCount: 0,
   spendComplete: true,
   capStatus: "below",
+  capMode: "warn",
   cacheReadTokens: 0,
   knownCacheReadSavingsUsd: 0,
   cacheSavingsComplete: true,
@@ -2020,6 +2021,16 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     });
     expect(getSpendSummary).toHaveBeenCalledOnce();
     expect(setDailySpendCap).toHaveBeenCalledWith({ dailyCapUsd: 0.75 });
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "spend-stop",
+        method: "setDailySpendCap",
+        params: { dailyCapUsd: 0.75, mode: "enforce" },
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toMatchObject({ id: "spend-stop" });
+    expect(setDailySpendCap).toHaveBeenLastCalledWith({ dailyCapUsd: 0.75, mode: "enforce" });
     client.ws.send(
       JSON.stringify({
         jsonrpc: "2.0",

@@ -551,6 +551,14 @@
       "date": "{{day}} {{month}}",
       "detail": "Dépenses des modèles de langage par rapport au plafond du jour",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Arrêter : le coach ne répond plus aux nouveaux messages jusqu’à demain ou jusqu’à ce que tu relèves le plafond. Un message que tu envoies dans l’app attend et part à ce moment-là.",
+        "detailWarn": "Avertir : le coach continue de répondre et le chat affiche un avertissement.",
+        "enforce": "Arrêter",
+        "overshoot": "Le plafond est vérifié au début d’un message, donc une longue réponse peut encore le dépasser.",
+        "title": "Quand le plafond du jour est atteint",
+        "warn": "Avertir"
+      },
       "month": {
         "april": "avr.",
         "august": "août",
@@ -1667,7 +1675,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Tu as atteint ton plafond de dépenses de {{amount}} pour aujourd’hui. Tu peux continuer à discuter ; c’est un avertissement, pas un blocage."
+      "capReached": "Tu as atteint ton plafond de dépenses de {{amount}} pour aujourd’hui. Tu peux continuer à discuter ; c’est un avertissement, pas un blocage.",
+      "capReachedStop": "Tu as atteint ton plafond de dépenses de {{amount}} pour aujourd’hui. Les nouveaux messages attendent demain, ou tu peux relever le plafond ou passer à Avertir dans Paramètres › Dépenses."
     },
     "supportingEvent": {
       "accepted": "Événement secondaire accepté",
@@ -3466,6 +3475,9 @@
       "trainingLoad": "charge d’entraînement fixée à {{load}}",
       "unnamed": "Entraînement sans nom",
       "update": "Mettre à jour l’entraînement « {{name}} » le {{date}} — {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Les dépenses du modèle de langage ont atteint aujourd’hui ton plafond quotidien de {{cap}}, donc le coach n’a pas répondu. Pour continuer aujourd’hui, relève le plafond ou passe à Avertir dans Paramètres › Dépenses."
     }
   },
   "desktop": {

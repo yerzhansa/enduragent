@@ -19,7 +19,7 @@ import {
   createCoachSettingsAdapter,
   createCredentialSettingsAdapter,
 } from "./state/adapters/settings";
-import { createSpendSettingsAdapter } from "./state/adapters/spend";
+import { createSpendSettingsAdapter, resumeChatWhenCapLifts } from "./state/adapters/spend";
 import { createTelegramSettingsAdapter } from "./state/adapters/telegram";
 import { createManualSyncViewAdapter } from "./state/adapters/sync";
 import { createTrainingViewAdapter } from "./state/adapters/training";
@@ -181,10 +181,7 @@ export function bootRenderer(): Disposer {
   const spendAdapter = createSpendSettingsAdapter({
     publish: (next) => store.getState().patchSettings({ spend: next }),
   });
-  const spendController = createSpendMeterController({
-    clients,
-    view: spendAdapter.view,
-  });
+  const spendController = createSpendMeterController({ clients, view: spendAdapter.view });
   const chatAdapter = createChatViewAdapter({
     publish: (next) =>
       flushSync(() => {
@@ -237,6 +234,7 @@ export function bootRenderer(): Disposer {
   const disposeSetupReadiness = store.subscribe((state, previousState) => {
     if (!setupReady(previousState) && setupReady(state)) void chatController.resume();
   });
+  const disposeSpendCapResume = resumeChatWhenCapLifts(store, () => chatController.resume());
   function openPlanChangeInChat(): void {
     chatController.requestPlanLibraryFocus("change");
     chatController.pausePlanCreation();
@@ -709,6 +707,7 @@ export function bootRenderer(): Disposer {
     store.getState().bindOnboardingActions(null);
     disposeRideAnalysisSelection();
     disposeSetupReadiness();
+    disposeSpendCapResume();
     disposePlanReturn();
     disposePlanToChatRefresh();
     disposePlanLibraryRefresh();

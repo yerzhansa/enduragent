@@ -1,4 +1,5 @@
 import { MessageSchema } from "./turn-event.js";
+import { TurnRefusalSchema } from "./spend.js";
 import { z } from "zod";
 import { LanguageTagSchema, LanguageSourceSchema } from "./language.js";
 import type { TurnEvent } from "./turn-event.js";
@@ -91,6 +92,7 @@ export const ChatResponseSchema = z
     message: MessageSchema.optional(),
     decision: CoachDecisionReadModelSchema.optional(),
     planIntakePatch: PlanIntakePatchSchema.optional(),
+    refusal: TurnRefusalSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {

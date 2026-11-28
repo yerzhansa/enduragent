@@ -1,6 +1,10 @@
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "../src/runtime-bundle.js";
+import { createSpendMeterService } from "../src/spend-meter.js";
 
 type Runtime = ReturnType<typeof createReconfigurableRuntimeBundle>;
 
@@ -72,6 +76,33 @@ async function settledSoon(promise: Promise<unknown>): Promise<"settled" | "pend
 }
 
 describe("reconfigurable runtime bundle", () => {
+  it("saves the cap mode through to the active spend meter's cap file", async () => {
+    const home = await mkdtemp(join(tmpdir(), "runtime-bundle-cap-"));
+    try {
+      await mkdir(join(home, "config"));
+      const spendMeter = createSpendMeterService({
+        dataDir: home,
+        configDir: join(home, "config"),
+        timezone: "UTC",
+      });
+      const runtime = createReconfigurableRuntimeBundle({
+        ...fakeBundle("old", Promise.resolve()),
+        spendMeter,
+      } as RuntimeBundle);
+
+      const stopped = await runtime.spendMeter.setDailySpendCap(2, "enforce");
+      const raised = await runtime.spendMeter.setDailySpendCap(3);
+
+      expect(stopped).toMatchObject({ dailyCapUsd: 2, capMode: "enforce" });
+      expect(raised).toMatchObject({ dailyCapUsd: 3, capMode: "enforce" });
+      expect(
+        JSON.parse(await readFile(join(home, "config", "daily-spend-cap.json"), "utf8")),
+      ).toEqual({ version: 2, dailyCapUsd: 3, mode: "enforce" });
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   it.each(TURNS)(
     "refuses a replacement while %s runs and leaves Stop and reads unblocked",
     async (_name, startTurn) => {

@@ -1,4 +1,5 @@
-import type { CoachLanguage } from "@enduragent/i18n";
+import { msg, type CoachLanguage, type Message } from "@enduragent/i18n";
+import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import {
   AnswerCoachDecisionRpcParamsSchema,
   AnswerCoachDecisionRpcResultSchema,
@@ -29,8 +30,11 @@ import {
   TurnEventSchema,
   type AthleteState,
   type ChatQueueRunResult,
+  type ChatQueueSnapshot,
   type CoachEngine,
+  type SpendSummary,
   type TurnEvent,
+  type TurnRefusal,
 } from "@enduragent/coach-contract";
 import type { CyclingFtpAnchorResolver } from "@enduragent/kernel/anchors";
 
@@ -51,49 +55,138 @@ export function withTrustedTurnLanguage(engine: CoachEngine): CoachEngine {
   };
 }
 
+export interface SpendCapReader {
+  getSpendSummary(): Promise<SpendSummary>;
+}
+
+export interface SpendCapGuard {
+  readonly reader: SpendCapReader;
+  readonly logger: { warn(event: string, err?: unknown): void };
+}
+
 export interface CoachEngineAdapterInput {
   readonly coachLanguage: CoachLanguage;
   readonly backend: CoachEngine;
   readonly getAthleteState: () => Promise<AthleteState>;
   readonly cyclingFtpAnchorResolver: CyclingFtpAnchorResolver;
   readonly now: () => number;
+  readonly spendCap?: SpendCapGuard;
+}
+
+type SpendCapReading =
+  | { readonly kind: "read"; readonly summary: SpendSummary }
+  | { readonly kind: "unreadable"; readonly error: unknown };
+
+async function readSpendCap(reader: SpendCapReader): Promise<SpendCapReading> {
+  try {
+    return { kind: "read", summary: await reader.getSpendSummary() };
+  } catch (error) {
+    return { kind: "unreadable", error };
+  }
+}
+
+export function spendCapRefusal(reading: SpendCapReading): TurnRefusal | undefined {
+  if (reading.kind !== "read") return undefined;
+  const { capMode, capStatus, dailyCapUsd, knownSpendUsd } = reading.summary;
+  if (capMode !== "enforce" || capStatus !== "reached") return undefined;
+  return { kind: "spend-cap-reached", dailyCapUsd, knownSpendUsd };
+}
+
+export class SpendCapReachedError extends Error {
+  readonly refusal: TurnRefusal;
+
+  constructor(refusal: TurnRefusal) {
+    super("The daily spend cap is reached, so the coach refused this turn.");
+    this.name = "SpendCapReachedError";
+    this.refusal = refusal;
+  }
+}
+
+export function spendCapRefusalMessage(refusal: TurnRefusal): Message {
+  return msg("coach.refusal.spendCapReached", { cap: `$${refusal.dailyCapUsd.toFixed(2)}` });
+}
+
+function notify(onEvent: ((event: TurnEvent) => void) | undefined, event: TurnEvent): void {
+  try {
+    onEvent?.(event);
+  } catch {
+    return;
+  }
+}
+
+function validatedEvents(onEvent: ((event: TurnEvent) => void) | undefined): {
+  readonly listener: (event: TurnEvent) => void;
+  readonly assertValid: () => void;
+} {
+  let firstValidationError: { readonly error: unknown } | undefined;
+  return {
+    listener: (event) => {
+      if (firstValidationError !== undefined) return;
+      const result = TurnEventSchema.safeParse(event);
+      if (!result.success) {
+        firstValidationError = { error: result.error };
+        return;
+      }
+      notify(onEvent, result.data);
+    },
+    assertValid: () => {
+      if (firstValidationError !== undefined) throw firstValidationError.error;
+    },
+  };
 }
 
 export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachEngine {
-  const validatedEvents = async <Result>(
-    operation: (onEvent: (event: TurnEvent) => void) => Promise<Result>,
-    onEvent?: (event: TurnEvent) => void,
-  ): Promise<Result> => {
-    let firstEventValidationError: unknown | undefined;
-    const response = await operation((event) => {
-      if (firstEventValidationError !== undefined) return;
-      const result = TurnEventSchema.safeParse(event);
-      if (!result.success) {
-        firstEventValidationError = result.error;
-        return;
-      }
-      try {
-        onEvent?.(result.data);
-      } catch {
-        return;
-      }
-    });
-    if (firstEventValidationError !== undefined) throw firstEventValidationError;
-    return response;
+  let english: Promise<Phrasebook> | undefined;
+  const refusal = async (chatId: string): Promise<TurnRefusal | undefined> => {
+    if (input.spendCap === undefined) return undefined;
+    const reading = await readSpendCap(input.spendCap.reader);
+    if (reading.kind === "unreadable")
+      input.spendCap.logger.warn("spend_cap_read_failed", reading.error);
+    const refused = spendCapRefusal(reading);
+    if (refused !== undefined && chatId.startsWith("plan:"))
+      throw new SpendCapReachedError(refused);
+    return refused;
   };
-  const queueUnavailable = (): never => {
-    throw new Error("Durable chat queue is unavailable.");
+  const currentDecision = async (chatId: string, decisionId: string) =>
+    GetCoachDecisionRpcResultSchema.parse(
+      await input.backend.getCoachDecision({ chatId, decisionId }),
+    ).decision;
+  const queueBackend = <K extends "resumeChatQueue" | "runQueuedCommand" | "retryQueuedTurn">(
+    name: K,
+  ): NonNullable<CoachEngine[K]> => {
+    const operation = input.backend[name];
+    if (operation === undefined) throw new Error("Durable chat queue is unavailable.");
+    return operation.bind(input.backend) as NonNullable<CoachEngine[K]>;
+  };
+  const unchangedQueue = async (chatId: string): Promise<ChatQueueSnapshot> => {
+    const getChatQueue = input.backend.getChatQueue;
+    if (getChatQueue === undefined) throw new Error("Durable chat queue is unavailable.");
+    return ChatQueueSnapshotSchema.parse(await getChatQueue.call(input.backend, { chatId }));
   };
   const queueStream = async (
-    operation: (onEvent: (event: TurnEvent) => void) => Promise<ChatQueueRunResult> | undefined,
+    operation: (onEvent: (event: TurnEvent) => void) => Promise<ChatQueueRunResult>,
     onEvent?: (event: TurnEvent) => void,
-  ): Promise<ChatQueueRunResult> =>
-    ChatQueueRunResultSchema.parse(
-      await validatedEvents((emit) => operation(emit) ?? queueUnavailable(), onEvent),
-    );
+  ): Promise<ChatQueueRunResult> => {
+    const events = validatedEvents(onEvent);
+    const response = await operation(events.listener);
+    events.assertValid();
+    return ChatQueueRunResultSchema.parse(response);
+  };
+  const refuseQueue = async (chatId: string, refused: TurnRefusal): Promise<ChatQueueRunResult> =>
+    ChatQueueRunResultSchema.parse({ snapshot: await unchangedQueue(chatId), refusal: refused });
   return {
     async chat(request, onEvent) {
       const parsed = ChatRequestSchema.parse(request);
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) {
+        english ??= createPhrasebook({ tag: "en", locale: "en-GB" });
+        const message = spendCapRefusalMessage(refused);
+        return ChatResponseSchema.parse({
+          text: (await english).say(message),
+          message,
+          refusal: refused,
+        });
+      }
       const callEpochS = Math.floor(input.now() / 1_000);
       const resolvedCs = await input.cyclingFtpAnchorResolver.resolve({
         effectiveAtEpochS: callEpochS,
@@ -112,9 +205,10 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
           languageSource: language.source,
         },
       };
-      return ChatResponseSchema.parse(
-        await validatedEvents((emit) => input.backend.chat(resolvedRequest, emit), onEvent),
-      );
+      const events = validatedEvents(onEvent);
+      const response = await input.backend.chat(resolvedRequest, events.listener);
+      events.assertValid();
+      return ChatResponseSchema.parse(response);
     },
     async stopChat(request) {
       const parsed = StopChatRequestSchema.parse(request);
@@ -130,9 +224,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async getChatQueue(request) {
       const parsed = GetChatQueueRequestSchema.parse(request);
-      if (input.backend.getChatQueue === undefined)
-        throw new Error("Durable chat queue is unavailable.");
-      return ChatQueueSnapshotSchema.parse(await input.backend.getChatQueue(parsed));
+      return unchangedQueue(parsed.chatId);
     },
     async removeQueuedChatMessage(request) {
       const parsed = RemoveQueuedChatMessageRequestSchema.parse(request);
@@ -142,21 +234,30 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async resumeChatQueue(request, onEvent) {
       const parsed = ResumeChatQueueRequestSchema.parse(request);
-      return queueStream((emit) => input.backend.resumeChatQueue?.(parsed, emit), onEvent);
+      const resume = queueBackend("resumeChatQueue");
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) return refuseQueue(parsed.chatId, refused);
+      return queueStream((emit) => resume(parsed, emit), onEvent);
     },
     async runQueuedCommand(request, onEvent) {
       const parsed = RunQueuedCommandRequestSchema.parse(request);
-      return queueStream((emit) => input.backend.runQueuedCommand?.(parsed, emit), onEvent);
+      const run = queueBackend("runQueuedCommand");
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) return refuseQueue(parsed.chatId, refused);
+      return queueStream((emit) => run(parsed, emit), onEvent);
     },
     async retryQueuedTurn(request, onEvent) {
       const parsed = RetryQueuedTurnRequestSchema.parse(request);
-      return queueStream((emit) => input.backend.retryQueuedTurn?.(parsed, emit), onEvent);
+      const retry = queueBackend("retryQueuedTurn");
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) return refuseQueue(parsed.chatId, refused);
+      return queueStream((emit) => retry(parsed, emit), onEvent);
     },
     async discardQueuedTurn(request) {
       const parsed = DiscardQueuedTurnRequestSchema.parse(request);
-      if (input.backend.discardQueuedTurn === undefined)
-        throw new Error("Durable chat queue is unavailable.");
-      return ChatQueueSnapshotSchema.parse(await input.backend.discardQueuedTurn(parsed));
+      const discard = input.backend.discardQueuedTurn;
+      if (discard === undefined) throw new Error("Durable chat queue is unavailable.");
+      return ChatQueueSnapshotSchema.parse(await discard.call(input.backend, parsed));
     },
     async resetSession(request) {
       const parsed = ResetSessionRequestSchema.parse(request);
@@ -175,9 +276,17 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async answerCoachDecision(request, onEvent) {
       const parsed = AnswerCoachDecisionRpcParamsSchema.parse(request);
-      return AnswerCoachDecisionRpcResultSchema.parse(
-        await validatedEvents((emit) => input.backend.answerCoachDecision(parsed, emit), onEvent),
-      );
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) {
+        return AnswerCoachDecisionRpcResultSchema.parse({
+          decision: await currentDecision(parsed.chatId, parsed.decisionId),
+          refusal: refused,
+        });
+      }
+      const events = validatedEvents(onEvent);
+      const response = await input.backend.answerCoachDecision(parsed, events.listener);
+      events.assertValid();
+      return AnswerCoachDecisionRpcResultSchema.parse(response);
     },
     async skipCoachDecision(request) {
       const parsed = SkipCoachDecisionRpcParamsSchema.parse(request);
@@ -185,9 +294,18 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async resumeCoachDecision(request, onEvent) {
       const parsed = ResumeCoachDecisionRpcParamsSchema.parse(request);
-      return ResumeCoachDecisionRpcResultSchema.parse(
-        await validatedEvents((emit) => input.backend.resumeCoachDecision(parsed, emit), onEvent),
-      );
+      const refused = await refusal(parsed.chatId);
+      if (refused !== undefined) {
+        return ResumeCoachDecisionRpcResultSchema.parse({
+          decision: await currentDecision(parsed.chatId, parsed.decisionId),
+          resumed: false,
+          refusal: refused,
+        });
+      }
+      const events = validatedEvents(onEvent);
+      const response = await input.backend.resumeCoachDecision(parsed, events.listener);
+      events.assertValid();
+      return ResumeCoachDecisionRpcResultSchema.parse(response);
     },
   };
 }
