@@ -361,26 +361,34 @@ async function llmConfiguration(
   return { schemaVersion: 1, catalogRevision: catalog.revision, providers, active };
 }
 
+function offeredModels(
+  catalog: LocalModelCatalogSnapshot,
+): ReadonlyMap<LlmProvider, ReadonlySet<string>> {
+  return new Map(
+    publicLlmProviderConfiguration(catalog).map((entry) => [
+      entry.provider,
+      new Set(entry.models.map((model) => model.value)),
+    ]),
+  );
+}
+
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {
   let disposed = false;
   const windowLogins = new Set<string>();
-  const pinnedCatalogs = new Map<number, LocalModelCatalogSnapshot>();
-  const pinCatalog = (catalog: LocalModelCatalogSnapshot): void => {
-    pinnedCatalogs.set(catalog.revision, catalog);
-    if (pinnedCatalogs.size <= 2) return;
-    const oldest = [...pinnedCatalogs.keys()].sort((left, right) => left - right);
-    for (const revision of oldest.slice(0, oldest.length - 2)) {
-      pinnedCatalogs.delete(revision);
-    }
-  };
-  const pinnedSnapshot = (
+  const servedModels = new Map<number, ReadonlyMap<LlmProvider, ReadonlySet<string>>>();
+  const catalogFor = (
     selection: OnboardingLlmSelection,
   ): ModelCatalogSnapshot | "stale-draft" | "invalid-input" => {
-    const pinned = pinnedCatalogs.get(selection.catalogRevision);
-    if (pinned === undefined) return "stale-draft";
-    return pinned.effective.providers.some((provider) => provider.provider === selection.provider)
-      ? pinned.snapshot
-      : "invalid-input";
+    const served = servedModels.get(selection.catalogRevision);
+    if (served === undefined) return "stale-draft";
+    const servedForProvider = served.get(selection.provider);
+    if (servedForProvider === undefined) return "invalid-input";
+    const current = options.modelCatalog.current();
+    const offered = offeredModels(current).get(selection.provider);
+    if (offered === undefined) return "stale-draft";
+    return servedForProvider.has(selection.model) && !offered.has(selection.model)
+      ? "stale-draft"
+      : current.snapshot;
   };
   const requireTrusted = (event: IpcMainInvokeEvent): void => {
     if (!options.isTrusted(event)) throw new TypeError();
@@ -390,7 +398,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     isTrusted: options.isTrusted,
     auth: createOpenRouterAuth(options.openRouter),
     prepareStore: (selection) => {
-      const catalogSnapshot = pinnedSnapshot(selection);
+      const catalogSnapshot = catalogFor(selection);
       if (typeof catalogSnapshot === "string") return null;
       return async (value) =>
         openRouterStoreOutcome(
@@ -447,8 +455,8 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     try {
       let catalogSnapshot: ModelCatalogSnapshot | undefined;
       if (input.selection !== undefined) {
-        const pinned = pinnedSnapshot(input.selection);
-        if (pinned === "stale-draft") {
+        const resolved = catalogFor(input.selection);
+        if (resolved === "stale-draft") {
           return {
             slot: input.slot,
             status: "stale-draft",
@@ -456,10 +464,10 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
             selection: input.selection,
           };
         }
-        if (pinned === "invalid-input") {
+        if (resolved === "invalid-input") {
           return { slot: input.slot, status: "refused", reason: "invalid-input" };
         }
-        catalogSnapshot = pinned;
+        catalogSnapshot = resolved;
       }
       if (input.slot === "intervals-icu") {
         const ownership = await options
@@ -546,7 +554,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     requireTrusted(event);
     if (args.length !== 0) throw new TypeError();
     const catalog = options.modelCatalog.current();
-    pinCatalog(catalog);
+    servedModels.set(catalog.revision, offeredModels(catalog));
     return llmConfiguration(options.getRuntimeConfig, catalog);
   });
   options.ipcMain.handle(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, async (event, ...args) => {
@@ -558,15 +566,11 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     } catch {
       return { status: "refused", reason: "invalid-input" };
     }
-    const pinnedCatalog = pinnedCatalogs.get(selection.catalogRevision);
-    if (pinnedCatalog === undefined) {
+    const catalogSnapshot = catalogFor(selection);
+    if (catalogSnapshot === "stale-draft") {
       return { status: "stale-draft", reason: "catalog-unavailable", selection };
     }
-    if (
-      !pinnedCatalog.effective.providers.some(
-        (provider) => provider.provider === selection.provider,
-      )
-    ) {
+    if (catalogSnapshot === "invalid-input") {
       return { status: "refused", reason: "invalid-input" };
     }
     const chatGptActivationSignal =
@@ -576,7 +580,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     try {
       let existingSelection: boolean | Promise<boolean>;
       if (chatGptActivationSignal === undefined) {
-        existingSelection = options.applyExistingLlmSelection(selection, pinnedCatalog.snapshot);
+        existingSelection = options.applyExistingLlmSelection(selection, catalogSnapshot);
       } else {
         const runtime = await withAbort(options.getRuntimeConfig(), chatGptActivationSignal);
         existingSelection =
@@ -584,7 +588,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
             ? withAbort(
                 options.applyExistingLlmSelection(
                   selection,
-                  pinnedCatalog.snapshot,
+                  catalogSnapshot,
                   chatGptActivationSignal,
                 ),
                 chatGptActivationSignal,
@@ -605,22 +609,17 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
         return minimizeSelection(
           await options.chatGptAuth.activate(
             parseChatGptLlmSelection(selection),
-            pinnedCatalog.snapshot,
+            catalogSnapshot,
             chatGptActivationSignal,
           ),
         );
       }
       if (selection.provider === "claude-cli") {
         return minimizeSelection(
-          await options.claudeCli.activate(
-            parseClaudeCliLlmSelection(selection),
-            pinnedCatalog.snapshot,
-          ),
+          await options.claudeCli.activate(parseClaudeCliLlmSelection(selection), catalogSnapshot),
         );
       }
-      return minimizeSelection(
-        await options.vault.applyLlmSelection(selection, pinnedCatalog.snapshot),
-      );
+      return minimizeSelection(await options.vault.applyLlmSelection(selection, catalogSnapshot));
     } catch {
       return { status: "refused", reason: "runtime-unavailable" };
     }
@@ -634,13 +633,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     requireTrusted(event);
     if (args.length !== 1) throw new TypeError();
     const input = parseChatGptLoginInput(args[0]);
-    const pinnedCatalog = pinnedCatalogs.get(input.selection.catalogRevision);
-    if (
-      pinnedCatalog === undefined ||
-      !pinnedCatalog.effective.providers.some(
-        (provider) => provider.provider === input.selection.provider,
-      )
-    ) {
+    if (typeof catalogFor(input.selection) === "string") {
       return {
         status: "stale-draft",
         operationId: input.operationId,
@@ -708,7 +701,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     disposed = true;
     for (const operationId of windowLogins) options.chatGptAuth.cancelLogin(operationId);
     disposeOpenRouter();
-    pinnedCatalogs.clear();
+    servedModels.clear();
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_STATUS_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RETRY_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_WRITE_CHANNEL);

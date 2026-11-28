@@ -71,6 +71,26 @@ const KEYLESS_CONFIGURATION: OnboardingLlmConfiguration = {
   active: { provider: "anthropic", model: "claude-sonnet-4-6", kind: "listed" },
 };
 
+const NEXT_CONFIGURATION: OnboardingLlmConfiguration = {
+  ...KEYLESS_CONFIGURATION,
+  catalogRevision: 8,
+};
+
+const TWO_MODEL_CONFIGURATION: OnboardingLlmConfiguration = {
+  ...KEYLESS_CONFIGURATION,
+  providers: [
+    {
+      provider: "anthropic",
+      defaultModel: "claude-sonnet-4-6",
+      models: [
+        { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+        { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
+      ],
+    },
+    ...KEYLESS_CONFIGURATION.providers.slice(1),
+  ],
+};
+
 function deferred<T>(): {
   readonly promise: Promise<T>;
   readonly resolve: (value: T) => void;
@@ -531,6 +551,87 @@ describe("onboarding runtime completion gate", () => {
         model: "claude-sonnet-4-6",
         endpoint: { mode: "automatic" },
       },
+    });
+    harness.controller.dispose();
+  });
+
+  it("shows the newest model list with the error when the chosen model is gone", async () => {
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.llmConfiguration
+      .mockResolvedValueOnce(TWO_MODEL_CONFIGURATION)
+      .mockResolvedValue(NEXT_CONFIGURATION);
+    bridge.writeCredential.mockImplementation(async (input) => ({
+      slot: input.slot,
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: input.selection!,
+    }));
+    const harness = onboardingHarness(bridge, {
+      harvest: () => [{ value: "obviously-fake-key", dataset: { slot: "anthropic" } }],
+      clear: vi.fn(),
+    });
+    await harness.controller.open();
+    harness.controller.selectModel("claude-opus-4-7");
+
+    harness.controller.saveModelKey();
+    await vi.waitFor(() => expect(harness.controller.state().busy).toBe(false));
+    await vi.waitFor(() => expect(harness.surface().configuration?.catalogRevision).toBe(8));
+
+    expect({
+      error: harness.controller.state().fixedError,
+      writes: bridge.writeCredential.mock.calls.length,
+      shownRevision: harness.surface().configuration?.catalogRevision,
+      draft: {
+        catalogRevision: harness.surface().draft?.catalogRevision,
+        modelChoice: harness.surface().draft?.modelChoice,
+      },
+    }).toEqual({
+      error: "configuration-unavailable",
+      writes: 1,
+      shownRevision: 8,
+      draft: { catalogRevision: 8, modelChoice: "claude-sonnet-4-6" },
+    });
+    harness.controller.dispose();
+  });
+
+  it("moves a model the athlete chose onto the model list a refresh reads", async () => {
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    const nextTwoModels = { ...TWO_MODEL_CONFIGURATION, catalogRevision: 8 };
+    bridge.llmConfiguration
+      .mockResolvedValueOnce(TWO_MODEL_CONFIGURATION)
+      .mockResolvedValue(nextTwoModels);
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+    harness.controller.selectModel("claude-opus-4-7");
+
+    await harness.controller.refresh(false);
+
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 8,
+      provider: nextTwoModels.providers[0],
+      modelChoice: "claude-opus-4-7",
+    });
+    harness.controller.dispose();
+  });
+
+  it("keeps a retired saved model the athlete chose when a refresh reads a new model list", async () => {
+    const retired: OnboardingLlmConfiguration = {
+      ...KEYLESS_CONFIGURATION,
+      active: { provider: "anthropic", model: "claude-opus-5", kind: "retired", replacedBy: null },
+    };
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.llmConfiguration
+      .mockResolvedValueOnce(retired)
+      .mockResolvedValue({ ...retired, catalogRevision: 8 });
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+    harness.controller.selectModel("claude-opus-5");
+
+    await harness.controller.refresh(false);
+
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 8,
+      modelChoice: "claude-opus-5",
     });
     harness.controller.dispose();
   });

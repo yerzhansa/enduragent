@@ -24,10 +24,12 @@ import {
   type OpenRouterSignInView,
 } from "./openrouter-sign-in";
 import type { SetupCommit } from "./lanes";
+import { createLlmChoice } from "./llm-choice";
 import { setupOperationRunning, type SetupOperation } from "./setup-operation";
 import {
   chatGptOperationActive,
   chatGptSignedIn,
+  chatGptStatusFor,
   chatGptUiPhase,
   createOnboardingState,
   hasTrainingData,
@@ -50,14 +52,7 @@ import {
   type OnboardingErrorCode,
   type OnboardingState,
 } from "./machine";
-import {
-  draftForProvider,
-  initialLlmDraft,
-  llmSelectionFromDraft,
-  parseEndpointMode,
-  withSavedSelection,
-  type LlmSelectionDraft,
-} from "./selection";
+import { llmSelectionFromDraft, parseEndpointMode, type LlmSelectionDraft } from "./selection";
 import { ONBOARDING_STATUS_REFRESH_TIMEOUT_MS, readSetupStatus } from "./status-read";
 import { afterNextPaint, settleWithin } from "./timing";
 
@@ -181,10 +176,7 @@ export function createOnboardingController(
   let visit = 0;
   let focusSeq = 0;
   let presentingRideImports = false;
-  let llmConfiguration: OnboardingLlmConfiguration | undefined;
-  let llmDraft: LlmSelectionDraft | undefined;
-  let draftOrigin: "configuration" | "athlete" = "configuration";
-  let llmDrafts: Record<string, LlmSelectionDraft> = {};
+  const choice = createLlmChoice();
   let lastCommit: SetupCommit = null;
   let actionStatus: OnboardingActionStatus = null;
   let intervalsSignIn: IntervalsSignInSurface = { phase: "idle", athleteName: null };
@@ -213,14 +205,14 @@ export function createOnboardingController(
     );
 
   const selectedProviderIsReady = (): boolean => {
-    const parsed = llmSelectionFromDraft(llmDraft);
+    const parsed = llmSelectionFromDraft(choice.draft());
     return parsed.error === null
-      ? selectedProviderReady(state, parsed.selection, llmConfiguration?.active ?? null)
+      ? selectedProviderReady(state, parsed.selection, choice.configuration()?.active ?? null)
       : false;
   };
 
   const activeProviderIsReady = (): boolean => {
-    const active = llmConfiguration?.active ?? null;
+    const active = choice.configuration()?.active ?? null;
     if (active?.provider === "codex-agent" && options.codexAgentSupported === false) return false;
     if (active?.provider === "claude-cli" && state.claudeCliState === null) return true;
     return selectedProviderReady(state, active, active);
@@ -242,8 +234,8 @@ export function createOnboardingController(
       completionRequired,
       wizard: state,
       statuses: credentialStatuses,
-      configuration: llmConfiguration ?? null,
-      draft: llmDraft ?? null,
+      configuration: choice.configuration() ?? null,
+      draft: choice.draft() ?? null,
       rideImport: rideImportState,
       focusSeq,
       readiness,
@@ -279,15 +271,6 @@ export function createOnboardingController(
     focusSeq += 1;
   };
 
-  const setLlmDraft = (
-    next: LlmSelectionDraft | undefined,
-    origin: "configuration" | "athlete",
-  ): void => {
-    llmDraft = next;
-    draftOrigin = origin;
-    if (next !== undefined) llmDrafts[next.provider.provider] = next;
-  };
-
   const setRideImportPresentation = (next: boolean): void => {
     if (presentingRideImports === next) return;
     presentingRideImports = next;
@@ -299,22 +282,32 @@ export function createOnboardingController(
     publish();
   };
 
+  const followCatalog = async (expectedVisit: number): Promise<void> => {
+    const read = await settleWithin(
+      options.bridge.llmConfiguration(),
+      ONBOARDING_STATUS_REFRESH_TIMEOUT_MS,
+    );
+    if (read.status !== "fulfilled" || disposed || visit !== expectedVisit || !presenting) return;
+    if (read.value.catalogRevision === choice.configuration()?.catalogRevision) return;
+    choice.follow(read.value, credentialStatuses, chatGptStatusFor(state));
+    publish();
+  };
+
   const recordActiveSelection = (selection: OnboardingLlmSelection): void => {
-    if (llmConfiguration === undefined) return;
-    llmConfiguration = withSavedSelection(llmConfiguration, selection);
-    draftOrigin = "configuration";
+    if (!choice.recordActive(selection)) return;
     options.onActiveSelectionChanged?.();
+    void followCatalog(visit);
   };
 
   const openRouter = createOpenRouterSignIn({
     bridge: options.bridge,
     createOperationId,
     publish,
-    configuration: () => llmConfiguration,
-    draft: () => llmDraft,
+    configuration: choice.configuration,
+    draft: choice.draft,
     canMutate: () => !setupLocked("openrouter-sign-in") && !credentialMutationsBlocked(),
     active: () =>
-      llmConfiguration?.active?.provider === "openrouter" &&
+      choice.configuration()?.active?.provider === "openrouter" &&
       state.credentialStatus.openrouter === "configured",
     sync: async (selection) => {
       const syncVisit = visit;
@@ -324,7 +317,10 @@ export function createOnboardingController(
       lastCommit = "provider";
       state = { ...state, fixedError: "credential-status-unavailable" };
     },
-    fail: setFixedError,
+    fail: (code) => {
+      setFixedError(code);
+      if (code === "configuration-unavailable") void followCatalog(visit);
+    },
   });
 
   const cancelActiveIntervalsSignIn = (): void => {
@@ -428,6 +424,7 @@ export function createOnboardingController(
     }
     if (disposed || visit !== expectedVisit || !presenting) return null;
     if (staleDraft) {
+      void followCatalog(expectedVisit);
       return { error: "configuration-unavailable", selectedApplied: false };
     }
     const refreshed = await refreshStatuses(expectedVisit);
@@ -466,7 +463,7 @@ export function createOnboardingController(
     actionStatus = null;
     state = withBusy(state, true);
     publish();
-    const parsedSelection = llmSelectionFromDraft(llmDraft);
+    const parsedSelection = llmSelectionFromDraft(choice.draft());
     if (parsedSelection.error !== null) {
       state = withError(state, parsedSelection.error);
       focusTitle();
@@ -487,6 +484,7 @@ export function createOnboardingController(
         if (visit !== submitVisit || !presenting) return;
         if (applied.status === "stale-draft") {
           saveError = "configuration-unavailable";
+          void followCatalog(submitVisit);
         } else if (applied.status === "refused") {
           saveError =
             applied.reason === "credential-required"
@@ -526,7 +524,8 @@ export function createOnboardingController(
         state = withBusy(withClaudeCliStatus(state, status), false);
         publish();
         const ready = status.state === "ready" || status.state === "ready-api-key";
-        if (ready && llmDraft?.provider.provider === "claude-cli" && !selectedProviderIsReady()) {
+        const claudeCliChosen = choice.draft()?.provider.provider === "claude-cli";
+        if (ready && claudeCliChosen && !selectedProviderIsReady()) {
           void saveModelKey();
         }
       },
@@ -645,6 +644,7 @@ export function createOnboardingController(
       } else {
         if (result.status === "fulfilled" && result.value.status === "stale-draft") {
           state = { ...state, fixedError: "configuration-unavailable" };
+          void followCatalog(expectedVisit);
         }
         actionStatus = null;
       }
@@ -704,9 +704,7 @@ export function createOnboardingController(
 
   const load = async (fromOpen: boolean, moveFocus = true): Promise<void> => {
     if (disposed || opening) return;
-    const currentDraft = llmDraft;
-    const currentDrafts = llmDrafts;
-    const keepAthleteDraft = !fromOpen && hasSuccessfulLoad && draftOrigin === "athlete";
+    const readConfiguration = fromOpen || !hasSuccessfulLoad ? choice.adopt : choice.follow;
     opening = true;
     presenting = true;
     loading = true;
@@ -750,17 +748,7 @@ export function createOnboardingController(
     }
     const statuses = statusesResult.value;
     const restoredChatGptStatus = chatGptResult.value;
-    llmConfiguration = configurationResult.value;
-    if (keepAthleteDraft) {
-      llmDrafts = currentDrafts;
-      setLlmDraft(currentDraft, "athlete");
-    } else {
-      llmDrafts = {};
-      setLlmDraft(
-        initialLlmDraft(llmConfiguration, statuses, restoredChatGptStatus),
-        "configuration",
-      );
-    }
+    readConfiguration(configurationResult.value, statuses, restoredChatGptStatus);
     credentialStatuses = statuses;
     state = withBusy(
       createOnboardingState(statuses, restoredChatGptStatus),
@@ -774,7 +762,7 @@ export function createOnboardingController(
     if (chatGptUiPhase(state) === "signed-in") {
       actionStatus = "signed-in";
     }
-    if (llmDraft === undefined) state = withError(state, "configuration-unavailable");
+    if (choice.draft() === undefined) state = withError(state, "configuration-unavailable");
     state = withImportedRideFileCount(state, rideImports.importedFileCount());
     loadUnavailable = false;
     hasSuccessfulLoad = true;
@@ -892,27 +880,18 @@ export function createOnboardingController(
     startChatGptLogin(): void {
       if (setupLocked() || credentialMutationsBlocked()) return;
       if (chatGptSignedIn(state)) {
-        const parsed = llmSelectionFromDraft(llmDraft);
+        const parsed = llmSelectionFromDraft(choice.draft());
         if (parsed.error === null && parsed.selection.provider === "openai-codex") {
           beginChatGptActivation(parsed.selection, visit);
         }
         return;
       }
-      if (llmDraft?.provider.provider !== "openai-codex") {
-        const configuration = llmConfiguration;
-        const chatGpt = configuration?.providers.find(
-          (provider) => provider.provider === "openai-codex",
-        );
-        if (chatGpt === undefined || configuration === undefined) {
-          setFixedError("configuration-unavailable");
-          return;
-        }
-        setLlmDraft(
-          llmDrafts[chatGpt.provider] ?? draftForProvider(chatGpt, configuration.catalogRevision),
-          "athlete",
-        );
+      const chatGptChosen = choice.draft()?.provider.provider === "openai-codex";
+      if (!chatGptChosen && !choice.choose("openai-codex")) {
+        setFixedError("configuration-unavailable");
+        return;
       }
-      const parsedSelection = llmSelectionFromDraft(llmDraft);
+      const parsedSelection = llmSelectionFromDraft(choice.draft());
       if (parsedSelection.error !== null) {
         setFixedError(parsedSelection.error);
         return;
@@ -959,6 +938,7 @@ export function createOnboardingController(
           }
           focusTitle();
           publish();
+          if (result.status === "stale-draft") void followCatalog(loginVisit);
           if (result.status === "stored") {
             scheduleChatGptActivation(parsedSelection.selection, loginVisit);
           }
@@ -1005,7 +985,7 @@ export function createOnboardingController(
       ) {
         return;
       }
-      const parsedSelection = llmSelectionFromDraft(llmDraft);
+      const parsedSelection = llmSelectionFromDraft(choice.draft());
       if (parsedSelection.error !== null || parsedSelection.selection.provider !== "openai-codex") {
         setFixedError(parsedSelection.error ?? "configuration-unavailable");
         return;
@@ -1021,16 +1001,10 @@ export function createOnboardingController(
     },
     selectProvider(provider): void {
       if (setupStatusBlocksMutations() || state.chatGptRuntimeState === "activating") return;
-      const configuration = llmConfiguration;
-      const next = configuration?.providers.find((entry) => entry.provider === provider);
-      if (next === undefined || configuration === undefined) return;
-      setLlmDraft(
-        llmDrafts[next.provider] ?? draftForProvider(next, configuration.catalogRevision),
-        "athlete",
-      );
+      if (!choice.choose(provider)) return;
       setFixedError(null);
       if (provider === "openai-codex" && chatGptSignedIn(state) && !selectedProviderIsReady()) {
-        const parsedSelection = llmSelectionFromDraft(llmDraft);
+        const parsedSelection = llmSelectionFromDraft(choice.draft());
         if (
           parsedSelection.error === null &&
           parsedSelection.selection.provider === "openai-codex"
@@ -1049,32 +1023,24 @@ export function createOnboardingController(
       }
     },
     selectModel(model): void {
-      if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft(
-        {
-          ...llmDraft,
-          modelChoice: model,
-          customModel: model === CUSTOM_MODEL_SELECTION ? llmDraft.customModel : "",
-        },
-        "athlete",
-      );
+      const customModel = model === CUSTOM_MODEL_SELECTION ? {} : { customModel: "" };
+      if (setupStatusBlocksMutations() || !choice.edit({ modelChoice: model, ...customModel })) {
+        return;
+      }
       setFixedError(null);
     },
     setCustomModel(model): void {
-      if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft({ ...llmDraft, customModel: model }, "athlete");
+      if (setupStatusBlocksMutations() || !choice.edit({ customModel: model })) return;
       setFixedError(null);
     },
     setEndpointMode(mode): void {
-      if (setupStatusBlocksMutations() || llmDraft === undefined) return;
       const parsed = parseEndpointMode(mode);
-      if (parsed === undefined) return;
-      setLlmDraft({ ...llmDraft, endpointMode: parsed }, "athlete");
+      if (setupStatusBlocksMutations() || parsed === undefined) return;
+      if (!choice.edit({ endpointMode: parsed })) return;
       setFixedError(null);
     },
     setCustomEndpoint(endpoint): void {
-      if (setupStatusBlocksMutations() || llmDraft === undefined) return;
-      setLlmDraft({ ...llmDraft, customEndpoint: endpoint }, "athlete");
+      if (setupStatusBlocksMutations() || !choice.edit({ customEndpoint: endpoint })) return;
       setFixedError(null);
     },
   };
