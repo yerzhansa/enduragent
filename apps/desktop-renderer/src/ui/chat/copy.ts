@@ -1,7 +1,13 @@
+import type { SpendSummary } from "@enduragent/coach-contract";
 import { msg, type Message } from "@enduragent/i18n";
+import { capRefusesTurns } from "../../state/adapters/spend";
 
 const SPEND_CAP_REFUSAL =
   /^Today’s model spend has reached your (.+) daily cap, so the coach didn’t answer\. To keep going today, raise the cap or switch it to Warn in Settings › Spending\.$/u;
+
+export function repeatsSpendBanner(value: string | null, summary: SpendSummary | null): boolean {
+  return value !== null && capRefusesTurns(summary) && SPEND_CAP_REFUSAL.test(value);
+}
 
 export function chatFeedbackMessage(value: string): Message | null {
   const refused = SPEND_CAP_REFUSAL.exec(value);

@@ -1,6 +1,6 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
-import { chatFeedbackMessage } from "./copy";
+import { chatFeedbackMessage, repeatsSpendBanner } from "./copy";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -13,6 +13,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const tone = useEnduragentStore((state) => state.chat.noticeTone);
   const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const noticeAddCredits = useEnduragentStore((state) => state.chat.noticeAddCredits);
+  const spendSummary = useEnduragentStore((state) => state.settings.spend.summary);
   const message = notice === null ? null : chatFeedbackMessage(notice);
   const text = useWireMessageText(
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
@@ -21,6 +22,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const hasNoticeText = /\S/u.test(text);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
+  if (!noticeRetry && repeatsSpendBanner(notice, spendSummary)) return null;
   const danger = tone === "danger";
   return (
     <div

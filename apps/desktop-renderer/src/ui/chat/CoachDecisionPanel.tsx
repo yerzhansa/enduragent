@@ -1,4 +1,4 @@
-import { chatFeedbackMessage } from "./copy";
+import { chatFeedbackMessage, repeatsSpendBanner } from "./copy";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import {
   RecordedAnswer,
@@ -59,6 +59,9 @@ export function CoachDecisionPanel(props: {
   const rawError = props.surface?.error ?? chatError;
   const errorMessage = rawError === null ? null : chatFeedbackMessage(rawError);
   const error = errorMessage === null ? rawError : say(errorMessage);
+  const spendSummary = useEnduragentStore((state) => state.settings.spend.summary);
+  const shownError =
+    props.surface === undefined && repeatsSpendBanner(rawError, spendSummary) ? null : error;
   const rawLoadError = props.surface?.loadError ?? chatLoadError;
   const loadErrorMessage = rawLoadError === null ? null : chatFeedbackMessage(rawLoadError);
   const loadError = loadErrorMessage === null ? rawLoadError : say(loadErrorMessage);
@@ -202,9 +205,11 @@ export function CoachDecisionPanel(props: {
         <p className="m-0 text-xs leading-4 text-ink-2">
           {answerLabel ?? say("chat.coachDecision.answer")}
         </p>
-        <p className="m-0 text-xs leading-4 text-danger" role="alert">
-          {error}
-        </p>
+        {shownError === null ? null : (
+          <p className="m-0 text-xs leading-4 text-danger" role="alert">
+            {shownError}
+          </p>
+        )}
       </RecordedAnswer>
     );
   }
@@ -238,9 +243,9 @@ export function CoachDecisionPanel(props: {
               })
             : (answerLabel ?? say("chat.coachDecision.answer"))}
         </p>
-        {error === null ? null : (
+        {shownError === null ? null : (
           <p className="m-0 text-xs leading-4 text-danger" role="alert">
-            {error}
+            {shownError}
           </p>
         )}
       </RecordedAnswer>
@@ -382,9 +387,9 @@ export function CoachDecisionPanel(props: {
               setCustomOpen(true);
             }}
           />
-          {error === null ? null : (
+          {shownError === null ? null : (
             <p className="m-0 px-2 pb-2 text-xs leading-4 text-danger" role="alert">
-              {error}
+              {shownError}
             </p>
           )}
         </QuestionOptions>
