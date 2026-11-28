@@ -39,6 +39,7 @@ import {
   testBridge,
   TEST_LLM_CONFIGURATION,
   type TestBridge,
+  type UserEvent,
 } from "./onboarding-harness";
 
 const english = await createPhrasebook({ tag: "en", locale: "en-US" });
@@ -959,6 +960,77 @@ describe("setup card", () => {
     );
     expect(trigger("ai").textContent).toBe("Change");
     expect(bridge.writeCredential).not.toHaveBeenCalled();
+    wizard.controller.dispose();
+  });
+
+  async function openRetiredAnthropic(user: UserEvent, replacedBy: string | null) {
+    const bridge = coldBridge();
+    bridge.llmConfiguration.mockResolvedValue({
+      ...TEST_LLM_CONFIGURATION,
+      active: { provider: "anthropic", model: "claude-sonnet-4", kind: "retired", replacedBy },
+    });
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+    ]);
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    await waitFor(() => {
+      expect(rowState("ai")).toBe("ready");
+    });
+    await openApiKeyPanel(user);
+    return { bridge, wizard, apiKey: within(panel("api-key") as HTMLElement) };
+  }
+
+  it("names a retired saved model in Advanced and switches only when asked", async () => {
+    const user = userEvent.setup();
+    const { bridge, wizard, apiKey } = await openRetiredAnthropic(user, "claude-sonnet-4-6");
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("claude-sonnet-4 (no longer listed)");
+    expect(document.querySelector("#onboarding-custom-model")).toBeNull();
+    expect(
+      apiKey.getByText(
+        "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch.",
+      ),
+    ).toBeInTheDocument();
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+
+    await user.click(apiKey.getByRole("button", { name: "Switch to Claude Sonnet 4.6" }));
+
+    await waitFor(() => {
+      expect(bridge.applyLlmSelection).toHaveBeenCalledExactlyOnceWith({
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        endpoint: { mode: "automatic" },
+      });
+    });
+    await waitFor(() => {
+      expect(panel("api-key")).toBeNull();
+    });
+    wizard.controller.dispose();
+  });
+
+  it("saves a retired saved model unchanged and offers no switch without a replacement", async () => {
+    const user = userEvent.setup();
+    const { bridge, wizard, apiKey } = await openRetiredAnthropic(user, null);
+
+    expect(
+      apiKey.getByText(
+        "claude-sonnet-4 is no longer on the model list. Your coach keeps using it until you switch. Pick another model when you’re ready.",
+      ),
+    ).toBeInTheDocument();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+
+    await user.click(apiKey.getByRole("button", { name: "Save API key" }));
+
+    await waitFor(() => {
+      expect(bridge.applyLlmSelection).toHaveBeenCalledExactlyOnceWith({
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-sonnet-4",
+        endpoint: { mode: "automatic" },
+      });
+    });
     wizard.controller.dispose();
   });
 

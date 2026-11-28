@@ -301,6 +301,57 @@ describe("provider and model settings controller", () => {
     });
   });
 
+  const RETIRED_ACTIVE = {
+    provider: "anthropic",
+    model: "claude-legacy",
+    kind: "retired",
+    replacedBy: "claude-opus",
+  } as const;
+
+  it("keeps a retired saved model as its own choice without making it dirty", async () => {
+    const { controller } = createSubject({
+      load: vi.fn(async () => configuration(RETIRED_ACTIVE)),
+    });
+
+    await controller.activate();
+
+    expect(formState(controller)).toMatchObject({
+      status: "ready",
+      draft: { modelChoice: "claude-legacy", customModel: "" },
+      dirty: false,
+      validationError: null,
+    });
+  });
+
+  it("saves nothing until the athlete leaves the retired choice, then saves the pick", async () => {
+    const { controller, subject, apply } = createSubject({
+      load: vi.fn(async () => configuration(RETIRED_ACTIVE)),
+    });
+    await controller.activate();
+
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.model("claude-legacy");
+    expect(formState(controller)).toMatchObject({
+      draft: { modelChoice: "claude-legacy" },
+      dirty: false,
+    });
+    expect(apply).not.toHaveBeenCalled();
+
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(apply).toHaveBeenCalledExactlyOnceWith({
+      catalogRevision: 7,
+      provider: "anthropic",
+      model: "claude-opus",
+      endpoint: { mode: "automatic" },
+    });
+    expect(formState(controller).active).toEqual({
+      provider: "anthropic",
+      model: "claude-opus",
+      kind: "listed",
+    });
+  });
+
   it("leaves active:null unconfigured until the athlete chooses a provider", async () => {
     const { controller, subject } = createSubject({
       load: vi.fn(async () => configuration(null)),

@@ -9,6 +9,7 @@ import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 import {
   COMPACT_MODEL_DEFAULTS,
   DEFAULT_MODELS,
+  DROPPED_MODELS,
   LLM_MODEL_CATALOGUE,
   RETIRED_MODEL_REPLACEMENTS,
 } from "../src/runtime-config.js";
@@ -128,6 +129,20 @@ describe("bundled model catalog seed", () => {
         expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
         if (provider === "deepseek" && retired === "deepseek-v4-flash") continue;
         expect(seedModel(provider, retired), `${provider} ${retired}`).toBeUndefined();
+      }
+    }
+  });
+
+  it("names a listed replacement for each kept model the bundled list dropped", () => {
+    const retired: Readonly<Record<string, Readonly<Record<string, string>>>> =
+      RETIRED_MODEL_REPLACEMENTS;
+    for (const [provider, dropped] of Object.entries(DROPPED_MODELS)) {
+      for (const [model, replacement] of Object.entries(dropped)) {
+        expect(seedModel(provider, model), `${provider} ${model}`).toBeUndefined();
+        expect(Object.hasOwn(retired[provider] ?? {}, model), `${provider} ${model}`).toBe(false);
+        if (replacement !== null) {
+          expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
+        }
       }
     }
   });

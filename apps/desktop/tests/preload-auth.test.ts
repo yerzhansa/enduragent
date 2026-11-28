@@ -234,7 +234,7 @@ function llmConfiguration() {
           : {}),
       };
     }),
-    active: { provider: "anthropic", model: "athlete-custom-model" },
+    active: { provider: "anthropic", model: "athlete-custom-model", kind: "custom" },
   };
 }
 
@@ -2271,6 +2271,42 @@ describe("desktop preload ChatGPT auth", () => {
     expect(copied.providers).not.toBe(configuration.providers);
     expect(copied.providers[0]?.models).not.toBe(configuration.providers[0]?.models);
     expect(mocks.invoke).toHaveBeenCalledWith("enduragent:onboarding:llm-configuration");
+  });
+
+  it("copies a retired saved model with or without its replacement", async () => {
+    const configuration = llmConfiguration();
+    for (const active of [
+      {
+        provider: "anthropic",
+        model: "claude-opus-5",
+        kind: "retired",
+        replacedBy: "claude-opus-5-5",
+      },
+      {
+        provider: "openrouter",
+        model: "anthropic/claude-fable-5.1",
+        kind: "retired",
+        replacedBy: null,
+      },
+      { provider: "anthropic", model: "anthropic-default", kind: "listed" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce({ ...configuration, active });
+      await expect(bridge.llmConfiguration()).resolves.toEqual({ ...configuration, active });
+    }
+  });
+
+  it("rejects a saved model whose kind and keys disagree", async () => {
+    const configuration = llmConfiguration();
+    for (const active of [
+      { provider: "anthropic", model: "claude-opus-5" },
+      { provider: "anthropic", model: "claude-opus-5", kind: "retired" },
+      { provider: "anthropic", model: "claude-opus-5", kind: "listed", replacedBy: null },
+      { provider: "anthropic", model: "claude-opus-5", kind: "retired", replacedBy: 5 },
+      { provider: "anthropic", model: "claude-opus-5", kind: "dropped" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce({ ...configuration, active });
+      await expect(bridge.llmConfiguration()).rejects.toBeInstanceOf(TypeError);
+    }
   });
 
   it("accepts published provider order and a custom-only provider", async () => {
