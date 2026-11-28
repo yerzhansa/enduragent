@@ -1,5 +1,146 @@
 # @enduragent/desktop-renderer
 
+## 0.6.0
+
+### Minor Changes
+
+- dbe61e3: User-facing: When the coach can't answer because your Claude Code, Codex or ChatGPT sign-in has ended, your AI provider account is out of credits, or your provider no longer offers the model you picked, Chat now says so under your message and tells you what to do next. Before, it showed only a red icon and Retry, or blamed an API key you don't have.
+
+  Core classifies a provider error whose code or type is `model_not_found`, or Anthropic's `not_found_error` on the anthropic route, as the new `model_unavailable` failure (a bare 404, which a wrong base URL also returns, stays generic), and an OpenAI 429 whose error type or code is a billing limit (`insufficient_quota`, `credit_balance_exhausted`, spend or usage limits) as `payment_required`, so it is no longer retried as a rate limit. The route comes from the chat model's provider; a 429 from any other provider stays a rate limit. The engine chooses the athlete copy from the failure and the provider: a sign-in failure on Claude Code, Codex or ChatGPT gets the new `subscription-signed-out` kind with the existing "sign in again" message, a 402 from a key provider other than OpenRouter gets the new `provider-credits` kind, and a missing model gets the new `model-unavailable` kind. Chat shows these three, and OpenRouter's credits notice, as a red notice under the kept message. A rejected API key, rate limits and other failures keep the icon and Retry. Telegram and the terminal keep their existing replies. The three new error kinds change the turn-event wire, so the coach protocol moves from 38 to 39.
+
+### Patch Changes
+
+- 3adc44c: User-facing: Asking the coach to change a workout from the Calendar now opens a clean Plan-change draft and brings your earlier Chat draft back once the change is sent or cancelled.
+- df97440: User-facing: When you type your own answer to a Plan or coaching question, the chat box stays at the bottom and says to finish your answer first, and Stop responding stays there while the coach is still replying.
+- b4c2cc2: User-facing: Queued chat messages now keep sending after failed replies or removed commands, oversized plan edits no longer leave stray bubbles, and startup or file-drop hiccups recover cleanly.
+
+  Unifies chat queue drain scheduling across failure, removal, and reset paths, clears draft errors after successful sends, serializes coach decision mutations away from active streams, retries failed startup probes individually, validates plan-change text before updating the transcript, guards async plan epochs and disposal, and adds timeout cleanup and busy-state Dismiss handling for dropped attachments.
+
+- da117ef: User-facing: Chat decision shortcuts now respond only while Chat is open, drafts stay intact across view switches and slash commands, and messages no longer duplicate or blank when views refresh.
+
+  Resets `queueRevision` on New Conversation, filters live turns out of reloaded history pages, flushes Composer drafts on unmount and slash acceptance, scopes Chat decision shortcuts to the Chat view, and preserves buffered streaming text when views remount.
+
+- 6b2d249: User-facing: Stop now ends a reply at once even if you changed the coach in Settings while it was streaming. Changing the coach or deleting the AI key in use during a reply now fails right away with a "try again" message, instead of hanging or sending you to the Setup screen.
+
+  A runtime change (`configureRuntime`) that arrives while a chat turn runs now returns the refusal `busy-replying` before it puts the barrier up, so Stop, the runtime config read and the transcript reads are not queued behind a drain that waits for the whole reply. A catalog pin moves into the replacement's prepare step, so a refused change does not pin the new catalog. The startup refresh still waits for running turns. On a key delete, the desktop maps `busy-replying` to a `runtime-unavailable` refusal and leaves the key and its runtime state as they were.
+
+  The coach protocol version goes to 38, because the new `busy-replying` refusal reason is a wire change.
+
+- a88cdea: User-facing: When ChatGPT stops accepting your sign-in, Setup now says the sign-in expired and offers Sign in with ChatGPT, which opens the browser so you can sign in again. Before, Setup kept showing ChatGPT as Connected and gave you no way to sign in again.
+
+  When the coach's refresh of the ChatGPT token is rejected twice, it marks the stored profile in `auth-profiles.json` as rejected, compared against the profile it refreshed so a newer sign-in is never marked. A successful refresh or a new browser sign-in clears the mark. Main's ChatGPT status reports a marked profile as `{ state: "configured", runtimeReady: false, reason: "sign-in-expired" }`. The renderer keeps it as an expired credential that cannot be activated, so Sign in starts a fresh browser sign-in, and Settings refreshes the sign-in status when it opens. The coach's OAuth token reader moves out of `composition.ts` into `oauth-access-token.ts`.
+
+- 1ab9418: User-facing: Enduragent now reopens automatically if installing a desktop update fails instead of closing without restarting. Update downloads, automatic background checks, and Try again now recover cleanly after errors, and the sidebar no longer flashes "Restarting…" while checking for updates.
+
+  Replaces implicit update and quit flags across `update-controller.ts`, `update-state-machine.ts`, `quit-coordinator.ts`, `main/index.ts`, and the renderer update controller/UI with explicit closed phase unions. Detaches failed and ready operations immediately (eliminating retry wedges), resets the download transfer watermark on differential-to-full fallback, arms macOS Squirrel readiness listeners only after archive download completes, commits the updater only after configuration succeeds, keeps the 6-hour check timer scheduled on transient startup floor or config failure, freezes update IPC and controller synchronously before async shutdown awaits, relaunches the current app once on failed update drain/install handoff (including synchronous and asynchronous updater or native readiness errors), blocks renderer clicks before initial hydration, separates pending `checking` from `restarting` in `UpdateAvailableButton`, and surfaces IPC check rejections after intermediate pushes. Promotes all 10 findings in `.agents/skills/verify-update-download/` to guarded TLC controls.
+
+- 7d6ed8b: User-facing: When your Intervals.icu sign-in is saved but the coach can't use it, Setup now says so and points you at the button on screen (Retry saved keys, or Sign in again), instead of asking you to reload a status that wasn't there.
+
+  Main now reports a sign-in that was saved but could not be applied as `saved-not-active` instead of `uncertain` / `runtime-uncertain`, since the vault has already marked it `failed`. The renderer shows the new `setup.error.intervalsSavedNotActive` message (translated for every catalog) for a saved sign-in whose runtime state is `failed`, and keyboard focus lands on Retry saved keys after such a sign-in when that link is shown. While the row shows the "stopped accepting the sign-in" state, where Retry saved keys is hidden, the message keeps pointing at Sign in again instead. `setup.error.intervalsRuntimeUncertain` is removed.
+
+- 858cff5: User-facing: If the coach is slow to answer right after you delete a key in Settings, you now stay in Settings with a Retry for the setup status, instead of being sent to the full Setup screen while your coach still works.
+
+  The delete path's catch marked the deleted credential as needing repair when Setup's follow-up read timed out, and a repair credential makes Setup required. A failed read is not a reason to repair: the catch now keeps the repair state it had.
+
+- c5b2b5e: User-facing: If the language you pick on first launch can't be saved, the language screen now stays open with a message and a Retry button, instead of jumping to Setup in English.
+
+  The shell keeps the language screen up after a failed first-launch save, and the screen shows the failure in the chosen language. Settings keeps its existing "Language preference unavailable" message.
+
+- bba219f: User-facing: When starting a new conversation fails partway, Chat now finds out whether it started and says so, and New chat works again without restarting the app. If Chat still can't tell, a Check again button lets you look again.
+
+  After a failed reset, Chat reads the session, the newest transcript page and the queue once, and compares them with what was showing before. Turns and coach questions that are gone mean the reset landed, so Chat finishes it, keeping anything typed or sent after the failure; ones that are still there mean it never started, so Chat returns to normal. When the page can't tell, Chat stays uncertain. The reset itself is never sent twice.
+
+- a6e5783: User-facing: If you open Enduragent without a network connection, it now reconnects to Intervals.icu by itself once the network is back. Until then, Sync tells you Intervals.icu isn't connected instead of saying your training data is synced.
+
+  When main re-applies the saved intervals.icu sign-in and the coach refuses it as `ownership-unavailable`, main retries the saved keys after 15 s, 1, 2, 5, 10 and 15 min, waits without spending an attempt while the Mac is offline, restarts the schedule when the Mac wakes, and stops on shutdown. In the window, a sync that the coach skips for a missing key while a sign-in is saved fails as `not-in-use` with its own message. While Sync is in that state the window re-reads the coach's runtime configuration every 30 s and on focus, and syncs once when the coach has the key. The touched sync files no longer swallow errors silently.
+
+- aebd0d5: User-facing: When Enduragent finds that Intervals.icu no longer accepts your sign-in, for example during its background sync, the sidebar now asks you to sign in again within a minute. Before, it waited until you came back to the window or synced.
+
+  The coach learns of a rejected sign-in from its own syncs and chat tool calls, and the window reads that only through `getRuntimeConfig`. The window now re-reads it every 60 s while no sync is running, every 30 s while Sync reports the saved sign-in is not in use, and not at all during a sync, which ends with a read of its own. Focus and the read after each sync stay as they were.
+
+- 5de1cb7: User-facing: When the old Plan's workouts cannot be removed from your intervals.icu calendar, the new Plan's workouts now wait even if you replace the Plan again, and the active Plan shows "Calendar sync failed. Retry available." (or "Connect to mirror Workouts" while intervals.icu is not connected) instead of "Up to date".
+  User-facing: Retry calendar now stays available after repeated failures and removes the old Plan's workouts at once.
+
+  The calendar drain and the Plan library read one barrier from `readCleanupBarrier`: the active Plan's mirror waits while any cleanup of another Plan is not verified, not only the newest one, and the active card shows that cleanup. A failed cleanup always offers Retry. Retry sends `retryCalendar` on the next `plan.list`, which reopens failed cleanups. Automatic cleanup retries keep the 15-minute wait after five failures, and mirror jobs keep their five-failure budget.
+
+- 9912a8c: User-facing: When the model your coach uses leaves Enduragent's model list, Settings → Coach and Setup → API key → Advanced now name it as no longer listed instead of showing it as a model you typed, say that your coach keeps using it, and offer a one-press switch to its replacement when there is one. Nothing changes until you press Switch or pick another model.
+
+  Main now answers the LLM configuration with the saved model classified as `listed`, `retired` (with `replacedBy`, or null when the model list offers no replacement) or `custom`, carried on `active` as `kind`. The classification reads the new `DROPPED_MODELS` table in `@enduragent/core`, which names the replacement for each model the list dropped but saved configurations keep, and offers a replacement only when the list the window received lists it. The preload checks the new keys exactly. Setup and Coach show the retired model as its own option, keep it selected, and re-send it unchanged when saved; the Switch button saves the replacement through the existing Coach and Setup save paths.
+
+- 4d6757a: User-facing: Pressing Review setup in Settings, Coach now only takes you to Setup. The Coach section keeps showing your coach and its controls instead of "Not configured" and "Loading coach settings…".
+
+  The Coach settings controller no longer closes its pane before handing off to the inline Setup panel. Settings stays mounted, so nothing reopened the pane; it now stays in its current state and still reloads once Setup connects a provider.
+
+- a98a899: User-facing: After you switch provider in Settings, Coach, the Setup panel shows the provider your coach really uses, and deleting a key you no longer use keeps you in Settings instead of sending you to the Setup screen. While Setup is saving or signing in, the Coach controls wait for it.
+
+  Setup kept its own copy of the active coach from its first load and dropped the configuration on every later refresh. Now every successful load adopts the configuration, and Setup's draft is kept only when the athlete edited it. A Coach save refreshes Setup, and the Coach pane is disabled while a Setup credential operation runs, so that refresh cannot drop a running Setup operation.
+
+- 03053ce: User-facing: Setup now runs one sign-in at a time. While your coach activates or another sign-in waits for your browser, the Intervals.icu buttons, "Import ride files instead" and Start coaching stay locked, so a second click no longer shows a false "check your connection" error or hides Cancel sign-in.
+
+  Every Setup action and row control now reads one shared check for a running Setup operation: a busy step, a ChatGPT sign-in or activation, an OpenRouter browser sign-in, an Intervals.icu sign-in, or a ride import. The OpenRouter panel's own Reopen and Enter a code links stay usable during its sign-in.
+
+- 4be4457: User-facing: When the coach comes back after a slow start, Setup now loads its status again by itself instead of waiting on "Setup status couldn't be loaded" until you choose Retry.
+
+  When the cold-start reads ran out, Setup's unavailable state latched, and the lifecycle `ready` event refreshed only the language. It now also refreshes Setup while Setup's last read failed.
+
+- 1ebd764: User-facing: If the app can't use your saved Intervals.icu sign-in, the Intervals.icu row in Setup now shows a warning and "Signed in, but not working yet" instead of a green "Connected".
+
+  The Setup training row now checks that the saved Intervals.icu sign-in is active in the coach, the same way training-data readiness does. A sign-in that is saved but `failed` or `stored-inactive` gets a new `not-working` row state with an attention disc, a new `setup.training.subtitle.notWorking` subtitle (translated for every catalog) and the Disconnect action; the existing retry and error panel are unchanged.
+
+- c33bbf7: User-facing: Screen readers now read the Setup screen in your app language instead of as English.
+
+  `SetupGate` hard-coded `lang="en"` on its `main` element. It now uses the active phrasebook's language tag, as the checking screen in `Shell` already does.
+
+- 564916f: User-facing: The sidebar's Sign in again link for Intervals.icu now waits while Setup or a Settings change is busy, instead of opening Settings without starting the sign-in.
+
+  The link switched to Settings and called `connectTrainingData`, which does nothing while a Setup credential operation runs. It is now disabled by `setupSignInBlocked`, which joins the two checks `connectTrainingData` refuses on: a running Setup credential operation and `credentialChangesBlocked`.
+
+- f523d71: User-facing: If the coach turns a sync away before it starts, for example while it is getting ready for an update, the sidebar now offers Try again instead of a disabled "Sync unavailable" that asked you to quit and reopen Enduragent.
+
+  The sync coordinator accepts an error reply that arrives before any progress notification as an operation failure the athlete can retry. It publishes that failure without refreshing the training context, since the coach ran nothing. A success with no progress is still a protocol fault, and an error after completed progress still is too. The desktop e2e fixture can take the coach's invocation coordinator, so a spec can close and reopen admission.
+
+- e5cd8df: User-facing: When Enduragent can't read your Telegram settings, the Telegram row in Setup now says so and offers Retry, instead of offering Create as if no bot were set up.
+
+  The Setup Telegram row now follows the Telegram settings state `{ status: "error", kind: "load" }`: the row shows the attention mark and the Settings pane's existing copy ("Telegram settings aren’t available. Keep the app open and try again."), and Retry (the existing `settings.telegram.retry` label) calls the Telegram settings port's `retry()`, which re-reads the status. Create is not offered, and an open bot setup panel cannot use a token or confirm a deletion, until a status read succeeds. No new copy.
+
+- 1799249: User-facing: Settings now shows live download progress, transfer size, speed, and a preparing step while Enduragent downloads an app update.
+
+  Surfaces throttled download progress (percentage, transferred and total megabytes, and transfer speed) and a dedicated macOS preparing phase from the desktop updater through preload and IPC into the Settings Application card, with localized strings across all 17 supported languages.
+
+- c12d9f1: User-facing: If the connection drops while a sync is running, Enduragent now checks the sync again by itself once it reconnects, so the sidebar and your training data catch up without pressing Try again. The sidebar now says "Connection interrupted. Enduragent will check the sync again when it reconnects."
+
+  The window's connection provider gains `onConnectionOpen`, which fires after a new connection replaces one that was lost or retired, never for the first one. The sync coordinator asks the coach again at once when it is left on an interrupted sync with nothing running. When those re-asks keep getting interrupted, each next one waits longer (5 s, 30 s, 2 min, then every 5 min) until the athlete or first sync starts one again. The training context reads the athlete state again when its last refresh failed and no read of its own is running. Both stop listening when disposed. Old code-quality findings in the touched files are cleared without changing behavior.
+
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [09a5e23]
+- Updated dependencies [3adc44c]
+- Updated dependencies [0bcd503]
+- Updated dependencies [95d3c9a]
+- Updated dependencies [d984b4f]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [75e77dd]
+- Updated dependencies [dbe61e3]
+- Updated dependencies [6b2d249]
+- Updated dependencies [a88cdea]
+- Updated dependencies [7d6ed8b]
+- Updated dependencies [c5b2b5e]
+- Updated dependencies [bba219f]
+- Updated dependencies [a6e5783]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+- Updated dependencies [9912a8c]
+- Updated dependencies [1ebd764]
+- Updated dependencies [9f32ae9]
+- Updated dependencies [1799249]
+- Updated dependencies [c12d9f1]
+- Updated dependencies [9ef4f21]
+  - @enduragent/coach-contract@0.3.0
+  - @enduragent/i18n@0.4.0
+  - @enduragent/coach-client@0.1.9
+
 ## 0.5.0
 
 ### Minor Changes

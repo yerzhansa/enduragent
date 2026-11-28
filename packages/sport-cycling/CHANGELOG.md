@@ -1,5 +1,44 @@
 # @enduragent/sport-cycling
 
+## 0.1.0
+
+### Minor Changes
+
+- 75e77dd: User-facing: Click a workout on the Calendar to open its card, where you can see whether it is on intervals.icu, move it to another day, ask the coach to change it, or export that day's workouts. A new Plan now starts on the first day of your week by default, or today when your event comes sooner, and you can still pick another day.
+
+  Workout cards in the grid are buttons that open the card over the grid; a workout changed in intervals.icu still opens its change sheet. Only one Calendar sheet is open at a time. Move… opens the existing move dialog, which gains Earlier day and Later day buttons that step over days the workout cannot move to and keep focus at the ends. Ask the coach saves a draft naming the workout and day into an empty composer and opens Change in Chat; nothing is sent. Export reuses the workout archive export for that day.
+
+  The start-timing question offers `first-day-of-week` (answered as `earliest` with the next first day of the computer's region week, computed in the renderer) and `earliest` ("Pick another day"), and gains an optional `latestAllowed`, the event date, which the coach enforces. A picked day is now the Plan's start; the draft builder moves it only by whole weeks, past weeks with no day to train or a picked day that has already passed, and the answer summary states that start. Stored `as-soon-as-possible` answers and stored questions keep their old meaning. The cycling creation builder version is now 2.
+
+- 1949824: User-facing: Enduragent now uses one FTP, the one in intervals.icu, shows each ride's FTP and FTP history on Activity review, and writes a coach's proposed FTP to intervals.icu only after you confirm. Chat's Change one thing no longer offers Correct FTP, past FTP changes stay in Plan history, and Plan details no longer shows old FTP guidance.
+- 9ef4f21: User-facing: Every training workout in a new Chat Plan now has real steps, a zone, an estimated load and a line on why it is there, and its Calendar card shows them, with watts from your FTP in intervals.icu or as % of FTP until one is set.
+
+  The creation builder moves to version 3 and stores typed `content` (steps as % of FTP, zone, load, why) on each non-event Draft workout. Plan Changes recompute it. Keeping an intervals.icu edit that changes a workout's length removes it, because the athlete's version is the truth. Undo restores it as it was, and Plans built before it keep no content until a change touches a workout. The `plan.calendar` read gains each workout's `content` and the current outdoor `ftp`, and the Draft card model gains `ftpWatts`. intervals.icu receives exactly what it did before; nothing new is sent.
+
+- b476f6d: User-facing: intervals.icu now shows each Plan workout's steps and load when it has your FTP, so your head unit gets watts for every step. Without an FTP in intervals.icu, workouts go there as before, with no steps.
+
+  The Chat calendar mirror writes each workout's description at send time from its stored `content`, as step lines in % of FTP, and only while the one FTP is known. A "Warmup" line heads a warm-up step and a "Cooldown" line a cool-down step; both are intervals.icu syntax and stay in English in every locale, like "3x". The text is part of the send fingerprint, so an FTP appearing or being removed rewrites the workouts in the two-week window once. Athlete edits are still never overwritten, and a past workout keeps what intervals.icu has. A workout matched to a ride keeps its text there when only the text would change. A coach change to its day, name, sport or length still goes out, with the current text. When the steps are removed, intervals.icu keeps the load and intensity it computed from them. Rows without `content` keep any stored description unchanged.
+
+### Patch Changes
+
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [09a5e23]
+- Updated dependencies [0bcd503]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [78c0c28]
+- Updated dependencies [dbe61e3]
+- Updated dependencies [eefa039]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+- Updated dependencies [02c7694]
+- Updated dependencies [cb4af29]
+- Updated dependencies [b476f6d]
+  - @enduragent/kernel@0.2.0
+  - @enduragent/engine@0.2.0
+
 ## 0.0.14
 
 ### Patch Changes

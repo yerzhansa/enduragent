@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/coach-contract",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Engine/UI contract seam: CoachEngine interface, request/response schemas, TurnEvent union, AthleteState, protocol version, exit codes.",
   "type": "module",

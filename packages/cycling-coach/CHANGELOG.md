@@ -1,5 +1,21 @@
 # cycling-coach
 
+## 2026.11.28
+
+### Patch Changes
+
+- a4187b3: User-facing: Setup and Settings now offer each AI provider's current models, with up-to-date prices, and new setups start on a current model. If a provider has retired the model you picked, the app now uses its replacement.
+
+  Bundled model catalog seed revision 12, matching the published catalog revision 12. Revision 12 is revision 10 plus the old DeepSeek name `deepseek-v4-flash`, labelled "DeepSeek V4.1 Flash (old name)": released builds still default to it, and DeepSeek serves it with V4.1 Flash at the same price. New defaults: Anthropic `claude-sonnet-5-5`, OpenAI `gpt-6.2-sol`, Google `gemini-4-hydrogen`, DeepSeek `deepseek-flash` (replaces the retired `deepseek-v4-flash` name), Qwen `qwen4-max`, Kimi `kimi-k3.1-pro`, Z.ai `glm-5.3`, OpenRouter `deepseek/deepseek-v4.1-flash-1017`. Summariser defaults: Anthropic `claude-haiku-5-5`, OpenRouter `deepseek/deepseek-v4.1-flash-1017`. Retired or withdrawn ids are removed: MiniMax M2.7 and M2.7 Highspeed, Kimi K2.6 and K2.7 Code, Gemini 3.7 Flash, and `qwen/qwen3.8-max` on OpenRouter. Sign-in lanes (ChatGPT, Codex agent, Claude subscription) are unchanged. Saved configs that name a model its provider retired load with the replacement: `gemini-3.7-flash` to `gemini-3.8-flash`, `deepseek-v4-flash` to `deepseek-flash`, `MiniMax-M2.7` to `MiniMax-M3`, `MiniMax-M2.7-highspeed` to `MiniMax-M3.1-Flash`, and `qwen/qwen3.8-max` to `qwen/qwen4-max` on OpenRouter.
+
+- c9a1cc7: User-facing: If intervals.icu refuses your API key or sign-in while a sync downloads ride recordings, the sync now says it couldn't finish instead of saying your training data synced.
+
+  A 401 on a recording download no longer counts as an unfetched recording. `attempt` in the capture's lane report rethrows a refused sign-in, so the reference capture fails, the store window fails, and Sync shows its retryable failure. The older reference fetch now fails its stream loop on a 401 the same way. A 403 or a 404 on a recording download still counts as an unfetched recording. An OAuth 403 already starts the sign-in check, which marks the sign-in rejected when the check confirms the refusal. The change also runs `oxfmt` over `lane-report.ts` and the live-bundle test, which the format gate requires once a file changes.
+
+- 3cb16f8: User-facing: Changing your coach model in Settings no longer leaves chat summaries or memory saves stuck on a costlier model. Summaries stay on your provider's cheaper default when one exists, and follow your chosen model again after trying GPT-6 Astra.
+
+  Tracks explicit summary (`compactModel`) and memory-save (`flushModel`) overrides separately from derived defaults (`provider-default`, `follow-chat`, `astra-fallback`) in `resolveRuntimeConfig`, persists explicit overrides, the provider's summary default as before, and `before_astra_model` while on GPT-6 Astra; it no longer persists a summary or memory model that only followed the chat model or the pre-Astra model, which is what made them stick. `config.yaml` names the explicit ones in `explicit_background_models`, written only when there is one. `loadConfigFromYaml` reads a file without that list, as older versions wrote it, by value: a `compact_model` equal to the provider's summary default or to the chat model is derived again (the provider's summary default where there is one, else the chat model), because older versions moved a `compact_model` equal to the chat model along with every model pick; a `flush_model` equal to the chat model follows the chat model; on GPT-6 Astra both are the model used before Astra; any other saved value stays explicit. `LLM_COMPACT_MODEL` and `LLM_FLUSH_MODEL` stay explicit.
+
 ## 2026.11.20
 
 ### Patch Changes
