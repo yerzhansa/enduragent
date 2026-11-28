@@ -859,7 +859,13 @@ describe("Plan view adapter", () => {
       commandId: "coach-command",
       conversationId: "00000000000000000000000001",
     };
-    const setup = (discard: () => Promise<unknown>) => {
+    const setup = (
+      discard: () => Promise<unknown>,
+      options: {
+        readonly queue?: typeof held;
+        readonly execute?: PlanBridge["executePlanTransition"];
+      } = {},
+    ) => {
       const call = vi.fn(async (method: string) =>
         method === "discardQueuedTurn" ? discard() : { stopped: true },
       );
@@ -872,13 +878,13 @@ describe("Plan view adapter", () => {
         lifecycle: "intake",
         scenarioId: "PL-S017",
         projection: "coach",
-        data: planCoachData({ queue: held }),
+        data: planCoachData({ queue: options.queue ?? held }),
       });
       const subject = harness({
         clients,
-        ids: ["coach-command"],
+        ids: ["coach-command", "drain-command"],
         getPlanState: async () => ({ status: "ready", state: initial }),
-        executePlanTransition: () => new Promise(() => undefined),
+        executePlanTransition: options.execute ?? (() => new Promise(() => undefined)),
       });
       subject.adapter.start();
       return { call, subject };
@@ -928,6 +934,72 @@ describe("Plan view adapter", () => {
         ...coachTurn,
         text: "Keep Sunday free.",
       });
+    });
+
+    it("ignores Retry while a Discard is in flight, then sends the waiting ones", async () => {
+      let finishDiscard: (snapshot: unknown) => void = () => undefined;
+      const { call, subject } = setup(
+        () =>
+          new Promise((resolve) => {
+            finishDiscard = resolve;
+          }),
+      );
+      await settle();
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await vi.waitFor(() =>
+        expect(call).toHaveBeenCalledWith("discardQueuedTurn", expect.anything()),
+      );
+
+      subject.adapter.retryQueuedCoachTurn("claim-1");
+      await settle();
+      expect(subject.executePlanTransition).not.toHaveBeenCalled();
+
+      finishDiscard(discarded);
+      await vi.waitFor(() => expect(subject.executePlanTransition).toHaveBeenCalledOnce());
+      expect(subject.executePlanTransition).toHaveBeenCalledWith({
+        ...coachTurn,
+        text: "Keep Friday free.",
+      });
+    });
+
+    it("drops a held message with nothing waiting and sends nothing", async () => {
+      const { subject } = setup(async () => ({ schemaVersion: 1, revision: 4, items: [] }), {
+        queue: { ...held, items: held.items.slice(0, 1) },
+      });
+      await settle();
+      expect(subject.surface.coach.retryRequired).toMatchObject({ claimId: "claim-1" });
+
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await vi.waitFor(() => expect(subject.surface.coach.retryRequired).toBeNull());
+      expect(subject.surface.coach.queued).toEqual([]);
+      expect(subject.executePlanTransition).not.toHaveBeenCalled();
+    });
+
+    it("discards a held message whose Plan reply failed, then sends the waiting ones", async () => {
+      const failed = planReadModel({
+        lifecycle: "intake",
+        scenarioId: "PL-S017",
+        projection: "coach",
+        data: planCoachData({ queue: held }),
+      });
+      const execute = vi
+        .fn<PlanBridge["executePlanTransition"]>()
+        .mockResolvedValueOnce({ status: "rejected", error: PLAN_ERROR, state: failed })
+        .mockImplementation(() => new Promise(() => undefined));
+      const { subject } = setup(async () => discarded, { execute });
+      await settle();
+      subject.adapter.retryQueuedCoachTurn("claim-1");
+      await vi.waitFor(() => expect(subject.surface.transition.status).toBe("failed"));
+      expect(subject.surface.coach.retryRequired).toMatchObject({ claimId: "claim-1" });
+
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+      expect(execute).toHaveBeenLastCalledWith({
+        ...coachTurn,
+        commandId: "drain-command",
+        text: "Keep Friday free.",
+      });
+      expect(subject.surface.coach.retryRequired).toBeNull();
     });
 
     it("ignores Discard while the held message is being retried", async () => {

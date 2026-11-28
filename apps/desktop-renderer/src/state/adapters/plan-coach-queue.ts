@@ -94,7 +94,7 @@ export function createPlanCoachQueue(input: {
     retry(claimId) {
       const state = input.state();
       const claim = state.retryRequired;
-      if (claim?.claimId !== claimId) return;
+      if (claim?.claimId !== claimId || mutations > 0) return;
       error = null;
       input.send(
         state.queued
