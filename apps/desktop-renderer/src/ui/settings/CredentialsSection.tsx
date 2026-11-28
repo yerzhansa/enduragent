@@ -13,8 +13,10 @@ import type {
 import {
   belongsInPrimaryAiRow,
   credentialChangesBlocked,
+  pendingCredentialRepair,
   repairRequiredCredential,
 } from "../../settings/credential-controller";
+import { repairRetrying } from "../../settings/credential-repair";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { SetupRow } from "../onboarding/SetupRow";
@@ -297,6 +299,7 @@ export function CredentialSettingsFeedback(): ReactElement | null {
   const feedback = useRef<HTMLDivElement>(null);
   const target = "focus" in state ? state.focus : null;
   const repairRequired = repairRequiredCredential(state);
+  const reconnecting = repairRetrying(pendingCredentialRepair(state));
   const loading =
     state.status === "loading" || (state.status === "closed" && repairRequired === null);
   const loadError = state.status === "error" && state.kind === "load";
@@ -366,7 +369,7 @@ export function CredentialSettingsFeedback(): ReactElement | null {
         )}
         {loadError || repairRequired !== null || canRetryRecovery || canReset ? (
           <div className="mt-2 flex flex-wrap gap-2">
-            {loadError || repairRequired !== null || canRetryRecovery ? (
+            {(loadError || repairRequired !== null || canRetryRecovery) && !reconnecting ? (
               <Button
                 type="button"
                 variant="outline"

@@ -775,6 +775,30 @@ describe("shell", () => {
     });
   });
 
+  it("keeps a retrying credential repair through pane close without raising the gate", async () => {
+    const requireCompletion = vi.fn();
+    useEnduragentStore.getState().bindOnboardingActions({
+      requireCompletion,
+      openRouter: { dismiss: () => undefined },
+    } as unknown as OnboardingController);
+    useEnduragentStore.setState({ onboarding: READY_ONBOARDING });
+    await renderWithLanguage(<Shell onReady={() => {}} />);
+
+    act(() => {
+      useEnduragentStore.getState().patchSettings({
+        credentials: { status: "closed", repairCredential: { retrying: "anthropic" } },
+      });
+      useEnduragentStore.getState().closeSettingsPanes();
+    });
+
+    expect(useEnduragentStore.getState().settings.credentials).toEqual({
+      status: "closed",
+      repairCredential: { retrying: "anthropic" },
+    });
+    expect(requireCompletion).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-shell="app"]')).not.toBeNull();
+  });
+
   it("holds a repair-triggered gate after reconciliation until Start coaching", async () => {
     const requireCompletion = vi.fn(() => {
       useEnduragentStore.setState((state) => ({

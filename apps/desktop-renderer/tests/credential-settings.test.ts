@@ -20,7 +20,11 @@ import {
   type CredentialSettingsState,
   type CredentialSettingsView,
 } from "../src/settings/credential-controller";
+import { credentialRepairRetryDelayMs } from "../src/settings/credential-repair";
 import { credentialFeedbackMessages } from "../src/ui/settings/copy";
+
+const RECONNECTING = "The credential was not deleted. Reconnecting to the coach…";
+const NOT_DELETED = "The coach could not stop using this credential safely. It was not deleted.";
 
 function runtime(
   llm: RuntimeConfigSnapshot["llm"] = {
@@ -105,6 +109,7 @@ function createSubject(input: {
   readonly loadRecoveryStatus?: () => Promise<CredentialRecoveryStatus>;
   readonly retryRecovery?: () => Promise<CredentialRecoveryStatus>;
   readonly reset?: () => Promise<CredentialResetResult>;
+  readonly retryFailed?: () => Promise<void>;
 }) {
   let activeRuntime = input.runtime ?? runtime();
   let statuses =
@@ -120,10 +125,19 @@ function createSubject(input: {
   const client = {
     call: vi.fn(async () => (await input.loadRuntime?.()) ?? activeRuntime),
   };
+  const connectionListeners = new Set<() => void>();
   const clients = {
     getClient: vi.fn(async () => client),
     reconnect: vi.fn(async () => client),
+    onConnectionOpen: vi.fn((listener: () => void) => {
+      connectionListeners.add(listener);
+      return () => connectionListeners.delete(listener);
+    }),
   } as unknown as DesktopCoachClientProvider;
+  const retryFailedCredentials = vi.fn(async () => {
+    await input.retryFailed?.();
+    return statuses;
+  });
   const deleteCredential = vi.fn(async ({ credential }: { credential: DesktopCredentialId }) => {
     if (input.deleteCredential !== undefined) {
       return input.deleteCredential({ credential });
@@ -174,6 +188,7 @@ function createSubject(input: {
       recovery = (await input.retryRecovery?.()) ?? recovery;
       return recovery;
     },
+    retryFailedCredentials,
     resetAllCredentials,
     ...(input.claudeCli === undefined ? {} : { loadClaudeCliStatus: input.claudeCli }),
     deleteCredential,
@@ -186,7 +201,18 @@ function createSubject(input: {
     beginMutation: () => releaseMutation,
     view: subject.view,
   });
-  return { controller, subject, deleteCredential, resetAllCredentials, releaseMutation };
+  return {
+    controller,
+    subject,
+    deleteCredential,
+    resetAllCredentials,
+    releaseMutation,
+    retryFailedCredentials,
+    connectionListeners,
+    setStatuses: (next: readonly CredentialSlotStatus[]) => {
+      statuses = next;
+    },
+  };
 }
 
 function content(state: CredentialSettingsState) {
@@ -1254,35 +1280,227 @@ describe("credential settings controller", () => {
     });
   });
 
-  it("requires authoritative repair when saved and active runtime state diverge", async () => {
-    const onReconciled = vi.fn(async () => {});
-    const { controller, subject } = createSubject({
+  it("retries a diverged delete by itself and clears the repair once saved and active state agree", async () => {
+    let releaseRetry!: () => void;
+    const retryHeld = new Promise<void>((resolve) => {
+      releaseRetry = resolve;
+    });
+    const onReconciled = vi.fn(async (_moveFocus: boolean) => {});
+    const { controller, subject, retryFailedCredentials } = createSubject({
       deletion: {
         credential: "anthropic",
         status: "refused",
         reason: "runtime-state-diverged",
       },
       onReconciled,
+      retryFailed: () => retryHeld,
     });
     await controller.activate();
 
     subject.requestDelete("anthropic");
     subject.confirmDelete();
-    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+    await vi.waitFor(() => expect(retryFailedCredentials).toHaveBeenCalledOnce());
 
     expect(controller.state()).toMatchObject({
       status: "error",
       kind: "delete",
       reason: "runtime-state-diverged",
-      repairCredential: "anthropic",
+      repairCredential: { retrying: "anthropic" },
+      announcement: RECONNECTING,
       recoveryAvailable: true,
       focus: { target: "feedback" },
     });
+    expect(repairRequiredCredential(controller.state())).toBeNull();
+    expect(credentialChangesBlocked(controller.state(), false)).toBe(true);
+    subject.requestDelete("openrouter");
+    expect(controller.state().status).toBe("error");
 
-    subject.retry();
-    await vi.waitFor(() => expect(onReconciled).toHaveBeenCalledOnce());
+    releaseRetry();
     await vi.waitFor(() => expect(controller.state().status).toBe("ready"));
-    expect(content(controller.state()).repairCredential).toBeNull();
+    expect(onReconciled).toHaveBeenCalledExactlyOnceWith(false);
+    expect(controller.state()).toMatchObject({
+      status: "ready",
+      repairCredential: null,
+      announcement: NOT_DELETED,
+      focus: null,
+    });
+    expect(credentialChangesBlocked(controller.state(), false)).toBe(false);
+  });
+
+  it("keeps retrying with backoff while the coach is unreachable and retries at once on reconnect", async () => {
+    vi.useFakeTimers();
+    try {
+      let reachable = true;
+      const { controller, subject, retryFailedCredentials, connectionListeners } = createSubject({
+        deletion: {
+          credential: "anthropic",
+          status: "refused",
+          reason: "runtime-state-diverged",
+        },
+        loadRuntime: async () => {
+          if (!reachable) throw new Error("synthetic coach outage");
+          return runtime();
+        },
+      });
+      await controller.activate();
+      reachable = false;
+      subject.requestDelete("anthropic");
+      subject.confirmDelete();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(3);
+      expect(controller.state()).toMatchObject({
+        status: "error",
+        kind: "delete",
+        repairCredential: { retrying: "anthropic" },
+        announcement: RECONNECTING,
+      });
+      expect(connectionListeners.size).toBe(1);
+
+      reachable = true;
+      for (const listener of connectionListeners) listener();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(4);
+      expect(controller.state()).toMatchObject({
+        status: "ready",
+        repairCredential: null,
+        announcement: NOT_DELETED,
+      });
+      expect(connectionListeners.size).toBe(0);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("asks the athlete to reload only when a finished retry still finds the key failed", async () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, subject, retryFailedCredentials, connectionListeners, setStatuses } =
+        createSubject({
+          deletion: {
+            credential: "anthropic",
+            status: "refused",
+            reason: "runtime-state-diverged",
+          },
+        });
+      await controller.activate();
+      setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "failed" }]);
+      subject.requestDelete("anthropic");
+      subject.confirmDelete();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(controller.state()).toMatchObject({
+        status: "ready",
+        repairCredential: "anthropic",
+        announcement:
+          "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
+        focus: { target: "feedback" },
+      });
+      expect(repairRequiredCredential(controller.state())).toBe("anthropic");
+      expect(connectionListeners.size).toBe(0);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(retryFailedCredentials).toHaveBeenCalledOnce();
+
+      setStatuses([{ slot: "anthropic", state: "configured", runtimeState: "active" }]);
+      subject.retry();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.state()).toMatchObject({ status: "ready", repairCredential: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps retrying after Settings closes and clears the closed repair once state agrees", async () => {
+    vi.useFakeTimers();
+    try {
+      let reachable = true;
+      const onReconciled = vi.fn(async (_moveFocus: boolean) => {});
+      const { controller, subject, retryFailedCredentials } = createSubject({
+        deletion: {
+          credential: "anthropic",
+          status: "refused",
+          reason: "runtime-state-diverged",
+        },
+        loadRuntime: async () => {
+          if (!reachable) throw new Error("synthetic coach outage");
+          return runtime();
+        },
+        onReconciled,
+      });
+      await controller.activate();
+      reachable = false;
+      subject.requestDelete("anthropic");
+      subject.confirmDelete();
+      await vi.advanceTimersByTimeAsync(0);
+      controller.close();
+      expect(controller.state()).toEqual({
+        status: "closed",
+        repairCredential: { retrying: "anthropic" },
+      });
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(2);
+      expect(controller.state()).toEqual({
+        status: "closed",
+        repairCredential: { retrying: "anthropic" },
+      });
+
+      reachable = true;
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(retryFailedCredentials).toHaveBeenCalledTimes(3);
+      expect(controller.state()).toEqual({ status: "closed" });
+      expect(onReconciled).toHaveBeenCalledExactlyOnceWith(false);
+
+      await controller.activate();
+      expect(controller.state()).toMatchObject({ status: "ready", repairCredential: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops retrying when the controller is disposed", async () => {
+    vi.useFakeTimers();
+    try {
+      let reachable = true;
+      const { controller, subject, retryFailedCredentials, connectionListeners } = createSubject({
+        deletion: {
+          credential: "anthropic",
+          status: "refused",
+          reason: "runtime-state-diverged",
+        },
+        loadRuntime: async () => {
+          if (!reachable) throw new Error("synthetic coach outage");
+          return runtime();
+        },
+      });
+      await controller.activate();
+      reachable = false;
+      subject.requestDelete("anthropic");
+      subject.confirmDelete();
+      await vi.advanceTimersByTimeAsync(0);
+      controller.dispose();
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(retryFailedCredentials).toHaveBeenCalledOnce();
+      expect(connectionListeners.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits one second, then doubles each wait up to fifteen seconds", () => {
+    expect(
+      Array.from({ length: 7 }, (_, attempt) => credentialRepairRetryDelayMs(attempt)),
+    ).toEqual([0, 1_000, 2_000, 4_000, 8_000, 15_000, 15_000]);
   });
 
   it("reports deletion uncertainty neutrally and requires repair before another action", async () => {

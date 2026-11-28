@@ -2340,6 +2340,7 @@
           "managed": "This credential is managed outside Settings and can’t be deleted here.",
           "notStored": "That credential is no longer stored. Reload to refresh the list.",
           "reconcileFailed": "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
+          "reconnecting": "The credential was not deleted. Reconnecting to the coach…",
           "refreshFailed": "Credential deleted locally. Current credential status couldn’t be refreshed.",
           "retained": "The credential remains stored. No deletion was completed. Try again.",
           "setupRefreshFailed": "Credential deleted locally, but setup readiness couldn’t be refreshed. Reload credential status.",

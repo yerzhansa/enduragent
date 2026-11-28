@@ -453,6 +453,7 @@
           "managed": "Disse tilgangsopplysningene administreres utenfor Innstillinger og kan ikke slettes her.",
           "notStored": "Disse tilgangsopplysningene er ikke lenger lagret. Last inn på nytt for å oppdatere listen.",
           "reconcileFailed": "De lagrede og aktive tilgangsopplysningene kunne ikke samordnes. Koble til og last inn på nytt før du prøver igjen.",
+          "reconnecting": "Tilgangsopplysningene ble ikke slettet. Kobler til treneren på nytt…",
           "refreshFailed": "Tilgangsopplysningene er slettet lokalt. Den nåværende statusen for tilgangsopplysninger kunne ikke oppdateres.",
           "retained": "Tilgangsopplysningene er fortsatt lagret. Ingen sletting ble fullført. Prøv igjen.",
           "setupRefreshFailed": "Tilgangsopplysningene er slettet lokalt, men oppsettstatusen kunne ikke oppdateres. Last inn statusen for tilgangsopplysninger på nytt.",

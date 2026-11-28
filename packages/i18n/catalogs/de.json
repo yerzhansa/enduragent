@@ -453,6 +453,7 @@
           "managed": "Diese Zugangsdaten werden außerhalb der Einstellungen verwaltet und können hier nicht gelöscht werden.",
           "notStored": "Diese Zugangsdaten sind nicht mehr gespeichert. Lade neu, um die Liste zu aktualisieren.",
           "reconcileFailed": "Die gespeicherten und aktiven Zugangsdaten konnten nicht abgeglichen werden. Verbinde dich erneut und lade neu, bevor du es noch einmal versuchst.",
+          "reconnecting": "Die Zugangsdaten wurden nicht gelöscht. Verbindung zum Coach wird wiederhergestellt…",
           "refreshFailed": "Zugangsdaten lokal gelöscht. Ihr aktueller Status konnte nicht aktualisiert werden.",
           "retained": "Die Zugangsdaten bleiben gespeichert. Es wurde nichts vollständig gelöscht. Versuche es erneut.",
           "setupRefreshFailed": "Zugangsdaten lokal gelöscht, aber der Einrichtungsstatus konnte nicht aktualisiert werden. Lade den Status der Zugangsdaten neu.",

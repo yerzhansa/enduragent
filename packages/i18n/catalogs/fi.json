@@ -453,6 +453,7 @@
           "managed": "Tätä tunnistautumistietoa hallitaan asetusten ulkopuolella, eikä sitä voi poistaa täällä.",
           "notStored": "Tätä tunnistautumistietoa ei enää ole tallennettuna. Päivitä luettelo lataamalla uudelleen.",
           "reconcileFailed": "Tallennetun ja käytössä olevan tunnistautumistiedon tiloja ei voitu sovittaa yhteen. Yhdistä ja lataa uudelleen ennen uutta yritystä.",
+          "reconnecting": "Tunnistautumistietoa ei poistettu. Yhdistetään valmentajaan uudelleen…",
           "refreshFailed": "Tunnistautumistieto poistettu paikallisesti. Sen nykyistä tilaa ei voitu päivittää.",
           "retained": "Tunnistautumistieto säilyy tallennettuna. Poistoa ei suoritettu loppuun. Yritä uudelleen.",
           "setupRefreshFailed": "Tunnistautumistieto poistettu paikallisesti, mutta käyttöönoton valmiustilaa ei voitu päivittää. Lataa tunnistautumistietojen tila uudelleen.",

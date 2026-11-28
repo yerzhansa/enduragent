@@ -461,6 +461,7 @@
           "managed": "Te dane dostępowe są zarządzane poza Ustawieniami i nie można ich tutaj usunąć.",
           "notStored": "Te dane dostępowe nie są już przechowywane. Wczytaj ponownie, aby odświeżyć listę.",
           "reconcileFailed": "Nie udało się uzgodnić stanu zapisanych i aktywnych danych dostępowych. Połącz ponownie i odśwież dane przed kolejną próbą.",
+          "reconnecting": "Dane dostępowe nie zostały usunięte. Ponowne łączenie z trenerem…",
           "refreshFailed": "Dane dostępowe usunięto lokalnie. Nie udało się odświeżyć ich bieżącego statusu.",
           "retained": "Dane dostępowe nadal są przechowywane. Nie ukończono usuwania. Spróbuj ponownie.",
           "setupRefreshFailed": "Dane dostępowe usunięto lokalnie, ale nie udało się odświeżyć gotowości konfiguracji. Wczytaj ponownie status danych dostępowych.",

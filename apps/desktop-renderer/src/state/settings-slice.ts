@@ -3,6 +3,7 @@ import type { StateCreator } from "zustand";
 import type { DesktopCredentialId } from "../onboarding/bridge";
 import type { AthleteSettingsState } from "../settings/athlete-controller";
 import {
+  closedCredentialSettings,
   repairRequiredCredential,
   type CredentialSettingsState,
 } from "../settings/credential-controller";
@@ -204,22 +205,14 @@ export const createSettingsSlice: StateCreator<EnduragentState, [], [], Settings
   },
   closeSettingsPanes() {
     get().settingsPorts?.panes.close();
-    const credentials = get().settings.credentials;
-    const repairCredential = repairRequiredCredential(credentials);
-    const resetUncertain = credentials.resetUncertain === true;
-    if (repairCredential !== null) get().onboardingActions?.requireCompletion();
+    const credentials = closedCredentialSettings(get().settings.credentials);
+    if (repairRequiredCredential(credentials) !== null)
+      get().onboardingActions?.requireCompletion();
     set({
       settings: {
         ...get().settings,
         coach: CLOSED_PANE,
-        credentials:
-          repairCredential === null && !resetUncertain
-            ? CLOSED_PANE
-            : {
-                status: "closed",
-                ...(repairCredential === null ? {} : { repairCredential }),
-                ...(resetUncertain ? { resetUncertain: true } : {}),
-              },
+        credentials,
         athlete: CLOSED_PANE,
         conversation: CLOSED_PANE,
       },

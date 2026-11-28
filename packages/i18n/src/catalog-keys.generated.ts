@@ -2045,6 +2045,7 @@ export type CatalogKey =
   | "settings.credentials.feedback.delete.managed"
   | "settings.credentials.feedback.delete.notStored"
   | "settings.credentials.feedback.delete.reconcileFailed"
+  | "settings.credentials.feedback.delete.reconnecting"
   | "settings.credentials.feedback.delete.refreshFailed"
   | "settings.credentials.feedback.delete.retained"
   | "settings.credentials.feedback.delete.setupRefreshFailed"

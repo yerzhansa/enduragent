@@ -1,5 +1,4 @@
 import { CoachClientDisconnectedError } from "@enduragent/coach-client";
-import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
 import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 import type {
   CredentialDeleteResult,
@@ -8,6 +7,7 @@ import type {
   DesktopCredentialId,
 } from "../onboarding/bridge";
 import type { ChatGptStatus, ClaudeCliStatus, CredentialSlotStatus } from "../onboarding/machine";
+import { entriesFrom, PROVIDER_NAMES, type CredentialSettingsEntry } from "./credential-entries";
 import {
   deleteCancelledCopy,
   deleteConfirmCopy,
@@ -19,19 +19,20 @@ import {
   UNCERTAIN_DELETE_ANNOUNCEMENT,
 } from "./credential-delete-copy";
 import {
-  isNonCredentialProvider,
-  providerStatusesFrom,
-  type ProviderStatusEntry,
-} from "./provider-status-rows";
+  createCredentialRepairRetry,
+  RECONNECTING_ANNOUNCEMENT,
+  repairCredentialId,
+  repairNeedsAthlete,
+  repairRetrying,
+  type CredentialRepair,
+} from "./credential-repair";
+import { providerStatusesFrom, type ProviderStatusEntry } from "./provider-status-rows";
 
-export type CredentialKind = "Provider API key" | "ChatGPT profile" | "Training account key";
-
-export interface CredentialSettingsEntry {
-  readonly credential: DesktopCredentialId;
-  readonly provider: string;
-  readonly kind: CredentialKind;
-  readonly runtimeState: "active" | "verifying" | "stored-inactive" | "failed";
-}
+export {
+  belongsInPrimaryAiRow,
+  type CredentialKind,
+  type CredentialSettingsEntry,
+} from "./credential-entries";
 
 export type CredentialSettingsFocus =
   | { readonly target: "confirmation-cancel" | "confirmation-delete" }
@@ -47,7 +48,7 @@ interface CredentialSettingsContent {
   readonly confirmation: DesktopCredentialId | "all" | null;
   readonly announcement: string;
   readonly recovery: CredentialRecoveryStatus;
-  readonly repairCredential: DesktopCredentialId | null;
+  readonly repairCredential: CredentialRepair | null;
   readonly recoveryAvailable: boolean;
   readonly focus: CredentialSettingsFocus;
 }
@@ -57,12 +58,12 @@ export type CredentialSettingsState = {
 } & (
   | {
       readonly status: "closed";
-      readonly repairCredential?: DesktopCredentialId | null;
+      readonly repairCredential?: CredentialRepair | null;
     }
   | {
       readonly status: "loading";
       readonly announcement: string;
-      readonly repairCredential: DesktopCredentialId | null;
+      readonly repairCredential: CredentialRepair | null;
       readonly recoveryAvailable: boolean;
       readonly focus: CredentialSettingsFocus;
     }
@@ -78,16 +79,29 @@ export type CredentialSettingsState = {
       readonly status: "error";
       readonly kind: "load";
       readonly announcement: string;
-      readonly repairCredential: DesktopCredentialId | null;
+      readonly repairCredential: CredentialRepair | null;
       readonly recoveryAvailable: boolean;
       readonly focus: CredentialSettingsFocus;
     }
 );
 
+export function pendingCredentialRepair(state: CredentialSettingsState): CredentialRepair | null {
+  return state.status === "closed" ? (state.repairCredential ?? null) : state.repairCredential;
+}
+
 export function repairRequiredCredential(
   state: CredentialSettingsState,
 ): DesktopCredentialId | null {
-  return state.status === "closed" ? (state.repairCredential ?? null) : state.repairCredential;
+  return repairNeedsAthlete(pendingCredentialRepair(state));
+}
+
+export function closedCredentialSettings(state: CredentialSettingsState): CredentialSettingsState {
+  const repair = pendingCredentialRepair(state);
+  return {
+    status: "closed",
+    ...(repair === null ? {} : { repairCredential: repair }),
+    ...(state.resetUncertain === true ? { resetUncertain: true } : {}),
+  };
 }
 
 export function credentialChangesBlocked(
@@ -97,7 +111,7 @@ export function credentialChangesBlocked(
   if (
     settingsMutationActive ||
     state.resetUncertain === true ||
-    repairRequiredCredential(state) !== null
+    pendingCredentialRepair(state) !== null
   ) {
     return true;
   }
@@ -135,118 +149,13 @@ export interface CredentialSettingsController {
   dispose(): void;
 }
 
-const PROVIDER_NAMES: Readonly<Record<DesktopCredentialId, string>> = {
-  anthropic: "Anthropic",
-  openrouter: "OpenRouter",
-  openai: "OpenAI",
-  google: "Google",
-  deepseek: "DeepSeek",
-  qwen: "Qwen",
-  minimax: "MiniMax",
-  kimi: "Kimi",
-  zai: "Z.AI",
-  "openai-codex": "ChatGPT",
-  "intervals-icu": "intervals.icu",
-};
-
-const CREDENTIAL_ORDER: readonly DesktopCredentialId[] = [
-  "anthropic",
-  "openai",
-  "google",
-  "openai-codex",
-  "deepseek",
-  "qwen",
-  "minimax",
-  "kimi",
-  "zai",
-  "openrouter",
-  "intervals-icu",
-];
-
-function kind(credential: DesktopCredentialId): CredentialKind {
-  if (credential === "openai-codex") return "ChatGPT profile";
-  if (credential === "intervals-icu") return "Training account key";
-  return "Provider API key";
-}
-
-export function belongsInPrimaryAiRow(
-  entry: Pick<CredentialSettingsEntry, "credential" | "runtimeState">,
-  primaryAiCredential: DesktopCredentialId | null,
-): boolean {
-  if (entry.credential === "intervals-icu") return false;
-  return entry.credential === primaryAiCredential || entry.runtimeState === "active";
-}
-
-function entriesFrom(
-  statuses: readonly CredentialSlotStatus[],
-  chatGpt: ChatGptStatus,
-  runtime: RuntimeConfigSnapshot,
-): readonly CredentialSettingsEntry[] {
-  const entries = new Map<DesktopCredentialId, CredentialSettingsEntry>();
-  const intervalsVerifying =
-    runtime.intervals.credential_configured &&
-    runtime.intervals.credential_verification_pending === true;
-  for (const status of statuses) {
-    if (status.state === "missing") continue;
-    const runtimeActive =
-      status.slot === "intervals-icu"
-        ? runtime.intervals.credential_configured
-        : runtime.llm.credential_configured && runtime.llm.provider === status.slot;
-    entries.set(status.slot, {
-      credential: status.slot,
-      provider: PROVIDER_NAMES[status.slot],
-      kind: kind(status.slot),
-      runtimeState:
-        status.state === "re-prompt" || status.runtimeState === "failed"
-          ? "failed"
-          : runtimeActive
-            ? status.slot === "intervals-icu" && intervalsVerifying
-              ? "verifying"
-              : "active"
-            : "stored-inactive",
-    });
-  }
-  if (chatGpt.state === "configured") {
-    entries.set("openai-codex", {
-      credential: "openai-codex",
-      provider: PROVIDER_NAMES["openai-codex"],
-      kind: kind("openai-codex"),
-      runtimeState: chatGpt.runtimeReady ? "active" : "stored-inactive",
-    });
-  }
-  if (
-    runtime.llm.credential_configured &&
-    !isNonCredentialProvider(runtime.llm.provider) &&
-    !entries.has(runtime.llm.provider)
-  ) {
-    const credential: DesktopCredentialId = runtime.llm.provider;
-    entries.set(credential, {
-      credential,
-      provider: PROVIDER_NAMES[credential],
-      kind: kind(credential),
-      runtimeState: "active",
-    });
-  }
-  if (runtime.intervals.credential_configured && !entries.has("intervals-icu")) {
-    entries.set("intervals-icu", {
-      credential: "intervals-icu",
-      provider: PROVIDER_NAMES["intervals-icu"],
-      kind: kind("intervals-icu"),
-      runtimeState: intervalsVerifying ? "verifying" : "active",
-    });
-  }
-  return CREDENTIAL_ORDER.flatMap((credential) => {
-    const entry = entries.get(credential);
-    return entry === undefined ? [] : [entry];
-  });
-}
-
 export function createCredentialSettingsController(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly loadStatuses: () => Promise<readonly CredentialSlotStatus[]>;
   readonly loadChatGptStatus: () => Promise<ChatGptStatus>;
   readonly loadRecoveryStatus?: () => Promise<CredentialRecoveryStatus>;
   readonly retryCredentialRecovery?: () => Promise<CredentialRecoveryStatus>;
+  readonly retryFailedCredentials?: () => Promise<readonly CredentialSlotStatus[]>;
   readonly resetAllCredentials?: () => Promise<CredentialResetResult>;
   readonly loadClaudeCliStatus?: () => Promise<ClaudeCliStatus>;
   readonly deleteCredential: (input: {
@@ -254,7 +163,7 @@ export function createCredentialSettingsController(input: {
   }) => Promise<CredentialDeleteResult>;
   readonly openSetup: () => void;
   readonly onDeleted?: () => Promise<void> | void;
-  readonly onReconciled?: () => Promise<void> | void;
+  readonly onReconciled?: (moveFocus: boolean) => Promise<void> | void;
   readonly credentialMutationsBlocked?: () => boolean;
   readonly beginMutation: () => (() => void) | null;
   readonly view: CredentialSettingsView;
@@ -269,6 +178,7 @@ export function createCredentialSettingsController(input: {
 
   const render = (state: CredentialSettingsState): void => {
     currentState = state;
+    if (!repairRetrying(pendingCredentialRepair(state))) repairRetry.stop();
     input.view.render(state);
   };
 
@@ -321,47 +231,91 @@ export function createCredentialSettingsController(input: {
 
   const startLoad = (retryRecovery = false, quiet = false): Promise<void> => {
     if (disposed || operation !== undefined) return operation ?? Promise.resolve();
-    const repairCredential = repairRequiredCredential(currentState);
+    const repair = pendingCredentialRepair(currentState);
+    const repairCredential = repairCredentialId(repair);
+    const retrying = repairRetrying(repair);
+    const closed = quiet && currentState.status === "closed";
     const resetUncertain = currentState.resetUncertain === true;
     const repairAnnouncement =
-      repairCredential === null
+      repair === null
         ? resetUncertain && "announcement" in currentState
           ? currentState.announcement
           : ""
         : "announcement" in currentState && currentState.announcement.length > 0
           ? currentState.announcement
-          : UNCERTAIN_DELETE_ANNOUNCEMENT;
+          : retrying
+            ? RECONNECTING_ANNOUNCEMENT
+            : UNCERTAIN_DELETE_ANNOUNCEMENT;
+    const feedbackFocus: CredentialSettingsFocus =
+      repair === null && !resetUncertain ? null : { target: "feedback" };
     const operationGeneration = ++generation;
+    const superseded = (): boolean => {
+      if (disposed) return true;
+      if (generation === operationGeneration) return false;
+      if (repairRetrying(pendingCredentialRepair(currentState))) repairRetry.schedule();
+      return true;
+    };
     if (!quiet)
       render({
         status: "loading",
         announcement: repairAnnouncement,
-        repairCredential,
+        repairCredential: repair,
         ...(resetUncertain ? { resetUncertain: true } : {}),
         recoveryAvailable: false,
-        focus: repairCredential === null && !resetUncertain ? null : { target: "feedback" },
+        focus: feedbackFocus,
       });
     const pending = (async () => {
       try {
         if (retryRecovery) await input.retryCredentialRecovery?.();
+        if (retrying) await input.retryFailedCredentials?.();
         const loaded = await loadEntries();
-        if (disposed || generation !== operationGeneration) return;
-        if (repairCredential !== null || resetUncertain) await input.onReconciled?.();
-        if (disposed || generation !== operationGeneration) return;
-        render({
-          status: "ready",
-          entries: loaded.entries,
-          providerStatuses: loaded.providerStatuses,
-          confirmation: null,
-          announcement: recoveryCopy(loaded.recovery),
-          recovery: loaded.recovery,
-          repairCredential: null,
-          recoveryAvailable: false,
-          focus:
-            repairCredential === null ? null : { target: "setup", credential: repairCredential },
-        });
+        if (superseded()) return;
+        const repaired = loaded.entries.find((entry) => entry.credential === repairCredential);
+        if (retrying && repairCredential !== null && repaired?.runtimeState === "failed") {
+          render(
+            closed
+              ? { status: "closed", repairCredential }
+              : {
+                  status: "ready",
+                  entries: loaded.entries,
+                  providerStatuses: loaded.providerStatuses,
+                  confirmation: null,
+                  announcement: refusalCopy("runtime-state-diverged"),
+                  recovery: loaded.recovery,
+                  repairCredential,
+                  recoveryAvailable: true,
+                  focus: { target: "feedback" },
+                },
+          );
+          return;
+        }
+        if (repair !== null || resetUncertain) await input.onReconciled?.(!quiet);
+        if (superseded()) return;
+        render(
+          closed
+            ? { status: "closed" }
+            : {
+                status: "ready",
+                entries: loaded.entries,
+                providerStatuses: loaded.providerStatuses,
+                confirmation: null,
+                announcement:
+                  retrying && repaired !== undefined
+                    ? refusalCopy("runtime-unavailable")
+                    : recoveryCopy(loaded.recovery),
+                recovery: loaded.recovery,
+                repairCredential: null,
+                recoveryAvailable: false,
+                focus:
+                  repairCredential === null || quiet
+                    ? null
+                    : { target: "setup", credential: repairCredential },
+              },
+        );
       } catch {
-        if (disposed || generation !== operationGeneration) return;
+        if (superseded()) return;
+        if (retrying) repairRetry.schedule();
+        if (retrying && quiet) return;
         render({
           status: "error",
           kind: "load",
@@ -369,10 +323,10 @@ export function createCredentialSettingsController(input: {
             repairAnnouncement.length === 0
               ? "Saved credentials aren’t available. Reconnect and reload."
               : repairAnnouncement,
-          repairCredential,
+          repairCredential: repair,
           ...(resetUncertain ? { resetUncertain: true } : {}),
           recoveryAvailable: false,
-          focus: repairCredential === null && !resetUncertain ? null : { target: "feedback" },
+          focus: feedbackFocus,
         });
       }
     })().finally(() => {
@@ -381,6 +335,11 @@ export function createCredentialSettingsController(input: {
     operation = pending;
     return pending;
   };
+
+  const repairRetry = createCredentialRepairRetry({
+    run: () => void startLoad(false, true),
+    onConnectionOpen: (listener) => input.clients.onConnectionOpen(listener),
+  });
 
   const contentState = (): Extract<CredentialSettingsState, CredentialSettingsContent> | null => {
     if (
@@ -531,7 +490,7 @@ export function createCredentialSettingsController(input: {
         loaded = await loadEntries();
         if (disposed) return;
         if (result.status === "refused") {
-          await input.onReconciled?.();
+          await input.onReconciled?.(true);
         } else {
           await input.onDeleted?.();
         }
@@ -539,7 +498,7 @@ export function createCredentialSettingsController(input: {
         if (disposed) return;
         if (generation !== operationGeneration) {
           const repairCredential =
-            result.status === "refused" ? repairRequiredCredential(currentState) : null;
+            result.status === "refused" ? pendingCredentialRepair(currentState) : null;
           render({
             status: "closed",
             ...(repairCredential === null ? {} : { repairCredential }),
@@ -698,7 +657,7 @@ export function createCredentialSettingsController(input: {
       }
       if (disposed || generation !== operationGeneration) return;
       if (result.status === "refused") {
-        const repairRequired = result.reason === "runtime-state-diverged";
+        const diverged = result.reason === "runtime-state-diverged";
         releaseMutation();
         render({
           status: "error",
@@ -707,12 +666,13 @@ export function createCredentialSettingsController(input: {
           entries,
           providerStatuses,
           confirmation: null,
-          announcement: refusalCopy(result.reason),
+          announcement: diverged ? RECONNECTING_ANNOUNCEMENT : refusalCopy(result.reason),
           recovery,
-          repairCredential: repairRequired ? credential : content.repairCredential,
-          recoveryAvailable: content.recoveryAvailable || repairRequired,
-          focus: repairRequired ? { target: "feedback" } : { target: "delete", credential },
+          repairCredential: diverged ? { retrying: credential } : content.repairCredential,
+          recoveryAvailable: content.recoveryAvailable || diverged,
+          focus: diverged ? { target: "feedback" } : { target: "delete", credential },
         });
+        if (diverged) repairRetry.schedule();
         return;
       }
       try {
@@ -783,14 +743,8 @@ export function createCredentialSettingsController(input: {
   const close = (): void => {
     if (disposed) return;
     ++generation;
-    const repairCredential = repairRequiredCredential(currentState);
-    const resetUncertain = currentState.resetUncertain === true;
-    if (!resetUncertain) operation = undefined;
-    currentState = {
-      status: "closed",
-      ...(repairCredential === null ? {} : { repairCredential }),
-      ...(resetUncertain ? { resetUncertain: true } : {}),
-    };
+    if (currentState.resetUncertain !== true) operation = undefined;
+    currentState = closedCredentialSettings(currentState);
   };
 
   input.view.bind({
@@ -817,7 +771,10 @@ export function createCredentialSettingsController(input: {
         await operation;
         return;
       }
-      const reopenBarrier = currentState.resetUncertain === true ? operation : undefined;
+      const reopenBarrier =
+        currentState.resetUncertain === true || pendingCredentialRepair(currentState) !== null
+          ? operation
+          : undefined;
       if (reopenBarrier !== undefined) await reopenBarrier;
       if (disposed || currentState.status !== "closed") return;
       await startLoad();
@@ -829,6 +786,7 @@ export function createCredentialSettingsController(input: {
       if (disposed) return;
       disposed = true;
       ++generation;
+      repairRetry.stop();
       operation = undefined;
       activeResetOperation = undefined;
       currentState = { status: "closed" };

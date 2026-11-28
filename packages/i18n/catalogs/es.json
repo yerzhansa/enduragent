@@ -453,6 +453,7 @@
           "managed": "Esta credencial se gestiona fuera de Ajustes y no se puede eliminar aquí.",
           "notStored": "Esa credencial ya no está guardada. Recarga para actualizar la lista.",
           "reconcileFailed": "No se han podido conciliar los estados de la credencial guardada y la activa. Vuelve a conectar y recarga antes de intentarlo de nuevo.",
+          "reconnecting": "La credencial no se ha eliminado. Volviendo a conectar con el entrenador…",
           "refreshFailed": "Credencial eliminada localmente. No se ha podido actualizar el estado actual de las credenciales.",
           "retained": "La credencial sigue guardada. No se ha completado ninguna eliminación. Inténtalo de nuevo.",
           "setupRefreshFailed": "Credencial eliminada localmente, pero no se ha podido comprobar si la configuración está lista. Recarga el estado de las credenciales.",

@@ -768,6 +768,10 @@
       "sourceHash": "b55cb193a363c6eee9104be361cc6560f9cac448828c596bbb215ba92b6100cb",
       "translatedBy": "model"
     },
+    "settings.credentials.feedback.delete.reconnecting": {
+      "sourceHash": "3600453d3e39824be664d45bda70241c8e8ebc7c88fb41c7e4039721336c24b3",
+      "translatedBy": "model"
+    },
     "settings.credentials.feedback.delete.unverified": {
       "sourceHash": "704f4627990234e39b5a347042b85f8f5ad135e26959bb25993fa2d9f15db078",
       "translatedBy": "model"

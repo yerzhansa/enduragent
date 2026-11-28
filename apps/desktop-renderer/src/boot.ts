@@ -624,8 +624,8 @@ export function bootRenderer(): Disposer {
     beginMutation: () => store.getState().beginSettingsMutation("session"),
     view: conversationAdapter.view,
   });
-  const refreshOnboardingCredentials = async (): Promise<void> => {
-    await onboarding.refresh();
+  const refreshOnboardingCredentials = async (moveFocus = true): Promise<void> => {
+    await onboarding.refresh(moveFocus);
     if (store.getState().onboarding.loadUnavailable) throw new TypeError();
   };
   const credentialSettingsController = createCredentialSettingsController({
@@ -634,6 +634,7 @@ export function bootRenderer(): Disposer {
     loadChatGptStatus: () => window.enduragentAuth.chatgptStatus(),
     loadRecoveryStatus: () => window.enduragentAuth.credentialRecoveryStatus(),
     retryCredentialRecovery: () => window.enduragentAuth.retryCredentialRecovery(),
+    retryFailedCredentials: () => window.enduragentAuth.retryFailedCredentials(),
     resetAllCredentials: () => window.enduragentAuth.resetAllCredentials(),
     loadClaudeCliStatus: () => window.enduragentAuth.claudeCliStatus(),
     deleteCredential: (value) => window.enduragentAuth.deleteCredential(value),

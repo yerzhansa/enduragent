@@ -453,6 +453,7 @@
           "managed": "De här inloggningsuppgifterna hanteras utanför Inställningar och kan inte tas bort här.",
           "notStored": "De inloggningsuppgifterna är inte längre lagrade. Läs in igen för att uppdatera listan.",
           "reconcileFailed": "De sparade och aktiva inloggningsuppgifterna kunde inte samordnas. Anslut på nytt och läs in igen innan du försöker på nytt.",
+          "reconnecting": "Inloggningsuppgifterna togs inte bort. Ansluter till tränaren på nytt…",
           "refreshFailed": "Inloggningsuppgifterna har tagits bort lokalt. Deras aktuella status kunde inte uppdateras.",
           "retained": "Inloggningsuppgifterna finns kvar. Ingen borttagning slutfördes. Försök igen.",
           "setupRefreshFailed": "Inloggningsuppgifterna har tagits bort lokalt, men konfigurationens status kunde inte uppdateras. Läs in inloggningsuppgifternas status igen.",

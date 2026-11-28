@@ -2158,14 +2158,68 @@ describe("credential deletion", () => {
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
 
-  it("fails closed when deletion leaves saved and active runtime state diverged", async () => {
+  it("reconnects by itself when deletion leaves saved and active runtime state diverged", async () => {
     const user = userEvent.setup();
+    let coachReachable = true;
     const subject = await renderSettings({
       deleteCredential: async () => ({
         credential: "anthropic",
         status: "refused",
         reason: "runtime-state-diverged",
       }),
+      loadCredentialStatuses: async () => {
+        if (!coachReachable) throw new Error("synthetic coach outage");
+        return [
+          { slot: "anthropic", state: "configured", runtimeState: "active" },
+          { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+        ];
+      },
+    });
+
+    coachReachable = false;
+    await user.click(screen.getByRole("button", { name: "Delete the Anthropic credential" }));
+    await user.click(
+      screen.getByRole("button", { name: "Confirm deletion of the Anthropic credential" }),
+    );
+
+    const feedback = await screen.findByText(
+      "The credential was not deleted. Reconnecting to the coach…",
+    );
+    await waitFor(() => expect(feedback.parentElement).toHaveFocus());
+    expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
+      status: "error",
+      kind: "delete",
+      reason: "runtime-state-diverged",
+      repairCredential: { retrying: "anthropic" },
+    });
+    expect(screen.queryByRole("button", { name: "Reload credential status" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
+    expect(setupReady(useEnduragentStore.getState())).toBe(true);
+
+    coachReachable = true;
+    await screen.findByText(
+      "The coach could not stop using this credential safely. It was not deleted.",
+      undefined,
+      { timeout: 4_000 },
+    );
+    expect(subject.onReconciled).toHaveBeenCalledExactlyOnceWith(false);
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
+    expect(setupReady(useEnduragentStore.getState())).toBe(true);
+  });
+
+  it("asks for a reload when the coach answers but the key is still not in use", async () => {
+    const user = userEvent.setup();
+    let anthropicRuntime: "active" | "failed" = "active";
+    await renderSettings({
+      deleteCredential: async () => {
+        anthropicRuntime = "failed";
+        return { credential: "anthropic", status: "refused", reason: "runtime-state-diverged" };
+      },
+      loadCredentialStatuses: async () => [
+        { slot: "anthropic", state: "configured", runtimeState: anthropicRuntime },
+        { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+      ],
     });
 
     await user.click(screen.getByRole("button", { name: "Delete the Anthropic credential" }));
@@ -2173,26 +2227,14 @@ describe("credential deletion", () => {
       screen.getByRole("button", { name: "Confirm deletion of the Anthropic credential" }),
     );
 
-    const feedback = await screen.findByText(
+    await screen.findByText(
       "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
     );
-    await waitFor(() => expect(feedback.parentElement).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Reload credential status" })).toBeEnabled();
     expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
-      status: "error",
-      kind: "delete",
-      reason: "runtime-state-diverged",
       repairCredential: "anthropic",
     });
-    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
-
-    await user.click(screen.getByRole("button", { name: "Reload credential status" }));
-    await waitFor(() => {
-      expect(subject.onReconciled).toHaveBeenCalledOnce();
-      expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
-    });
-    expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
 
   it("disconnects Intervals.icu with a busy confirmation and a warning when revoke fails", async () => {
