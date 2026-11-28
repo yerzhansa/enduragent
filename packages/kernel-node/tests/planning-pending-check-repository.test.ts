@@ -495,7 +495,7 @@ VALUES (?,?,1,NULL,'migration',NULL,'{"weeks":[]}',?,?,'pending-check-test',?,0)
         {
           sink: createSqliteImportSink(destination),
           presence: { hasArtifact: async () => true },
-          targetUserVersion: 35,
+          targetUserVersion: 37,
           ...webCryptoExportEnv,
         },
         { container: built.container },

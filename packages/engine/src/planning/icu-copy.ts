@@ -379,7 +379,7 @@ export function icuCopyIsAthleteChange(copy: IcuCopy): boolean {
   return copy.kind === "changed-in-icu" || ownedByAthlete(copy);
 }
 
-function sightingKey(sighting: IcuSighting): string {
+export function icuSightingKey(sighting: IcuSighting): string {
   return sighting.kind === "absent"
     ? "absent"
     : `${sighting.eventId}@${sighting.dateKey}:${sighting.version.fingerprint}`;
@@ -398,7 +398,7 @@ function basis(copy: IcuCopy, planFingerprint: string): string {
     case "on-icu":
       return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${copy.baseline.eventId}@${copy.baseline.dateKey}:${copy.baseline.readBack.fingerprint}`;
     case "changed-in-icu":
-      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${sightingKey(copy.shown)}`;
+      return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${icuSightingKey(copy.shown)}`;
   }
 }
 

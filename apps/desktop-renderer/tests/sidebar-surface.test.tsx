@@ -289,7 +289,7 @@ describe("sidebar update action", () => {
       update({
         settings: {
           ...EMPTY_SETTINGS_SURFACE,
-          update: { state, actionDisabled: false },
+          update: { state, pendingAction: "none" },
         },
       });
       expect(screen.queryByText("Update available")).not.toBeInTheDocument();
@@ -300,7 +300,7 @@ describe("sidebar update action", () => {
         ...EMPTY_SETTINGS_SURFACE,
         update: {
           state: { status: "downloaded", version: "1998.7.7" },
-          actionDisabled: false,
+          pendingAction: "none",
         },
       },
     });
@@ -318,7 +318,7 @@ describe("sidebar update action", () => {
         ...EMPTY_SETTINGS_SURFACE,
         update: {
           state: { status: "downloaded", version: "1998.7.7" },
-          actionDisabled: false,
+          pendingAction: "none",
         },
       },
       settingsPorts: { update: { activate } } as never,
@@ -336,7 +336,7 @@ describe("sidebar update action", () => {
         ...EMPTY_SETTINGS_SURFACE,
         update: {
           state: { status: "downloaded", version: "1998.7.7" },
-          actionDisabled: true,
+          pendingAction: "restarting",
         },
       },
       settingsPorts: { update: { activate: vi.fn() } } as never,
@@ -355,7 +355,7 @@ describe("sidebar update action", () => {
         ...EMPTY_SETTINGS_SURFACE,
         update: {
           state: { status: "installing", version: "1998.7.8" },
-          actionDisabled: false,
+          pendingAction: "none",
         },
       },
     });
@@ -364,6 +364,28 @@ describe("sidebar update action", () => {
         name: "Restarting to install update version 1998.7.8",
       }),
     ).toBeDisabled();
+  });
+
+  it("does not flash Restarting while a manual check finishes downloading an update", () => {
+    useEnduragentStore.setState({
+      settings: {
+        ...EMPTY_SETTINGS_SURFACE,
+        update: {
+          state: { status: "downloaded", version: "1998.7.7" },
+          pendingAction: "checking",
+        },
+      },
+      settingsPorts: { update: { activate: vi.fn() } } as never,
+    });
+    render(<Sidebar />);
+
+    const button = screen.getByRole("button", { name: "Install update version 1998.7.7" });
+    expect(button).toHaveTextContent("Update available");
+    expect(button).toBeDisabled();
+    expect(button).not.toHaveAttribute("aria-busy", "true");
+    expect(document.querySelector(".update-announcement")).toHaveTextContent(
+      "Update version 1998.7.7 is available",
+    );
   });
 
   it("announces availability politely and respects sidebar locks", () => {
@@ -381,7 +403,7 @@ describe("sidebar update action", () => {
         ...EMPTY_SETTINGS_SURFACE,
         update: {
           state: { status: "downloaded", version: "1998.7.7" },
-          actionDisabled: false,
+          pendingAction: "none",
         },
       },
       onboarding: { ...CLOSED_ONBOARDING, open: true },
@@ -397,7 +419,7 @@ describe("sidebar update action", () => {
         savingOwners: ["synthetic-lock"],
         update: {
           state: { status: "downloaded", version: "1998.7.7" },
-          actionDisabled: false,
+          pendingAction: "none",
         },
       },
     });

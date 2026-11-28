@@ -241,13 +241,13 @@ function startTimingQuestion(prompt: string, earliestAllowed: string): StartTimi
     earliestAllowed,
     options: [
       {
-        timing: "as-soon-as-possible",
-        label: "As soon as possible",
-        detail: "Start at the earliest suitable week.",
+        timing: "first-day-of-week",
+        label: "First day of your week",
+        detail: "One calendar row is one Training Week.",
       },
-      { timing: "earliest", label: "From a date", detail: "Set an earliest date." },
+      { timing: "earliest", label: "Pick another day", detail: "Start on that day." },
     ],
-    dateLabel: "Earliest start date",
+    dateLabel: "Plan starts",
   } satisfies PlanCreationOpenQuestion;
 }
 
@@ -3070,8 +3070,11 @@ describe("chat surface", () => {
         ),
       });
       expect(document.querySelector('[data-parity="choice.row"][aria-pressed="true"]')).toBeNull();
-      await user.click(screen.getByRole("button", { name: "From a date" }));
-      const startDate = screen.getByLabelText("Earliest start date");
+      expect(screen.getByRole("button", { name: "Mon 5 Oct" })).toHaveTextContent(
+        "First day of your week",
+      );
+      await user.click(screen.getByRole("button", { name: "Pick another day" }));
+      const startDate = screen.getByLabelText("Plan starts");
       expect(startDate).toHaveAttribute("min", "1998-10-01");
       fireEvent.change(startDate, { target: { value: "1998-10-05" } });
       await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -3475,7 +3478,7 @@ describe("chat surface", () => {
             {
               answerKey: "start-timing",
               title: "Start timing",
-              detail: "Earliest start 10 Oct 1998",
+              detail: "Starts 10 Oct 1998",
               question: startTimingQuestion("When could this Plan start?", "1998-10-01"),
               answer: {
                 kind: "start-timing",
@@ -3517,7 +3520,7 @@ describe("chat surface", () => {
       ).toBeVisible();
 
       await user.click(screen.getByRole("button", { name: "Edit Start timing" }));
-      const startDate = screen.getByLabelText("Earliest start date");
+      const startDate = screen.getByLabelText("Plan starts");
       expect(startDate).toHaveAttribute("min", "1998-10-01");
       expect(startDate).toHaveValue("1998-10-10");
       fireEvent.change(startDate, { target: { value: "1998-10-05" } });

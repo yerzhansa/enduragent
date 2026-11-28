@@ -96,16 +96,277 @@ describe("Plan WorkoutMatch repository", () => {
       hlcCounter: 0,
     });
     expect(confirmed).toMatchObject({ decision: "confirmed", decidedAtMs: 11 });
-    await expect(repository.observe(suggestion({ observedAtMs: 12, hlcPhysicalMs: 12 })))
-      .resolves.toMatchObject({ decision: "confirmed", decidedAtMs: 11 });
-    await expect(repository.decide({
+    await expect(
+      repository.observe(suggestion({ observedAtMs: 12, hlcPhysicalMs: 12 })),
+    ).resolves.toMatchObject({ decision: "confirmed", decidedAtMs: 11 });
+    await expect(
+      repository.decide({
+        id: MATCH_ID,
+        decision: "unpaired",
+        decidedAtMs: 13,
+        deviceId: "device-1",
+        hlcPhysicalMs: 13,
+        hlcCounter: 0,
+      }),
+    ).rejects.toEqual(new PlanWorkoutMatchValidationError("invalid-transition"));
+  });
+
+  it("lets the athlete take back a confirmation, and confirm a refused pairing later", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    await repository.observe(suggestion());
+    const stamp = (at: number) => ({
       id: MATCH_ID,
-      decision: "rejected",
-      decidedAtMs: 13,
+      decidedAtMs: at,
       deviceId: "device-1",
-      hlcPhysicalMs: 13,
+      hlcPhysicalMs: at,
       hlcCounter: 0,
-    })).rejects.toEqual(new PlanWorkoutMatchValidationError("invalid-transition"));
+    });
+    await repository.decide({ ...stamp(11), decision: "confirmed" });
+    await expect(repository.decide({ ...stamp(12), decision: "rejected" })).resolves.toMatchObject({
+      decision: "rejected",
+      decidedAtMs: 12,
+    });
+    await expect(
+      repository.observe(suggestion({ observedAtMs: 13, hlcPhysicalMs: 13 })),
+    ).resolves.toMatchObject({ decision: "rejected", decidedAtMs: 12 });
+    await expect(repository.decide({ ...stamp(14), decision: "confirmed" })).resolves.toMatchObject(
+      { decision: "confirmed", decidedAtMs: 14 },
+    );
+  });
+
+  it("never adds a second confirmed match, or a suggestion, for a workout or ride already confirmed", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    await createPlanRepository(store).replace(plan, [workout, second]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const otherRide = "b".repeat(64);
+    const confirmedAt = { decidedAtMs: 10 };
+    await repository.observe(
+      suggestion({ decision: "confirmed", decidedAtMs: confirmedAt.decidedAtMs }),
+    );
+    await expect(
+      repository.observe(suggestion({ id: `${"0".repeat(25)}6`, activityId: otherRide })),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(suggestion({ id: `${"0".repeat(25)}7`, planWorkoutId: second.id })),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(
+        suggestion({
+          id: `${"0".repeat(25)}8`,
+          planWorkoutId: second.id,
+          source: "platform",
+          providerEventId: 77,
+          decision: "confirmed",
+          decidedAtMs: 10,
+        }),
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      repository.observe(
+        suggestion({ id: `${"0".repeat(25)}9`, planWorkoutId: second.id, activityId: otherRide }),
+      ),
+    ).resolves.toMatchObject({ decision: "suggested" });
+    expect((await repository.readForPlan(PLAN_ID)).map((row) => row.id)).toEqual([
+      MATCH_ID,
+      `${"0".repeat(25)}9`,
+    ]);
+  });
+
+  it("refuses to confirm a ride for a workout another ride has, or a second workout for a ride", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    await createPlanRepository(store).replace(plan, [workout, second]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const otherRide = "b".repeat(64);
+    const otherRideMatch = `${"0".repeat(25)}6`;
+    const secondWorkoutMatch = `${"0".repeat(25)}7`;
+    await repository.observe(suggestion());
+    await repository.observe(suggestion({ id: otherRideMatch, activityId: otherRide }));
+    await repository.observe(suggestion({ id: secondWorkoutMatch, planWorkoutId: second.id }));
+    const decide = (id: string, decision: "confirmed" | "rejected", at: number) =>
+      repository.decide({
+        id,
+        decision,
+        decidedAtMs: at,
+        deviceId: "device-1",
+        hlcPhysicalMs: at,
+        hlcCounter: 0,
+      });
+    await decide(otherRideMatch, "rejected", 11);
+    await decide(secondWorkoutMatch, "rejected", 11);
+    await decide(MATCH_ID, "confirmed", 11);
+    await expect(decide(otherRideMatch, "confirmed", 12)).rejects.toEqual(
+      new PlanWorkoutMatchValidationError("already-confirmed"),
+    );
+    await expect(decide(secondWorkoutMatch, "confirmed", 12)).rejects.toEqual(
+      new PlanWorkoutMatchValidationError("already-confirmed"),
+    );
+    expect((await repository.readForPlan(PLAN_ID)).map((row) => [row.id, row.decision])).toEqual([
+      [MATCH_ID, "confirmed"],
+      [otherRideMatch, "rejected"],
+      [secondWorkoutMatch, "rejected"],
+    ]);
+    await decide(MATCH_ID, "rejected", 13);
+    await expect(decide(otherRideMatch, "confirmed", 14)).resolves.toMatchObject({
+      decision: "confirmed",
+    });
+  });
+
+  it("clears the workout's and the ride's other suggestions once a match is confirmed", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    await createPlanRepository(store).replace(plan, [workout, second]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const otherRide = "b".repeat(64);
+    const thirdRide = "c".repeat(64);
+    await repository.observe(suggestion());
+    await repository.observe(suggestion({ id: `${"0".repeat(25)}6`, activityId: otherRide }));
+    await repository.observe(suggestion({ id: `${"0".repeat(25)}7`, planWorkoutId: second.id }));
+    await repository.observe(
+      suggestion({ id: `${"0".repeat(25)}8`, planWorkoutId: second.id, activityId: thirdRide }),
+    );
+    await repository.decide({
+      id: MATCH_ID,
+      decision: "confirmed",
+      decidedAtMs: 11,
+      deviceId: "device-1",
+      hlcPhysicalMs: 11,
+      hlcCounter: 0,
+    });
+    expect(
+      (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
+    ).toEqual([
+      ["3", "confirmed"],
+      ["8", "suggested"],
+    ]);
+    await repository.observe(
+      suggestion({
+        id: `${"0".repeat(25)}9`,
+        planWorkoutId: second.id,
+        activityId: otherRide,
+        source: "platform",
+        providerEventId: 77,
+        decision: "confirmed",
+        decidedAtMs: 12,
+        observedAtMs: 12,
+        hlcPhysicalMs: 12,
+      }),
+    );
+    expect(
+      (await repository.readForWorkout(second.id)).map((row) => [row.activityId, row.decision]),
+    ).toEqual([[otherRide, "confirmed"]]);
+  });
+
+  it("lets the system withdraw only what it derived, never the athlete's own answers", async () => {
+    const second = { ...workout, id: `${"0".repeat(25)}5`, dateKey: 20260826 };
+    const third = { ...workout, id: `${"0".repeat(25)}A`, dateKey: 20260827 };
+    await createPlanRepository(store).replace(plan, [workout, second, third]);
+    const repository = createPlanWorkoutMatchRepository(store);
+    const id = (last: string) => `${"0".repeat(25)}${last}`;
+    await repository.observe(suggestion());
+    await repository.observe(
+      suggestion({
+        id: id("6"),
+        planWorkoutId: second.id,
+        activityId: "b".repeat(64),
+        source: "platform",
+        providerEventId: 77,
+        decision: "confirmed",
+        decidedAtMs: 10,
+      }),
+    );
+    await repository.observe(
+      suggestion({
+        id: id("7"),
+        activityId: "c".repeat(64),
+        source: "platform",
+        providerEventId: 78,
+        decision: "unpaired",
+        decidedAtMs: 10,
+      }),
+    );
+    await repository.observe(suggestion({ id: id("8"), activityId: "d".repeat(64) }));
+    await repository.observe(
+      suggestion({
+        id: id("9"),
+        planWorkoutId: third.id,
+        activityId: "e".repeat(64),
+        decision: "confirmed",
+        decidedAtMs: 10,
+      }),
+    );
+    await repository.decide({
+      id: id("8"),
+      decision: "rejected",
+      decidedAtMs: 11,
+      deviceId: "device-1",
+      hlcPhysicalMs: 11,
+      hlcCounter: 0,
+    });
+    for (const row of [MATCH_ID, id("6"), id("7"), id("8"), id("9")]) {
+      await repository.withdraw(row);
+    }
+    expect(
+      (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
+    ).toEqual([
+      ["7", "unpaired"],
+      ["8", "rejected"],
+      ["9", "confirmed"],
+    ]);
+  });
+
+  it("leaves an unchanged suggestion as it was, and refreshes one whose ride changed", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    await repository.observe(suggestion());
+    await expect(
+      repository.observe(
+        suggestion({ id: `${"0".repeat(25)}6`, observedAtMs: 20, hlcPhysicalMs: 20 }),
+      ),
+    ).resolves.toEqual(suggestion());
+    await expect(
+      repository.observe(
+        suggestion({
+          id: `${"0".repeat(25)}6`,
+          observedAtMs: 21,
+          hlcPhysicalMs: 21,
+          activityDurationS: 4_800,
+        }),
+      ),
+    ).resolves.toMatchObject({ id: MATCH_ID, observedAtMs: 21, activityDurationS: 4_800 });
+  });
+
+  it("stores an unpaired intervals.icu row even when the workout has another confirmed match", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    await repository.observe(suggestion({ decision: "confirmed", decidedAtMs: 10 }));
+    await expect(
+      repository.observe(
+        suggestion({
+          id: `${"0".repeat(25)}6`,
+          activityId: "b".repeat(64),
+          source: "platform",
+          providerEventId: 77,
+          decision: "unpaired",
+          decidedAtMs: 10,
+        }),
+      ),
+    ).resolves.toMatchObject({ decision: "unpaired", source: "platform" });
+  });
+
+  it("clears only an unpaired intervals.icu row for the athlete's own match", async () => {
+    const repository = createPlanWorkoutMatchRepository(store);
+    const id = (last: string) => `${"0".repeat(25)}${last}`;
+    const platform = {
+      source: "platform" as const,
+      providerEventId: 77,
+      decidedAtMs: 10,
+    };
+    await repository.observe(suggestion({ ...platform, id: id("6"), decision: "unpaired" }));
+    await repository.observe(
+      suggestion({ ...platform, id: id("7"), activityId: "b".repeat(64), decision: "confirmed" }),
+    );
+    await repository.clearUnpaired(id("7"));
+    await repository.clearUnpaired(id("6"));
+    expect(
+      (await repository.readForPlan(PLAN_ID)).map((row) => [row.id.slice(-1), row.decision]),
+    ).toEqual([["7", "confirmed"]]);
   });
 
   it("reads canonical activities and reports stale Intervals sync honestly", async () => {
@@ -114,9 +375,12 @@ describe("Plan WorkoutMatch repository", () => {
       "INSERT INTO workout(workout_key,start_utc,is_multisport,dedup_cluster_id) VALUES(?,?,?,?)",
       ["b".repeat(64), 1, 0, "cluster-1"],
     );
-    await store.run(`INSERT INTO session(
+    await store.run(
+      `INSERT INTO session(
 session_key,workout_key,session_seq,sport,start_utc,local_date_key,elapsed_s,is_transition
-) VALUES(?,?,?,?,?,?,?,?)`, [ACTIVITY_ID, "b".repeat(64), 0, "cycling", 1, 20260825, 5_100, 0]);
+) VALUES(?,?,?,?,?,?,?,?)`,
+      [ACTIVITY_ID, "b".repeat(64), 0, "cycling", 1, 20260825, 5_100, 0],
+    );
     await expect(repository.listActivities(20260824, 20260830)).resolves.toEqual([
       {
         activityId: ACTIVITY_ID,

@@ -230,6 +230,42 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
 
+export const AthleteMoveSchema = z
+  .object({
+    planWorkoutId: z.string().min(1).max(64),
+    fromDateKey: z.number().int(),
+    toDateKey: z.number().int(),
+  })
+  .strict();
+
+export const AthletePlanChangeIntentSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("keep-intervals-change"),
+      planWorkoutId: z.string().min(1).max(64),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("move-by-you"),
+      moves: z.array(AthleteMoveSchema).min(1).max(8),
+    })
+    .strict(),
+]);
+export type AthletePlanChangeIntent = z.infer<typeof AthletePlanChangeIntentSchema>;
+
+export const StoredPlanChangeIntentSchema = z.union([
+  PlanChangeIntentSchema,
+  AthletePlanChangeIntentSchema,
+]);
+export type StoredPlanChangeIntent = z.infer<typeof StoredPlanChangeIntentSchema>;
+
+export function isAthletePlanChangeIntent(
+  intent: StoredPlanChangeIntent,
+): intent is AthletePlanChangeIntent {
+  return AthletePlanChangeIntentSchema.safeParse(intent).success;
+}
+
 export const PlanChangeCheckResultSchema = answerCheckResultSchema(PlanChangeIntentSchema);
 export const PlanChangePendingCheckSchema = pendingAnswerCheckSchema(
   z.object({ field: z.literal("change"), text: AnswerCheckTextSchema }).strict(),
@@ -275,7 +311,7 @@ export const PlanChangeModelSchema = z
     status: z.enum(["pending", "applied", "cancelled", "superseded", "stale"]),
     title: z.string().min(1),
     details: z.string().min(1).optional(),
-    intent: PlanChangeIntentSchema,
+    intent: StoredPlanChangeIntentSchema,
     diff: z.array(
       z
         .object({
@@ -295,7 +331,13 @@ export const PlanChangeModelSchema = z
         z
           .object({
             eligible: z.literal(false),
-            reason: z.enum(["not-newest", "inverse", "nothing-to-restore", "plan-changed"]),
+            reason: z.enum([
+              "not-newest",
+              "inverse",
+              "nothing-to-restore",
+              "plan-changed",
+              "athlete-change",
+            ]),
           })
           .strict(),
       ])

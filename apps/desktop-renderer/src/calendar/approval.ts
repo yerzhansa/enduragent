@@ -1,0 +1,168 @@
+import type {
+  PlanCalendarEndingWorkout,
+  PlanCalendarReplacing,
+  PlanCalendarStatus,
+  PlanCalendarWeek,
+  PlanCalendarWorkout,
+} from "@enduragent/coach-contract";
+import type { PlanCalendarRead } from "./grid";
+
+export type ApprovalScope =
+  | { readonly kind: "first-weeks" }
+  | { readonly kind: "week"; readonly week: number };
+
+export interface ApprovalWeek {
+  readonly week: PlanCalendarWeek;
+  readonly workouts: readonly PlanCalendarWorkout[];
+}
+
+export interface PendingApproval {
+  readonly planId: string;
+  readonly scope: ApprovalScope;
+  readonly weeks: readonly ApprovalWeek[];
+  readonly count: number;
+  readonly totalS: number;
+}
+
+type Included = "plan-only" | "all";
+
+function sendsFrom(read: PlanCalendarRead): number {
+  return Math.max(read.todayDateKey, read.plan?.sendsFromDateKey ?? read.todayDateKey);
+}
+
+function included(workout: PlanCalendarWorkout, from: number, include: Included): boolean {
+  return (
+    workout.dateKey >= from &&
+    (include === "all" || workout.copy.kind === "plan-only") &&
+    workout.outcome.kind !== "removed-by-you"
+  );
+}
+
+function approval(
+  read: PlanCalendarRead,
+  scope: ApprovalScope,
+  weeks: readonly PlanCalendarWeek[],
+  include: Included = "plan-only",
+): PendingApproval | null {
+  const plan = read.plan;
+  if (plan === null || weeks.length === 0) return null;
+  const grouped = weeks.map((week) => ({
+    week,
+    workouts: plan.workouts
+      .filter(
+        (workout) =>
+          workout.dateKey >= week.startDateKey &&
+          workout.dateKey <= week.endDateKey &&
+          included(workout, sendsFrom(read), include),
+      )
+      .sort((left, right) => left.dateKey - right.dateKey),
+  }));
+  const workouts = grouped.flatMap((entry) => entry.workouts);
+  return {
+    planId: plan.planId,
+    scope,
+    weeks: grouped,
+    count: workouts.length,
+    totalS: workouts.reduce((total, workout) => total + (workout.durationS ?? 0), 0),
+  };
+}
+
+export function firstApproval(read: PlanCalendarRead): PendingApproval | null {
+  const weeks = (read.plan?.weeks ?? []).filter(
+    (week) => week.status.kind === "waiting-for-first-approve",
+  );
+  return approval(read, { kind: "first-weeks" }, weeks);
+}
+
+export function weekApprovals(read: PlanCalendarRead): readonly PendingApproval[] {
+  return (read.plan?.weeks ?? [])
+    .filter((week) => week.status.kind === "waiting-for-week-approve")
+    .flatMap((week) => approval(read, { kind: "week", week: week.index }, [week]) ?? []);
+}
+
+export function approvalFor(read: PlanCalendarRead, scope: ApprovalScope): PendingApproval | null {
+  if (scope.kind === "first-weeks") return firstApproval(read);
+  return (
+    weekApprovals(read).find(
+      (pending) => pending.scope.kind === "week" && pending.scope.week === scope.week,
+    ) ?? null
+  );
+}
+
+export function sendingFailures(
+  read: PlanCalendarRead,
+  weeks: readonly number[],
+): {
+  readonly sent: number;
+  readonly failed: readonly PlanCalendarWorkout[];
+  readonly waiting: readonly PlanCalendarWorkout[];
+} {
+  const plan = read.plan;
+  if (plan === null) return { sent: 0, failed: [], waiting: [] };
+  const inWeeks = plan.workouts.filter(
+    (workout) =>
+      workout.dateKey >= sendsFrom(read) &&
+      workout.outcome.kind !== "removed-by-you" &&
+      plan.weeks.some(
+        (week) =>
+          weeks.includes(week.index) &&
+          workout.dateKey >= week.startDateKey &&
+          workout.dateKey <= week.endDateKey,
+      ),
+  );
+  return {
+    sent: inWeeks.filter((workout) => workout.copy.kind !== "plan-only").length,
+    failed: inWeeks.filter(
+      (workout) => workout.copy.kind === "plan-only" && workout.lastWrite === "failed",
+    ),
+    waiting: inWeeks.filter(
+      (workout) => workout.copy.kind === "plan-only" && workout.lastWrite !== "failed",
+    ),
+  };
+}
+
+export function approvedWeeks(
+  read: PlanCalendarRead,
+  scope: ApprovalScope,
+  weeks: readonly number[],
+): PendingApproval | null {
+  const chosen = (read.plan?.weeks ?? []).filter((week) => weeks.includes(week.index));
+  return approval(read, scope, chosen, "all");
+}
+
+export function opensCalendarAfterActivate(
+  before: { readonly planId: string } | null,
+  activated: { readonly planId: string; readonly calendar: PlanCalendarStatus },
+): boolean {
+  return (
+    before?.planId !== activated.planId &&
+    (activated.calendar.status === "waiting-for-approve" ||
+      activated.calendar.waitingForApprove === true)
+  );
+}
+
+export function replacingOf(read: PlanCalendarRead): PlanCalendarReplacing | null {
+  const replacing = read.replacing;
+  if (replacing === null || replacing.removes.length + replacing.athleteChanges.length === 0) {
+    return null;
+  }
+  return replacing;
+}
+
+export function comingOff(
+  replacing: PlanCalendarReplacing,
+  removeChanges: boolean,
+): readonly PlanCalendarEndingWorkout[] {
+  return [...replacing.removes, ...(removeChanges ? replacing.athleteChanges : [])].sort(
+    (left, right) => left.dateKey - right.dateKey,
+  );
+}
+
+export function replaceWaiting(read: PlanCalendarRead): PlanCalendarReplacing | null {
+  const replacing = replacingOf(read);
+  return replacing?.cleanup === "held" &&
+    replacing.removes.length > 0 &&
+    firstApproval(read) !== null
+    ? replacing
+    : null;
+}

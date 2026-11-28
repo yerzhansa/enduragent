@@ -375,14 +375,20 @@ export class ConversationStore implements ConversationStorePort {
     }
 
     try {
-      this.archiveDurably(intent);
-      this.chatQueueStore?.clear(intent.chatId);
-      this.transcriptStore.removeResetIntent(intent);
+      this.finishReset(intent);
       this.blockedChats.delete(intent.chatId);
     } catch (error) {
       this.blockedChats.set(intent.chatId, error);
       throw error;
     }
+  }
+
+  private finishReset(intent: ResetIntentRecord): void {
+    this.archiveDurably(intent);
+    if (intent.reason === "explicit-reset") {
+      this.chatQueueStore?.clear(intent.chatId);
+    }
+    this.transcriptStore.removeResetIntent(intent);
   }
 
   private archiveDurably(intent: ResetIntentRecord): void {
@@ -437,15 +443,11 @@ export class ConversationStore implements ConversationStorePort {
     } catch (error) {
       if (!(error instanceof WindowsPrivatePathPolicyError)) throw error;
       this.transcriptStore.ensureConversationBoundary(intent);
-      this.archiveDurably(intent);
-      this.chatQueueStore?.clear(intent.chatId);
-      this.transcriptStore.removeResetIntent(intent);
+      this.finishReset(intent);
       return;
     }
     this.transcriptStore.ensureConversationBoundary(intent);
-    this.archiveDurably(intent);
-    this.chatQueueStore?.clear(intent.chatId);
-    this.transcriptStore.removeResetIntent(intent);
+    this.finishReset(intent);
   }
 }
 

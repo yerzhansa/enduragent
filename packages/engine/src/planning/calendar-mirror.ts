@@ -134,6 +134,24 @@ export function icuEventFingerprint(event: PlanMirrorEvent): string {
   ]);
 }
 
+export function icuFingerprintParts(
+  fingerprint: string,
+): { readonly name: string | null; readonly durationS: number | null } | null {
+  if (!currentFingerprintFormat(fingerprint)) return null;
+  try {
+    const parts: unknown = JSON.parse(fingerprint);
+    if (!Array.isArray(parts)) return null;
+    const name: unknown = parts[2];
+    const duration: unknown = parts[5];
+    return {
+      name: typeof name === "string" ? name : null,
+      durationS: typeof duration === "number" ? duration : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function planWorkoutFingerprint(workout: PlanWorkoutRecord): string {
   return JSON.stringify([
     workout.dateKey,
@@ -572,6 +590,72 @@ export async function mirrorPlanCalendar(
     });
   }
   return { kind: "ran", written, failures, changedInIcu };
+}
+
+export async function observeIcuCopies(
+  input: {
+    readonly planId: string;
+    readonly workouts: readonly PlanWorkoutRecord[];
+    readonly startDateKey: number;
+    readonly endDateKey: number;
+  },
+  deps: CalendarMirrorDeps,
+): Promise<
+  | { readonly kind: "observed"; readonly changed: number }
+  | { readonly kind: "nothing-tracked" }
+  | { readonly kind: "list-failed" }
+> {
+  const workouts = new Map(input.workouts.map((workout) => [workout.id, workout]));
+  const watched: (IcuCopyTarget & { readonly stored: PlanIcuCopyRecord })[] = [];
+  for (const [planWorkoutId, stored] of await readIcuCopies(deps.mirror, input.planId)) {
+    const copy = storedIcuCopy(stored);
+    const workout = workouts.get(planWorkoutId);
+    if (
+      workout === undefined ||
+      (copy.kind !== "on-icu" && copy.kind !== "moving-by-you" && copy.kind !== "changed-in-icu") ||
+      copy.baseline.dateKey < input.startDateKey ||
+      copy.baseline.dateKey > input.endDateKey
+    ) {
+      continue;
+    }
+    watched.push({
+      planWorkoutId,
+      workout,
+      stored,
+      copy,
+      plan: { kind: "send", planFingerprint: planWorkoutFingerprint(workout) },
+    });
+  }
+  if (watched.length === 0) return { kind: "nothing-tracked" };
+  let listed: ReadonlyMap<string, readonly PlanMirrorEvent[]>;
+  try {
+    listed = groupedByWorkout(
+      input.planId,
+      await deps.calendar.listEvents({
+        startDateKey: input.startDateKey,
+        endDateKey: input.endDateKey,
+      }),
+    );
+  } catch {
+    return { kind: "list-failed" };
+  }
+  let changed = 0;
+  for (const target of watched) {
+    const sighting = await sightingFor(deps, target, listed);
+    if (sighting === "read-failed") continue;
+    const decided = icuCopyOnRun(rebaselined(target.copy, sighting), target.plan, sighting);
+    if (decided.effect.kind !== "none") continue;
+    if (decided.copy.kind !== target.copy.kind) changed += 1;
+    await saveIcuCopy(deps, {
+      planId: input.planId,
+      planWorkoutId: target.planWorkoutId,
+      fallbackDateKey: target.stored.dateKey,
+      stored: target.stored,
+      copy: decided.copy,
+      lastWrite: target.stored.lastWrite,
+    });
+  }
+  return { kind: "observed", changed };
 }
 
 export async function sentTrainingWeeks(

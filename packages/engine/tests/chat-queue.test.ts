@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -907,5 +907,209 @@ describe("engine durable chat queue", () => {
       expect.objectContaining({ athleteText: "First", coachText: "Recovered" }),
     );
     expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("completes a claimed turn and keeps follow-ups when a stale-reset fires mid-turn", async () => {
+    const generate = vi.fn(async (request: ModelTransportRequest) => {
+      if (request.options.caller === "flush") return generated("Flushed");
+      return generated("Fresh reply");
+    });
+    const { root, engine, ports } = setup(undefined, generate);
+    const oldTs = "1998-01-01T00:00:00.000Z";
+    mkdirSync(join(root, "sessions"), { recursive: true });
+    writeFileSync(
+      join(root, "sessions", "desktop.jsonl"),
+      `${JSON.stringify({ role: "user", content: "Old question", ts: oldTs })}\n${JSON.stringify({
+        role: "assistant",
+        content: "Old answer",
+        ts: oldTs,
+      })}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+    await engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "s1",
+      text: "Morning check-in",
+    });
+    await engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "s2",
+      text: "/review",
+    });
+
+    const events: TurnEvent[] = [];
+    const result = await engine.resumeChatQueue!({ chatId: "desktop" }, (event) =>
+      events.push(event),
+    );
+    if (engine.settle === undefined) throw new Error("engine.settle is unavailable");
+    await engine.settle({ chatId: "desktop" });
+
+    expect(result.response?.text).toBe(
+      "Started a fresh session - earlier conversation is archived, and I still have your key details in memory.\n\nFresh reply",
+    );
+    expect(result.snapshot.retryRequired).toBeUndefined();
+    expect(result.snapshot.items.map((item) => item.text)).toEqual(["/review"]);
+    expect(events.map((event) => event.type)).toEqual(["turn-start", "final-text"]);
+    expect(ports.chatStore.load("desktop").messages).toMatchObject([
+      { role: "user", content: expect.stringContaining("Morning check-in") },
+      { role: "assistant", content: "Fresh reply" },
+    ]);
+  });
+
+  it("replays and streams turn events to an overlapping resumeChatQueue caller", async () => {
+    let announceStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      announceStarted = resolve;
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const generate = vi.fn(async (request: ModelTransportRequest): Promise<GenerateResult> => {
+      request.options.onTextDelta?.("Hel");
+      announceStarted();
+      await gate;
+      request.options.onTextDelta?.("lo");
+      return generated("Hello");
+    });
+    const { engine } = setup(undefined, generate);
+    await engine.enqueueChatMessage!({ chatId: "desktop", submissionId: "s1", text: "Ping" });
+
+    const firstEvents: TurnEvent[] = [];
+    const onFirstEvent = (event: TurnEvent): void => {
+      firstEvents.push(event);
+    };
+    const first = engine.resumeChatQueue!({ chatId: "desktop" }, onFirstEvent);
+    let second!: ReturnType<NonNullable<typeof engine.resumeChatQueue>>;
+    const secondEvents: TurnEvent[] = [];
+    const throwingSubscriber = vi.fn(() => {
+      throw new Error("detached subscriber");
+    });
+    try {
+      await started;
+
+      const sameSubscriber = engine.resumeChatQueue!({ chatId: "desktop" }, onFirstEvent);
+      expect(sameSubscriber).toBe(first);
+      expect(firstEvents.map((event) => event.type)).toEqual(["turn-start", "text_delta"]);
+
+      second = engine.resumeChatQueue!({ chatId: "desktop" }, (event) => secondEvents.push(event));
+      expect(second).toBe(first);
+      expect(secondEvents).toEqual(firstEvents);
+
+      expect(() =>
+        engine.resumeChatQueue!({ chatId: "desktop" }, throwingSubscriber),
+      ).not.toThrow();
+    } finally {
+      release();
+      await Promise.allSettled([first]);
+    }
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(secondResult).toBe(firstResult);
+    expect(firstResult).toMatchObject({ response: { text: "Hello" }, snapshot: { items: [] } });
+    expect(firstEvents.map((event) => event.type)).toEqual([
+      "turn-start",
+      "text_delta",
+      "text_delta",
+      "final-text",
+    ]);
+    expect(secondEvents).toEqual(firstEvents);
+    expect(throwingSubscriber).toHaveBeenCalledTimes(4);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("replays and streams turn events to an overlapping runQueuedCommand caller", async () => {
+    let announceStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      announceStarted = resolve;
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const generate = vi.fn(async (request: ModelTransportRequest): Promise<GenerateResult> => {
+      request.options.onTextDelta?.("Part ");
+      announceStarted();
+      await gate;
+      request.options.onTextDelta?.("two");
+      return generated("Part two");
+    });
+    const firstSetup = setup();
+    const queued = await firstSetup.engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "s1",
+      text: "/review",
+    });
+    const commandId = queued.items[0]!.queuedMessageId;
+    const restored = setup(firstSetup.root, generate);
+
+    const firstEvents: TurnEvent[] = [];
+    const first = restored.engine.runQueuedCommand!(
+      { chatId: "desktop", queuedMessageId: commandId },
+      (event) => firstEvents.push(event),
+    );
+    let second!: ReturnType<NonNullable<typeof restored.engine.runQueuedCommand>>;
+    const secondEvents: TurnEvent[] = [];
+    try {
+      await started;
+
+      second = restored.engine.runQueuedCommand!(
+        { chatId: "desktop", queuedMessageId: commandId },
+        (event) => secondEvents.push(event),
+      );
+      expect(second).toBe(first);
+      expect(secondEvents).toEqual(firstEvents);
+    } finally {
+      release();
+      await Promise.allSettled([first]);
+    }
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(secondResult).toBe(firstResult);
+    expect(firstResult).toMatchObject({ response: { text: "Part two" }, snapshot: { items: [] } });
+    expect(secondEvents).toEqual(firstEvents);
+    expect(secondEvents.map((event) => event.type)).toEqual([
+      "turn-start",
+      "text_delta",
+      "text_delta",
+      "final-text",
+    ]);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("completes cleanly when getChatQueue marks an active claim retry-required mid-stream and no retry runs", async () => {
+    let announceStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      announceStarted = resolve;
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const generate = vi.fn(async (request: ModelTransportRequest): Promise<GenerateResult> => {
+      request.options.onTextDelta?.("Working");
+      announceStarted();
+      await gate;
+      return generated("Completed");
+    });
+    const { engine } = setup(undefined, generate);
+    await engine.enqueueChatMessage!({ chatId: "desktop", submissionId: "s1", text: "First" });
+    await engine.enqueueChatMessage!({ chatId: "desktop", submissionId: "s2", text: "/review" });
+
+    const running = engine.resumeChatQueue!({ chatId: "desktop" });
+    try {
+      await started;
+
+      const midStream = await engine.getChatQueue!({ chatId: "desktop" });
+      expect(midStream.retryRequired).toMatchObject({
+        queuedMessageIds: [midStream.items[0]!.queuedMessageId],
+        status: "retry-required",
+      });
+    } finally {
+      release();
+      await Promise.allSettled([running]);
+    }
+    const finished = await running;
+    expect(finished.response?.text).toBe("Completed");
+    expect(finished.snapshot.retryRequired).toBeUndefined();
+    expect(finished.snapshot.items.map((item) => item.text)).toEqual(["/review"]);
   });
 });

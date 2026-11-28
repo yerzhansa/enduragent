@@ -242,6 +242,19 @@ describe("shared package path and content policy", () => {
     ["out/runtime.spec.d.ts", "test or spec source"],
     ["out/runtime.snap", "test snapshot artifact"],
     ["out/vitest.workspace.mts", "Vitest configuration"],
+    ["node_modules/valibot/dist/index.d.mts", "TypeScript declaration"],
+    ["node_modules/valibot/dist/index.d.cts", "TypeScript declaration"],
+    ["out/main/spec.helpers.d.ts", "TypeScript declaration"],
+    ["node_modules/@enduragent/core/src/index.ts", "workspace package source"],
+    [
+      "node_modules/@enduragent/kernel/src/store/migrations/001_init.sql",
+      "workspace package source",
+    ],
+    ["node_modules/@enduragent/i18n/catalogs/en.json", "i18n build catalog"],
+    ["node_modules/@enduragent/i18n/glossaries/fr.json", "i18n build catalog"],
+    ["node_modules/mammoth/mammoth.browser.min.js", "browser bundle"],
+    ["node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js", "browser bundle"],
+    ["node_modules/zod/src/index.ts", "TypeScript source"],
   ])("classifies the forbidden path %s", (path, reason) => {
     expect(forbiddenPathReason(path)).toBe(reason);
     expect(() => inspectPath(path, "inventory-entry")).toThrow(
@@ -362,10 +375,7 @@ describe("shared package trees", () => {
     const options = { signedExecutables: ["signed/signed-tool"] };
     const resigned = new Map<string, PackageTreeEntry>([
       ["signed", { type: "directory" }],
-      [
-        "signed/signed-tool",
-        { type: "file", bytes: machoExecutable({ signatureBytes: 4_096 }) },
-      ],
+      ["signed/signed-tool", { type: "file", bytes: machoExecutable({ signatureBytes: 4_096 }) }],
     ]);
     expect(() => compareStagedTree(staged, resigned, "packaged-tree", options)).not.toThrow();
     expect(() => compareStagedTree(staged, resigned, "packaged-tree")).toThrow(

@@ -17,6 +17,7 @@ export interface CalendarDay {
   readonly place: CalendarDayPlace;
   readonly weekStarts: PlanCalendarWeek | null;
   readonly workouts: readonly PlanCalendarWorkout[];
+  readonly movedIn: readonly PlanCalendarWorkout[];
   readonly activities: readonly PlanCalendarActivity[];
 }
 
@@ -84,6 +85,12 @@ export function calendarRows(read: PlanCalendarRead, range: CalendarRange): read
           null,
         workouts: (plan?.workouts ?? []).filter(
           (workout) => workout.dateKey === dateKey && shownWorkout(workout),
+        ),
+        movedIn: (plan?.workouts ?? []).filter(
+          (workout) =>
+            workout.copy.kind === "changed-in-intervals" &&
+            workout.copy.change === "moved" &&
+            workout.copy.toDateKey === dateKey,
         ),
         activities: read.activities.filter(
           (activity) => activity.dateKey === dateKey && !matched.has(activity.activityId),
@@ -172,12 +179,18 @@ export interface SeasonBar {
 export interface SeasonWeek {
   readonly week: PlanCalendarWeek;
   readonly bars: readonly SeasonBar[];
-  readonly sent: "on-intervals" | "plan-only";
+  readonly sent: "on-intervals" | "plan-only" | "waiting";
   readonly current: boolean;
 }
 
 function weekSent(plan: PlanCalendarPlan, week: PlanCalendarWeek): SeasonWeek["sent"] {
   if (week.status.kind === "on-intervals") return "on-intervals";
+  if (
+    week.status.kind === "waiting-for-first-approve" ||
+    week.status.kind === "waiting-for-week-approve"
+  ) {
+    return "waiting";
+  }
   if (week.status.kind !== "passed") return "plan-only";
   return plan.workouts.some(
     (workout) =>
@@ -242,4 +255,18 @@ export function raceWeek(plan: PlanCalendarPlan): number | null {
     plan.weeks.find((week) => target >= week.startDateKey && target <= week.endDateKey)?.index ??
     null
   );
+}
+
+export interface IntervalsChanges {
+  readonly edited: number;
+  readonly moved: number;
+  readonly deleted: number;
+}
+
+export function intervalsChanges(read: PlanCalendarRead): IntervalsChanges {
+  const counts = { edited: 0, moved: 0, deleted: 0 };
+  for (const workout of read.plan?.workouts ?? []) {
+    if (workout.copy.kind === "changed-in-intervals") counts[workout.copy.change] += 1;
+  }
+  return counts;
 }

@@ -107,6 +107,7 @@ export const PURE_AUTHORED_TABLES = [
   "plan_settings",
   "plan_icu_copy",
   "plan_week_delivery",
+  "plan_cleanup_hold",
   "planning_calendar_setting",
   "plan_source_request",
   "plan_workout",
@@ -116,6 +117,7 @@ export const PURE_AUTHORED_TABLES = [
   "planning_request",
   "planning_request_terminal_result",
   "planning_request_tombstone",
+  "activity_review",
 ] as const;
 
 export const MIXED_AUTHORED_TABLES = [

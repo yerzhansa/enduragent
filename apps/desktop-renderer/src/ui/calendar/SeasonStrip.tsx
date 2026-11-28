@@ -56,9 +56,9 @@ export function SeasonStrip(props: {
             type="button"
             className={cn(
               "flex h-7.5 items-end gap-0.5 rounded-ctl px-1 py-0.75",
-              entry.sent === "on-intervals"
-                ? "border border-line bg-surface"
-                : "border border-dashed border-line-2 bg-transparent",
+              entry.sent === "on-intervals" && "border border-line bg-surface",
+              entry.sent === "plan-only" && "border border-dashed border-line-2 bg-transparent",
+              entry.sent === "waiting" && "border border-dashed border-brand bg-brand-soft",
               entry.current && "outline-2 outline-offset-1 outline-brand",
             )}
             aria-label={say("plan.calendar.season.week", {

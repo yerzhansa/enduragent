@@ -33,6 +33,8 @@ import planningAuthority032 from "./032_planning_authority.sql";
 import athleteLanguage033 from "./033_athlete_language.sql";
 import planningPendingChecks034 from "./034_planning_pending_checks.sql";
 import planCalendarMirror035 from "./035_plan_calendar_mirror.sql";
+import planCleanupHold036 from "./036_plan_cleanup_hold.sql";
+import activityReview037 from "./037_activity_review.sql";
 
 export interface Migration {
   readonly version: number;
@@ -76,4 +78,6 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 33, name: "033_athlete_language", sql: athleteLanguage033 },
   { version: 34, name: "034_planning_pending_checks", sql: planningPendingChecks034 },
   { version: 35, name: "035_plan_calendar_mirror", sql: planCalendarMirror035 },
+  { version: 36, name: "036_plan_cleanup_hold", sql: planCleanupHold036 },
+  { version: 37, name: "037_activity_review", sql: activityReview037 },
 ];

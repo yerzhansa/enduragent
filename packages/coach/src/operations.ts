@@ -202,10 +202,10 @@ export function createCoachOperations(
   }
   const enqueueRuntimeConfiguration = createSerializedLane();
   let offeredIntervalsCredential = "";
-  const intervalsCredentialRejected = (applied: string): boolean =>
-    [applied, offeredIntervalsCredential].some(
-      (credential) => credential.length > 0 && isIntervalsCredentialRejected(credential),
-    );
+  const intervalsCredentialRejected = (applied: string): boolean => {
+    const credential = applied.length > 0 ? applied : offeredIntervalsCredential;
+    return credential.length > 0 && isIntervalsCredentialRejected(credential);
+  };
 
   const downloadHistory = (
     credentials: Readonly<{ apiKey: string; athleteId: string }>,

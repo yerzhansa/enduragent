@@ -4280,10 +4280,6 @@
       "sourceHash": "51b42709009c4eea51d2f0d6c6fb87eda15619464378fa965b7c383f0205e53d",
       "translatedBy": "model"
     },
-    "chat.planCreation.startTimingRequired": {
-      "sourceHash": "7fc98678976a8242b591778bc5a39961a79f44d325852e6799636ac3cdb13061",
-      "translatedBy": "model"
-    },
     "chat.planCreation.submittedLabel": {
       "sourceHash": "64900440a8c9a5eda335b124b9824aa4f14f2c280097d5556498d276f60ecdf1",
       "translatedBy": "model"
@@ -4301,11 +4297,11 @@
       "translatedBy": "model"
     },
     "chat.planCreation.syncToday": {
-      "sourceHash": "1168d75279403c82910cf1995245debc6eb84c5a12f9a8a1c8b90beae641bded",
+      "sourceHash": "2be48adf1e12c9ab8bfd10f07dc9bfce7442913043408387c9ca2d81d8fd5429",
       "translatedBy": "model"
     },
     "chat.planCreation.syncTomorrow": {
-      "sourceHash": "1818d560451473e7c1be53bb675ec080b1130c8c80cdc9a7e9375b040de60b3b",
+      "sourceHash": "16c79553f3e7ef2e1a45baffd1c5db158867058ffb63ddc7a808322ce202b0a6",
       "translatedBy": "model"
     },
     "chat.planCreation.syncWait": {
@@ -10446,6 +10442,1190 @@
     },
     "plan.calendar.status.notConnected": {
       "sourceHash": "f7a5ea7f64280730e71e6eee237b5a3edb198457131f26030f404cd02ca97c73",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.approve": {
+      "sourceHash": "6007acbe30b2cd98703e83350ea665c06009fcd51f26dd73b309294235f45f21",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.approveCount_one": {
+      "sourceHash": "d8385be988dd1038558298d19b67e52f589c846a6a4467cfa2033a96e154a0c9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.approveCount_other": {
+      "sourceHash": "96c04e36f92f1cc2cfa88caaa5a98cf5c88d29beed3a88c31942ef0b2acad517",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.body_one": {
+      "sourceHash": "33c64b299809f73cce940955a50d5e02072594219a68a1bc4365919f95bf564a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.body_other": {
+      "sourceHash": "811547fbc7e78f274df4d1ba732af179462cd78c8bb8d7ebc055f1bc9f0fa322",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.captionFirst": {
+      "sourceHash": "fa35b8398fd10f3d7145146e162852ce387ae588c9f3b930d41ca0cb3cfbb0cd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.captionWeek": {
+      "sourceHash": "4b3e99ab4698aafae9fde35273953bc9f1ec37bccc7e8c74ea4db601fb2075a0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.connect": {
+      "sourceHash": "1997e2c015b1e49bfbd963e0d897d9321caf23ad8da4f7476b1994617efad238",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.dayRange": {
+      "sourceHash": "1a880c58931bae121b7d81ceab7f313f4219a54d3d71f327a2e9c838aee6d460",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.failed": {
+      "sourceHash": "d95b290bf78da38d79d1e87d06d7d85361c671b420a4f5d426a91cbcfe933d8f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.loginBody": {
+      "sourceHash": "23081fe2218c3afc8aad33589795d963df673dbf534404b52930b0d444e23fc8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.loginTitle": {
+      "sourceHash": "315f527a67770227c49a3955433e30bd88ede3e9e9348b5435a999df78a029e0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.notConnected": {
+      "sourceHash": "c8f002c1f85a63a7c2c76478eda3aa3b94bc1d43b791a1ea274e2e19e802e7b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.notNow": {
+      "sourceHash": "a0e63d7c7125d29af84d6919af5550529be77c327324940c98c4b2cb13a99c8c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.refused": {
+      "sourceHash": "7080adefa62a1d11057c1f783f31272c3e00de4b7311bb7f2c2ad23cb690a054",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.sending_one": {
+      "sourceHash": "59e509a74c5834220368201ffd9547c2dff41be7c38840e8b0c2fcda6a0660eb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.sending_other": {
+      "sourceHash": "d8c82c76e0ded06cd790d7e21dd3dd1499ccb240bb57471b75849dff466c522e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.titleFirstOne": {
+      "sourceHash": "1612b9e3bd885425770848e5bdc46b98c0e33c3f5dcd73355668189e1ac52c78",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.titleFirstTwo": {
+      "sourceHash": "19fc1058dcf4a5dd6124a3ef8fbeacdef175df381e8464e8c769cdb4f1ed9fab",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.titleWeek": {
+      "sourceHash": "05ae88ccd3a46d0ba664e9de37aff948cd5bb6322a3141872b81a5d6565741fc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.weekHeader": {
+      "sourceHash": "31cbb08937fb787e90c804ad09af618e4d9f9d13ecf7cece9a9c1fa4e7c2f5b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.weekHeaderCount_one": {
+      "sourceHash": "b6f51f0ccd9ea4a33ddd80b4d586d65ba5fcf1746b8e7136ac3eb66e2d81fb6c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.weekHeaderCount_other": {
+      "sourceHash": "99034ffc6a20b4751fa4d9c38dfd5267a179d0d4c6f4279bac54c7b0bc537bfb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.banner.detail_one": {
+      "sourceHash": "37d24502bef2e3352331de4b2614f42fd8460df0ab2808182281125a6b9940b1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.banner.detail_other": {
+      "sourceHash": "34d9db5808434623030224923cec10a464b6e3bba5bce474280678e5599c8097",
+      "translatedBy": "model"
+    },
+    "plan.calendar.banner.lead": {
+      "sourceHash": "63d165881d12dc9b220300e9e318e0006a4d9f594a5033ab115c5ff0130387f1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.banner.review": {
+      "sourceHash": "29bbb3551e6527edd28305a399c171a24f12314e1a9b0e1fc192889a82e3f4a7",
+      "translatedBy": "model"
+    },
+    "settings.calendar.approveEachWeek": {
+      "sourceHash": "5a7b48e935180fd0cb4d5903e7ba1f944074fdb1507374a650026d30c1ff7a6d",
+      "translatedBy": "model"
+    },
+    "settings.calendar.approveEachWeekDetail": {
+      "sourceHash": "0c3503c2b1e93f7f30527a642ef64a9a9069ee296b6c053dcdfb6b0633a2ed31",
+      "translatedBy": "model"
+    },
+    "settings.calendar.startAtLogin": {
+      "sourceHash": "315f527a67770227c49a3955433e30bd88ede3e9e9348b5435a999df78a029e0",
+      "translatedBy": "model"
+    },
+    "settings.calendar.startAtLoginDetail": {
+      "sourceHash": "d351cdd307b512b4730a26c301db6ab367988201e42bdd3afa1c5d5eca2ab280",
+      "translatedBy": "model"
+    },
+    "settings.calendar.title": {
+      "sourceHash": "d5d0a30b517e3beab07609d7e54c378db5e15066f22280af453f587f7eec7474",
+      "translatedBy": "model"
+    },
+    "settings.calendar.unavailable": {
+      "sourceHash": "23b8feb982c88155b90ff89998a97b82e93f9f4cca8b7d6cf07825f19a3e5315",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.editedLength": {
+      "sourceHash": "b328cec9b8834e7a200b2c10425a1438b67a206dc5f7a0a72c8fb6b0c582e3b9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.movedFrom": {
+      "sourceHash": "593b8d717eac6ce502c25606a4192847a441c89309dc4685a993eed1f688d0a6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.movedIn": {
+      "sourceHash": "0e76d043a5c48d3abd7901d05b12bc2fd2f75d20ace9dd1434b07d4361247595",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.body": {
+      "sourceHash": "926db98a3112a367b5a12a8a030811c6295fd8b499083f0dd4598e1c52c063fc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.deleted_one": {
+      "sourceHash": "17b78c8a77aa84cedd2782953e830c4e9221c235686bd02f4c212ad1a632f08b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.deleted_other": {
+      "sourceHash": "17b78c8a77aa84cedd2782953e830c4e9221c235686bd02f4c212ad1a632f08b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.edited_one": {
+      "sourceHash": "1d8695e27f119b2ae11cb231e4617f9a247c6022e30d744dfba5f422f6e92469",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.edited_other": {
+      "sourceHash": "1d8695e27f119b2ae11cb231e4617f9a247c6022e30d744dfba5f422f6e92469",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.lead_one": {
+      "sourceHash": "25818f848f640c40bf0f5949d3d072efa0ff4219ec8c6db3ee2f48075df28d8d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.lead_other": {
+      "sourceHash": "0ccd7333b3559d6ea743566e9a325110b6ef075874dc0c8a2c4f68015052d950",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.leadSplit_one": {
+      "sourceHash": "4700d22a1fd8b29fbbc973d1f67a70234dcfe5b2c48833a26ac286eb0a30c11d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.leadSplit_other": {
+      "sourceHash": "075ffd38ff4109d5236e9f9283bf7ca9c51e78bd87c306856d057db14eca81a4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.moved_one": {
+      "sourceHash": "5246592134d1e1b9fde11a53bea6727e40c451f36931b1d0df99b76432b9ba3e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.moved_other": {
+      "sourceHash": "5246592134d1e1b9fde11a53bea6727e40c451f36931b1d0df99b76432b9ba3e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.changes.parts": {
+      "sourceHash": "016f55d37f9ab960397ec286effe8b1eaa22e656c8c65d32ea9c36f56ce3b31a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.close": {
+      "sourceHash": "7d9eb7acb13e24625c404401d8e88b2350e32162455885f18276cf802f7701ed",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.columnIntervals": {
+      "sourceHash": "5b8b03d08f457f22f5d3920a409d76822100f5f83b514c41cb038093b22afb79",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.columnPlan": {
+      "sourceHash": "83879f126c036b50c534959c28d4783b8661510ac42632f9fc67cad000d25528",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.compare": {
+      "sourceHash": "a020dbde00ce83a0a649745f59c89c1a87137cf6e88f58e8cbd8416fffde8665",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.editedAt": {
+      "sourceHash": "2adaa222a72f38a49c4c8cb6a7751d03eea8480c94811fc2af89371661c47508",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.failed": {
+      "sourceHash": "11a6743af03b39acee063b6d0e77c40ae8fe480407113c34fd40c48e56b657a5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepDeleted": {
+      "sourceHash": "90fe552c09a4e89ab18c04be2d3b40b351804a87ec25f72cad16fd8f53181159",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepDeletedBody": {
+      "sourceHash": "4b9c4b1b17027a3271219c747041e7bb2864c786a9abdf496dc46223d8ae43f7",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepEditedAction": {
+      "sourceHash": "00da46d7e2e49c7d41f041570ec4254c11bc073f3ad8697599243ee6e157f7ee",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepEditedBody": {
+      "sourceHash": "771e8f0296c6aa7dbe290bf9c40b06bc80bd3096d48591c17862889cd1cca56c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepEditedPlain": {
+      "sourceHash": "83d031d5569b335811bea47ecd578276f2d68af8f0cf6b377d3f593c177e1d53",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepMovedAction": {
+      "sourceHash": "a6096e5f0c25253779e5ef6425e73363f6cf20dc094e90806f1d00df7a1b0f58",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepMovedBody": {
+      "sourceHash": "6faf7965c5eee3949ca85208f538967f020032360fafba05103fe4f26949184e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.keepTitle": {
+      "sourceHash": "83d031d5569b335811bea47ecd578276f2d68af8f0cf6b377d3f593c177e1d53",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.loading": {
+      "sourceHash": "447860ed486aa72b2addccac4093c7b5b2701682d4c10fc01b154803edef1b62",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackDeleted": {
+      "sourceHash": "55057d7e96a5c880470b1179e178bc0143485e54e19e50053b8331e363798c36",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackDeletedBody": {
+      "sourceHash": "7665f9d6736eacb4f84bdb2875e501a91e77b9e78f99ca46cb941fa1ce727289",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackDeletedLengthBody": {
+      "sourceHash": "5a0ff33664c8a4213b97ddbb8d095dd87afaa4d9b6c1cfe7327c497b9e8bde95",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackEditedAction": {
+      "sourceHash": "0f6cbc83d1b56b6b0cad2864517f849db6c536503a7e9cf7439bb79a2e474e62",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackEditedBody": {
+      "sourceHash": "d11642ad01f843104cc98840cfedfe0be70f9f37b691d2e7be7411e65b858e04",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackEditedPlain": {
+      "sourceHash": "671eb292400e30f5d5dc205856740511122c7fef27e8edd7507f062b06dce04f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackMovedAction": {
+      "sourceHash": "264312d575ea15d6811d81bf400e60d2b41070b589ec7ba59eb0cdf95c446778",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackMovedBody": {
+      "sourceHash": "73cad3e90a2322f2fc1e721f9a55eadc0f7da3712ae5bc3a879690dba033798c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackTitle": {
+      "sourceHash": "671eb292400e30f5d5dc205856740511122c7fef27e8edd7507f062b06dce04f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.putBackToday": {
+      "sourceHash": "872d9508ff06e3053c41bc26a309bbfdd5cb22ad311ddd5b2e517d6051120464",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.refused": {
+      "sourceHash": "42f3cbea590a650c2049fcee25dd78131bfe656f6d1d99ae5ea0aaaecbc92d6a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.rowDay": {
+      "sourceHash": "8f2364e11b8be3ff008f32b3dedb54e659362429bcc9e3eb6acb6070de4ffbff",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.rowLength": {
+      "sourceHash": "adc95605a1b30c73959fbaf21e60f9723efe855c482fa336a957924d4ea0a08b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.rowName": {
+      "sourceHash": "dcd1d5223f73b3a965c07e3ff5dbee3eedcfedb806686a05b9b3868a2c3d6d50",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.rowSteps": {
+      "sourceHash": "1de3df70ddf4faab9d799e3c45ea53c465aae9fccacd7ac77d8e85435828e6dc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.sheet": {
+      "sourceHash": "4cb70c4efc23249f8735a6ac4445e1c7fe167aab0e1b9600973591401404c815",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.titleDeleted": {
+      "sourceHash": "f463ab3a05f28db051f3a19107df121aee03cdd97ec786298bda03a3bbf475c5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.titleEdited": {
+      "sourceHash": "23dac3048c04bb13aef924a3498822e539cb5100d37df2243d6f64d1ff46f8b5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.titleMoved": {
+      "sourceHash": "1720b3050d3d26f07bc28a948737fe9cd8a0eb44e3672f28c4374afb45c20280",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.unavailable": {
+      "sourceHash": "3c8184fc1cec97de819153ab1523222c7f66a302e4751d575d9dfa0ec223b628",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.weekDrops": {
+      "sourceHash": "ac0929ba477eddea29741475a4003b87419c95499331282428c91fa1ef6de016",
+      "translatedBy": "model"
+    },
+    "plan.calendar.change.weekGrows": {
+      "sourceHash": "30e07dfb81734771a0ec8918b89c99771a26a70064e0c96aa71d4d8bf95ff901",
+      "translatedBy": "model"
+    },
+    "plan.calendar.copy.movedByYou": {
+      "sourceHash": "68144b024a1b2914a7485595911f4241c6dc75f1a1c2ab5d3753cf91d04ac140",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.beingMoved": {
+      "sourceHash": "de3ff53d9b3081da8d911e8bfa3b1a71ef17eddc76112d0d2d0e85d69417b2a2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.cardOpen": {
+      "sourceHash": "1640109890e52a27e6114efa167dee5c6c8abe2e104c7a37bee81689c0ab5af1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.clash": {
+      "sourceHash": "f463d4496ffc165c921259e6bd8bfe3e604f6fd83c7fe171bca08efc504bf326",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.confirm": {
+      "sourceHash": "6ecc3df6bffdd06c58cd4f6e276929e119c8f653c53f5a6a5a5e66dfa1c3fc93",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.failed": {
+      "sourceHash": "f4461e6b2fcdcf1c0738698a7a4040417a9845a00c39d8de471e74ceaf9128d2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.keepBoth": {
+      "sourceHash": "a66e051630abe9d02393f86eefda5231878b536b5ca37c32990ae5e0df9c0fd6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.notMovable": {
+      "sourceHash": "1bc0726a0a7bf135a6532c7caf6a368410b16fc581252ca84708f8b0564d8add",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.onIntervals": {
+      "sourceHash": "c4acbc56a6f4e86a3e41f92d605098b313f2113b0ac4a97114ab019f5ec1907f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.planOnly": {
+      "sourceHash": "ec2f0841603713fe01c68997091060c5d03241a41778dab1bf34dd50ff9a9dd8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.refused": {
+      "sourceHash": "ac910271e618d02cd7ee916074c179b3d94f4744bda22eb6482145664eb05df5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_one": {
+      "sourceHash": "5bd2ad22aecb7828834e6eb000d8e6b1df171e6fb6756589265416695cd381c8",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swap_other": {
+      "sourceHash": "b6b36a14f59b538d753bbb0d7e665759228b945c7d2cc3fb9bb2b3b71fa59241",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.title": {
+      "sourceHash": "ee29e5aa83d7699af708f970ecee75f8ed3f68fdcd7ebd3f8c868ddaca71b97c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.weeksChange": {
+      "sourceHash": "f1586d22638297d927ea02ef068368d084ddace1c4ad95a19955dc1c9e8d5e16",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.weekStays": {
+      "sourceHash": "6fe0a28e017d93b5f528a5de0274834fe31174544b7b9f7503d90762e72f7dc3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.aWorkout": {
+      "sourceHash": "1a98b3886678f80e5b5ebabadf1c22b08d9cd9bf6118e3f960403bb71fa2cac0",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.close": {
+      "sourceHash": "7d9eb7acb13e24625c404401d8e88b2350e32162455885f18276cf802f7701ed",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.datesLabel": {
+      "sourceHash": "78963905f399ce6fe0e1b9ca063e591c314b3f5c944677a8bca89e3d3425c4b7",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.datesValue": {
+      "sourceHash": "83d0b91a03398787649d54729492cc21b57799ebbe22ea02002141c4a8aeeb3f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endAction": {
+      "sourceHash": "961f0b356b7814bfdc4cdcce82e1eb422fadf3a8a78b729afd26c34c74e340b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endChanged": {
+      "sourceHash": "5378e77a988ca3ab659624eaea53d049de8e33254382eb06f157afc3db819f07",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endChanges_one": {
+      "sourceHash": "431d7fa01c6e724eb1d91970454251e3b5092c8a3f969722132894dbc012cbdb",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endChanges_other": {
+      "sourceHash": "73ed374554d9813f8bc0fe6c26b840ddf22b738beb03d586f61b5a9f3b8fc7e1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endFailed": {
+      "sourceHash": "69eb128d2ea7320239353cb5d91f37843d50a60f6fcc49916610dd6275381411",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endRemoveChanges_one": {
+      "sourceHash": "c89465ce129f452e67c911d774d910d0a463816824e0f3d5c7c57afed645c387",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endRemoveChanges_other": {
+      "sourceHash": "e6d2e59ee63b43690e68a5a8992f45f652109e007f77f1ca087c5f802ede400d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endRemoves_one": {
+      "sourceHash": "a9f159db32abcff279e6850fe84cb85c4fac1de8b7a87d051e02418a12a35c99",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endRemoves_other": {
+      "sourceHash": "5033ccd3f5f5a9a5424aec13a9e7427bc0e7b557ed6b057d1ddbd5d1daafdae1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endRemovesNone": {
+      "sourceHash": "1e846e2d2bcd4007a2605d456881249db55593aa315c451fbb5728398b2d45ca",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endSectionBody": {
+      "sourceHash": "0383eb4e4f20a0076ea1bbb8fe802e8a228ee40af9f855173cd47bdc63f55068",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endSectionTitle": {
+      "sourceHash": "961f0b356b7814bfdc4cdcce82e1eb422fadf3a8a78b729afd26c34c74e340b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endTitle": {
+      "sourceHash": "4dde21e1704cfab847fb013f6913a1c6121e40dc64ec4e222c44c5c22a4581bf",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.endToday": {
+      "sourceHash": "bd16e66e305b8cd7d7edc9c365a3adb6786bfcdc3eecaa5003007a5415e124a7",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historyChange": {
+      "sourceHash": "c4cb0387382720321b2fdb2b7cf04dbb89b1b85cc6396f9f70e3992c1347fb50",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historyKept": {
+      "sourceHash": "4f99100f09f1c39b44fece935415e119b300a0b0d737cf883ffcd809a9a6affd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historyKeptVersion": {
+      "sourceHash": "40e920f8782b0f680f446f7c38849f1e3ae70ee11c9bbdcbbfd14d529ab6b8b9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historyMoved": {
+      "sourceHash": "a8276dd42eb06e3a0a81bfbba98c98cfc7fe18afa3e31d5f2c102d4ea93fab37",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historySaved": {
+      "sourceHash": "bf83b1267558aabef38117150bc6044bfd3b0e4fbcd5931dde2153b32828497e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.historyTitle": {
+      "sourceHash": "09af61b7dc6a88b1831bcca7b2c67484e4df1a26326379593e9852289687bd51",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.loading": {
+      "sourceHash": "66741b434b28e1c5c9120449d06e90435589f7b99da41a69a820ed1a3759c958",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.open": {
+      "sourceHash": "e279253d0eefcd0cd8b4db3aabdb5439c9c4283b83b5cb788115f869e65f6cbc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.phasesLabel": {
+      "sourceHash": "b4b0b75a774761b3c63ac250507efbb7ca51383efec56f30eb4cde9f7de2d613",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.planLabel": {
+      "sourceHash": "fa8ed0bdabdd6bcb1c0746f1d3e15212f7f3439d74339fbaaf16c60c0a80fb8e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.planValue_one": {
+      "sourceHash": "242c337aa2bece7767d9160b8bb70ff51cf4d084b9c2c3b5c0e5f99958444ed2",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.planValue_other": {
+      "sourceHash": "888a7a37f44fbcfe0f7b62fcf371f3da8f09f7ad1f3634ea810eb25bb3bb1411",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.progressTitle": {
+      "sourceHash": "4664827f8e89019280ba99cd889f9ea31eaeecf6fc1bb7541c4a0e546685599f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.raceLabel": {
+      "sourceHash": "73134ce128291dc366b5bf3cf75c167846a2823f56705437694879de7b336e9a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.replaceAction": {
+      "sourceHash": "70b61662662b1144c95ab31008b84fa84c8736371e613a5b32a610208b752e4c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.replaceBody": {
+      "sourceHash": "8b0ad988fd1108fab9b40c838083a0504742a08762f46f8840add66e9499c4d5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.replaceTitle": {
+      "sourceHash": "70b61662662b1144c95ab31008b84fa84c8736371e613a5b32a610208b752e4c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.title": {
+      "sourceHash": "e279253d0eefcd0cd8b4db3aabdb5439c9c4283b83b5cb788115f869e65f6cbc",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.unavailable": {
+      "sourceHash": "68bfb3fbdf1cc0189b8d1ba66305ffc677b6f4760c832cf0729732ec9cffa741",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.weeksDone_one": {
+      "sourceHash": "0ba09552762c513730a28ed83a9bdcf39d07630a9b1ed66139cc440d67b3c27f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.weeksDone_other": {
+      "sourceHash": "864c1a96e75d0e2537657f248f1de2c919dcb13278aef9400dcd20449c5660f5",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.workoutsDone_one": {
+      "sourceHash": "f32785b658520189b3e0fe0ed37562ecfac2ae936d2d8c38853a86af170d8e3b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.details.workoutsDone_other": {
+      "sourceHash": "1129648d7f268d3c6d8b5d66d2e7563b1c141b1e0f3ca5026d6a3edf8e70caf4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.leaves": {
+      "sourceHash": "d359cdab5f108d46d752a75430ebf10cb5e1e8d26a2219e6fe4bdf6e254c2259",
+      "translatedBy": "model"
+    },
+    "activity.review.empty": {
+      "sourceHash": "0b8d0a56a240c825778b32833f58001accf693d5a2be4b25c31d61bf9be12b90",
+      "translatedBy": "model"
+    },
+    "activity.review.header.day": {
+      "sourceHash": "d0c6c882400676c3432e56da00caa022d79b379042cfa2f0af95c5904591e3b6",
+      "translatedBy": "model"
+    },
+    "activity.review.header.dayFromIntervals": {
+      "sourceHash": "845e8753d11f8ebab32d32c58cdc737a635cab4f388eae7d478dc9fd6fe189c0",
+      "translatedBy": "model"
+    },
+    "activity.review.header.time": {
+      "sourceHash": "7e8caf6216f40fa6622ede31e38a87472b50806b0fa1a8929b4de720e9ba1655",
+      "translatedBy": "model"
+    },
+    "activity.review.header.timeFromIntervals": {
+      "sourceHash": "5aa8cc9427a486b047c9dc40ae7c3c5498b7aa5dfd3a80f7913ecc8862e83166",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.gravel": {
+      "sourceHash": "5b1aa1e735330b136d87fc11a9e82a597ababbf64ba2fc616f6af556fdf9b5e0",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.indoor": {
+      "sourceHash": "b61bfec3a719469b02b0f2571c5dff099f9939eb532671758b973f3961a6c3e8",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.mountain": {
+      "sourceHash": "47e486c18f5fc321a1c71d91f9bfd872385cae7e14f113f5f3e97e68102cf71e",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.other": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "activity.review.kind.road": {
+      "sourceHash": "8096ab5265148bca4769c68bcd8fb3e677abce0bb7562402cc9ae252b3790c88",
+      "translatedBy": "model"
+    },
+    "activity.review.list.doneAsPlanned": {
+      "sourceHash": "509cad194256a37d63f4ea1b2c244999590d1d4851680d5d56929cbad34794d0",
+      "translatedBy": "model"
+    },
+    "activity.review.list.doneDifferently": {
+      "sourceHash": "1a2c058bd86299126e2b2459497f08c43978c9fe6f068196f8454560a4648bcd",
+      "translatedBy": "model"
+    },
+    "activity.review.list.extra": {
+      "sourceHash": "2e4aaf05df1cbfb30a89bd189df147c7e70f2f46a698a95336b344c0ecb79041",
+      "translatedBy": "model"
+    },
+    "activity.review.list.first": {
+      "sourceHash": "67ad9806044669eaa1950618d66858eb3e853e562a688086528a2853356e1368",
+      "translatedBy": "model"
+    },
+    "activity.review.list.isThis": {
+      "sourceHash": "3560e07495c0bdede815b7234bc5d748003b4e24505988b59c76de013fb39239",
+      "translatedBy": "model"
+    },
+    "activity.review.list.label": {
+      "sourceHash": "4d0076e6b4c71059f0403fbdebc3a4079e4eb2124cb19b3c6be54ff9c0a30d06",
+      "translatedBy": "model"
+    },
+    "activity.review.list.ride": {
+      "sourceHash": "70d0c6709f50f0e7d5964243bd9994d982989b775f4cf99d5394dd2619a454d5",
+      "translatedBy": "model"
+    },
+    "activity.review.list.today": {
+      "sourceHash": "e84793d45ba013e2d76e2682431418b0f55b7425af6179f2c7c50b4909d7e8e9",
+      "translatedBy": "model"
+    },
+    "activity.review.list.trainingWeek": {
+      "sourceHash": "67778461ef8dae2381ef6a2c0f7a29e25da71627b2eb1078d769bc22e85693b6",
+      "translatedBy": "model"
+    },
+    "activity.review.match.averagePower": {
+      "sourceHash": "61231abaf89bb5dc8fffbafd5004b1b9fd014258dd61d0c13094f0c85b7b5c66",
+      "translatedBy": "model"
+    },
+    "activity.review.match.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "activity.review.match.change": {
+      "sourceHash": "c0bf75bd78bf9572596720d596bd5a20a5b9145cde0fe50dec1e783cb184d69b",
+      "translatedBy": "model"
+    },
+    "activity.review.match.confirmed": {
+      "sourceHash": "617cc1c94d9bed68994a852a3990717613c5fbcca327e2b6a4bde7fb8a743112",
+      "translatedBy": "model"
+    },
+    "activity.review.match.extra": {
+      "sourceHash": "236fa470593bc956c5d4dadf715d051d2be1dae4c907cebcdba089268002128b",
+      "translatedBy": "model"
+    },
+    "activity.review.match.failed": {
+      "sourceHash": "7cb801bb0c524d10a6b4ac0d366d786aba3925e2d1852fcceeb530a63503358a",
+      "translatedBy": "model"
+    },
+    "activity.review.match.label": {
+      "sourceHash": "2c308363493986d5fad59e1c4de99d3c9fc44cf3067f038ebad545acf9cf73b2",
+      "translatedBy": "model"
+    },
+    "activity.review.match.no": {
+      "sourceHash": "14b7477b61914502d386586d0257ece95e3dfa3101c1b6b2f7ec1fd6f0d202b7",
+      "translatedBy": "model"
+    },
+    "activity.review.match.noPlan": {
+      "sourceHash": "c20a49f4c2dc866d4d7476f95fa4e0838e2d4134a3f74ace4b391af7fe10eb5e",
+      "translatedBy": "model"
+    },
+    "activity.review.match.otherDay": {
+      "sourceHash": "1a9d126aec151302e71cf65b9c03dd0fc4cc2c2e0acd4947f871d2081cee0639",
+      "translatedBy": "model"
+    },
+    "activity.review.match.paired": {
+      "sourceHash": "56623d90572c9d5506f12c3e31e2c7e55fa07e46162471272e45f5cade19db6e",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickItem": {
+      "sourceHash": "a04b644cab5aa678e2c5265d22f3343a9c4b695166d1fcf76739988559ffe51a",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickItemLength": {
+      "sourceHash": "ef9eaac6d443a5d1d84d2f4b765d693f980e6c8fd6c868b085dce41d22bc54dd",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickNone": {
+      "sourceHash": "ebb0de0e1d956205a8040a31e2e4d14aa6084af6cd235ae1c55fbe47dc65c887",
+      "translatedBy": "model"
+    },
+    "activity.review.match.pickTitle": {
+      "sourceHash": "2d8339f59db893beb0ecfe7e5717b141e333d2b8814ed679e922647eba1272ee",
+      "translatedBy": "model"
+    },
+    "activity.review.match.planWorkout": {
+      "sourceHash": "2cefeb404a7bedd8b7db9ca85ea54a660e788daaea7d60328928915ac5d46cf7",
+      "translatedBy": "model"
+    },
+    "activity.review.match.question": {
+      "sourceHash": "374e173d5f29ec864712ccc7ac046b94e5066712e99d975e1848ebe141edf760",
+      "translatedBy": "model"
+    },
+    "activity.review.match.refused": {
+      "sourceHash": "d095fb48bec4856f4ef9d8e3bb5f6e24b9c4796efc88b3272e812e4e61c1a1bc",
+      "translatedBy": "model"
+    },
+    "activity.review.match.rideFacts": {
+      "sourceHash": "ebe79937848b78f216e30d2991742f53025ca9af54b86783e26e99273fd9e9de",
+      "translatedBy": "model"
+    },
+    "activity.review.match.rideTitle": {
+      "sourceHash": "224a512359a5269115fa814f7430cd02491366f5e2a669dcd492310bf0ae9963",
+      "translatedBy": "model"
+    },
+    "activity.review.match.saving": {
+      "sourceHash": "f336fdeaada4cdcfe400d3fb6f88ec4e137116cbaec0130fea57bff1df7d12cb",
+      "translatedBy": "model"
+    },
+    "activity.review.match.thisRide": {
+      "sourceHash": "7f591aa5235c89c650566bbba295ac7063e76c15fdd141c290fb30e8bfc62202",
+      "translatedBy": "model"
+    },
+    "activity.review.match.waiting": {
+      "sourceHash": "bb6a17897d36e1686ec493c7901ecdf59f0fd240156627abcd17e05b2df7ad77",
+      "translatedBy": "model"
+    },
+    "activity.review.match.yes": {
+      "sourceHash": "9b9349eb45852ce5d46a1d1d58a9261617f3fdb889c8499a1ee483d7d31d61f9",
+      "translatedBy": "model"
+    },
+    "activity.review.refreshFailed": {
+      "sourceHash": "f179d7d4949f9c30710881c1f5db7b04222a9085370804d8f5427ffd6f1c2939",
+      "translatedBy": "model"
+    },
+    "activity.review.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
+      "translatedBy": "model"
+    },
+    "activity.review.showInCalendar": {
+      "sourceHash": "cf6a91dbc52d1a4f0fa4c93b22a7b6c1e44a6a3da266ef5599a49e6cfdd3af9e",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.bpm": {
+      "sourceHash": "3b34d22aa402f4046b2a9973f87c7edfaa1da21c0cbbec2471c769ea496f6b0e",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.distance": {
+      "sourceHash": "b7bdf7a2d6e73e58d69a667ad9b63f706dd96bbbc4a8187914fc34646a1e003b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.exertion": {
+      "sourceHash": "41a845d3a7be22fe521c482cf9b0c0985dff919ed2084ae1d5482d1cb184b10b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.exertionValue": {
+      "sourceHash": "fcfee8fc3c2f0eaceb9951cb8dc4af492702f73430b06d06ae13de4cb5073843",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.heartRate": {
+      "sourceHash": "90440886e9c7ef1a1f176fa30440606edbf6e74aabdf3e424b1b8f31416f936b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.kilometres": {
+      "sourceHash": "b62718dbf20d568bba97942896024c386c249ed3c586ca35f754bd62063fcf6b",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.label": {
+      "sourceHash": "92e789411c64bbc9328792c0c5a7e3007ae905db77254d4b88a3ea05a7fc0bdd",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.load": {
+      "sourceHash": "8a6bdb6b18da586fe7f2acbd8f1055533f2cd97a3681b3652bcd712224df45c3",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.notGiven": {
+      "sourceHash": "be71c56252603aec4aeb947381c4aa680fea7e0ef78108e687c4a55049322fed",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.notRecorded": {
+      "sourceHash": "b37c7879f6c359f633ed1c478dc9ffac47ad7aac648653bb4a4d509a25fdb3b0",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.power": {
+      "sourceHash": "d5e133fc24d9feb39546de51c8e129f6829a64dad7581a0ee35810db0fff0e92",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.time": {
+      "sourceHash": "c8aca6cb7abbfc4353f1cfa8070c4f718f185de97ffc09a9561843570734fc50",
+      "translatedBy": "model"
+    },
+    "activity.review.stats.watts": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "activity.review.subtitle": {
+      "sourceHash": "a04b644cab5aa678e2c5265d22f3343a9c4b695166d1fcf76739988559ffe51a",
+      "translatedBy": "model"
+    },
+    "activity.review.subtitleNoPlan": {
+      "sourceHash": "3d207b7ac485d5db8298375bddd6692e8680f036e6df3ebe662bf13ab9e07025",
+      "translatedBy": "model"
+    },
+    "activity.review.unavailable": {
+      "sourceHash": "42d9dbcdc1c9378290705ef8f20b26a90e0f672953958d664a60d8fb86a2a5b7",
+      "translatedBy": "model"
+    },
+    "activity.review.untitled": {
+      "sourceHash": "439efdc566bb419f29ded4a5eb33673c5d6f899532366b645270af8ce3ad5d1e",
+      "translatedBy": "model"
+    },
+    "shell.loading.activityReview": {
+      "sourceHash": "6737b4037c3fc20f5e2531924a885a20c68d35fbaa88ff0f1ebdc13a643f76fe",
+      "translatedBy": "model"
+    },
+    "sidebar.views.activityReview": {
+      "sourceHash": "9f8a04a68566c237f140f8229ce49bd559945f89bd4898a9268b7614fe343553",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.approve": {
+      "sourceHash": "83d538d62862da90556d8157534157a27276b4ded0d0a8ee1f376814092a4d81",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bannerDetail_one": {
+      "sourceHash": "e06d367e58b1e20f26fd6dbe2f359d741afdacf8a3739bf20b9abc7be0e5b24e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bannerDetail_other": {
+      "sourceHash": "d1fc688cea7558698a3ccfb1819a85704a18a2d5173503ca28d25bbf69d538b3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bannerLead": {
+      "sourceHash": "44691056cdbdb8e9b3a1e2110890daf1b211a667df675f930cb147bd9c71e6f3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOff_one": {
+      "sourceHash": "aa3aad9393124ea0028567f5c497ae38ca304f369a8fb847e02fe94490dedcad",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOff_other": {
+      "sourceHash": "95af929e46b538b14294840ff63c91b6d1d808cc27bb10b5a19dea1033a128e9",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOn_one": {
+      "sourceHash": "30daba1e3c0ee6bcc8d6317a79e663c1e0313dba93f36b46699cdafa21a2288c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOn_other": {
+      "sourceHash": "616f753743b910898c97a7f3e4e97d8b0de00a941a9ac2db0bdb0831b92eff26",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOnAfterOne_one": {
+      "sourceHash": "9ed9a530ae16fe101ca51af913bd0b358c75c68a175197e923132b1bba9adb1a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.bodyOnAfterOne_other": {
+      "sourceHash": "972c0afeb0d464c5994555b32e79906379f950a41dbee84ba67463253fc52f4b",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.caption": {
+      "sourceHash": "01c9764d29f39e1f419a650054ace0f112c2c9faeb98bb764c179960ca088bb1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.checking_one": {
+      "sourceHash": "51a92470c01df517df966086d652b9842d2c0389e5759c96b42c14b88717b54e",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.checking_other": {
+      "sourceHash": "ad3d1ebc0846e6087b57537dc28e0313711cfb2afc7122e7502f10f3f9880157",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.offHeader_one": {
+      "sourceHash": "fc58e7b3cb5f4e7bff0534500a18dfb565dae2667bc51a88343f916ca7abe25c",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.offHeader_other": {
+      "sourceHash": "9eb93b3b93fbe094abd20282acf82d2de933018b3a122a1b5cd2c05db0151d7d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.onHeader": {
+      "sourceHash": "2f249064033a94fa50fda3d1af96d8d4ec75533feb95b0437af87255083595ad",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removeChanges_one": {
+      "sourceHash": "c1eb736f24195bd7cf259cf10ae74ae94005fc8203b7c267be95f9844b563ee6",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removeChanges_other": {
+      "sourceHash": "6c7f653331b88413cc4079f2aa5639718ec2327f37718616d9ee64c6423f525f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removeFailed": {
+      "sourceHash": "32e5c437c6637839ba16302508088eb004c22f303c14591b70d6cce510fe40a1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removing_one": {
+      "sourceHash": "56a25e12834b5f7cf5534806a029ce44ed5587796b3700b6a1b0f21fae7aa7a7",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.removing_other": {
+      "sourceHash": "1422ba27368da07135bc84ee7837f63370835b13ce366ffa00c8e2fd35f394e1",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysChanged": {
+      "sourceHash": "eedfc34ed90664c789f60a926a5feef2f674122a2aa62ee29f3240692f9d64f3",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysHeader": {
+      "sourceHash": "3c71ae64dae95d53b59d64eb04d52ce6ac11862463a8787276a8af356993b48a",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.staysToday": {
+      "sourceHash": "29d0072aec6fc2a32c9ada59344b66303ddcdc1785be916fddb36ac13e6bd498",
+      "translatedBy": "model"
+    },
+    "plan.calendar.approve.replace.title": {
+      "sourceHash": "264392e17a06412c1c6aa99ff85ed9707cab35fc038e6d9df2725c2c75b780df",
+      "translatedBy": "model"
+    },
+    "activity.review.ask": {
+      "sourceHash": "057de9603bdbbff3dfe796d69d370c61296874c76f6bccb2c0342d88127b624c",
+      "translatedBy": "model"
+    },
+    "activity.review.askDraft": {
+      "sourceHash": "926af0dcf0038f4edbad5bbbcbb4904b20b7f7779fd87541bece1258096e2cc6",
+      "translatedBy": "model"
+    },
+    "activity.review.note.failed": {
+      "sourceHash": "849cb92dbcfddb9ea283fe50c6db55b410a261696c29a6c1e76b1e524ec5d3ec",
+      "translatedBy": "model"
+    },
+    "activity.review.note.hint": {
+      "sourceHash": "420c85233909230f3de6a3134f02e3c51150bbd897bcb75ac161d69fbd0b12aa",
+      "translatedBy": "model"
+    },
+    "activity.review.note.placeholder": {
+      "sourceHash": "ee5fada392ae14f94692dafef52d6695b1bf65f93601634d6c54d2756bb6d8ba",
+      "translatedBy": "model"
+    },
+    "activity.review.note.save": {
+      "sourceHash": "6501e1ced8da0bffc5e2c7e20a42162e80176b31980e7b073fbf9955854fda4a",
+      "translatedBy": "model"
+    },
+    "activity.review.note.saved": {
+      "sourceHash": "2a4a9548cd5f90909a3ced784c9388d1a2b88effb1a8cc68fca0a3e3968e584e",
+      "translatedBy": "model"
+    },
+    "activity.review.note.saving": {
+      "sourceHash": "a15792cb1bc98f82f1684136acdf51094c5c39ed1ff93334a3048dacb2b44c1d",
+      "translatedBy": "model"
+    },
+    "activity.review.note.title": {
+      "sourceHash": "5331e47d0d54681eef76dde709642aa19a90ce7552953fc8931e312fed73ce7a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.afterAnswer": {
+      "sourceHash": "3490bb108fa37555a5d5e0a27a3543121d718c8174ca5ea5a472edb39eee25ca",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.extra": {
+      "sourceHash": "77ac4c291138ecef01bf235a5b017c92603a93f5cba19e09ed3b91851b24ee3c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.pending": {
+      "sourceHash": "25a421190aae1d584ea5fdf83f809b553246776183b1656302587026264db5a3",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.before.workout": {
+      "sourceHash": "25486d782375f094c9d0b0a88848129759c359f5aa7ecbc03c81d6f10af8828c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.failed": {
+      "sourceHash": "0a829e9052f5d8a9c54224805efe66d571639c20b60f073d9af3292b39e46dc0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.failedKeepsEarlier": {
+      "sourceHash": "650d7a0cb3609e6929198044214d9c8cab7878033b3b09dbe2e4c83c79c98c3f",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.meta": {
+      "sourceHash": "c536a2baa339d60a3f9bccc604b477411683c22308f5e010c5e31590a6cfb881",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.metaNoPlan": {
+      "sourceHash": "397f2b4d7fd040232a00e83315bdde525df6da3176bb6818468b3c81ea3ef73a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.metaNoPlanOn": {
+      "sourceHash": "2b49e1196ca8ab9d9bf98bb33753a76b75bd4d9deaa2d9969bfea2e81621dd6b",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.noFile": {
+      "sourceHash": "c2d7eb3e618c38c920502389d739b1a4e773125ad23f0485e5bdcaa302b6f70c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.noModel": {
+      "sourceHash": "b6dea8c3011c6fc7d2f16564f0c0a7d0788591a83302ce7ee1030f5b087460c8",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.replies_one": {
+      "sourceHash": "25c69a5936691fc097ecddccc398889b7996c33518c8cda93523225292844d0c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.replies_other": {
+      "sourceHash": "5ad7a395a02c1a1472a4a0f0b544ef6fa3cd403d43a2b5b5e10c0bf2dc58b3d1",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.title": {
+      "sourceHash": "f36371ca35a90920bce0cbc470de912a5afc7d9f3678cc6c1b24498051a7051c",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.unavailable": {
+      "sourceHash": "50529548be0fc321d36bce910dbfeeb300dff6bf4cd710b5df5e8cb97b326d7e",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writeAgain_one": {
+      "sourceHash": "3161b2f34dc626bc167eca19c99415d638655c7803aa178e75ca44e7ab15acd0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writeAgain_other": {
+      "sourceHash": "f9d9d0f0a4a4120649efc91376a365bd8efa64b9037cf450c456854e156be905",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.writing": {
+      "sourceHash": "fd72797e8f9f035d5fc22e0afdc958d35afbf76e5aa253f0116360e2dc12f731",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.asked": {
+      "sourceHash": "7864d98ad4340798b9d6a6d0abddac5946e2e43fc52b3551184300ace7f05d4d",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedNote": {
+      "sourceHash": "365fb311d23d5d8345cdcf8e0f3bfc235aee4c367d364a1a289e0ccb6b6b5746",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedNoteOn": {
+      "sourceHash": "9fb697750e21d8553acdb4858d4e248542a476995a558b060b973191917f9c5a",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.askedOn": {
+      "sourceHash": "50a11a441ba48bf7bc43093db0883567c8b20ffafd13b7e03444a312c11b7e65",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.firstOpen": {
+      "sourceHash": "c691345f24feffae1e910594d3f2cb99b1a945296dce4bd038c6a9778a14ba06",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.firstOpenOn": {
+      "sourceHash": "4b96c99781be82cc56ba78b771e83bb22afc32c1956e4af2b56fca8081eb41da",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.matched": {
+      "sourceHash": "601a1393e38c37949ace56442c0100b03d8724ea25923b794ab8097d2117a9ef",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.matchedOn": {
+      "sourceHash": "5171487a59f759e38c301008eb89e06155503e532f71c43f1fdbf05a906c22f0",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.opened": {
+      "sourceHash": "eceea0115bd48937d68ed7f1311b9515624439f84f139c787e7ddd403f8b6e2e",
+      "translatedBy": "model"
+    },
+    "activity.review.verdict.written.openedOn": {
+      "sourceHash": "f6e33f3dc9c346015fca39d846f667cbae5fc817ac71500c95929cf240ac4f72",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.startBeforeEvent": {
+      "sourceHash": "7978e3af473f1b484c7f55c2896a5cfec93f0bf81e8649794e330c0e903614c0",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.startDateMaximum": {
+      "sourceHash": "8483fb46ee6681a7b69f6e4d1db33f99295738c1e3317b514a25328f9fc3bc6f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.earlier": {
+      "sourceHash": "a086c5ee3f6ff804f44c5b8e5cbc762105f48a968afc4b33bcce470b7f4b4b20",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.later": {
+      "sourceHash": "b7a2cb91aea2b99c55fcc1ca2b2ef17f606f15cc249014de766ed73482da9e9f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.ask": {
+      "sourceHash": "3f9c3d45eae6b2c88649621304fb000833b521a4d27eac350ffbe55d6c8d8250",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.askDraft": {
+      "sourceHash": "b20e16867a401ad6ef98872b604ef6429d27613b5bb948dd405c06bcb9dbad3d",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.close": {
+      "sourceHash": "7d9eb7acb13e24625c404401d8e88b2350e32162455885f18276cf802f7701ed",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.export": {
+      "sourceHash": "52e4508f482915846d052e5ed0a9d26d1c9d789d77277a3188ee12d1424b6af4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.move": {
+      "sourceHash": "cd799da3521d15cbb48b62d795b68071df1c21a6cca43ff966e058fc3dfb2aef",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.moving": {
+      "sourceHash": "c6170dc44ee764ae69294bbfec128a875655e8f89f1911be16271ac811154763",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.onIntervals": {
+      "sourceHash": "49a4b4c0f73caa853b8855885026958878b5c22c3cb774136a1296d8be8d23d4",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.onIntervalsYours": {
+      "sourceHash": "16a4f5f12f0a02ff8f3f1dbd0067b4431f66b3c38018571277968f1bd7b53932",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planOnly": {
+      "sourceHash": "ae2946ee9d69f144b39ac2e9c78411eecb85bda3da73dd800ac9dc3b6b80d633",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planOnlyGoesOut": {
+      "sourceHash": "fc17f29d91c3a44de72e930cb35b97041066c654817ecbf22b62013aae3de229",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.planWorkout": {
+      "sourceHash": "028e3940ab3775543f3b38f50755a670e3149dc45cfb596558ad3f36e949a3ac",
+      "translatedBy": "model"
+    },
+    "plan.calendar.workout.today": {
+      "sourceHash": "2b065c7c9ce466e5ebcad757987d5d660ee4c9ea708bc62c43444b53334738ba",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOff": {
+      "sourceHash": "5d94fe943880c3772dbc969491bac9e324df76a30da6b701f8f53fc3c4fc741f",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.movedOn": {
+      "sourceHash": "3ba1497d84e69cf9588df96029b2bf52f691e4754b079cfe16a24d49d34a1544",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_one": {
+      "sourceHash": "89c922dc33f0a380e7d2a5a6440663303473f21826b27e71f3284f863f5721df",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOff_other": {
+      "sourceHash": "be6ad8049c32c6c58c55520c89c5a32d336a7b3cf539776db454ac44b3652660",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_one": {
+      "sourceHash": "488d138a379ad41c3b2e8800fe857f4db864a63fa9bfd850da6782198e2367cd",
+      "translatedBy": "model"
+    },
+    "plan.calendar.move.swappedOn_other": {
+      "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
+      "translatedBy": "model"
+    },
+    "chat.planChange.draftSetAside": {
+      "sourceHash": "f56f2d18a7a962cff75e7500ad7bf5a62311ef49e40dcef7ccc81553f0ff68fa",
       "translatedBy": "model"
     }
   }

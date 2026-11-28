@@ -1,5 +1,4 @@
 import type {
-  AppUpdater,
   CancellationToken,
   ProgressInfo,
   UpdateCheckResult,
@@ -11,100 +10,41 @@ import {
   isStableDesktopVersion,
 } from "./desktop-version.js";
 import { createSafeLog } from "./safe-log.js";
+import {
+  advanceDownloadTransfer,
+  copyDesktopUpdateState,
+  desktopUpdateAutoInstallOnAppQuit,
+  isActiveOperation,
+  projectPhaseState,
+  type ActiveOperationPhase,
+  type CheckingPhase,
+  type ControllerPhase,
+  type DesktopAutoUpdater,
+  type DesktopNativeUpdateSource,
+  type DesktopUpdateController,
+  type DesktopUpdateState,
+  type DownloadingPhase,
+  type InstallHandoff,
+  type PreparingPhase,
+  type TimerHandle,
+} from "./update-state-machine.js";
 import type {
   DesktopUpdateVersionFloor,
   DesktopUpdateVersionFloorResult,
 } from "./update-version-floor.js";
 
-export type DesktopUpdateState =
-  | { readonly status: "disabled" }
-  | { readonly status: "idle" }
-  | { readonly status: "checking" }
-  | { readonly status: "current" }
-  | { readonly status: "downloading"; readonly version: string }
-  | { readonly status: "downloaded"; readonly version: string }
-  | { readonly status: "installing"; readonly version: string }
-  | { readonly status: "restart-required"; readonly stage: "check" | "download" }
-  | { readonly status: "failed"; readonly stage: "check" | "download" };
-
-export type DesktopAutoUpdater = Pick<
-  AppUpdater,
-  | "logger"
-  | "autoDownload"
-  | "autoInstallOnAppQuit"
-  | "autoRunAppAfterInstall"
-  | "allowPrerelease"
-  | "allowDowngrade"
-  | "disableWebInstaller"
-  | "on"
-  | "off"
-  | "checkForUpdates"
-  | "downloadUpdate"
-  | "quitAndInstall"
->;
-
-export interface DesktopNativeUpdateSource {
-  on(event: "update-downloaded", listener: () => void): unknown;
-  on(event: "error", listener: (error: unknown) => void): unknown;
-  off(event: "update-downloaded", listener: () => void): unknown;
-  off(event: "error", listener: (error: unknown) => void): unknown;
-}
-
-export interface DesktopUpdateController {
-  readonly state: () => DesktopUpdateState;
-  readonly start: () => Promise<void>;
-  readonly check: () => Promise<DesktopUpdateState>;
-  readonly restart: () => DesktopUpdateState;
-  readonly subscribe: (listener: (state: DesktopUpdateState) => void) => () => void;
-  readonly completeInstallAfterDrain: (
-    allowFinalQuit: () => void,
-  ) => "started" | "not-requested" | "failed";
-  readonly close: () => void;
-}
-
-interface TimerHandle {
-  unref(): void;
-}
-
-interface UpdateOperation {
-  readonly generation: number;
-  readonly promise: Promise<DesktopUpdateState>;
-  readonly resolve: (state: DesktopUpdateState) => void;
-  stage: "check" | "download";
-  settled: boolean;
-  pendingCalls: number;
-  targetVersion?: string;
-  cancellationToken?: CancellationToken;
-  lastTransferred: number;
-  zipReady: boolean;
-  nativeReady: boolean;
-  checkTimer?: TimerHandle;
-  downloadStallTimer?: TimerHandle;
-  downloadAbsoluteTimer?: TimerHandle;
-  preparationTimer?: TimerHandle;
-  errorListener?: () => void;
-  progressListener?: (info: ProgressInfo) => void;
-  downloadedListener?: (event: UpdateDownloadedEvent) => void;
-  nativeDownloadedListener?: () => void;
-  nativeErrorListener?: (error: unknown) => void;
-}
+export { copyDesktopUpdateState, desktopUpdateAutoInstallOnAppQuit };
+export type {
+  DesktopAutoUpdater,
+  DesktopNativeUpdateSource,
+  DesktopUpdateController,
+  DesktopUpdateState,
+};
 
 export const DESKTOP_UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 export const DESKTOP_UPDATE_CHECK_TIMEOUT_MS = 2 * 60 * 1_000;
 export const DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS = 2 * 60 * 1_000;
 export const DESKTOP_UPDATE_DOWNLOAD_ABSOLUTE_TIMEOUT_MS = 60 * 60 * 1_000;
-
-export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdateState {
-  if ("version" in state) return { status: state.status, version: state.version };
-  if (state.status === "failed" || state.status === "restart-required") {
-    return { status: state.status, stage: state.stage };
-  }
-  return { status: state.status };
-}
-
-export function desktopUpdateAutoInstallOnAppQuit(platform: NodeJS.Platform): boolean {
-  return platform === "darwin";
-}
 
 export function createDesktopUpdateController(input: {
   readonly releaseEligible: boolean;
@@ -137,366 +77,428 @@ export function createDesktopUpdateController(input: {
   const unscheduleTimeout =
     input.clearTimeout ??
     ((handle) => globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>));
-  let state: DesktopUpdateState = active ? { status: "idle" } : { status: "disabled" };
+  const log = createSafeLog(input.log);
+
+  let phase: ControllerPhase = active ? { kind: "idle", status: "idle" } : { kind: "disabled" };
   let updater: DesktopAutoUpdater | undefined;
   let intervalTimer: TimerHandle | undefined;
   let started = false;
-  let closed = false;
   let generation = 0;
-  let activeOperation: UpdateOperation | undefined;
-  let installRequested = false;
-  let installInvoked = false;
-  let readinessInvalidated = false;
-  let readinessErrorListener: ((error: unknown) => void) | undefined;
   let floorVersion: string | undefined;
   let updaterInitialization: Promise<boolean> | undefined;
-  const log = createSafeLog(input.log);
+
+  const runQuietly = (action: () => void, diagnostic: string): void => {
+    try {
+      action();
+    } catch {
+      log(diagnostic);
+    }
+  };
+
+  const currentState = (): DesktopUpdateState => copyDesktopUpdateState(projectPhaseState(phase));
 
   const publish = (next: DesktopUpdateState): void => {
-    if (closed) return;
-    state = copyDesktopUpdateState(next);
+    if (phase.kind === "closed") return;
+    const snapshot = copyDesktopUpdateState(next);
     for (const listener of listeners) {
-      try {
-        listener(copyDesktopUpdateState(state));
-      } catch {}
+      runQuietly(
+        () => listener(copyDesktopUpdateState(snapshot)),
+        "desktop-update-listener-failed",
+      );
     }
   };
 
   const canCheck = (): boolean =>
-    !closed &&
     active &&
-    !["downloading", "downloaded", "installing", "restart-required"].includes(state.status);
-  const isCurrent = (operation: UpdateOperation): boolean =>
-    !closed && activeOperation === operation && operation.generation === generation;
-  const currentState = (): DesktopUpdateState => copyDesktopUpdateState(state);
-  const clearOperationTimer = (
-    operation: UpdateOperation,
-    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer" | "preparationTimer",
-  ): void => {
-    const handle = operation[key];
-    if (handle === undefined) return;
-    try {
-      unscheduleTimeout(handle);
-    } catch {}
-    operation[key] = undefined;
-  };
-  const scheduleOperationTimer = (
-    operation: UpdateOperation,
-    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer" | "preparationTimer",
-    callback: () => void,
-    timeout: number,
-  ): void => {
-    clearOperationTimer(operation, key);
-    const handle = scheduleTimeout(callback, timeout);
-    operation[key] = handle;
-    handle.unref();
-  };
-  const removeOperationListeners = (operation: UpdateOperation): void => {
-    if (updater === undefined) return;
-    if (operation.errorListener !== undefined) {
-      try {
-        updater.off("error", operation.errorListener);
-      } catch {}
-      operation.errorListener = undefined;
+    phase.kind !== "closed" &&
+    phase.kind !== "downloading" &&
+    phase.kind !== "preparing" &&
+    phase.kind !== "ready" &&
+    phase.kind !== "installing" &&
+    phase.kind !== "restart-required";
+
+  const isCurrent = (expectedGeneration: number): boolean =>
+    phase.kind !== "closed" &&
+    isActiveOperation(phase) &&
+    phase.generation === expectedGeneration &&
+    expectedGeneration === generation;
+
+  const clearTimer = (handle: TimerHandle | undefined): undefined => {
+    if (handle !== undefined) {
+      runQuietly(() => unscheduleTimeout(handle), "desktop-update-timer-cleanup-failed");
     }
-    if (operation.progressListener !== undefined) {
-      try {
-        updater.off("download-progress", operation.progressListener);
-      } catch {}
-      operation.progressListener = undefined;
-    }
-    if (operation.downloadedListener !== undefined) {
-      try {
-        updater.off("update-downloaded", operation.downloadedListener);
-      } catch {}
-      operation.downloadedListener = undefined;
-    }
-    if (nativeUpdater !== undefined && operation.nativeDownloadedListener !== undefined) {
-      try {
-        nativeUpdater.off("update-downloaded", operation.nativeDownloadedListener);
-      } catch {}
-      operation.nativeDownloadedListener = undefined;
-    }
-    if (nativeUpdater !== undefined && operation.nativeErrorListener !== undefined) {
-      try {
-        nativeUpdater.off("error", operation.nativeErrorListener);
-      } catch {}
-      operation.nativeErrorListener = undefined;
-    }
-  };
-  const detachReadinessWatch = (): void => {
-    if (nativeUpdater === undefined || readinessErrorListener === undefined) return;
-    try {
-      nativeUpdater.off("error", readinessErrorListener);
-    } catch {}
-    readinessErrorListener = undefined;
-  };
-  const armReadinessWatch = (): void => {
-    if (!requiresNativePreparation || nativeUpdater === undefined) return;
-    detachReadinessWatch();
-    readinessErrorListener = (): void => {
-      readinessInvalidated = true;
-      log("desktop-update-readiness-invalidated");
-      if (!closed && !installRequested && state.status === "downloaded") {
-        publish({ status: "failed", stage: "download" });
-      }
-      detachReadinessWatch();
-    };
-    nativeUpdater.on("error", readinessErrorListener);
-  };
-  const releaseOperationIfIdle = (operation: UpdateOperation): void => {
-    if (
-      operation.pendingCalls === 0 &&
-      operation.generation !== generation &&
-      activeOperation === operation
-    ) {
-      activeOperation = undefined;
-    }
-  };
-  const settleOperation = (operation: UpdateOperation): void => {
-    if (operation.settled) return;
-    operation.settled = true;
-    operation.resolve(currentState());
-  };
-  const finishOperation = (
-    operation: UpdateOperation,
-    cancel: boolean,
-    detachPending = false,
-  ): void => {
-    clearOperationTimer(operation, "checkTimer");
-    clearOperationTimer(operation, "downloadStallTimer");
-    clearOperationTimer(operation, "downloadAbsoluteTimer");
-    clearOperationTimer(operation, "preparationTimer");
-    removeOperationListeners(operation);
-    if (cancel) {
-      try {
-        operation.cancellationToken?.cancel();
-      } catch {}
-    }
-    settleOperation(operation);
-    if (isCurrent(operation)) generation += 1;
-    if (detachPending && activeOperation === operation) {
-      activeOperation = undefined;
-      return;
-    }
-    releaseOperationIfIdle(operation);
-  };
-  const failOperation = (operation: UpdateOperation, stage: "check" | "download"): void => {
-    if (!isCurrent(operation)) return;
-    publish({ status: "failed", stage });
-    finishOperation(operation, true);
-  };
-  const expireOperation = (operation: UpdateOperation, stage: "check" | "download"): void => {
-    if (!isCurrent(operation)) return;
-    publish({ status: "restart-required", stage });
-    finishOperation(operation, true, true);
-  };
-  const operationCallSettled = (operation: UpdateOperation): void => {
-    operation.pendingCalls -= 1;
-    releaseOperationIfIdle(operation);
-  };
-  const publishIfReady = (operation: UpdateOperation): boolean => {
-    if (!isCurrent(operation) || operation.targetVersion === undefined || !operation.zipReady) {
-      return false;
-    }
-    if (requiresNativePreparation && !operation.nativeReady) return false;
-    clearOperationTimer(operation, "preparationTimer");
-    readinessInvalidated = false;
-    publish({ status: "downloaded", version: operation.targetVersion });
-    finishOperation(operation, false);
-    armReadinessWatch();
-    return true;
-  };
-  const noteZipReady = (operation: UpdateOperation): void => {
-    if (!isCurrent(operation)) return;
-    operation.zipReady = true;
-    clearOperationTimer(operation, "downloadStallTimer");
-    if (publishIfReady(operation) || !requiresNativePreparation || operation.nativeReady) return;
-    scheduleOperationTimer(
-      operation,
-      "preparationTimer",
-      () => {
-        log("desktop-update-preparation-timeout");
-        expireOperation(operation, "download");
-      },
-      DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
-    );
-  };
-  const resetDownloadStallTimer = (operation: UpdateOperation): void => {
-    scheduleOperationTimer(
-      operation,
-      "downloadStallTimer",
-      () => expireOperation(operation, "download"),
-      DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
-    );
-  };
-  const beginDownload = (operation: UpdateOperation, result: UpdateCheckResult): void => {
-    if (!isCurrent(operation)) {
-      try {
-        result.cancellationToken?.cancel();
-      } catch {}
-      return;
-    }
-    const version = result.updateInfo.version;
-    operation.stage = "download";
-    operation.targetVersion = version;
-    operation.cancellationToken = result.cancellationToken;
-    operation.lastTransferred = 0;
-    clearOperationTimer(operation, "checkTimer");
-    publish({ status: "downloading", version });
-    operation.progressListener = (info): void => {
-      if (
-        !isCurrent(operation) ||
-        operation.stage !== "download" ||
-        operation.zipReady ||
-        !Number.isFinite(info.transferred) ||
-        info.transferred <= operation.lastTransferred
-      ) {
-        return;
-      }
-      operation.lastTransferred = info.transferred;
-      resetDownloadStallTimer(operation);
-    };
-    operation.downloadedListener = (event): void => {
-      if (!isCurrent(operation) || operation.stage !== "download") return;
-      if (event.version !== operation.targetVersion) {
-        failOperation(operation, "download");
-        return;
-      }
-      noteZipReady(operation);
-    };
-    if (requiresNativePreparation) {
-      if (nativeUpdater === undefined) {
-        log("desktop-update-native-readiness-unavailable");
-        failOperation(operation, "download");
-        return;
-      }
-      operation.nativeDownloadedListener = (): void => {
-        if (!isCurrent(operation) || operation.stage !== "download") return;
-        operation.nativeReady = true;
-        clearOperationTimer(operation, "preparationTimer");
-        publishIfReady(operation);
-      };
-      operation.nativeErrorListener = (): void => {
-        if (!isCurrent(operation)) return;
-        log("desktop-update-native-rejected");
-        failOperation(operation, "download");
-      };
-      nativeUpdater.on("update-downloaded", operation.nativeDownloadedListener);
-      nativeUpdater.on("error", operation.nativeErrorListener);
-    }
-    updater!.on("download-progress", operation.progressListener);
-    updater!.on("update-downloaded", operation.downloadedListener);
-    resetDownloadStallTimer(operation);
-    scheduleOperationTimer(
-      operation,
-      "downloadAbsoluteTimer",
-      () => expireOperation(operation, "download"),
-      DESKTOP_UPDATE_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
-    );
-    operation.pendingCalls += 1;
-    let download: Promise<readonly string[]>;
-    try {
-      download = updater!.downloadUpdate(operation.cancellationToken);
-    } catch {
-      operationCallSettled(operation);
-      failOperation(operation, "download");
-      return;
-    }
-    void download
-      .then(
-        () => operationCallSettled(operation),
-        () => {
-          operationCallSettled(operation);
-          failOperation(operation, "download");
-        },
-      )
-      .catch(() => failOperation(operation, "download"));
+    return undefined;
   };
 
-  const runCheck = (): Promise<DesktopUpdateState> => {
-    if (activeOperation !== undefined) return activeOperation.promise;
-    if (!canCheck() || updater === undefined) return Promise.resolve(currentState());
-    let resolveOperation!: (state: DesktopUpdateState) => void;
-    const operation: UpdateOperation = {
-      generation: ++generation,
-      promise: new Promise((resolve) => {
-        resolveOperation = resolve;
-      }),
-      resolve: (next) => resolveOperation(copyDesktopUpdateState(next)),
-      stage: "check",
-      settled: false,
-      pendingCalls: 1,
-      lastTransferred: 0,
-      zipReady: false,
-      nativeReady: !requiresNativePreparation,
+  const startTimer = (callback: () => void, timeout: number): TimerHandle => {
+    const handle = scheduleTimeout(callback, timeout);
+    handle.unref();
+    return handle;
+  };
+
+  const isClosed = (): boolean => phase.kind === "closed";
+
+  const detachUpdaterError = (listener: (() => void) | undefined): undefined => {
+    if (updater !== undefined && listener !== undefined) {
+      runQuietly(() => updater?.off("error", listener), "desktop-update-error-detach-failed");
+    }
+    return undefined;
+  };
+
+  const detachUpdaterProgress = (
+    listener: ((info: ProgressInfo) => void) | undefined,
+  ): undefined => {
+    if (updater !== undefined && listener !== undefined) {
+      runQuietly(
+        () => updater?.off("download-progress", listener),
+        "desktop-update-download-progress-detach-failed",
+      );
+    }
+    return undefined;
+  };
+
+  const detachUpdaterDownloaded = (
+    listener: ((event: UpdateDownloadedEvent) => void) | undefined,
+  ): undefined => {
+    if (updater !== undefined && listener !== undefined) {
+      runQuietly(
+        () => updater?.off("update-downloaded", listener),
+        "desktop-update-update-downloaded-detach-failed",
+      );
+    }
+    return undefined;
+  };
+
+  const detachNativeDownloaded = (listener: (() => void) | undefined): undefined => {
+    if (nativeUpdater !== undefined && listener !== undefined) {
+      runQuietly(
+        () => nativeUpdater.off("update-downloaded", listener),
+        "desktop-update-native-update-downloaded-detach-failed",
+      );
+    }
+    return undefined;
+  };
+
+  const detachNativeError = (listener: ((error: unknown) => void) | undefined): undefined => {
+    if (nativeUpdater !== undefined && listener !== undefined) {
+      runQuietly(
+        () => nativeUpdater.off("error", listener),
+        "desktop-update-native-error-detach-failed",
+      );
+    }
+    return undefined;
+  };
+
+  const clearPeriodicCheck = (): void => {
+    if (intervalTimer === undefined) return;
+    const handle = intervalTimer;
+    intervalTimer = undefined;
+    runQuietly(() => unscheduleInterval(handle), "desktop-update-interval-cleanup-failed");
+  };
+
+  const ensurePeriodicCheckScheduled = (): void => {
+    if (!active || phase.kind === "closed" || intervalTimer !== undefined) return;
+    const handle = scheduleInterval(() => {
+      void check();
+    }, DESKTOP_UPDATE_INTERVAL_MS);
+    intervalTimer = handle;
+    handle.unref();
+  };
+
+  const cleanupOperationResources = (
+    operation: ActiveOperationPhase,
+    cancel: boolean,
+    extraToken?: CancellationToken,
+  ): void => {
+    operation.errorListener = detachUpdaterError(operation.errorListener);
+    if (operation.kind === "checking") {
+      operation.checkTimer = clearTimer(operation.checkTimer);
+    } else if (operation.kind === "downloading") {
+      operation.stallTimer = clearTimer(operation.stallTimer);
+      operation.absoluteTimer = clearTimer(operation.absoluteTimer);
+      operation.progressListener = detachUpdaterProgress(operation.progressListener);
+      operation.downloadedListener = detachUpdaterDownloaded(operation.downloadedListener);
+    } else {
+      operation.preparationTimer = clearTimer(operation.preparationTimer);
+      operation.absoluteTimer = clearTimer(operation.absoluteTimer);
+      operation.nativeDownloadedListener = detachNativeDownloaded(
+        operation.nativeDownloadedListener,
+      );
+      operation.nativeErrorListener = detachNativeError(operation.nativeErrorListener);
+    }
+    if (cancel) {
+      const token =
+        extraToken ?? (operation.kind !== "checking" ? operation.cancellationToken : undefined);
+      if (token !== undefined) runQuietly(() => token.cancel(), "desktop-update-cancel-failed");
+    }
+  };
+
+  const failHandoff = (handoff: InstallHandoff, invalidateReadiness: boolean): void => {
+    if (invalidateReadiness) handoff.readinessInvalidated = true;
+    handoff.readinessErrorListener = detachNativeError(handoff.readinessErrorListener);
+    handoff.installErrorListener = detachUpdaterError(handoff.installErrorListener);
+    const notify = handoff.status === "started" ? handoff.onInstallError : undefined;
+    handoff.onInstallError = undefined;
+    handoff.status = "failed";
+    notify?.();
+  };
+
+  const finishActivePhase = (
+    expectedGeneration: number,
+    nextPhase: ControllerPhase,
+    options: {
+      readonly cancel: boolean;
+      readonly extraToken?: CancellationToken;
+      readonly beforePublish?: () => void;
+    },
+  ): void => {
+    if (!isCurrent(expectedGeneration) || !isActiveOperation(phase)) return;
+    const operation = phase;
+    cleanupOperationResources(operation, options.cancel, options.extraToken);
+    generation += 1;
+    phase = nextPhase;
+    if (nextPhase.kind === "restart-required") clearPeriodicCheck();
+    options.beforePublish?.();
+    const published = currentState();
+    publish(published);
+    operation.resolve(published);
+  };
+
+  const failOperation = (
+    expectedGeneration: number,
+    stage: "check" | "download",
+    extraToken?: CancellationToken,
+  ): void => {
+    finishActivePhase(expectedGeneration, { kind: "failed", stage }, { cancel: true, extraToken });
+  };
+
+  const expireOperation = (expectedGeneration: number, stage: "check" | "download"): void => {
+    finishActivePhase(expectedGeneration, { kind: "restart-required", stage }, { cancel: true });
+  };
+
+  const armReadinessWatch = (): void => {
+    if (!requiresNativePreparation || nativeUpdater === undefined || phase.kind !== "ready") return;
+    const readyPhase = phase;
+    readyPhase.readinessErrorListener = detachNativeError(readyPhase.readinessErrorListener);
+    const listener = (): void => {
+      log("desktop-update-readiness-invalidated");
+      detachNativeError(listener);
+      if (phase.kind === "ready" && phase.readinessErrorListener === listener) {
+        phase.readinessErrorListener = undefined;
+        phase = { kind: "failed", stage: "download" };
+        publish(currentState());
+        return;
+      }
+      const handoff = activeHandoff();
+      if (handoff !== undefined && handoff.readinessErrorListener === listener) {
+        failHandoff(handoff, true);
+      }
     };
-    activeOperation = operation;
-    publish({ status: "checking" });
-    operation.errorListener = (): void => failOperation(operation, operation.stage);
-    updater.on("error", operation.errorListener);
-    scheduleOperationTimer(
-      operation,
-      "checkTimer",
-      () => expireOperation(operation, "check"),
+    readyPhase.readinessErrorListener = listener;
+    nativeUpdater.on("error", listener);
+  };
+
+  const publishReady = (expectedGeneration: number, version: string): void => {
+    finishActivePhase(
+      expectedGeneration,
+      { kind: "ready", version },
+      { cancel: false, beforePublish: armReadinessWatch },
+    );
+  };
+
+  const enterPreparing = (expectedGeneration: number): void => {
+    if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") return;
+    const downloading = phase;
+    if (!requiresNativePreparation) {
+      publishReady(expectedGeneration, downloading.version);
+      return;
+    }
+    if (nativeUpdater === undefined) {
+      log("desktop-update-native-readiness-unavailable");
+      failOperation(expectedGeneration, "download");
+      return;
+    }
+    downloading.stallTimer = clearTimer(downloading.stallTimer);
+    downloading.progressListener = detachUpdaterProgress(downloading.progressListener);
+    downloading.downloadedListener = detachUpdaterDownloaded(downloading.downloadedListener);
+    const preparing: PreparingPhase = {
+      kind: "preparing",
+      generation: downloading.generation,
+      version: downloading.version,
+      promise: downloading.promise,
+      resolve: downloading.resolve,
+      cancellationToken: downloading.cancellationToken,
+      absoluteTimer: downloading.absoluteTimer,
+      errorListener: downloading.errorListener,
+    };
+    phase = preparing;
+    preparing.nativeDownloadedListener = (): void => {
+      if (!isCurrent(expectedGeneration) || phase.kind !== "preparing") return;
+      publishReady(expectedGeneration, phase.version);
+    };
+    preparing.nativeErrorListener = (): void => {
+      if (!isCurrent(expectedGeneration) || phase.kind !== "preparing") return;
+      log("desktop-update-native-rejected");
+      failOperation(expectedGeneration, "download");
+    };
+    nativeUpdater.on("update-downloaded", preparing.nativeDownloadedListener);
+    nativeUpdater.on("error", preparing.nativeErrorListener);
+    preparing.preparationTimer = startTimer(() => {
+      if (!isCurrent(expectedGeneration)) return;
+      log("desktop-update-preparation-timeout");
+      expireOperation(expectedGeneration, "download");
+    }, DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS);
+  };
+
+  const resetDownloadStallTimer = (downloading: DownloadingPhase): void => {
+    downloading.stallTimer = clearTimer(downloading.stallTimer);
+    downloading.stallTimer = startTimer(
+      () => expireOperation(downloading.generation, "download"),
+      DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
+    );
+  };
+
+  const beginDownload = (
+    expectedGeneration: number,
+    activeUpdater: DesktopAutoUpdater,
+    result: UpdateCheckResult,
+  ): void => {
+    if (!isCurrent(expectedGeneration) || phase.kind !== "checking") {
+      if (result.cancellationToken !== undefined) {
+        runQuietly(() => result.cancellationToken?.cancel(), "desktop-update-cancel-failed");
+      }
+      return;
+    }
+    if (requiresNativePreparation && nativeUpdater === undefined) {
+      log("desktop-update-native-readiness-unavailable");
+      failOperation(expectedGeneration, "download", result.cancellationToken);
+      return;
+    }
+    const checking = phase;
+    checking.checkTimer = clearTimer(checking.checkTimer);
+    checking.errorListener = detachUpdaterError(checking.errorListener);
+    const downloading: DownloadingPhase = {
+      kind: "downloading",
+      generation: checking.generation,
+      version: result.updateInfo.version,
+      promise: checking.promise,
+      resolve: checking.resolve,
+      cancellationToken: result.cancellationToken,
+      lastTransferred: 0,
+    };
+    phase = downloading;
+    publish(currentState());
+    if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") {
+      if (!isClosed() && result.cancellationToken !== undefined) {
+        runQuietly(() => result.cancellationToken?.cancel(), "desktop-update-cancel-failed");
+      }
+      return;
+    }
+    downloading.errorListener = (): void => failOperation(expectedGeneration, "download");
+    downloading.progressListener = (info): void => {
+      if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") return;
+      if (advanceDownloadTransfer(downloading, info)) resetDownloadStallTimer(downloading);
+    };
+    downloading.downloadedListener = (event): void => {
+      if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") return;
+      if (event.version !== downloading.version) {
+        failOperation(expectedGeneration, "download");
+        return;
+      }
+      enterPreparing(expectedGeneration);
+    };
+    activeUpdater.on("error", downloading.errorListener);
+    activeUpdater.on("download-progress", downloading.progressListener);
+    activeUpdater.on("update-downloaded", downloading.downloadedListener);
+    resetDownloadStallTimer(downloading);
+    downloading.absoluteTimer = startTimer(
+      () => expireOperation(expectedGeneration, "download"),
+      DESKTOP_UPDATE_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
+    );
+    let download: Promise<readonly string[]>;
+    try {
+      download = activeUpdater.downloadUpdate(downloading.cancellationToken);
+    } catch {
+      failOperation(expectedGeneration, "download");
+      return;
+    }
+    void download.then(
+      () => undefined,
+      () => failOperation(expectedGeneration, "download"),
+    );
+  };
+
+  const runCheck = (activeUpdater: DesktopAutoUpdater): Promise<DesktopUpdateState> => {
+    if (isActiveOperation(phase)) return phase.promise;
+    if (!canCheck()) return Promise.resolve(currentState());
+    let resolveOperation!: (state: DesktopUpdateState) => void;
+    const promise = new Promise<DesktopUpdateState>((resolve) => {
+      resolveOperation = resolve;
+    });
+    const operationGeneration = ++generation;
+    const checking: CheckingPhase = {
+      kind: "checking",
+      generation: operationGeneration,
+      promise,
+      resolve: (next) => resolveOperation(copyDesktopUpdateState(next)),
+    };
+    phase = checking;
+    publish(currentState());
+    if (!isCurrent(operationGeneration) || phase.kind !== "checking") return promise;
+    checking.errorListener = (): void => failOperation(operationGeneration, "check");
+    activeUpdater.on("error", checking.errorListener);
+    checking.checkTimer = startTimer(
+      () => expireOperation(operationGeneration, "check"),
       DESKTOP_UPDATE_CHECK_TIMEOUT_MS,
     );
     let pending: Promise<UpdateCheckResult | null>;
     try {
-      pending = updater.checkForUpdates();
+      pending = activeUpdater.checkForUpdates();
     } catch {
-      operationCallSettled(operation);
-      failOperation(operation, "check");
-      return operation.promise;
+      failOperation(operationGeneration, "check");
+      return promise;
     }
-    void pending
-      .then(
-        (result) => {
-          operationCallSettled(operation);
-          if (!isCurrent(operation)) {
-            try {
-              result?.cancellationToken?.cancel();
-            } catch {}
-            return;
+    void pending.then(
+      (result) => {
+        if (!isCurrent(operationGeneration) || phase.kind !== "checking") {
+          if (result?.cancellationToken !== undefined) {
+            runQuietly(() => result.cancellationToken?.cancel(), "desktop-update-cancel-failed");
           }
-          const version = result?.updateInfo.version;
-          if (
-            result?.isUpdateAvailable !== true ||
-            !isStableDesktopVersion(version) ||
-            !isDesktopUpdateAvailable(version, input.currentVersion)
-          ) {
-            publish({ status: "current" });
-            finishOperation(operation, false);
-            return;
-          }
-          if (floorVersion === undefined) {
-            operation.cancellationToken = result.cancellationToken;
-            log("desktop-update-version-floor-unavailable");
-            publish({ status: "failed", stage: "check" });
-            finishOperation(operation, true);
-            return;
-          }
-          const floorComparison = compareDesktopVersions(version, floorVersion);
-          if (floorComparison === null || floorComparison < 0) {
-            operation.cancellationToken = result.cancellationToken;
-            log(`desktop-update-downgrade-refused candidate=${version} floor=${floorVersion}`);
-            publish({ status: "failed", stage: "check" });
-            finishOperation(operation, true);
-            return;
-          }
-          beginDownload(operation, result);
-        },
-        () => {
-          operationCallSettled(operation);
-          failOperation(operation, "check");
-        },
-      )
-      .catch(() => failOperation(operation, "check"));
-    return operation.promise;
+          return;
+        }
+        const version = result?.updateInfo.version;
+        if (
+          result?.isUpdateAvailable !== true ||
+          !isStableDesktopVersion(version) ||
+          !isDesktopUpdateAvailable(version, input.currentVersion)
+        ) {
+          finishActivePhase(
+            operationGeneration,
+            { kind: "idle", status: "current" },
+            { cancel: false },
+          );
+          return;
+        }
+        if (floorVersion === undefined) {
+          log("desktop-update-version-floor-unavailable");
+          failOperation(operationGeneration, "check", result.cancellationToken);
+          return;
+        }
+        const floorComparison = compareDesktopVersions(version, floorVersion);
+        if (floorComparison === null || floorComparison < 0) {
+          log(`desktop-update-downgrade-refused candidate=${version} floor=${floorVersion}`);
+          failOperation(operationGeneration, "check", result.cancellationToken);
+          return;
+        }
+        beginDownload(operationGeneration, activeUpdater, result);
+      },
+      () => failOperation(operationGeneration, "check"),
+    );
+    return promise;
   };
 
   const initializeUpdater = (): Promise<boolean> => {
-    if (closed) return Promise.resolve(false);
+    if (phase.kind === "closed" || phase.kind === "restart-required") return Promise.resolve(false);
     if (updater !== undefined) return Promise.resolve(true);
     if (updaterInitialization !== undefined) return updaterInitialization;
     const attempt = (async (): Promise<boolean> => {
@@ -507,137 +509,155 @@ export function createDesktopUpdateController(input: {
         } catch {
           recordedFloor = { status: "unavailable" };
         }
-        if (closed) return false;
-        if (recordedFloor.status !== "ready") {
+        if (isClosed()) return false;
+        if (recordedFloor.status !== "ready" || !isStableDesktopVersion(recordedFloor.version)) {
           log("desktop-update-version-floor-unavailable");
-          if (active) publish({ status: "failed", stage: "check" });
-          return false;
-        }
-        if (!isStableDesktopVersion(recordedFloor.version)) {
-          log("desktop-update-version-floor-unavailable");
-          if (active) publish({ status: "failed", stage: "check" });
+          if (active) {
+            runQuietly(ensurePeriodicCheckScheduled, "desktop-update-interval-schedule-failed");
+            phase = { kind: "failed", stage: "check" };
+            publish(currentState());
+          }
           return false;
         }
         floorVersion = recordedFloor.version;
       }
       if (!active) return false;
+      let loaded: DesktopAutoUpdater;
       try {
-        updater = await input.loadUpdater();
+        loaded = await input.loadUpdater();
       } catch {
-        if (!closed) publish({ status: "restart-required", stage: "check" });
-        return false;
-      }
-      if (closed) return false;
-      try {
-        updater.logger = null;
-        updater.autoDownload = false;
-        updater.autoInstallOnAppQuit = desktopUpdateAutoInstallOnAppQuit(platform);
-        updater.autoRunAppAfterInstall = true;
-        updater.allowPrerelease = false;
-        updater.allowDowngrade = false;
-        updater.disableWebInstaller = true;
-        intervalTimer = scheduleInterval(() => {
-          void check();
-        }, DESKTOP_UPDATE_INTERVAL_MS);
-        intervalTimer.unref();
-      } catch {
-        if (intervalTimer !== undefined) {
-          try {
-            unscheduleInterval(intervalTimer);
-          } catch {}
-          intervalTimer = undefined;
+        clearPeriodicCheck();
+        if (!isClosed()) {
+          phase = { kind: "restart-required", stage: "check" };
+          publish(currentState());
         }
-        if (!closed) publish({ status: "failed", stage: "check" });
         return false;
       }
+      if (isClosed()) return false;
+      try {
+        loaded.logger = null;
+        loaded.autoDownload = false;
+        loaded.autoInstallOnAppQuit = desktopUpdateAutoInstallOnAppQuit(platform);
+        loaded.autoRunAppAfterInstall = true;
+        loaded.allowPrerelease = false;
+        loaded.allowDowngrade = false;
+        loaded.disableWebInstaller = true;
+        ensurePeriodicCheckScheduled();
+      } catch {
+        clearPeriodicCheck();
+        if (!isClosed()) {
+          phase = { kind: "failed", stage: "check" };
+          publish(currentState());
+          runQuietly(ensurePeriodicCheckScheduled, "desktop-update-interval-schedule-failed");
+        }
+        return false;
+      }
+      updater = loaded;
       return true;
     })();
     updaterInitialization = attempt;
-    void attempt.then(
-      () => {
-        if (updaterInitialization === attempt) updaterInitialization = undefined;
-      },
-      () => {
-        if (updaterInitialization === attempt) updaterInitialization = undefined;
-      },
-    );
+    void attempt.finally(() => {
+      if (updaterInitialization === attempt) updaterInitialization = undefined;
+    });
     return attempt;
   };
 
   const check = (): Promise<DesktopUpdateState> => {
-    if (activeOperation !== undefined) return activeOperation.promise;
+    if (isActiveOperation(phase)) return phase.promise;
     if (!canCheck()) return Promise.resolve(currentState());
-    if (updater !== undefined) return runCheck();
-    return initializeUpdater().then((ready) => (ready ? runCheck() : currentState()));
+    if (updater !== undefined) return runCheck(updater);
+    return initializeUpdater().then((ready) =>
+      ready && updater !== undefined ? runCheck(updater) : currentState(),
+    );
   };
 
   const start = async (): Promise<void> => {
-    if (started || closed) return;
+    if (started || phase.kind === "closed") return;
     started = true;
-    if (!(await initializeUpdater())) return;
-    await runCheck();
+    if (!(await initializeUpdater()) || updater === undefined) return;
+    await runCheck(updater);
+  };
+
+  const activeHandoff = (): InstallHandoff | undefined => {
+    if (phase.kind === "installing") return phase;
+    if (phase.kind === "closed") return phase.installing;
+    return undefined;
   };
 
   return {
     state: () => currentState(),
     start,
     check,
+    isInstallRequested: () => activeHandoff() !== undefined,
     restart() {
-      if (closed || state.status !== "downloaded" || installRequested) {
-        return currentState();
-      }
-      installRequested = true;
-      publish({ status: "installing", version: state.version });
+      if (phase.kind !== "ready") return currentState();
+      const handoff: InstallHandoff = {
+        version: phase.version,
+        status: "pending",
+        readinessInvalidated: false,
+        readinessErrorListener: phase.readinessErrorListener,
+      };
+      phase = { kind: "installing", ...handoff };
+      publish(currentState());
       input.requestQuit();
       return currentState();
     },
     subscribe(listener) {
-      if (closed) return () => {};
-      if (active) listeners.add(listener);
-      try {
-        listener(currentState());
-      } catch {}
-      return active ? () => listeners.delete(listener) : () => {};
+      if (phase.kind !== "closed" && active) listeners.add(listener);
+      runQuietly(() => listener(currentState()), "desktop-update-listener-failed");
+      return () => {
+        listeners.delete(listener);
+      };
     },
-    completeInstallAfterDrain(allowFinalQuit) {
-      if (!installRequested || updater === undefined) return "not-requested";
-      if (readinessInvalidated) return "failed";
-      if (installInvoked) return "started";
-      installInvoked = true;
-      try {
-        allowFinalQuit();
-        updater.quitAndInstall(false, true);
-        return "started";
-      } catch {
+    completeInstallAfterDrain(allowFinalQuit, onInstallError) {
+      const handoff = activeHandoff();
+      if (handoff === undefined || updater === undefined) return "not-requested";
+      if (handoff.readinessInvalidated || handoff.status === "failed") {
+        failHandoff(handoff, false);
         return "failed";
       }
+      if (handoff.status === "started" || handoff.status === "invoking") return "started";
+      handoff.status = "invoking";
+      handoff.onInstallError = onInstallError;
+      const installErrorListener = (): void => {
+        failHandoff(handoff, false);
+      };
+      try {
+        handoff.installErrorListener = installErrorListener;
+        updater.on("error", installErrorListener);
+        allowFinalQuit();
+        updater.quitAndInstall(false, true);
+      } catch {
+        failHandoff(handoff, false);
+        return "failed";
+      }
+      if (handoff.status !== "invoking") return "failed";
+      handoff.status = "started";
+      return "started";
     },
     close() {
-      if (closed) return;
-      closed = true;
-      if (intervalTimer !== undefined) {
-        try {
-          unscheduleInterval(intervalTimer);
-        } catch {}
-        intervalTimer = undefined;
-      }
+      if (phase.kind === "closed") return;
+      const lastState = currentState();
+      clearPeriodicCheck();
       listeners.clear();
-      if (installRequested) return;
-      detachReadinessWatch();
-      const operation = activeOperation;
-      if (operation !== undefined) {
-        generation += 1;
-        clearOperationTimer(operation, "checkTimer");
-        clearOperationTimer(operation, "downloadStallTimer");
-        clearOperationTimer(operation, "downloadAbsoluteTimer");
-        clearOperationTimer(operation, "preparationTimer");
-        removeOperationListeners(operation);
-        try {
-          operation.cancellationToken?.cancel();
-        } catch {}
-        settleOperation(operation);
-        activeOperation = undefined;
+      if (phase.kind === "installing") {
+        phase = { kind: "closed", lastState, installing: phase };
+        return;
       }
+      if (phase.kind === "ready") {
+        phase.readinessErrorListener = detachNativeError(phase.readinessErrorListener);
+        phase = { kind: "closed", lastState };
+        return;
+      }
+      if (isActiveOperation(phase)) {
+        const operation = phase;
+        generation += 1;
+        cleanupOperationResources(operation, true);
+        phase = { kind: "closed", lastState };
+        operation.resolve(lastState);
+        return;
+      }
+      phase = { kind: "closed", lastState };
     },
   };
 }

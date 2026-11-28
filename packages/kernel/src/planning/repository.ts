@@ -479,6 +479,11 @@ ON CONFLICT (id) DO UPDATE SET
               input.planId,
             ],
           );
+          await store.run(
+            `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',updated_at_ms=?
+             WHERE plan_id=?`,
+            [input.updatedAtMs, input.planId],
+          );
         }
         await store.run(
           `INSERT INTO plan_reconciliation_job (

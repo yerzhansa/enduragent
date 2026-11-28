@@ -242,7 +242,7 @@ export const COVERED: readonly Covered[] = [
   { file: ANALYSIS, needle: "export function createRideAnalysisController(", kind: "block", models: "AthleteOpensAnalysis; AthleteChangesRide; CoachAnswersStaleAnalysis; AnalysisPassesSignal" },
   { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", models: "ChatDetectsProtocolFault (chat turn)" },
   { file: CHAT, needle: "const failProtocol = (): void =>", kind: "block", nth: 2, models: "ChatDetectsProtocolFault (decision turn)" },
-  { file: HEALTH, needle: "follow(coordinator, focusTarget) {", kind: "block", models: "ProviderReconnects (a refresh after every sync result and on focus)" },
+  { file: HEALTH, needle: "follow(coordinator, focusTarget) {", kind: "block", models: "ProviderReconnects (a refresh after every sync result, on focus, and on the sign-in recheck timer)" },
   { file: HEALTH, needle: "const refresh = async (): Promise<void> =>", kind: "block", models: "ProviderReconnects (getClient opens a fresh connection)" },
   { file: MANUAL_SYNC, needle: "export function toManualSyncViewState(", kind: "block", models: "Shown (what the sidebar says for each result)" },
   { file: TRAINING, needle: "const fetchState = (): Promise<void> =>", kind: "block", models: "TrainingRefreshLands; a failed refresh shows refresh-unavailable" },

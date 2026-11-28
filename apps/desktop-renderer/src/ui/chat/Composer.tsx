@@ -16,9 +16,9 @@ import {
 } from "react";
 import { Paperclip } from "lucide-react";
 import { filterSlashCommands } from "../../chat/commands";
+import { createDraftSaveTimer } from "../../chat/draft-save-timer";
 import { Button } from "@enduragent/ui";
 import { planChangePendingCheck, planChangePendingInLibrary } from "../../state/chat-slice";
-import { createDebouncedTask } from "../../state/chat-stream";
 import { useEnduragentStore } from "../../state/store";
 import { setupReady } from "../../state/onboarding-slice";
 import { SlashPopup } from "./SlashPopup";
@@ -26,11 +26,17 @@ import { SlashPopup } from "./SlashPopup";
 export interface ComposerHandle {
   focus(): void;
   reset(): void;
+  replace(text: string): void;
+  sending(): string | null;
 }
 
 export function Composer(props: {
   readonly handle: RefObject<ComposerHandle | null>;
   readonly draftMemory?: RefObject<string>;
+  readonly draftSetAside?: boolean;
+  readonly draftSetAsideRef?: RefObject<boolean>;
+  readonly planChangeDraftRevision?: number | null;
+  readonly onPlanChangeDraftSubmitted?: (revision: number) => string | null;
   readonly inputId?: string;
   readonly hidden?: boolean;
   readonly leadingAction?: ReactNode;
@@ -52,9 +58,10 @@ export function Composer(props: {
   const [selected, setSelected] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const inFlight = useRef<string | null>(null);
   const restoredRevision = useRef<string | null>(null);
   const latestDraft = useRef(props.draftMemory?.current ?? "");
-  const [draftSaveTimer] = useState(() => createDebouncedTask(300));
+  const [draftSaveTimer] = useState(createDraftSaveTimer);
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const changeCheckDocked = useEnduragentStore(
@@ -73,6 +80,8 @@ export function Composer(props: {
   actionsRef.current = actions;
   const surfaceRef = useRef(props.surface);
   surfaceRef.current = props.surface;
+  const draftSetAsidePropRef = useRef(props.draftSetAsideRef);
+  draftSetAsidePropRef.current = props.draftSetAsideRef;
   const chatReady = useEnduragentStore(setupReady);
   const attachmentSurface = useEnduragentStore((state) => state.chat.attachments);
   const attachmentIds =
@@ -97,7 +106,7 @@ export function Composer(props: {
   const active = selected < matches.length ? selected : 0;
 
   useEffect(() => {
-    if (props.surface !== undefined) return;
+    if (props.surface !== undefined || props.draftSetAside === true) return;
     const restored = attachmentSurface?.draft;
     if (restored === undefined || restored === null) return;
     const revision = `${restored.updatedAt}:${restored.text}`;
@@ -111,7 +120,7 @@ export function Composer(props: {
     latestDraft.current = restored.text;
     if (props.draftMemory !== undefined) props.draftMemory.current = restored.text;
     setDraft(restored.text);
-  }, [attachmentSurface, draftSaveTimer, props.draftMemory, props.surface]);
+  }, [attachmentSurface, draftSaveTimer, props.draftMemory, props.draftSetAside, props.surface]);
 
   useEffect(
     () => () => {
@@ -139,6 +148,17 @@ export function Composer(props: {
         setSelected(0);
         setDismissed(false);
       },
+      replace(text: string) {
+        draftSaveTimer.cancel();
+        const input = textarea.current;
+        if (input !== null) input.value = text;
+        latestDraft.current = text;
+        if (props.draftMemory !== undefined) props.draftMemory.current = text;
+        setDraft(text);
+        setSelected(0);
+        setDismissed(false);
+      },
+      sending: () => inFlight.current,
     }),
     [draftSaveTimer],
   );
@@ -146,6 +166,7 @@ export function Composer(props: {
   const persistDraft = (value: string): void => {
     if (
       surfaceRef.current === undefined &&
+      draftSetAsidePropRef.current?.current !== true &&
       useEnduragentStore.getState().chat.composerStatus === null
     ) {
       actionsRef.current?.saveAttachmentDraftText(value);
@@ -163,42 +184,53 @@ export function Composer(props: {
 
   const submit = async (): Promise<void> => {
     const input = textarea.current;
-    const chatActions = props.surface === undefined ? actions : null;
-    if (
-      input === null ||
-      sendDisabled ||
-      submitting ||
-      !canChat ||
-      (props.surface === undefined && chatActions === null)
-    ) {
-      return;
-    }
+    const surface = props.surface;
+    const send =
+      surface !== undefined
+        ? (value: string) => surface.submit(value)
+        : actions === null
+          ? null
+          : (value: string) =>
+              attachmentIds.length === 0
+                ? actions.submit(value)
+                : actions.submit(value, attachmentIds);
+    if (input === null || send === null || sendDisabled || submitting || !canChat) return;
     const value = input.value;
-    if (!/\S/u.test(value) && (props.surface !== undefined || attachmentIds.length === 0)) return;
+    if (!/\S/u.test(value) && (surface !== undefined || attachmentIds.length === 0)) return;
     draftSaveTimer.cancel();
-    if (chatActions !== null) chatActions.saveAttachmentDraftText(value);
+    const draftSetAside = props.draftSetAsideRef?.current === true;
+    const submittedPlanChangeRevision = props.planChangeDraftRevision ?? null;
+    if (surface === undefined && !draftSetAside) actions?.saveAttachmentDraftText(value);
     setSubmitting(true);
+    inFlight.current = value;
     try {
-      const acknowledged =
-        props.surface !== undefined
-          ? await props.surface.submit(value)
-          : chatActions === null
-            ? false
-            : attachmentIds.length === 0
-              ? await chatActions.submit(value)
-              : await chatActions.submit(value, attachmentIds);
+      const acknowledged = await send(value);
       if (!acknowledged) return;
+      const restored =
+        submittedPlanChangeRevision === null
+          ? null
+          : (props.onPlanChangeDraftSubmitted?.(submittedPlanChangeRevision) ?? null);
       if (input.value === value) {
-        input.value = "";
-        latestDraft.current = "";
-        if (props.draftMemory !== undefined) props.draftMemory.current = "";
-        setDraft("");
+        const next = restored ?? "";
+        input.value = next;
+        latestDraft.current = next;
+        if (
+          props.draftMemory !== undefined &&
+          (input === textarea.current || props.draftMemory.current === value)
+        ) {
+          props.draftMemory.current = next;
+        }
+        setDraft(next);
         setSelected(0);
         setDismissed(false);
+        if (surface === undefined && restored !== null) {
+          actions?.saveAttachmentDraftText(restored);
+        }
       }
     } catch {
       input.focus();
     } finally {
+      inFlight.current = null;
       setSubmitting(false);
     }
   };

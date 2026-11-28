@@ -7,6 +7,7 @@ import type { IntervalsCredentialMutationResult } from "./onboarding/bridge";
 import type { TrainingSyncCoordinator, TrainingSyncState } from "./training-sync";
 
 export const NOT_IN_USE_RECHECK_MS = 30_000;
+const SIGN_IN_RECHECK_MS = 60_000;
 
 export interface IntervalsSignInHealthStore {
   getState(): { setIntervalsSignInRejected(rejected: boolean): void };
@@ -34,6 +35,11 @@ function signInNotInUse(state: TrainingSyncState): boolean {
 
 function syncInProgress(state: TrainingSyncState): boolean {
   return state.status === "queued" || state.status === "running";
+}
+
+function recheckEveryMs(state: TrainingSyncState): number | undefined {
+  if (signInNotInUse(state)) return NOT_IN_USE_RECHECK_MS;
+  return syncInProgress(state) ? undefined : SIGN_IN_RECHECK_MS;
 }
 
 export function createIntervalsSignInHealth(
@@ -104,10 +110,18 @@ export function createIntervalsSignInHealth(
     follow(coordinator, focusTarget) {
       let notInUse = false;
       let requestedForKey = false;
-      let recheck: ReturnType<typeof setInterval> | undefined;
+      let recheck:
+        | { readonly every: number; readonly timer: ReturnType<typeof setInterval> }
+        | undefined;
       const stopRecheck = (): void => {
-        if (recheck !== undefined) clearInterval(recheck);
+        if (recheck !== undefined) clearInterval(recheck.timer);
         recheck = undefined;
+      };
+      const recheckEvery = (every: number | undefined): void => {
+        if (recheck?.every === every) return;
+        stopRecheck();
+        if (every === undefined) return;
+        recheck = { every, timer: setInterval(() => void refresh(), every) };
       };
       const onSnapshot = (snapshot: RuntimeConfigSnapshot): void => {
         if (!notInUse) return;
@@ -123,8 +137,7 @@ export function createIntervalsSignInHealth(
       const unsubscribe = coordinator.subscribe((state) => {
         notInUse = signInNotInUse(state);
         if (!notInUse && !syncInProgress(state)) requestedForKey = false;
-        if (!notInUse) stopRecheck();
-        else recheck ??= setInterval(() => void refresh(), NOT_IN_USE_RECHECK_MS);
+        recheckEvery(recheckEveryMs(state));
         if (state.status === "succeeded" || state.status === "failed") void refresh();
       });
       const onFocus = (): void => {

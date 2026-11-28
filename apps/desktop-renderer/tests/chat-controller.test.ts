@@ -95,13 +95,13 @@ function startTimingQuestion(): Extract<
     earliestAllowed: "1998-10-01",
     options: [
       {
-        timing: "as-soon-as-possible",
-        label: "As soon as possible",
-        detail: "Start at the earliest suitable week.",
+        timing: "first-day-of-week",
+        label: "First day of your week",
+        detail: "One calendar row is one Training Week.",
       },
-      { timing: "earliest", label: "From a date", detail: "Set an earliest date." },
+      { timing: "earliest", label: "Pick another day", detail: "Start on that day." },
     ],
-    dateLabel: "Earliest start date",
+    dateLabel: "Plan starts",
   };
 }
 

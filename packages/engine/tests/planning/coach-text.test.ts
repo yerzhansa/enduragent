@@ -19,6 +19,7 @@ interface World {
   readonly replies: number;
   readonly asks: number;
   readonly model: "up" | "down";
+  readonly spentOnOpenAfterModelFailure: boolean;
 }
 
 const THURSDAY: CoachTextMatch = { kind: "workout", planWorkoutId: "thu" };
@@ -46,11 +47,17 @@ function apply(world: World, event: CoachTextEvent, asked: "asked" | "not-asked"
 function next(world: World): readonly Step<World>[] {
   const steps: Step<World>[] = [];
   if (world.page === "closed") {
+    const opened = apply(world, { type: "athlete-opens", basis: basis(world.match) }, "asked");
     steps.push([
       "the athlete opens it",
       {
-        ...apply(world, { type: "athlete-opens", basis: basis(world.match) }, "asked"),
+        ...opened,
         page: "open",
+        spentOnOpenAfterModelFailure:
+          world.spentOnOpenAfterModelFailure ||
+          (world.text.kind === "failed" &&
+            world.text.failedBy === "model" &&
+            opened.replies > world.replies),
       },
     ]);
   } else {
@@ -106,9 +113,11 @@ const RULES = {
   NeverStuckWriting: (world: World) =>
     world.page !== "closed" ||
     world.text.kind !== "failed" ||
+    world.text.failedBy !== "interrupted" ||
     world.match === "pending" ||
     coachTextStep(world.text, { type: "athlete-opens", basis: basis(world.match) }).effect.kind ===
       "write",
+  OpenAfterModelFailureSpendsNothing: (world: World) => !world.spentOnOpenAfterModelFailure,
 };
 
 const STARTS: readonly World[] = (["pending", "no-workout"] as const).flatMap((match) =>
@@ -119,6 +128,7 @@ const STARTS: readonly World[] = (["pending", "no-workout"] as const).flatMap((m
     replies: 0,
     asks: 0,
     model,
+    spentOnOpenAfterModelFailure: false,
   })),
 );
 
@@ -175,19 +185,34 @@ describe("the coach's text for an Activity or a missed workout", () => {
     ).toEqual({ kind: "none" });
   });
 
-  it("tries a failed text again only when the athlete opens it or asks", () => {
-    const failed: CoachText = { kind: "failed", startedFor: NO_WORKOUT };
+  it("tries a text the model failed again only when the athlete asks", () => {
+    const failed: CoachText = { kind: "failed", startedFor: NO_WORKOUT, failedBy: "model" };
     expect(
       coachTextStep(failed, { type: "match-decided", basis: basis("no-workout"), page: "open" })
         .effect,
-    ).toEqual({
-      kind: "none",
-    });
+    ).toEqual({ kind: "none" });
     expect(
       coachTextStep(failed, { type: "athlete-opens", basis: basis("no-workout") }).effect,
-    ).toEqual({
-      kind: "write",
-      for: NO_WORKOUT,
+    ).toEqual({ kind: "none" });
+    expect(
+      coachTextStep(failed, { type: "athlete-asks-again", basis: basis("no-workout") }).effect,
+    ).toEqual({ kind: "write", for: NO_WORKOUT });
+  });
+
+  it("records whether the model failed or the write was interrupted", () => {
+    const writing = coachTextStep(COACH_TEXT_NOT_WRITTEN, {
+      type: "athlete-opens",
+      basis: basis("no-workout"),
+    }).text;
+    expect(coachTextStep(writing, { type: "writing-failed" }).text).toEqual({
+      kind: "failed",
+      startedFor: NO_WORKOUT,
+      failedBy: "model",
+    });
+    expect(coachTextStep(writing, { type: "writing-abandoned" }).text).toEqual({
+      kind: "failed",
+      startedFor: NO_WORKOUT,
+      failedBy: "interrupted",
     });
   });
 
@@ -197,7 +222,7 @@ describe("the coach's text for an Activity or a missed workout", () => {
       basis: basis("no-workout"),
     }).text;
     const recovered = coachTextStep(writing, { type: "writing-abandoned" }).text;
-    expect(recovered).toEqual({ kind: "failed", startedFor: NO_WORKOUT });
+    expect(recovered).toEqual({ kind: "failed", startedFor: NO_WORKOUT, failedBy: "interrupted" });
     expect(
       coachTextStep(recovered, { type: "athlete-opens", basis: basis("no-workout") }).effect,
     ).toEqual({

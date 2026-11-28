@@ -1,4 +1,4 @@
-import type { DesktopUpdateView } from "../../update/controller";
+import type { DesktopUpdatePendingAction, DesktopUpdateView } from "../../update/controller";
 import type { UpdateSettingsPort, UpdateSurfaceState } from "../settings-slice";
 
 export interface UpdateSettingsAdapter {
@@ -18,7 +18,8 @@ export function createUpdateSettingsAdapter(input: {
       },
       render(state, options) {
         if (disposed) return;
-        input.publish({ state, actionDisabled: options?.actionDisabled === true });
+        const pendingAction: DesktopUpdatePendingAction = options?.pendingAction ?? "none";
+        input.publish({ state, pendingAction });
       },
       dispose() {
         if (disposed) return;

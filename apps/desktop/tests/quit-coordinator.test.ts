@@ -280,4 +280,207 @@ describe("desktop quit coordinator", () => {
     for (const callback of timers.values()) callback();
     expect(exit).not.toHaveBeenCalled();
   });
+
+  it("relaunches once before exiting when install handoff fails, throws, errors asynchronously, or times out", async () => {
+    const failedOrder: string[] = [];
+    let failedCoordinator!: ReturnType<typeof createDesktopQuitCoordinator>;
+    failedCoordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: (allowFinalQuit) => {
+          allowFinalQuit();
+          return "failed";
+        },
+      },
+      relaunch: () => {
+        failedOrder.push("relaunch");
+        const blocked = { preventDefault: vi.fn() };
+        expect(failedCoordinator.beforeQuit(blocked)).toBe("draining");
+        expect(blocked.preventDefault).toHaveBeenCalledOnce();
+      },
+      exit: (code) => failedOrder.push(`exit:${code}`),
+      ...deadlineHarness(),
+    });
+    failedCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(failedOrder).toEqual(["relaunch", "exit:1"]));
+
+    const throwOrder: string[] = [];
+    const throwCoordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: (allowFinalQuit) => {
+          allowFinalQuit();
+          throw new Error("quitAndInstall threw");
+        },
+      },
+      relaunch: () => throwOrder.push("relaunch"),
+      exit: (code) => throwOrder.push(`exit:${code}`),
+      ...deadlineHarness(),
+    });
+    throwCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(throwOrder).toEqual(["relaunch", "exit:1"]));
+
+    const ordinaryThrowRelaunch = vi.fn();
+    const ordinaryThrowExit = vi.fn();
+    const ordinaryThrowCoordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => false,
+        completeInstallAfterDrain: () => {
+          throw new Error("unexpected ordinary throw");
+        },
+      },
+      relaunch: ordinaryThrowRelaunch,
+      exit: ordinaryThrowExit,
+      ...deadlineHarness(),
+    });
+    ordinaryThrowCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(ordinaryThrowExit).toHaveBeenCalledWith(1));
+    expect(ordinaryThrowRelaunch).not.toHaveBeenCalled();
+
+    const asyncOrder: string[] = [];
+    const asyncTimers = new Map<object, () => void>();
+    let triggerInstallError: (() => void) | undefined;
+    const asyncCoordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: (allowFinalQuit, onInstallError) => {
+          allowFinalQuit();
+          triggerInstallError = onInstallError;
+          return "started";
+        },
+      },
+      relaunch: () => asyncOrder.push("relaunch"),
+      exit: (code) => asyncOrder.push(`exit:${code}`),
+      setTimeout: vi.fn((callback: () => void) => {
+        const handle = { unref: vi.fn() };
+        asyncTimers.set(handle, callback);
+        return handle;
+      }),
+      clearTimeout: vi.fn((handle: object) => {
+        asyncTimers.delete(handle);
+      }),
+    });
+    asyncCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(triggerInstallError).toBeDefined());
+    expect(asyncTimers.size).toBe(1);
+    triggerInstallError?.();
+    triggerInstallError?.();
+    expect(asyncTimers.size).toBe(0);
+    expect(asyncOrder).toEqual(["relaunch", "exit:1"]);
+
+    const timeoutOrder: string[] = [];
+    const timeoutDeadline = deadlineHarness();
+    const timeoutInstall = vi.fn((allowFinalQuit: () => void) => {
+      allowFinalQuit();
+      return "started" as const;
+    });
+    const timeoutCoordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: timeoutInstall,
+      },
+      relaunch: () => timeoutOrder.push("relaunch"),
+      exit: (code) => timeoutOrder.push(`exit:${code}`),
+      ...timeoutDeadline,
+    });
+    timeoutCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(timeoutInstall).toHaveBeenCalledOnce());
+    expect(timeoutDeadline.setTimeout).toHaveBeenCalledTimes(2);
+    expect(timeoutDeadline.setTimeout).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      DESKTOP_UPDATE_HANDOFF_DEADLINE_MS,
+    );
+    timeoutDeadline.fire();
+    expect(timeoutOrder).toEqual(["relaunch", "exit:1"]);
+  });
+
+  it("relaunches when drain fails or times out after Restart to update, but not on an ordinary quit", async () => {
+    const updateOrder: string[] = [];
+    const updateCoordinator = createDesktopQuitCoordinator({
+      drain: async () => {
+        throw new Error("drain failed");
+      },
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: vi.fn(() => "started" as const),
+      },
+      relaunch: () => updateOrder.push("relaunch"),
+      exit: (code) => updateOrder.push(`exit:${code}`),
+      ...deadlineHarness(),
+    });
+    updateCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(updateOrder).toEqual(["relaunch", "exit:1"]));
+
+    const drainTimeoutOrder: string[] = [];
+    const drainTimeoutDeadline = deadlineHarness();
+    const drainTimeoutCoordinator = createDesktopQuitCoordinator({
+      drain: () => deferred<void>().promise,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: vi.fn(() => "started" as const),
+      },
+      relaunch: () => drainTimeoutOrder.push("relaunch"),
+      exit: (code) => drainTimeoutOrder.push(`exit:${code}`),
+      ...drainTimeoutDeadline,
+    });
+    drainTimeoutCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    drainTimeoutDeadline.fire();
+    await vi.waitFor(() => expect(drainTimeoutOrder).toEqual(["relaunch", "exit:1"]));
+
+    const ordinaryRelaunch = vi.fn();
+    const ordinaryExit = vi.fn();
+    const ordinaryCoordinator = createDesktopQuitCoordinator({
+      drain: async () => {
+        throw new Error("drain failed");
+      },
+      updateController: {
+        isInstallRequested: () => false,
+        completeInstallAfterDrain: vi.fn(() => "not-requested" as const),
+      },
+      relaunch: ordinaryRelaunch,
+      exit: ordinaryExit,
+      ...deadlineHarness(),
+    });
+    ordinaryCoordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(ordinaryExit).toHaveBeenCalledWith(1));
+    expect(ordinaryRelaunch).not.toHaveBeenCalled();
+  });
+
+  it("does not leak a handoff timer or relaunch when forceQuit runs synchronously inside install handoff", async () => {
+    const timers = new Map<object, () => void>();
+    const exit = vi.fn();
+    const relaunch = vi.fn();
+    let coordinator!: ReturnType<typeof createDesktopQuitCoordinator>;
+    coordinator = createDesktopQuitCoordinator({
+      drain: async () => undefined,
+      updateController: {
+        isInstallRequested: () => true,
+        completeInstallAfterDrain: (allowFinalQuit) => {
+          allowFinalQuit();
+          coordinator.forceQuit();
+          return "failed";
+        },
+      },
+      relaunch,
+      exit,
+      setTimeout: vi.fn((callback: () => void) => {
+        const handle = { unref: vi.fn() };
+        timers.set(handle, callback);
+        return handle;
+      }),
+      clearTimeout: vi.fn((handle: object) => {
+        timers.delete(handle);
+      }),
+    });
+
+    coordinator.beforeQuit({ preventDefault: vi.fn() });
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
+    expect(timers.size).toBe(0);
+    expect(relaunch).not.toHaveBeenCalled();
+  });
 });

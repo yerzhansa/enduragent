@@ -3,6 +3,8 @@ productName: Enduragent
 asar: true
 asarUnpack:
   - dist/self-test-asar/native/keychain-binding.node
+  - node_modules/clawpdf/dist/vendor/pdfium.esm.wasm
+  - node_modules/@enduragent/core/dist/workout-chart-font.otf
 electronFuses:
   runAsNode: false
   enableNodeOptionsEnvironmentVariable: false
@@ -47,6 +49,13 @@ files:
   - "!**/node_modules/@vitest/**"
   - "!**/node_modules/@anthropic-ai/claude-agent-sdk-*"
   - "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**"
+  - "!**/*.d.{ts,mts,cts}"
+  - "!**/node_modules/**/*.{ts,tsx,mts,cts}"
+  - "!**/node_modules/@enduragent/*/src/**"
+  - "!**/node_modules/@enduragent/i18n/catalogs/**"
+  - "!**/node_modules/@enduragent/i18n/glossaries/**"
+  - "!**/node_modules/mammoth/mammoth.browser*.js"
+  - "!**/node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js"
   - from: resources
     to: resources
     filter:

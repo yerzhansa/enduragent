@@ -11,6 +11,14 @@ export { contained } from "./package-plan.mjs";
 
 export const KEYCHAIN_BINDING_ASAR_PATH = "native/keychain-binding.node";
 export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN = `dist/self-test-asar/${KEYCHAIN_BINDING_ASAR_PATH}`;
+export const PDFIUM_WASM_ASAR_PATH = "node_modules/clawpdf/dist/vendor/pdfium.esm.wasm";
+export const WORKOUT_CHART_FONT_ASAR_PATH =
+  "node_modules/@enduragent/core/dist/workout-chart-font.otf";
+export const REQUIRED_ASAR_UNPACK_PATTERNS = Object.freeze([
+  KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN,
+  PDFIUM_WASM_ASAR_PATH,
+  WORKOUT_CHART_FONT_ASAR_PATH,
+]);
 export const KEYCHAIN_BINDING_FUSE_CONFIGURATION = Object.freeze({
   runAsNode: false,
   enableNodeOptionsEnvironmentVariable: false,
@@ -45,6 +53,13 @@ const requiredFilePatterns = [
   "!**/node_modules/@vitest/**",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+  "!**/*.d.{ts,mts,cts}",
+  "!**/node_modules/**/*.{ts,tsx,mts,cts}",
+  "!**/node_modules/@enduragent/*/src/**",
+  "!**/node_modules/@enduragent/i18n/catalogs/**",
+  "!**/node_modules/@enduragent/i18n/glossaries/**",
+  "!**/node_modules/mammoth/mammoth.browser*.js",
+  "!**/node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js",
 ];
 const vendoredAgentCliPatterns = [
   /(?:^|\/)@anthropic-ai\/claude-agent-sdk-[a-z0-9-]+(?:\/|$)/u,
@@ -217,6 +232,20 @@ export function forbiddenPathReason(path) {
   if (base.endsWith(".snap")) return "test snapshot artifact";
   if (/(?:^|\.)(?:test|spec)\.(?:d\.)?[a-z0-9]+$/u.test(base)) return "test or spec source";
   if (/^vitest\.(?:config|workspace)\./u.test(base)) return "Vitest configuration";
+  if (/\.d\.[cm]?ts$/u.test(base)) return "TypeScript declaration";
+  if (/(?:^|\/)node_modules\/@enduragent\/[^/]+\/src(?:\/|$)/u.test(lower)) {
+    return "workspace package source";
+  }
+  if (/(?:^|\/)node_modules\/@enduragent\/i18n\/(?:catalogs|glossaries)(?:\/|$)/u.test(lower)) {
+    return "i18n build catalog";
+  }
+  if (
+    /(?:^|\/)node_modules\/mammoth\/mammoth\.browser[^/]*\.js$/u.test(lower) ||
+    /(?:^|\/)node_modules\/@anthropic-ai\/claude-agent-sdk\/browser-sdk\.js$/u.test(lower)
+  ) {
+    return "browser bundle";
+  }
+  if (/(?:^|\/)node_modules\/.*\.[cm]?tsx?$/u.test(lower)) return "TypeScript source";
   return undefined;
 }
 
@@ -375,8 +404,9 @@ export function validateBuilderInventoryAuthority(config, desktopRoot, options =
     !Array.isArray(config.files) ||
     !Array.isArray(config.extraResources) ||
     !Array.isArray(config.asarUnpack) ||
-    config.asarUnpack.length !== 1 ||
-    config.asarUnpack[0] !== KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN ||
+    config.asarUnpack.length !== REQUIRED_ASAR_UNPACK_PATTERNS.length ||
+    new Set(config.asarUnpack).size !== config.asarUnpack.length ||
+    REQUIRED_ASAR_UNPACK_PATTERNS.some((pattern) => !config.asarUnpack.includes(pattern)) ||
     !isDeepStrictEqual(config.electronFuses, KEYCHAIN_BINDING_FUSE_CONFIGURATION) ||
     validateEnvelopeAuthority(config) !== true
   ) {
@@ -791,6 +821,21 @@ export function validateRequiredAsarFiles(asar, sourceManifest, options = {}) {
       "macOS keychain binding is forbidden on this platform",
       `app.asar/${KEYCHAIN_BINDING_ASAR_PATH}`,
     );
+  }
+  for (const assetPath of [PDFIUM_WASM_ASAR_PATH, WORKOUT_CHART_FONT_ASAR_PATH]) {
+    const asset = asar.get(assetPath);
+    if (asset !== undefined && (asset.type !== "file" || asset.unpacked !== true)) {
+      fail("declared unpacked binary asset is packed", `app.asar/${assetPath}`);
+    }
+  }
+  if (asar.has("node_modules/clawpdf/package.json")) {
+    const pdfium = asar.get(PDFIUM_WASM_ASAR_PATH);
+    if (pdfium === undefined || pdfium.type !== "file" || pdfium.unpacked !== true) {
+      fail(
+        "declared unpacked binary asset is missing or packed",
+        `app.asar/${PDFIUM_WASM_ASAR_PATH}`,
+      );
+    }
   }
 
   validateManifest(asar, sourceManifest, options);

@@ -102,6 +102,10 @@ const RULES: Readonly<Record<keyof typeof MODELS, readonly (readonly [string, st
     ["NoReplyWithoutAsking", "coach-text: never rewrites a kept text by itself"],
     ["NoTextBeforeTheMatch", "coach-text: waits for Confirm or Not this one"],
     ["KeptTextIsHonest", "coach-text: says which match a kept review was written for"],
+    [
+      "OpenAfterModelFailureSpendsNothing",
+      "coach-text: tries a text the model failed again only when the athlete asks",
+    ],
   ],
   ftp: [
     ["OneFtp", "ftp-proposal: uses only intervals.icu's FTP"],
@@ -134,7 +138,7 @@ const BREAKS_BEFORE: Readonly<Record<string, readonly string[]>> = {
   "icu/without-recheck": ["NeverUndoneByItself"],
   "icu/without-staleSet": ["KeptEditReplacedOnlyWhenFlagged"],
   "outcome/before": ["MissedIsTrue", "RideOnTheDayIsSuggested"],
-  "text/before": ["KeptTextIsHonest"],
+  "text/before": ["KeptTextIsHonest", "OpenAfterModelFailureSpendsNothing"],
   "ftp/before": ["NeverOverwriteAnUnseenFtp", "PlannedTestIsAnswered"],
   "weeks/before": ["ThisWeekAndNextAreThere"],
   "plan/before": ["TodayIsKept", "NeverTwoPlansOnIntervals", "YourChangesAreNotDeletedByItself"],

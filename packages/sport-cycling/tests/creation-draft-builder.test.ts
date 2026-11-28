@@ -7,7 +7,12 @@ import {
   weekdayForDateKey,
 } from "@enduragent/kernel/planning";
 import { describe, expect, it } from "vitest";
-import { buildCreationDraft, type CreationDraftInput } from "../src/creation-draft-builder.js";
+import {
+  buildCreationDraft,
+  creationStart,
+  pickedStart,
+  type CreationDraftInput,
+} from "../src/creation-draft-builder.js";
 import type { CommitmentRule } from "../src/commitments.js";
 
 function input(): CreationDraftInput {
@@ -234,7 +239,87 @@ describe("creation draft builder", () => {
     value.answers.startTiming = { kind: "earliest", date: "1998-09-01" };
     expect(build(value).start).toBe("1998-09-01");
     value.answers.startTiming = { kind: "earliest", date: "1998-08-01" };
-    expect(build(value).start).toBe("1998-08-25");
+    expect(build(value).start).toBe("1998-08-29");
+  });
+
+  it("keeps a picked weekday when the Draft is built after the picked day", () => {
+    const value = input();
+    value.today = "1998-09-08";
+    value.answers.startTiming = { kind: "earliest", date: "1998-09-07" };
+    const draft = build(value);
+    expect(draft.start).toBe("1998-09-14");
+    expect(draft.weeks.map((week) => week.start)).toEqual([
+      "1998-09-14",
+      "1998-09-21",
+      "1998-09-28",
+      "1998-10-05",
+    ]);
+    expect(creationStart(value)).toBe("1998-09-14");
+    expect(pickedStart("1998-09-07", "1998-09-07", null)).toBe("1998-09-07");
+    expect(pickedStart("1998-09-07", "1998-09-14", null)).toBe("1998-09-14");
+    expect(pickedStart("1998-09-07", "1998-09-15", null)).toBe("1998-09-21");
+    expect(pickedStart("1998-09-07", "1998-09-08", "1998-09-20")).toBe("1998-09-14");
+  });
+
+  it("starts today when a passed pick moved by whole weeks would land after the event", () => {
+    const value = input();
+    value.today = "1998-09-08";
+    value.answers.goal = { kind: "event", name: "Synthetic Gran Fondo", date: "1998-09-10" };
+    value.answers.startTiming = { kind: "earliest", date: "1998-09-07" };
+    expect(pickedStart("1998-09-07", "1998-09-08", "1998-09-10")).toBe("1998-09-08");
+    expect(creationStart(value)).toBe("1998-09-08");
+    const draft = build(value);
+    expect(draft.start).toBe("1998-09-08");
+    expect(draft.weeks[0]?.workouts.some((workout) => workout.date === "1998-09-10")).toBe(true);
+  });
+
+  it.each([
+    ["Monday", "1998-08-31", [2, 4, 6]],
+    ["Sunday", "1998-08-30", [2, 4, 6]],
+    ["Saturday", "1998-08-29", [1, 3, 5]],
+  ] as const)(
+    "starts a picked %s exactly, so each Training Week begins on that day",
+    (_weekday, date, usableWeekdays) => {
+      const value = input();
+      value.answers.availability = {
+        mode: "fixed",
+        weeklyHoursLimit: 10,
+        longestWorkoutHours: 2,
+        usableWeekdays,
+      };
+      value.answers.startTiming = { kind: "earliest", date };
+      const draft = build(value);
+      expect(draft.start).toBe(date);
+      expect(draft.weeks.map((week) => week.start)).toEqual(
+        [0, 7, 14, 21].map((days) => {
+          const digits = String(addCivilDays(dateKeyFromText(date), days));
+          return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+        }),
+      );
+      expect(draft.weeks[0]?.workouts.map((workout) => workout.date)).not.toContain(date);
+      expect(draft.weeks[0]?.workouts).toHaveLength(3);
+    },
+  );
+
+  it("moves a picked start by whole weeks past weeks with no day to train", () => {
+    const value = input();
+    value.answers.startTiming = { kind: "earliest", date: "1998-08-31" };
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Away the first week",
+      status: "confirmed",
+      rules: [{ kind: "time-off", start: "1998-08-31", end: "1998-09-06" }],
+    };
+    expect(build(value).start).toBe("1998-09-07");
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Away until Wednesday",
+      status: "confirmed",
+      rules: [{ kind: "time-off", start: "1998-08-31", end: "1998-09-02" }],
+    };
+    const draft = build(value);
+    expect(draft.start).toBe("1998-08-31");
+    expect(draft.weeks[0]?.workouts.map((workout) => workout.date)).toEqual([null, null, null]);
   });
 
   it("caps each Workout and weekly totals and explains dropped Workouts", () => {
@@ -284,7 +369,7 @@ describe("creation draft builder", () => {
       "1998-09-02",
     ]);
     value.answers.startTiming = { kind: "earliest", date: "1998-08-25" };
-    expect(build(value).start).toBe("1998-08-28");
+    expect(build(value).start).toBe("1998-08-25");
     value.answers.startTiming = { kind: "earliest", date: "1998-08-31" };
     expect(build(value).start).toBe("1998-08-31");
   });
@@ -293,7 +378,7 @@ describe("creation draft builder", () => {
     const value = input();
     value.answers.startTiming = { kind: "earliest", date: "1998-08-31" };
     value.answers.restriction = { kind: "no-training", endDate: "1999-09-03" };
-    expect(build(value).start).toBe("1999-09-04");
+    expect(build(value).start).toBe("1999-08-30");
     value.answers.restriction.endDate = "1999-09-04";
     expect(buildCreationDraft(value)).toEqual({
       kind: "no-workouts",

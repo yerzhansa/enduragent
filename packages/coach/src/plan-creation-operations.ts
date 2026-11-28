@@ -1,5 +1,7 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
+import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
+import { closedPlanCalendar } from "./plan-calendar-status.js";
 import { z } from "zod";
 import {
   PlanCloseRpcParamsSchema,
@@ -282,39 +284,13 @@ export function createPlanCreationOperations(input: {
     const snapshot = await input.repository.readUnfinished();
     return snapshot === undefined ? null : project(snapshot);
   };
-  const dateText = (dateKey: number): string => {
-    const digits = String(dateKey).padStart(8, "0");
-    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
-  };
   const timestampDate = (value: number | null): string | null =>
     value === null ? null : new Date(value).toISOString().slice(0, 10);
-  const summarizeCalendar = (job: PlanReconciliationJobRecord | undefined): PlanCalendarStatus => {
-    const window =
-      job === undefined
-        ? null
-        : {
-            start: dateText(job.windowStartDateKey),
-            end: dateText(job.windowEndDateKey),
-          };
-    if (job?.status === "verified") {
-      return {
-        status: "verified",
-        window,
-        currentThrough: dateText(job.windowEndDateKey),
-        error: null,
-      };
-    }
-    if (!calendarConnected())
-      return { status: "not-connected", window, currentThrough: null, error: null };
-    if (job === undefined || job.status === "pending")
-      return { status: "pending", window, currentThrough: null, error: null };
-    if (job.status === "failed") {
-      const error = job.kind === "mirror" ? "Calendar sync failed." : "Calendar cleanup failed.";
-      const retry = job.kind === "cleanup" || job.failureCount < 5 ? " Retry available." : "";
-      return { status: "failed", window, currentThrough: null, error: `${error}${retry}` };
-    }
-    return { status: "running", window, currentThrough: null, error: null };
-  };
+  const summarizeCalendar = (
+    job: PlanReconciliationJobRecord | undefined,
+    waitingForApprove = false,
+  ): PlanCalendarStatus =>
+    planCalendarStatus({ job, connected: calendarConnected(), waitingForApprove });
   const summarizePlan = (plan: PlanSummaryRecord) => ({
     planId: plan.planId,
     version: plan.version,
@@ -395,11 +371,13 @@ export function createPlanCreationOperations(input: {
         );
         const barrier = await reconciliation.readCleanupBarrier();
         const holding = barrier?.status !== "verified" ? barrier : undefined;
+        const waiting = await plansWaitingForApprove(transactionStore);
         const summaries = records.map((plan) => ({
           ...summarizePlan(plan),
           calendar: summarizeCalendar(
             (plan.status === "active" ? holding : undefined) ??
               jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
+            waiting.has(plan.planId),
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;
@@ -504,11 +482,10 @@ export function createPlanCreationOperations(input: {
                 ...detail,
                 plan: {
                   ...summarizePlan(detail.plan),
-                  calendar: summarizeCalendar(
-                    await createPlanReconciliationRepository(
-                      transactionStore,
-                    ).readLatestJobByWindow(detail.plan.planId, "cleanup"),
-                  ),
+                  calendar: await closedPlanCalendar(transactionStore, {
+                    planId: detail.plan.planId,
+                    connected: calendarConnected(),
+                  }),
                 },
               },
         );
@@ -780,7 +757,6 @@ export function createPlanCreationOperations(input: {
           activatedAt: today(),
           todayDateKey: todayDateKey(),
           mirrorJobId: input.identity.newUlid(),
-          cleanupJobId: input.identity.newUlid(),
           revisionId: input.identity.newUlid(),
           isDraftCurrent(snapshot) {
             if (

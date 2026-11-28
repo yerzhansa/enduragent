@@ -19,6 +19,10 @@
     "./calendar": {
       "types": "./dist/calendar.d.ts",
       "import": "./dist/calendar.js"
+    },
+    "./coach-text-writer": {
+      "types": "./dist/coach-text-writer.d.ts",
+      "import": "./dist/coach-text-writer.js"
     }
   },
   "scripts": {

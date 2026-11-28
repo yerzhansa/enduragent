@@ -328,6 +328,7 @@ describe("Plan Change operations", () => {
         .find((workout) => workout.date === "1998-09-03");
       if (completed === undefined) throw new Error("Expected today's Workout");
       const match = await matchWorkout(test, completed.id, source, "confirmed");
+      if (match === null) throw new Error("Expected a confirmed match");
       const before = await test.workouts();
       const preview = await test.preview({ kind: "weekday-unavailable", day: 4 });
       expect(preview.change.diff.some((row) => row.workoutId === completed.id)).toBe(false);

@@ -16,6 +16,7 @@ export {
   type PlanCreationCommandStamp,
 } from "./command-ledger.js";
 import { canonicalJson } from "../archive/canonical.js";
+import { createPlanCleanupHoldRepository } from "./cleanup-hold-repository.js";
 import { addCivilDays } from "./date-keys.js";
 import type { MigratorStore } from "../store/migrator.js";
 import type { Row, SqlStore } from "../store/ports.js";
@@ -138,7 +139,6 @@ export interface ActivatePlanCreationInput extends DiscardPlanCreationInput {
   readonly activatedAt: string;
   readonly todayDateKey: number;
   readonly mirrorJobId: string;
-  readonly cleanupJobId: string;
   readonly revisionId: string;
   readonly isDraftCurrent?: (snapshot: PlanCreationSnapshot) => boolean;
   readonly materialize: (snapshot: PlanCreationSnapshot) => {
@@ -462,7 +462,6 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
       activatedAt,
       todayDateKey,
       mirrorJobId,
-      cleanupJobId,
       revisionId,
       isDraftCurrent,
       materialize,
@@ -527,6 +526,10 @@ version=version+1,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WH
               command.hlcCounter,
               closedPlanId,
             ],
+          );
+          await store.run(
+            `UPDATE plan_week_delivery SET close_choice_json='{"kind":"keep-them"}',updated_at_ms=? WHERE plan_id=?`,
+            [command.nowMs, closedPlanId],
           );
           await store.run(
             `UPDATE plan SET status='ended',updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE id=?`,
@@ -598,28 +601,11 @@ ON CONFLICT(plan_id,kind,window_start_date_key,window_end_date_key) DO NOTHING`,
           ],
         );
         if (closedPlanId !== null) {
-          const closedPlan = await store.get(
-            "SELECT start_date_key,total_weeks FROM plan WHERE id=?",
-            [closedPlanId],
-          );
-          if (closedPlan === undefined) return fail();
-          const windowStart = addCivilDays(todayDateKey, 1);
-          const windowEnd = Math.max(
-            windowStart,
-            addCivilDays(
-              integer(closedPlan, "start_date_key"),
-              integer(closedPlan, "total_weeks") * 7 - 1,
-            ),
-          );
-          await store.run(
-            `INSERT INTO plan_reconciliation_job (
-id,plan_id,kind,status,window_start_date_key,window_end_date_key,
-attempt_count,failure_count,resumed_count,last_resumed_attempt,last_error_code,
-created_at_ms,updated_at_ms,completed_at_ms
-) VALUES (?,?,'cleanup','pending',?,?,0,0,0,NULL,NULL,?,?,NULL)
-ON CONFLICT(plan_id,kind,window_start_date_key,window_end_date_key) DO NOTHING`,
-            [cleanupJobId, closedPlanId, windowStart, windowEnd, command.nowMs, command.nowMs],
-          );
+          await createPlanCleanupHoldRepository(store).hold({
+            planId: closedPlanId,
+            replacementPlanId: plan.id,
+            nowMs: command.nowMs,
+          });
         }
         await store.run(
           `INSERT INTO planning_plan (plan_id,status,version,current_revision_number,activated_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
@@ -632,6 +618,11 @@ VALUES (?,'active',1,1,?,?,?,?,?)`,
             command.hlcPhysicalMs,
             command.hlcCounter,
           ],
+        );
+        await store.run(
+          `INSERT INTO plan_week_delivery (plan_id,state_kind,state_json,updated_at_ms)
+VALUES (?,'waiting-for-first-approve','{"kind":"waiting-for-first-approve"}',?)`,
+          [plan.id, command.nowMs],
         );
         await store.run(
           `INSERT INTO plan_revision (id,plan_id,revision_number,parent_revision_number,source_kind,source_id,snapshot_json,fingerprint,created_at_ms,device_id,hlc_physical_ms,hlc_counter)

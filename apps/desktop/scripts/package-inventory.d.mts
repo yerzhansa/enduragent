@@ -4,6 +4,13 @@ export { contained } from "./package-plan.mjs";
 
 export const KEYCHAIN_BINDING_ASAR_PATH: "native/keychain-binding.node";
 export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN: "dist/self-test-asar/native/keychain-binding.node";
+export const PDFIUM_WASM_ASAR_PATH: "node_modules/clawpdf/dist/vendor/pdfium.esm.wasm";
+export const WORKOUT_CHART_FONT_ASAR_PATH: "node_modules/@enduragent/core/dist/workout-chart-font.otf";
+export const REQUIRED_ASAR_UNPACK_PATTERNS: readonly [
+  typeof KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN,
+  typeof PDFIUM_WASM_ASAR_PATH,
+  typeof WORKOUT_CHART_FONT_ASAR_PATH,
+];
 export const KEYCHAIN_BINDING_FUSE_CONFIGURATION: Readonly<{
   readonly runAsNode: false;
   readonly enableNodeOptionsEnvironmentVariable: false;

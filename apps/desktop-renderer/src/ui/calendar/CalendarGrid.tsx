@@ -6,8 +6,8 @@ import type {
 } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { cn } from "@enduragent/ui";
-import type { ReactElement } from "react";
-import { weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
+import { useState, type DragEvent, type ReactElement } from "react";
+import { daysBetween, weekdayOrder, type FirstDayOfWeek } from "../../calendar/dates";
 import {
   rowLabel,
   weekTiming,
@@ -17,14 +17,36 @@ import {
   type CalendarRowLabel,
   type PlanCalendarRead,
 } from "../../calendar/grid";
+import { canDropOn } from "../../calendar/move";
 import { useCalendarText, type CalendarText } from "./calendar-text";
+
+export interface CalendarMoving {
+  readonly workoutId: string;
+  readonly toDateKey: number;
+  readonly fromDateKey: number;
+  readonly swapIds: readonly string[];
+  readonly landed: boolean;
+}
+
+interface Dragging {
+  readonly workout: PlanCalendarWorkout | null;
+  readonly over: number | null;
+  readonly moving: CalendarMoving | null;
+  start(workout: PlanCalendarWorkout): void;
+  enter(dateKey: number | null): void;
+  end(): void;
+  drop(dateKey: number): void;
+}
+
+const MOVE_TYPE = "application/x-enduragent-workout";
 
 type Tone = "ok" | "warn" | "danger" | "brand" | "muted";
 
 interface WorkoutLook {
-  readonly frame: "sent" | "plan-only" | "missed" | "ask" | "changed" | "ghost";
+  readonly frame: "sent" | "plan-only" | "missed" | "ask" | "changed" | "ghost" | "ghost-alert";
   readonly detail: string | null;
   readonly status: { readonly tone: Tone; readonly text: string } | null;
+  readonly opens: boolean;
 }
 
 const FRAME: Record<WorkoutLook["frame"], string> = {
@@ -34,6 +56,7 @@ const FRAME: Record<WorkoutLook["frame"], string> = {
   ask: "border border-dashed border-brand bg-surface",
   changed: "border border-warn bg-warn/10 outline-2 outline-offset-1 outline-warn",
   ghost: "border border-dashed border-line-2 bg-transparent text-ink-2",
+  "ghost-alert": "border border-dashed border-warn bg-warn/10 text-warn",
 };
 
 const TONE: Record<Tone, string> = {
@@ -63,33 +86,70 @@ function changedLook(
   if (copy.kind !== "changed-in-intervals") return null;
   if (copy.change === "deleted") {
     return {
-      frame: "ghost",
+      frame: "ghost-alert",
       detail: planned,
       status: { tone: "warn", text: say("plan.calendar.copy.deleted") },
+      opens: true,
+    };
+  }
+  if (copy.change === "moved" && copy.toDateKey !== null) {
+    return {
+      frame: "ghost",
+      detail: null,
+      status: {
+        tone: "muted",
+        text: say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) }),
+      },
+      opens: false,
     };
   }
   return {
     frame: "changed",
-    detail: planned,
-    status: {
-      tone: "warn",
-      text:
-        copy.change === "moved" && copy.toDateKey !== null
-          ? say("plan.calendar.copy.moved", { date: text.weekdayDayMonth(copy.toDateKey) })
-          : say("plan.calendar.copy.changed"),
-    },
+    detail:
+      planned === null || copy.durationS === null || copy.durationS === workout.durationS
+        ? planned
+        : say("plan.calendar.copy.editedLength", {
+            intervals: text.duration(copy.durationS),
+            plan: planned,
+          }),
+    status: { tone: "warn", text: say("plan.calendar.copy.changed") },
+    opens: true,
   };
 }
 
-function plannedLook(workout: PlanCalendarWorkout, planned: string | null, say: Say): WorkoutLook {
+function plannedLook(
+  workout: PlanCalendarWorkout,
+  planned: string | null,
+  say: Say,
+  text: CalendarText,
+): WorkoutLook {
   const frame = workout.copy.kind === "plan-only" ? "plan-only" : "sent";
-  return workout.lastWrite === "failed"
-    ? {
-        frame,
-        detail: planned,
-        status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
-      }
-    : { frame, detail: planned, status: null };
+  if (workout.lastWrite === "failed") {
+    return {
+      frame,
+      detail: planned,
+      status: { tone: "danger", text: say("plan.calendar.copy.notSent") },
+      opens: false,
+    };
+  }
+  const moved = workout.movedByYou;
+  return {
+    frame,
+    detail: planned,
+    status:
+      moved === null
+        ? null
+        : {
+            tone: "muted",
+            text: say("plan.calendar.copy.movedByYou", {
+              weekday:
+                Math.abs(daysBetween(moved.fromDateKey, workout.dateKey)) > 6
+                  ? text.weekdayDay(moved.fromDateKey)
+                  : text.weekday(text.isoWeekdayOf(moved.fromDateKey)),
+            }),
+          },
+    opens: false,
+  };
 }
 
 function useWorkoutLook(): (
@@ -120,6 +180,7 @@ function useWorkoutLook(): (
             outcome.kind === "done-as-planned"
               ? { tone: "ok", text: say("plan.calendar.outcome.doneAsPlanned") }
               : { tone: "warn", text: say("plan.calendar.outcome.doneDifferently") },
+          opens: false,
         };
       case "missed":
         return (
@@ -130,6 +191,7 @@ function useWorkoutLook(): (
                 ? say("plan.calendar.outcome.noActivity")
                 : say("plan.calendar.outcome.missedDetail", { planned }),
             status: { tone: "danger", text: say("plan.calendar.outcome.missed") },
+            opens: false,
           }
         );
       case "is-this-it": {
@@ -141,6 +203,7 @@ function useWorkoutLook(): (
               ? say("plan.calendar.outcome.rideSynced")
               : say("plan.calendar.outcome.rideSyncedLength", { duration: text.duration(seconds) }),
           status: { tone: "brand", text: say("plan.calendar.outcome.isThisIt") },
+          opens: false,
         };
       }
       case "not-synced-yet":
@@ -149,6 +212,7 @@ function useWorkoutLook(): (
             frame: "sent",
             detail: planned,
             status: { tone: "muted", text: say("plan.calendar.outcome.notSyncedYet") },
+            opens: false,
           }
         );
       case "moved":
@@ -161,43 +225,147 @@ function useWorkoutLook(): (
               date: text.weekdayDayMonth(outcome.toDateKey),
             }),
           },
+          opens: false,
         };
       case "removed-by-you":
         return {
           frame: "ghost",
           detail: planned,
           status: { tone: "muted", text: say("plan.calendar.outcome.removedByYou") },
+          opens: false,
         };
       case "planned":
-        return changed ?? plannedLook(workout, planned, say);
+        return changed ?? plannedLook(workout, planned, say, text);
     }
   };
+}
+
+const CARD = "flex w-full flex-col gap-0.5 rounded-ctl px-1.5 py-1 text-left text-xs";
+const OPENS = "cursor-pointer focus-visible:outline-2 focus-visible:outline-brand";
+
+function CardBody(props: { readonly name: string; readonly look: WorkoutLook }): ReactElement {
+  const { look } = props;
+  const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
+  return (
+    <>
+      <span className={cn("font-semibold", ghost ? "line-through" : "text-ink")}>{props.name}</span>
+      {look.detail === null ? null : (
+        <span className={look.frame === "ghost-alert" ? undefined : "text-ink-2"}>
+          {look.detail}
+        </span>
+      )}
+      {look.status === null ? null : (
+        <span className={cn(ghost ? undefined : "font-semibold", TONE[look.status.tone])}>
+          {look.status.text}
+        </span>
+      )}
+    </>
+  );
 }
 
 function WorkoutCard(props: {
   readonly workout: PlanCalendarWorkout;
   readonly activities: readonly PlanCalendarActivity[];
+  readonly highlighted: boolean;
+  readonly selected: boolean;
   readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
+  readonly drag: Dragging;
+  readonly preview?: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const look = useWorkoutLook()(props.workout, props.activities, props.text);
-  return (
-    <div
-      className={cn(
-        "flex w-full flex-col gap-0.5 rounded-ctl px-1.5 py-1 text-xs",
-        FRAME[look.frame],
-      )}
-      data-workout-id={props.workout.id}
-      data-outcome={props.workout.outcome.kind}
-      data-copy={props.workout.copy.kind}
+  const { drag, workout } = props;
+  const beingMoved =
+    props.preview !== true &&
+    (drag.moving?.workoutId === workout.id || drag.moving?.swapIds.includes(workout.id) === true);
+  const landed = props.preview === true && drag.moving?.landed === true;
+  const draggable = props.preview !== true && workout.movable && !look.opens;
+  const ghost = look.frame === "ghost" || look.frame === "ghost-alert";
+  const interactive = props.preview !== true && (look.opens || !ghost);
+  const shared = {
+    className: cn(
+      CARD,
+      FRAME[look.frame],
+      interactive && OPENS,
+      props.highlighted && "border-brand",
+      draggable && "cursor-grab",
+      beingMoved && "border-dashed opacity-45",
+      props.preview === true && !landed && "shadow-elev-2 outline-2 outline-offset-1 outline-brand",
+      props.selected && "outline-2 outline-offset-1 outline-brand",
+    ),
+    "data-workout-id": props.preview === true ? undefined : workout.id,
+    "data-move-preview": props.preview === true && !landed ? workout.id : undefined,
+    "data-move-landed": landed ? workout.id : undefined,
+    "data-outcome": workout.outcome.kind,
+    "data-copy": workout.copy.kind,
+    "data-highlighted": props.highlighted ? "" : undefined,
+    "aria-label": beingMoved
+      ? say("plan.calendar.move.beingMoved", { name: workout.name })
+      : undefined,
+    draggable: draggable ? true : undefined,
+    onDragStart: draggable
+      ? (event: DragEvent<HTMLElement>) => {
+          event.dataTransfer.setData(MOVE_TYPE, workout.id);
+          event.dataTransfer.effectAllowed = "move";
+          drag.start(workout);
+        }
+      : undefined,
+    onDragEnd: draggable ? () => drag.end() : undefined,
+  };
+  const body = <CardBody name={props.workout.name} look={look} />;
+  return interactive ? (
+    <button
+      type="button"
+      {...shared}
+      aria-haspopup={look.opens ? undefined : "dialog"}
+      aria-expanded={props.selected}
+      onClick={() => props.onOpen(props.workout.id)}
     >
-      <span className={cn("font-semibold", look.frame === "ghost" ? "line-through" : "text-ink")}>
-        {props.workout.name}
-      </span>
-      {look.detail === null ? null : <span className="text-ink-2">{look.detail}</span>}
-      {look.status === null ? null : (
-        <span className={cn("font-semibold", TONE[look.status.tone])}>{look.status.text}</span>
+      {body}
+    </button>
+  ) : (
+    <div {...shared}>{body}</div>
+  );
+}
+
+function MovedInCard(props: {
+  readonly workout: PlanCalendarWorkout;
+  readonly selected: boolean;
+  readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  const { workout, text } = props;
+  const copy = workout.copy;
+  const seconds =
+    copy.kind === "changed-in-intervals" ? (copy.durationS ?? workout.durationS) : null;
+  const from = say("plan.calendar.copy.movedFrom", { date: text.weekdayDay(workout.dateKey) });
+  const look: WorkoutLook = {
+    frame: "changed",
+    detail:
+      seconds === null ? from : `${text.duration(seconds)}${say("plan.calendar.separator")}${from}`,
+    status: { tone: "warn", text: say("plan.calendar.copy.movedIn") },
+    opens: true,
+  };
+  return (
+    <button
+      type="button"
+      className={cn(
+        CARD,
+        FRAME.changed,
+        OPENS,
+        props.selected && "outline-2 outline-offset-1 outline-brand",
       )}
-    </div>
+      data-moved-in={workout.id}
+      aria-expanded={props.selected}
+      onClick={() => props.onOpen(workout.id)}
+    >
+      <CardBody
+        name={copy.kind === "changed-in-intervals" && copy.name !== null ? copy.name : workout.name}
+        look={look}
+      />
+    </button>
   );
 }
 
@@ -381,10 +549,25 @@ function RowLabelCell(props: {
 function DayCell(props: {
   readonly day: CalendarDay;
   readonly read: PlanCalendarRead;
+  readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
   readonly text: CalendarText;
+  readonly onOpen: (planWorkoutId: string) => void;
+  readonly drag: Dragging;
 }): ReactElement {
   const { say } = usePhrasebook();
-  const { day, read, text } = props;
+  const { day, read, text, drag } = props;
+  const dragged = drag.workout;
+  const accepts = dragged !== null && canDropOn(read, dragged, day.dateKey);
+  const moving = drag.moving;
+  const landedIds = moving?.landed === true ? [moving.workoutId, ...moving.swapIds] : [];
+  const workouts = day.workouts.filter((workout) => !landedIds.includes(workout.id));
+  const incoming = (read.plan?.workouts ?? []).filter(
+    (workout) =>
+      moving !== null &&
+      ((moving.toDateKey === day.dateKey && workout.id === moving.workoutId) ||
+        (moving.fromDateKey === day.dateKey && moving.swapIds.includes(workout.id))),
+  );
   const number = text.dayOfMonth(day.dateKey);
   const heading =
     day.today === "today"
@@ -392,7 +575,11 @@ function DayCell(props: {
       : day.weekStarts !== null
         ? say("plan.calendar.day.weekStarts", { day: number, week: day.weekStarts.index })
         : number;
-  const empty = day.workouts.length === 0 && day.activities.length === 0;
+  const empty =
+    workouts.length === 0 &&
+    day.movedIn.length === 0 &&
+    day.activities.length === 0 &&
+    incoming.length === 0;
   return (
     <div
       className={cn(
@@ -401,9 +588,26 @@ function DayCell(props: {
         day.place === "before-plan" && "bg-sunk",
         day.weekStarts !== null &&
           "before:absolute before:inset-y-0 before:left-0 before:w-0.75 before:bg-brand",
+        accepts && drag.over === day.dateKey && "outline-2 -outline-offset-2 outline-brand",
       )}
       data-date-key={day.dateKey}
+      data-drop-target={accepts && drag.over === day.dateKey ? "" : undefined}
       role="cell"
+      onDragOver={(event) => {
+        if (!accepts) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (drag.over !== day.dateKey) drag.enter(day.dateKey);
+      }}
+      onDragLeave={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof Node && event.currentTarget.contains(next))) drag.enter(null);
+      }}
+      onDrop={(event) => {
+        if (!accepts) return;
+        event.preventDefault();
+        drag.drop(day.dateKey);
+      }}
     >
       <span
         className={cn(
@@ -415,8 +619,39 @@ function DayCell(props: {
       >
         {heading}
       </span>
-      {day.workouts.map((workout) => (
-        <WorkoutCard key={workout.id} workout={workout} activities={read.activities} text={text} />
+      {workouts.map((workout) => (
+        <WorkoutCard
+          key={workout.id}
+          workout={workout}
+          activities={read.activities}
+          highlighted={props.highlighted.has(workout.id)}
+          selected={props.selected === workout.id}
+          text={text}
+          onOpen={props.onOpen}
+          drag={drag}
+        />
+      ))}
+      {incoming.map((workout) => (
+        <WorkoutCard
+          key={`preview-${workout.id}`}
+          workout={workout}
+          activities={read.activities}
+          highlighted={false}
+          selected={false}
+          text={text}
+          onOpen={props.onOpen}
+          drag={drag}
+          preview
+        />
+      ))}
+      {day.movedIn.map((workout) => (
+        <MovedInCard
+          key={`in-${workout.id}`}
+          workout={workout}
+          selected={props.selected === workout.id}
+          text={text}
+          onOpen={props.onOpen}
+        />
       ))}
       {day.activities.map((activity) => (
         <ActivityCard
@@ -440,15 +675,40 @@ export function CalendarGrid(props: {
   readonly read: PlanCalendarRead;
   readonly rows: readonly CalendarRow[];
   readonly firstDay: FirstDayOfWeek;
+  readonly highlighted: ReadonlySet<string>;
+  readonly selected: string | null;
+  readonly onOpen: (planWorkoutId: string) => void;
+  readonly moving: Dragging["moving"];
+  readonly onMove: (workoutId: string, toDateKey: number) => void;
 }): ReactElement {
   const { say } = usePhrasebook();
   const text = useCalendarText();
+  const [dragged, setDragged] = useState<PlanCalendarWorkout | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const drag: Dragging = {
+    workout: dragged,
+    over,
+    moving: props.moving,
+    start: (workout) => setDragged(workout),
+    enter: (dateKey) => setOver(dateKey),
+    end: () => {
+      setDragged(null);
+      setOver(null);
+    },
+    drop: (dateKey) => {
+      if (dragged !== null) props.onMove(dragged.id, dateKey);
+      setDragged(null);
+      setOver(null);
+    },
+  };
   return (
     <div className="overflow-x-auto">
       <div
         className="grid min-w-205 grid-cols-[128px_repeat(7,minmax(0,1fr))] overflow-hidden rounded-card border border-line bg-surface"
         role="table"
         aria-label={say("sidebar.views.calendar")}
+        tabIndex={-1}
+        data-calendar-grid=""
       >
         <div className="bg-surface-2 px-2 py-1.5 text-xs text-ink-2" role="columnheader">
           {props.read.plan === null
@@ -474,7 +734,16 @@ export function CalendarGrid(props: {
               text={text}
             />
             {row.days.map((day) => (
-              <DayCell key={day.dateKey} day={day} read={props.read} text={text} />
+              <DayCell
+                key={day.dateKey}
+                day={day}
+                read={props.read}
+                highlighted={props.highlighted}
+                selected={props.selected}
+                text={text}
+                onOpen={props.onOpen}
+                drag={drag}
+              />
             ))}
           </div>
         ))}

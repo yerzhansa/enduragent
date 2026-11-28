@@ -48,6 +48,8 @@ function calendarLabel(
     case "pending":
     case "running":
       return say("plan.details.calendar.pending");
+    case "waiting-for-approve":
+      return say("plan.calendar.status.waitingForApprove");
     case "not-connected":
       return say("plan.details.calendar.connectionRequired", { intervals: "intervals.icu" });
   }

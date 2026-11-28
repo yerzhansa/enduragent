@@ -53,13 +53,12 @@ import {
   DESKTOP_TELEGRAM_STATUS_CHANNEL,
   DESKTOP_TRAINING_EXPORT_CHANNEL,
   DESKTOP_ATHLETE_FEEDBACK_CHANNEL,
-  DESKTOP_UPDATE_CHECK_CHANNEL,
-  DESKTOP_UPDATE_GET_CHANNEL,
-  DESKTOP_UPDATE_RESTART_CHANNEL,
   DESKTOP_UPDATE_STATE_CHANNEL,
 } from "../main/constants.js";
 import { createIntervalsSignInBridge } from "./intervals-bridge.js";
 import { createOpenRouterSignInBridge } from "./openrouter-bridge.js";
+import { createStartAtLoginBridge } from "./start-at-login-bridge.js";
+import { createUpdateBridge } from "./update-bridge.js";
 import { parseCredentialDeleteInput, parseDeleteResult } from "./credential-delete-result.js";
 import { exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
 
@@ -1645,12 +1644,8 @@ contextBridge.exposeInMainWorld(
         await ipcRenderer.invoke(DESKTOP_TRAINING_EXPORT_CHANNEL, request),
       );
     },
-    getUpdateState: async () =>
-      parseUpdateState(await ipcRenderer.invoke(DESKTOP_UPDATE_GET_CHANNEL)),
-    checkForUpdates: async () =>
-      parseUpdateState(await ipcRenderer.invoke(DESKTOP_UPDATE_CHECK_CHANNEL)),
-    restartToUpdate: async () =>
-      parseUpdateState(await ipcRenderer.invoke(DESKTOP_UPDATE_RESTART_CHANNEL)),
+    ...createUpdateBridge(ipcRenderer, parseUpdateState),
+    ...createStartAtLoginBridge(ipcRenderer),
     onUpdateState: (listener: unknown) => {
       if (typeof listener !== "function") throw new TypeError();
       const typedListener = listener as (state: PreloadUpdateState) => void;

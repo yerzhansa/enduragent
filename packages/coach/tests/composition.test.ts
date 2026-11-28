@@ -63,6 +63,7 @@ import {
 import { INTERVALS_CREDENTIAL_APPROVAL_TTL_MS } from "../src/intervals-credential-approval.js";
 import { checkHomeReadiness } from "../src/readiness.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
+import { seedReviewRide } from "./helpers/review-ride.js";
 
 async function seedLegacyConversation(
   store: CoachStoreWriterContext["store"],
@@ -480,6 +481,7 @@ async function intervalsApprovalFixture(
 async function planCalendarFixture(credentials: {
   readonly refused: string;
   readonly accepted: string;
+  readonly approve?: boolean;
 }) {
   const requests: {
     readonly credential: string;
@@ -583,16 +585,21 @@ async function planCalendarFixture(credentials: {
     expectedVersion: draft.planCreation.version,
     incumbent: null,
   });
-  if (activated.planId === null) throw new Error("Expected active Plan");
-  await expect(
-    lifecycle.operations["plan.calendar"]({
-      action: "approve-weeks",
-      planId: activated.planId,
-      scope: { kind: "first-weeks" },
-    }),
-  ).resolves.toMatchObject({ status: "approved" });
-  await created.value.idle();
+  const planId = activated.planId;
+  if (planId === null) throw new Error("Expected active Plan");
+  const approve = async () => {
+    await expect(
+      lifecycle.operations["plan.calendar"]({
+        action: "approve-weeks",
+        planId,
+        scope: { kind: "first-weeks" },
+      }),
+    ).resolves.toMatchObject({ status: "approved" });
+    await created.value.idle();
+  };
+  if (credentials.approve !== false) await approve();
   return {
+    approve,
     lifecycle,
     requests,
     async apply(apiKey: string) {
@@ -2262,6 +2269,27 @@ describe("local coach composition", () => {
     await expect(fixture.listPlans()).resolves.toMatchObject({
       active: { calendar: { status: "verified" } },
     });
+    await fixture.lifecycle.close();
+  });
+
+  it("tells the Plan library a new Plan waits for Approve until the athlete approves it", async () => {
+    const accepted = "fixture-calendar-waiting-key";
+    const fixture = await planCalendarFixture({
+      refused: "fixture-calendar-unused-key",
+      accepted,
+      approve: false,
+    });
+    await expect(fixture.apply(accepted)).resolves.toMatchObject({ status: "applied" });
+    await expect(fixture.listPlans()).resolves.toMatchObject({
+      active: { calendar: { status: "waiting-for-approve", window: null, currentThrough: null } },
+    });
+    expect(fixture.requests.filter((request) => request.method === "POST")).toEqual([]);
+    await fixture.approve();
+    const listed = await fixture.listPlans();
+    expect(listed.active?.calendar.status).not.toBe("waiting-for-approve");
+    expect(fixture.requests.filter((request) => request.method === "POST").length).toBeGreaterThan(
+      0,
+    );
     await fixture.lifecycle.close();
   });
 
@@ -7232,5 +7260,73 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await expect(second).rejects.toBe(hostFailure);
     expect(runtimeCloseCalls).toBe(1);
     expect(trace.at(-1)).toBe("runtime-close-end");
+  });
+});
+
+describe("the coach's verdict on Activity review", () => {
+  async function composeForVerdict(apiKey: string) {
+    const home = await freshHome();
+    await mkdir(home.storeDir, { recursive: true });
+    const store = openSqliteStorage(join(home.storeDir, "store.db"));
+    stores.push(store);
+    await runMigrations(store, MIGRATIONS);
+    const activityId = "7".repeat(64);
+    await seedReviewRide(store, activityId, 19980901, { watts: 181 });
+    const callers: (string | undefined)[] = [];
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: () => backend(),
+        modelTransportDecorator: () => ({
+          generate: async (request) => {
+            callers.push(request.options.caller);
+            return generation("Steady ride on a synthetic day.");
+          },
+        }),
+        now: () => Date.UTC(1998, 8, 2, 12),
+      },
+      { home, store, listener: inertWriterProtocolListener },
+      undefined,
+      { ...config(home), llm: { provider: "anthropic", model: "synthetic", apiKey } },
+    );
+    return { lifecycle, activityId, callers, calendar: lifecycle.operations["plan.calendar"] };
+  }
+
+  it("writes the verdict on the athlete's configured model as one coach-text reply", async () => {
+    const { lifecycle, activityId, callers, calendar } = await composeForVerdict("synthetic-key");
+    await expect(
+      calendar({
+        action: "write-verdict",
+        activityId,
+        event: "opens",
+        expected: { state: "not-written", replies: 0 },
+      }),
+    ).resolves.toMatchObject({ status: "review", review: { verdict: { state: "writing" } } });
+    await vi.waitFor(async () => {
+      await expect(calendar({ action: "read-review", activityId })).resolves.toMatchObject({
+        review: { verdict: { state: "kept", text: "Steady ride on a synthetic day." }, replies: 1 },
+      });
+    });
+    expect(callers).toEqual(["coach-text"]);
+    await lifecycle.close();
+  });
+
+  it("says no model is set up instead of writing when the athlete has no credential", async () => {
+    const { lifecycle, activityId, callers, calendar } = await composeForVerdict("");
+    await expect(
+      calendar({
+        action: "write-verdict",
+        activityId,
+        event: "opens",
+        expected: { state: "not-written", replies: 0 },
+      }),
+    ).resolves.toMatchObject({
+      status: "review",
+      review: { verdict: { state: "not-written" }, blocked: "no-model", replies: 0 },
+    });
+    expect(callers).toEqual([]);
+    await lifecycle.close();
   });
 });

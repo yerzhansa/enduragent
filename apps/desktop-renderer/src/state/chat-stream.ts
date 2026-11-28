@@ -157,42 +157,6 @@ export function createChatScrollAnchor(): ChatScrollAnchor {
   };
 }
 
-export interface DebouncedTask {
-  schedule(task: () => void): void;
-  cancel(): void;
-  flush(): void;
-}
-
-export function createDebouncedTask(delayMs: number): DebouncedTask {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending: (() => void) | null = null;
-
-  const cancel = (): void => {
-    if (timer !== null) clearTimeout(timer);
-    timer = null;
-    pending = null;
-  };
-
-  return {
-    schedule(task) {
-      cancel();
-      pending = task;
-      timer = setTimeout(() => {
-        const run = pending;
-        timer = null;
-        pending = null;
-        run?.();
-      }, delayMs);
-    },
-    cancel,
-    flush() {
-      const run = pending;
-      cancel();
-      run?.();
-    },
-  };
-}
-
 export const chatStreamBuffer = createChatStreamBuffer();
 export const chatScrollAnchor = createChatScrollAnchor();
 

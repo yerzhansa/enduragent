@@ -43,6 +43,9 @@ import {
 } from "../../../../packages/coach/src/plan-creation-operations.js";
 import { createPlanChangeOperations } from "../../../../packages/coach/src/plan-change-operations.js";
 import { createPlanChangeEventSourceReader } from "../../../../packages/coach/src/plan-change-event-source-reader.js";
+import type { RideVerdictModel } from "../../../../packages/coach/src/plan-calendar-review.js";
+import type { CoachTextFacts } from "@enduragent/engine/coach-text-writer";
+import { canonicalJson } from "@enduragent/kernel/archive";
 import type { DesktopFixtureScript } from "./desktop-fixture.js";
 import { createPlanQaFixtureScript } from "./plan-qa-live.js";
 import {
@@ -94,6 +97,16 @@ interface TranscriptTurn {
 
 const ordinaryCoachReply = "Keep the effort conversational and finish feeling fresh.";
 const completedAt = "1998-09-02T00:00:00.000Z";
+const unavailableCalendar = async (): Promise<never> => {
+  throw new TypeError("Synthetic intervals.icu calendar is not configured");
+};
+const NO_CALENDAR: CalendarMirrorPort = {
+  listEvents: unavailableCalendar,
+  readEvent: unavailableCalendar,
+  createEvent: unavailableCalendar,
+  updateEvent: unavailableCalendar,
+  deleteEvent: unavailableCalendar,
+};
 const fixtureId = (value: string) => `${"0".repeat(26 - value.length)}${value}`;
 const activePlanId = fixtureId("A");
 const closedPlanId = fixtureId("B");
@@ -140,6 +153,15 @@ export class PlanCreationBackend {
     readonly result: PlanChangeApplyResult;
   }[] = [];
   readonly planListRequests: ScriptRequest[] = [];
+  readonly verdictRequests: CoachTextFacts[] = [];
+  readonly verdictReplies: string[] = [];
+  private readonly verdicts: RideVerdictModel = {
+    available: () => true,
+    writeCoachText: async (facts) => {
+      this.verdictRequests.push(facts);
+      return this.verdictReplies.shift() ?? "Steady from start to finish, as planned.";
+    },
+  };
   private store: (SqlStore & MigratorStore) | undefined;
   private repository: PlanCreationRepository | undefined;
   private host: PlanCreationHost | undefined;
@@ -155,6 +177,7 @@ export class PlanCreationBackend {
   private queueRevision = 0;
   private queue: QueuedMessage[] = [];
   private transcript: TranscriptTurn[] = [];
+  private draftText = "";
   private syncedEventCandidate = {
     id: 17,
     name: "Local supporting ride",
@@ -180,7 +203,9 @@ export class PlanCreationBackend {
     private readonly options: {
       readonly calendar?: PlanMirrorCalendarPort & { readonly mirror: CalendarMirrorPort };
       readonly calendarConnected?: boolean;
+      readonly waitForApprove?: boolean;
       readonly legacy?: LegacyPlanSummary | null;
+      readonly keepsDraftText?: boolean;
     } = {},
   ) {
     const base = coexistence ? createPlanInspectionFixtureScript() : createPlanQaFixtureScript();
@@ -249,6 +274,17 @@ export class PlanCreationBackend {
                 this.options.calendarConnected ?? Boolean(this.options.calendar),
             },
           });
+        }
+        if (
+          this.options.keepsDraftText === true &&
+          !coexistence &&
+          (request.method === "getChatAttachmentComposer" ||
+            request.method === "saveChatAttachmentDraftText")
+        ) {
+          if (request.method === "saveChatAttachmentDraftText") {
+            this.draftText = (request.params as { readonly text: string }).text;
+          }
+          return response(this.attachmentComposer());
         }
         if (
           request.method === "getChatAttachmentComposer" ||
@@ -324,18 +360,10 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
           }
         }
         if (request.method === "plan.calendar") {
-          const civilDate = (ms: number) =>
-            Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", ""));
           return response(
-            await createPlanCalendarOperations({
-              store: this.requireStore(),
-              todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
-              calendarConnected: () =>
-                this.options.calendarConnected ?? this.options.calendar !== undefined,
-              dateKeyOfMs: civilDate,
-              now: () => this.instant,
-              changed: () => void this.calendarDrain?.kick(),
-            })["plan.calendar"](PlanCalendarRpcParamsSchema.parse(request.params)),
+            await this.calendarOperations()["plan.calendar"](
+              PlanCalendarRpcParamsSchema.parse(request.params),
+            ),
           );
         }
         if (request.method === "plan.history") {
@@ -493,6 +521,13 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         ...host,
         "plan_creation.activate": async (input) => {
           const result = await host["plan_creation.activate"](input);
+          if (this.options.waitForApprove !== true && typeof result.planId === "string") {
+            await this.calendarOperations()["plan.calendar"]({
+              action: "approve-weeks",
+              planId: result.planId,
+              scope: { kind: "first-weeks" },
+            });
+          }
           void drain.kick();
           return result;
         },
@@ -519,7 +554,54 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     }
   }
 
+  private calendarOperations() {
+    return createPlanCalendarOperations({
+      store: this.requireStore(),
+      todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
+      calendarConnected: () =>
+        this.options.calendarConnected ?? this.options.calendar !== undefined,
+      dateKeyOfMs: (ms: number) =>
+        Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
+      now: () => this.instant,
+      changed: async () => {
+        await this.calendarDrain?.kick();
+        await this.calendarDrain?.idle();
+      },
+      calendar: { mirror: this.options.calendar?.mirror ?? NO_CALENDAR },
+      coachText: this.verdicts,
+      identity: {
+        deviceId: async () => "fixture-device",
+        newUlid: () => `${++this.sequence}`.padStart(26, "0"),
+        hlcStamp: () => ({ physicalMs: this.instant++, counter: 0 }),
+      },
+      applyChange: (request) => {
+        if (this.changes === undefined)
+          throw new TypeError("Plan Change operations are unavailable");
+        return this.changes["plan_change.apply"](request);
+      },
+    });
+  }
+
+  async saveWeekDeliverySetting(weekDelivery: "send-each-week" | "approve-each-week") {
+    return this.calendarOperations()["plan.calendar"]({ action: "save-settings", weekDelivery });
+  }
+
+  async approveFirstWeeks(planId: string) {
+    const result = await this.calendarOperations()["plan.calendar"]({
+      action: "approve-weeks",
+      planId,
+      scope: { kind: "first-weeks" },
+    });
+    await this.calendarRun();
+    return result;
+  }
+
   async calendarIdle(): Promise<void> {
+    await this.calendarDrain?.idle();
+  }
+
+  async calendarRun(): Promise<void> {
+    await this.calendarDrain?.kick();
     await this.calendarDrain?.idle();
   }
 
@@ -1072,6 +1154,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
     readonly name: string;
     readonly movingS: number;
     readonly distanceM: number;
+    readonly averageWatts?: number;
     readonly match?: {
       readonly planId: string;
       readonly planWorkoutId: string;
@@ -1102,9 +1185,53 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
         ride.distanceM,
       ],
     );
+    if (ride.averageWatts !== undefined) {
+      const artifact = `${ride.key.slice(0, 63)}f`;
+      const external = `i${ride.key.slice(0, 6)}${ride.dateKey}`;
+      await store.run(
+        `INSERT INTO source_artifact(artifact_key,source,lane,external_id,artifact_kind,
+          archive_address,archive_rel_path,archive_epoch_s) VALUES(?,?,?,?,?,?,?,?)`,
+        [
+          artifact,
+          "intervals-icu",
+          "activities",
+          external,
+          "snapshot",
+          "d".repeat(64),
+          `1998/${artifact}.json.gz`,
+          startUtc / 1000,
+        ],
+      );
+      await store.run(
+        `INSERT INTO source_record(id,workout_key,session_key,source,external_id,raw_sha256,
+          quality_rank,payload_json,artifact_key) VALUES(?,?,?,?,?,?,?,?,?)`,
+        [
+          `${ride.key.slice(0, 63)}e`,
+          ride.key,
+          ride.key,
+          "intervals-icu",
+          external,
+          "c".repeat(64),
+          1,
+          canonicalJson({
+            activity: {
+              id: external,
+              name: ride.name,
+              average_watts: ride.averageWatts,
+              start_date_local: `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}T08:00:00`,
+              type: "Ride",
+            },
+            concerns: {},
+            dedup: {},
+            schema_version: 1,
+          }),
+          artifact,
+        ],
+      );
+    }
     if (ride.match === undefined) return;
     const decided = ride.match.decision === "confirmed" ? this.instant : null;
-    await createPlanWorkoutMatchRepository(store).observe({
+    const stored = await createPlanWorkoutMatchRepository(store).observe({
       id: fixtureId(`M${ride.key.slice(0, 4)}`),
       planId: ride.match.planId,
       planWorkoutId: ride.match.planWorkoutId,
@@ -1122,6 +1249,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
       hlcPhysicalMs: this.instant,
       hlcCounter: 0,
     });
+    if (stored === null) throw new TypeError("Calendar ride match was not stored");
   }
 
   async seedUnrelatedPlans(): Promise<void> {
@@ -1199,6 +1327,26 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
 
   private queueSnapshot() {
     return { schemaVersion: 1 as const, revision: this.queueRevision, items: this.queue };
+  }
+
+  get chatSubmissions(): number {
+    return this.queueRevision;
+  }
+
+  private attachmentComposer() {
+    return this.draftText.length === 0
+      ? emptyAttachmentComposer
+      : {
+          ...emptyAttachmentComposer,
+          draft: {
+            schemaVersion: 1,
+            chatId: "desktop",
+            text: this.draftText,
+            state: "active",
+            updatedAt: completedAt,
+            attachments: [],
+          },
+        };
   }
 
   private enqueue(value: unknown) {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  createPlanCleanupHoldRepository,
   createPlanCreationRepository,
   type PlanCreationCommandStamp,
   type PlanCreationRepository,
@@ -45,7 +46,6 @@ const activationInput = (
     activatedAt: "1998-01-01",
     todayDateKey: 19980101,
     mirrorJobId: id(`5${key}`),
-    cleanupJobId: id(`6${key}`),
     revisionId: id(`2${key}`),
     materialize: () => ({
       plan: {
@@ -252,21 +252,20 @@ describe("Plan Creation activation repository", () => {
         window_start_date_key: 19980101,
         window_end_date_key: 19980107,
       },
-      {
-        id: id("62"),
-        plan_id: first.planId,
-        kind: "cleanup",
-        status: "pending",
-        window_start_date_key: 19980102,
-        window_end_date_key: 19980114,
-      },
+    ]);
+    expect(
+      await store.all(
+        "SELECT plan_id,replacement_plan_id,released_at_ms FROM plan_cleanup_hold ORDER BY plan_id",
+      ),
+      "the old Plan's cleanup waits for the new Plan's first Approve",
+    ).toEqual([
+      { plan_id: first.planId, replacement_plan_id: second.planId, released_at_ms: null },
     ]);
     const before = await dumpStore(store);
     await expect(
       createPlanCreationRepository(store).activate({
         ...activationInput(),
         mirrorJobId: id("91"),
-        cleanupJobId: id("92"),
         materialize: () => {
           throw new Error("Replay must not materialize again");
         },
@@ -326,6 +325,11 @@ describe("Plan Creation activation repository", () => {
       activatedAt: "1998-01-31",
       todayDateKey: 19980131,
     });
+    await createPlanCleanupHoldRepository(store).release(id("12"), {
+      closedOnDateKey: 19980131,
+      nowMs: nowMs + 30,
+      newId: () => id("62"),
+    });
     expect(
       await store.all(
         "SELECT kind,window_start_date_key,window_end_date_key FROM plan_reconciliation_job WHERE id IN (?,?) ORDER BY id",
@@ -334,6 +338,81 @@ describe("Plan Creation activation repository", () => {
     ).toEqual([
       { kind: "mirror", window_start_date_key: 19980131, window_end_date_key: 19980206 },
       { kind: "cleanup", window_start_date_key: 19980201, window_end_date_key: 19980201 },
+    ]);
+  });
+
+  it("points an older held cleanup at the newest replacement when a waiting Plan is replaced", async () => {
+    await review();
+    await repository.activate(activationInput());
+    await review("2");
+    await repository.activate(activationInput("2", { planId: id("11"), version: 1 }));
+    await review("3");
+    await repository.activate(activationInput("3", { planId: id("12"), version: 1 }));
+    expect(
+      await store.all(
+        "SELECT plan_id,replacement_plan_id,released_at_ms FROM plan_cleanup_hold ORDER BY plan_id",
+      ),
+    ).toEqual([
+      { plan_id: id("11"), replacement_plan_id: id("13"), released_at_ms: null },
+      { plan_id: id("12"), replacement_plan_id: id("13"), released_at_ms: null },
+    ]);
+    expect(
+      await store.all("SELECT plan_id FROM plan_reconciliation_job WHERE kind='cleanup'"),
+    ).toEqual([]);
+  });
+
+  it("drops a stale End choice when the drain releases a hold whose replacement no longer waits", async () => {
+    await review();
+    await repository.activate(activationInput());
+    await review("2");
+    await repository.activate(activationInput("2", { planId: id("11"), version: 1 }));
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      JSON.stringify({ kind: "remove-them", ticked: [], commandId: "an-unconfirmed-end" }),
+      id("11"),
+    ]);
+    await store.run(
+      "UPDATE plan_week_delivery SET state_kind='approved',state_json=? WHERE plan_id=?",
+      [JSON.stringify({ kind: "approved", firstSetWeeks: [], approvedWeeks: [] }), id("12")],
+    );
+    expect(
+      await createPlanCleanupHoldRepository(store).releaseOrphans({
+        closedOnDateKey: 19980101,
+        nowMs: nowMs + 30,
+        newId: () => id("62"),
+      }),
+    ).toEqual([id("11")]);
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+    ).toEqual({ close_choice_json: '{"kind":"keep-them"}' });
+    expect(
+      await store.get(
+        "SELECT plan_id,kind,window_start_date_key FROM plan_reconciliation_job WHERE id=?",
+        [id("62")],
+      ),
+    ).toEqual({ plan_id: id("11"), kind: "cleanup", window_start_date_key: 19980102 });
+  });
+
+  it("leaves a released hold aimed at the Plan it was released for when that Plan is replaced", async () => {
+    await review();
+    await repository.activate(activationInput());
+    await review("2");
+    await repository.activate(activationInput("2", { planId: id("11"), version: 1 }));
+    await createPlanCleanupHoldRepository(store).release(id("12"), {
+      closedOnDateKey: 19980101,
+      nowMs: nowMs + 25,
+      newId: () => id("62"),
+    });
+    await review("3");
+    await repository.activate(activationInput("3", { planId: id("12"), version: 1 }));
+    expect(
+      await store.all(
+        "SELECT plan_id,replacement_plan_id,released_at_ms FROM plan_cleanup_hold ORDER BY plan_id",
+      ),
+    ).toEqual([
+      { plan_id: id("11"), replacement_plan_id: id("12"), released_at_ms: nowMs + 25 },
+      { plan_id: id("12"), replacement_plan_id: id("13"), released_at_ms: null },
     ]);
   });
 
@@ -413,10 +492,10 @@ describe("Plan Creation activation repository", () => {
               "SELECT id,plan_id,kind,status FROM plan_reconciliation_job WHERE id IN (?,?) ORDER BY id",
               [id("52"), id("62")],
             ),
-          ).toEqual([
-            { id: id("52"), plan_id: id("12"), kind: "mirror", status: "pending" },
-            { id: id("62"), plan_id: id("11"), kind: "cleanup", status: "pending" },
-          ]);
+          ).toEqual([{ id: id("52"), plan_id: id("12"), kind: "mirror", status: "pending" }]);
+          expect(
+            await store.all("SELECT plan_id,replacement_plan_id FROM plan_cleanup_hold"),
+          ).toEqual([{ plan_id: id("11"), replacement_plan_id: id("12") }]);
           closureObserved = true;
           throw new Error("Synthetic activation ledger failure");
         }

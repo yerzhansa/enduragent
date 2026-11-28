@@ -7,6 +7,7 @@ import type {
   PlanCalendarWorkout,
 } from "@enduragent/coach-contract";
 import {
+  icuFingerprintParts,
   outcomeCount,
   readIcuCopies,
   readWeekDelivery,
@@ -32,9 +33,20 @@ import {
   type SqlStore,
 } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { movesByYou, workoutMovable } from "./plan-calendar-move.js";
 import { phaseForWeek } from "./plan-phase.js";
+import { readReplacing, sendsFrom } from "./plan-calendar-replace.js";
 
 export type PlanCalendarRead = Extract<PlanCalendarRpcResult, { status: "calendar" }>;
+
+function movedByYouOf(
+  move: { readonly fromDateKey: number; readonly toDateKey: number } | undefined,
+  dateKey: number,
+): PlanCalendarWorkout["movedByYou"] {
+  return move === undefined || move.toDateKey !== dateKey
+    ? null
+    : { fromDateKey: move.fromDateKey };
+}
 
 export interface PlanCalendarReadDeps {
   readonly store: SqlStore & Pick<MigratorStore, "transaction">;
@@ -51,13 +63,27 @@ function copyView(copy: IcuCopy): PlanCalendarCopy {
       return { kind: "on-intervals", owner: copy.baseline.owner };
     case "moving-by-you":
       return { kind: "moving-by-you" };
-    case "changed-in-icu":
+    case "changed-in-icu": {
       if (copy.shown.kind === "absent") {
-        return { kind: "changed-in-intervals", change: "deleted", toDateKey: null };
+        return {
+          kind: "changed-in-intervals",
+          change: "deleted",
+          toDateKey: null,
+          name: null,
+          durationS: null,
+        };
       }
+      const parts = icuFingerprintParts(copy.shown.version.fingerprint);
+      const shown = { name: parts?.name ?? null, durationS: parts?.durationS ?? null };
       return copy.shown.dateKey === copy.baseline.dateKey
-        ? { kind: "changed-in-intervals", change: "edited", toDateKey: null }
-        : { kind: "changed-in-intervals", change: "moved", toDateKey: copy.shown.dateKey };
+        ? { kind: "changed-in-intervals", change: "edited", toDateKey: null, ...shown }
+        : {
+            kind: "changed-in-intervals",
+            change: "moved",
+            toDateKey: copy.shown.dateKey,
+            ...shown,
+          };
+    }
     case "removed-by-you":
       return { kind: "removed-by-you" };
     case "kept-as-yours":
@@ -108,7 +134,7 @@ function outcomeView(outcome: WorkoutOutcome, match: OutcomeMatch): PlanCalendar
 
 const RANGE_LIMIT_DAYS = 120;
 
-function isoOf(dateKey: number): string {
+export function isoOf(dateKey: number): string {
   const value = String(dateKey).padStart(8, "0");
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
@@ -119,7 +145,29 @@ function validDateKey(dateKey: number): boolean {
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === iso;
 }
 
-function boundedRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+function civilShift(dateKey: number, days: number): number {
+  return Number(
+    new Date(Date.parse(`${isoOf(dateKey)}T00:00:00Z`) + days * 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+      .replaceAll("-", ""),
+  );
+}
+
+export function latestRange(range: { readonly startDateKey: number; readonly endDateKey: number }) {
+  if (!validDateKey(range.startDateKey) || !validDateKey(range.endDateKey)) {
+    return { startDateKey: range.endDateKey, endDateKey: range.endDateKey - 1 };
+  }
+  return {
+    startDateKey: Math.max(range.startDateKey, civilShift(range.endDateKey, 1 - RANGE_LIMIT_DAYS)),
+    endDateKey: range.endDateKey,
+  };
+}
+
+export function boundedRange(range: {
+  readonly startDateKey: number;
+  readonly endDateKey: number;
+}) {
   if (!validDateKey(range.startDateKey) || !validDateKey(range.endDateKey)) {
     return { startDateKey: range.startDateKey, endDateKey: range.startDateKey - 1 };
   }
@@ -213,6 +261,7 @@ async function readInside(
     return {
       ...base,
       plan: null,
+      replacing: null,
       activities: activities.map((activity) => ({ ...activity, workoutId: null })),
     };
   }
@@ -227,6 +276,7 @@ async function readInside(
     sync.lastSuccessfulSyncAtMs === null
       ? { kind: "never" }
       : { kind: "started-on", dateKey: deps.dateKeyOfMs(sync.lastSuccessfulSyncAtMs) };
+  const moves = await movesByYou(deps.store, plan.id);
   const calendarWorkouts: PlanCalendarWorkout[] = workouts.map((workout) => {
     const stored = copies.get(workout.id);
     const copy = storedIcuCopy(stored);
@@ -251,6 +301,13 @@ async function readInside(
       lastWrite: stored?.lastWrite.kind ?? "none",
       outcome: outcomeView(outcome, match),
       doneS: doneSeconds(outcome, match),
+      movable: workoutMovable({
+        workout,
+        copy,
+        planned: outcome.kind === "planned",
+        todayDateKey: deps.todayDateKey,
+      }),
+      movedByYou: movedByYouOf(moves.get(workout.id), workout.dateKey),
     };
   });
   const delivery = await readWeekDelivery(mirror, plan.id);
@@ -289,6 +346,10 @@ async function readInside(
       .map((record) => [record.activityId, record.planWorkoutId]),
   );
   const currentWeek = weekOf(deps.todayDateKey, ranges);
+  const replacing = await readReplacing(deps.store, {
+    planId: plan.id,
+    todayDateKey: deps.todayDateKey,
+  });
   return {
     ...base,
     plan: {
@@ -300,9 +361,11 @@ async function readInside(
       totalWeeks: plan.totalWeeks,
       currentWeek,
       phase: phaseForWeek(plan, currentWeek),
+      sendsFromDateKey: await sendsFrom(deps.store, plan.id, deps.todayDateKey),
       weeks,
       workouts: calendarWorkouts,
     },
+    replacing,
     activities: activities.map((activity) => ({
       ...activity,
       workoutId: confirmedBy.get(activity.activityId) ?? null,

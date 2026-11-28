@@ -500,7 +500,6 @@ describe("LLM generate — timeout reclassification gated on our timer + abort s
     vi.doMock("@ai-sdk/anthropic", () => ({
       createAnthropic: () => () => ({ provider: "anthropic-stub" }),
     }));
-    // The per-call timer has already fired by the time dispatch throws.
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(abortedTimeoutSignal());
 
     const { LLM } = await import("../src/llm.js");
@@ -532,9 +531,6 @@ describe("LLM generate — timeout reclassification gated on our timer + abort s
     expect((caught as Error).name).toBe("TimeoutError");
   });
 
-  // Sibling of generateThrowing: our timer never fires (AbortSignal.timeout
-  // returns a non-aborted signal), and opts.signal is threaded through so an
-  // OUTER caller cancellation can be exercised.
   async function generateThrowingWithSignal(
     thrown: unknown,
     signal: AbortSignal,
@@ -548,7 +544,6 @@ describe("LLM generate — timeout reclassification gated on our timer + abort s
     vi.doMock("@ai-sdk/anthropic", () => ({
       createAnthropic: () => () => ({ provider: "anthropic-stub" }),
     }));
-    // Our per-call timer never fires: deadline.aborted stays false.
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(new AbortController().signal);
 
     const { LLM } = await import("../src/llm.js");
@@ -896,5 +891,62 @@ describe("LLM dispatch — codex-agent provider gating (AC-3)", () => {
 
     await expect(pending).resolves.toMatchObject({ text: "ok" });
     vi.useRealTimers();
+  });
+});
+
+describe("LLM dispatch — the coach's verdict on keyless lanes", () => {
+  it("sends the verdict to claude-cli as a one-shot call and records it as coach-text", async () => {
+    const harness = await loadClaudeCliLlm();
+    const lines: { caller?: string }[] = [];
+    const llm = new harness.LLM(claudeCliConfig(), {
+      ...llmTestPorts(),
+      usage: { append: (line) => lines.push(line) },
+      claudeWorkingArea: harness.workingArea,
+    });
+
+    await llm.generate({ prompt: "verdict", caller: "coach-text" });
+
+    expect(harness.claudeCliGenerateText).toHaveBeenCalledOnce();
+    expect(harness.claudeCliGenerateText.mock.calls[0]?.[0]).toMatchObject({
+      caller: "intent-translation",
+    });
+    expect(lines.map((line) => line.caller)).toEqual(["coach-text"]);
+  });
+
+  it("sends the verdict to codex-agent as a one-shot call", async () => {
+    const codexAgentGenerateText = vi.fn(async (_options: { caller?: string }) => MINIMAL_RESULT);
+    vi.doMock("../src/agent/codex-agent/bridge.js", () => ({ codexAgentGenerateText }));
+    const { LLM } = await import("../src/llm.js");
+    const llm = new LLM(codexAgentConfig(), llmTestPorts());
+
+    await llm.generate({ prompt: "verdict", caller: "coach-text" });
+    await llm.generate({ prompt: "chat", caller: "chat" });
+
+    expect(codexAgentGenerateText.mock.calls.map(([options]) => options.caller)).toEqual([
+      "intent-translation",
+      "chat",
+    ]);
+    vi.doUnmock("../src/agent/codex-agent/bridge.js");
+  });
+});
+
+describe("LLM dispatch — the coach's verdict on codex-agent", () => {
+  it("runs the verdict on codex-agent at effort low and leaves chat at the configured effort", async () => {
+    const runtimes: unknown[] = [];
+    vi.doMock("../src/agent/codex-agent/bridge.js", () => ({
+      codexAgentGenerateText: vi.fn(async (_options: unknown, ports: { runtime: unknown }) => {
+        runtimes.push(ports.runtime);
+        return MINIMAL_RESULT;
+      }),
+    }));
+    const { LLM } = await import("../src/llm.js");
+    const llm = new LLM(codexAgentConfig(), llmTestPorts());
+    await llm.generate({ prompt: "verdict", caller: "coach-text" });
+    await llm.generate({ prompt: "chat", caller: "chat" });
+    expect(runtimes).toEqual([
+      expect.objectContaining({ reasoningEffort: "low" }),
+      expect.objectContaining({ reasoningEffort: "medium" }),
+    ]);
+    vi.doUnmock("../src/agent/codex-agent/bridge.js");
   });
 });

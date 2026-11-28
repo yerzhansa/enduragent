@@ -32,6 +32,8 @@ import {
 import { createChatPlanOutboxRepository, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { createCalendarMirrorAdapter } from "../src/planning-calendar.js";
+import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
 import { createPlanningRequestDeliveryService } from "../src/planning-request-delivery.js";
@@ -51,6 +53,33 @@ const unusedStore = () => {
 
 const id = (value: string) => `${"0".repeat(26 - value.length)}${value}`;
 const today = "1998-09-02";
+
+async function approveFirstWeeks(
+  store: Parameters<typeof createPlanCalendarOperations>[0]["store"],
+  planId: string | null,
+  on = today,
+): Promise<void> {
+  if (planId === null) throw new Error("Expected an active Plan");
+  const dateKey = Number(on.replaceAll("-", ""));
+  const result = await createPlanCalendarOperations({
+    store,
+    todayDateKey: () => dateKey,
+    now: () => 904_737_600_000,
+    calendarConnected: () => true,
+    dateKeyOfMs: () => dateKey,
+    changed: async () => undefined,
+    calendar: { mirror: createCalendarMirrorAdapter(() => null) },
+    identity: {
+      deviceId: async () => "approve-test-device",
+      newUlid: () => id("990"),
+      hlcStamp: () => ({ physicalMs: 904_737_600_000, counter: 0 }),
+    },
+    applyChange: async () => {
+      throw new TypeError("Plan Change operations are not used here");
+    },
+  })["plan.calendar"]({ action: "approve-weeks", planId, scope: { kind: "first-weeks" } });
+  if (result.status !== "approved") throw new Error(`Approve refused: ${JSON.stringify(result)}`);
+}
 const eventCandidate = {
   candidateId: id("2"),
   name: "Tour",
@@ -565,6 +594,162 @@ describe("Plan Creation operations", () => {
       planCreation: { openQuestion: { kind: "success-question" } },
     });
     expect(test.current().answers).toHaveLength(6);
+  });
+
+  it("offers the first day of the week or another day, and keeps the picked day as the start", async () => {
+    const test = harness();
+    await answered(test.submit(eventGoal));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      prompt: "When should this Plan start?",
+      earliestAllowed: today,
+      options: [
+        { timing: "first-day-of-week", label: "First day of your week" },
+        { timing: "earliest", label: "Pick another day" },
+      ],
+      dateLabel: "Plan starts",
+    });
+    await answered(
+      test.submit({ kind: "start-timing", timing: { kind: "earliest", date: "1998-09-07" } }),
+    );
+    expect((await test.host.readCard())?.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 7 Sept 1998" }),
+    );
+  });
+
+  it("never lets the start fall after the event, so Build Draft is not dead-ended", async () => {
+    const test = harness();
+    await answered(test.submit(eventGoal));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      earliestAllowed: today,
+      latestAllowed: eventCandidate.date,
+    });
+    await expect(
+      test.submit({ kind: "start-timing", timing: { kind: "earliest", date: "1998-10-19" } }),
+    ).resolves.toMatchObject({
+      status: "rejected",
+      reason: "invalid-answer",
+      planCreation: { openQuestion: { kind: "start-timing-question" } },
+    });
+    await answered(
+      test.submit({
+        kind: "start-timing",
+        timing: { kind: "earliest", date: eventCandidate.date },
+      }),
+    );
+  });
+
+  it("asks a Fitness Goal start with no latest day", async () => {
+    const test = harness();
+    await answered(test.submit(fitnessGoal));
+    await answered(test.submit({ kind: "plan-length", weeks: 4 }));
+    await answered(test.submit(fixedMode));
+    const asked = await answered(test.submit(fixedAvailability));
+    expect(asked.openQuestion?.kind).toBe("start-timing-question");
+    expect(asked.openQuestion).not.toHaveProperty("latestAllowed");
+  });
+
+  it("states the start the Draft will use when a picked day has already passed", () => {
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, eventGoal),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-08-31" } }),
+      ]),
+      { today },
+    );
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 7 Sept 1998" }),
+    );
+  });
+
+  it("states today when a passed pick moved by whole weeks would land after the event", () => {
+    const nearEvent: PlanCreationAnswerInput = {
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date: "1998-09-04" },
+    };
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, nearEvent),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-08-31" } }),
+      ]),
+      { today },
+    );
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 2 Sept 1998" }),
+    );
+  });
+
+  it("asks for the start again when the event moves before it", () => {
+    const event = (date: string): PlanCreationAnswerInput => ({
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date },
+    });
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, event("1998-09-20")),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: "1998-09-14" } }),
+        stored(5, event("1998-09-10")),
+      ]),
+      { today },
+    );
+    expect(card.openQuestion).toMatchObject({
+      kind: "start-timing-question",
+      latestAllowed: "1998-09-10",
+    });
+    expect(card.answeredSummaries.map((summary) => summary.answerKey)).not.toContain(
+      "start-timing",
+    );
+  });
+
+  it("keeps a start given after an event that has already passed", () => {
+    const pastEvent: PlanCreationAnswerInput = {
+      kind: "goal",
+      goal: { kind: "event-manual", name: "Synthetic Gran Fondo", date: "1998-08-30" },
+    };
+    const card = projectPlanCreationCard(
+      snapshot([
+        stored(1, pastEvent),
+        stored(2, fixedMode),
+        stored(3, fixedAvailability),
+        stored(4, { kind: "start-timing", timing: { kind: "earliest", date: today } }),
+      ]),
+      { today },
+    );
+    expect(card.openQuestion?.kind).toBe("commitments-question");
+    expect(card.answeredSummaries.map((summary) => summary.answerKey)).toContain("start-timing");
+  });
+
+  it("states the start the Draft will use when the first picked week has no day to train", () => {
+    const card = projectPlanCreationCard(
+      snapshot(
+        [
+          eventGoal,
+          fixedMode,
+          fixedAvailability,
+          { kind: "start-timing", timing: { kind: "earliest", date: "1998-09-07" } },
+          noCommitments,
+          regularBaseline,
+          eventSuccess,
+          { kind: "restriction", restriction: { kind: "no-training", endDate: "1998-09-13" } },
+        ].map((answer, index) => stored(index + 1, answer as PlanCreationAnswerInput)),
+      ),
+      { today },
+    );
+    expect(card.readiness).toBe("ready");
+    expect(card.answeredSummaries).toContainEqual(
+      expect.objectContaining({ answerKey: "start-timing", detail: "Starts 14 Sept 1998" }),
+    );
   });
 
   it("rejects an earliest start before the host civil date", async () => {
@@ -1617,13 +1802,7 @@ describe("Plan Creation activation", () => {
     all.mockClear();
     get.mockClear();
     const expanded = await test.host["plan.list"]({});
-    expect(expanded.active).toEqual({
-      ...initial.active,
-      calendar: {
-        ...initial.active?.calendar,
-        window: { start: "1998-09-02", end: "1998-09-29" },
-      },
-    });
+    expect(expanded.active).toEqual(initial.active);
     expect(expanded.closed).toHaveLength(3);
     expect(expanded.closed.map((plan) => plan.calendar.window)).toEqual([
       { start: "1998-09-02", end: "1998-09-29" },
@@ -1636,6 +1815,13 @@ describe("Plan Creation activation", () => {
   it("projects pending, running, failed and verified mirror work across connection changes", async () => {
     const test = await review();
     const activated = await test.host["plan_creation.activate"](test.request);
+    expect((await test.host["plan.list"]({})).active?.calendar).toEqual({
+      status: "waiting-for-approve",
+      window: null,
+      currentThrough: null,
+      error: null,
+    });
+    await approveFirstWeeks(test.store, activated.planId);
     const repository = createPlanReconciliationRepository(test.store);
     const job = await repository.readLatestJobByWindow(activated.planId, "mirror");
     if (job === undefined) throw new Error("Expected mirror job");
@@ -1712,6 +1898,7 @@ describe("Plan Creation activation", () => {
       const test = await review();
       test.setConnected(true);
       const activated = await test.host["plan_creation.activate"](test.request);
+      await approveFirstWeeks(test.store, activated.planId);
       if (kind === "cleanup") {
         await test.host["plan.close"]({
           commandId: "close-calendar",
@@ -1804,6 +1991,7 @@ describe("Plan Creation activation", () => {
     const test = await review();
     test.setConnected(true);
     const activated = await test.host["plan_creation.activate"](test.request);
+    await approveFirstWeeks(test.store, activated.planId);
     let sequence = 1000;
     const changes = createPlanChangeOperations({
       eventSources: { read: async () => [] },
@@ -1949,8 +2137,8 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
         activatedAt: "1998-01-01",
         creationId: test.request.creationId,
         calendar: {
-          status: "not-connected",
-          window: { start: "1998-01-02", end: "1998-01-18" },
+          status: "waiting-for-approve",
+          window: null,
           currentThrough: null,
           error: null,
         },
@@ -1969,8 +2157,8 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
           activatedAt: "1997-12-22",
           creationId: null,
           calendar: {
-            status: "not-connected",
-            window: { start: "1998-01-02", end: "1998-01-18" },
+            status: "waiting-for-approve",
+            window: null,
             currentThrough: null,
             error: null,
           },

@@ -48,7 +48,13 @@ function runningPlan() {
     workout(4, 19980112, { outcome: { kind: "missed" } }),
     workout(5, TODAY),
     workout(6, 19980116, {
-      copy: { kind: "changed-in-intervals", change: "edited", toDateKey: null },
+      copy: {
+        kind: "changed-in-intervals",
+        change: "edited",
+        toDateKey: null,
+        name: "Endurance 6",
+        durationS: 2_700,
+      },
     }),
     workout(7, 19980121, { copy: { kind: "plan-only" } }),
   ];
@@ -140,8 +146,10 @@ describe("the Calendar page", () => {
       refresh: "failed",
     });
     render(<CalendarView />);
-    const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("The calendar could not refresh.");
+    const status = screen
+      .getAllByRole("status")
+      .find((element) => element.textContent?.includes("The calendar could not refresh."));
+    if (status === undefined) throw new Error("Expected the refresh notice");
     await user.click(within(status).getByRole("button", { name: "Try again" }));
     expect(bound.refresh).toHaveBeenCalledOnce();
     expect(screen.getAllByRole("rowheader")).toHaveLength(4);
@@ -205,7 +213,13 @@ describe("the Calendar page", () => {
       workout(4, 19980108, { copy: { kind: "plan-only" }, lastWrite: "failed" }),
       workout(5, 19980109, {
         outcome: { kind: "missed" },
-        copy: { kind: "changed-in-intervals", change: "deleted", toDateKey: null },
+        copy: {
+          kind: "changed-in-intervals",
+          change: "deleted",
+          toDateKey: null,
+          name: null,
+          durationS: null,
+        },
       }),
       workout(6, 19980110, { outcome: { kind: "missed" }, durationS: null }),
     ];

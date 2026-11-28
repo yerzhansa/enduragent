@@ -115,6 +115,7 @@ import {
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
 import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "./runtime-bundle.js";
+import { modelWriters } from "./model-writers.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -199,7 +200,7 @@ import {
 import { createTrainingExportService } from "./training-export.js";
 import { createPlanningOperations } from "./planning-operations.js";
 import { createCyclingPlanDraftBuilder } from "./cycling-plan-draft-builder.js";
-import { createPlanCalendarOperations } from "./plan-calendar-operations.js";
+import { createPlanCalendarOperations, dateKeyOfMsIn } from "./plan-calendar-operations.js";
 import type { LocalCoachOperations } from "./composition-operations.js";
 import { createPlanMirrorCalendarAdapter } from "./planning-calendar.js";
 import { createNodePlanRaceCourseAdapter } from "./planning-race-course.js";
@@ -1395,10 +1396,7 @@ export async function createLocalCoachComposition(
       const engineInput = { sport: cyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
       return {
-        ...(runtimeCredentialConfigured(input.home.configDir, config) &&
-        backend.translateIntent !== undefined
-          ? { intentTranslator: { translateIntent: backend.translateIntent.bind(backend) } }
-          : {}),
+        ...modelWriters(backend, ports, runtimeCredentialConfigured(input.home.configDir, config)),
         memory,
         chatStore: conversationStore,
         timezone,
@@ -1998,12 +1996,13 @@ export async function createLocalCoachComposition(
       calendarConnected,
       todayDateKey: planningDateKey,
       now,
-      dateKeyOfMs: (ms: number) =>
-        Number(todayInTZ(planningTimezone, new Date(ms)).replaceAll("-", "")),
+      dateKeyOfMs: dateKeyOfMsIn(() => planningTimezone),
+      applyChange: planChangeOperations["plan_change.apply"],
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
-      changed: () => closing || void drain.kick(),
+      coachText: reconfigurable.coachText,
+      changed: () => (closing ? Promise.resolve() : drain.kick().then(() => drain.idle())),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
     const kickAfter =

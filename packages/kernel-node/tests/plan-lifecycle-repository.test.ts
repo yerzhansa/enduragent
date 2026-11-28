@@ -45,7 +45,6 @@ const activationInput = (key = "1") => {
     activatedAt: "1998-01-01",
     todayDateKey: 19980101,
     mirrorJobId: id(`5${key}`),
-    cleanupJobId: id(`6${key}`),
     revisionId: id(`2${key}`),
     materialize: () => ({
       plan: {
@@ -199,6 +198,53 @@ describe("Plan lifecycle repository", () => {
     );
   });
 
+  describe("the End choice for the athlete's intervals.icu changes", () => {
+    const removeThem = (commandId: string) =>
+      JSON.stringify({ kind: "remove-them", ticked: [{ eventId: 7 }], commandId });
+    const saveChoice = (closeChoiceJson: string) =>
+      store.run(
+        `INSERT INTO plan_week_delivery (plan_id,state_kind,state_json,close_choice_json,updated_at_ms)
+        VALUES (?,'approved','{}',?,?)
+        ON CONFLICT(plan_id) DO UPDATE SET close_choice_json=excluded.close_choice_json`,
+        [id("11"), closeChoiceJson, nowMs],
+      );
+    const choice = async () =>
+      (await store.get("SELECT close_choice_json FROM plan_week_delivery"))?.close_choice_json;
+
+    it("keeps the choice saved for the close that ends the Plan", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(lifecycle.close(closeInput())).resolves.toMatchObject({ status: "closed" });
+      expect(await choice()).toBe(removeThem("close-1"));
+    });
+
+    it("keeps the athlete's changes when another command closes the Plan", async () => {
+      await activate();
+      await saveChoice(removeThem("end-that-failed"));
+      await expect(lifecycle.close(closeInput())).resolves.toMatchObject({ status: "closed" });
+      expect(await choice()).toBe('{"kind":"keep-them"}');
+    });
+
+    it("keeps a saved choice while a close is rejected", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(lifecycle.close({ ...closeInput(), expectedVersion: 7 })).resolves.toEqual({
+        status: "rejected",
+        reason: "stale-version",
+      });
+      expect(await choice()).toBe(removeThem("close-1"));
+    });
+
+    it("keeps the athlete's changes when the Plan completes", async () => {
+      await activate();
+      await saveChoice(removeThem("close-1"));
+      await expect(
+        lifecycle.completeExpired({ todayDateKey: 19980115, nowMs: nowMs + 100 }),
+      ).resolves.toEqual({ completedPlanId: id("11") });
+      expect(await choice()).toBe('{"kind":"keep-them"}');
+    });
+  });
+
   it("replays an already-closed Plan byte-identically, including after another activation", async () => {
     await activate();
     const result = await lifecycle.close(closeInput());
@@ -247,6 +293,87 @@ describe("Plan lifecycle repository", () => {
       lifecycle.close({ ...closeInput(), command: stamp("close-again", 70) }),
     ).resolves.toEqual({ status: "rejected", reason: "no-active-plan" });
     expect(await dumpStore(store)).toBe(before);
+  });
+
+  it("releases the held cleanup of the Plan it replaced when the waiting Plan is ended", async () => {
+    await activate();
+    await review("2");
+    await repository.activate({
+      ...activationInput("2"),
+      incumbent: { planId: id("11"), version: 1 },
+    });
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      JSON.stringify({ kind: "remove-them", ticked: [], commandId: "another-end" }),
+      id("11"),
+    ]);
+    expect(
+      await store.all("SELECT plan_id FROM plan_reconciliation_job WHERE kind='cleanup'"),
+    ).toEqual([]);
+    await expect(
+      lifecycle.close({
+        command: stamp("close-2", 60),
+        planId: id("12"),
+        expectedVersion: 1,
+        closedAtMs: nowMs + 60,
+        todayDateKey: 19980103,
+        cleanupJobId: id("92"),
+      }),
+    ).resolves.toMatchObject({ status: "closed", cleanupJobId: id("92") });
+    expect(
+      await store.all(
+        `SELECT plan_id,window_start_date_key,window_end_date_key,status FROM plan_reconciliation_job
+        WHERE kind='cleanup' ORDER BY plan_id`,
+      ),
+    ).toEqual([
+      {
+        plan_id: id("11"),
+        window_start_date_key: 19980104,
+        window_end_date_key: 19980114,
+        status: "pending",
+      },
+      {
+        plan_id: id("12"),
+        window_start_date_key: 19980104,
+        window_end_date_key: 19980114,
+        status: "pending",
+      },
+    ]);
+    expect(
+      await store.get("SELECT released_at_ms FROM plan_cleanup_hold WHERE plan_id=?", [id("11")]),
+    ).toEqual({ released_at_ms: nowMs + 60 });
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+      "a choice saved for another End command does not carry over",
+    ).toEqual({ close_choice_json: '{"kind":"keep-them"}' });
+  });
+
+  it("keeps the replaced Plan's choice when the waiting Plan's End is the command it was saved for", async () => {
+    await activate();
+    await review("2");
+    await repository.activate({
+      ...activationInput("2"),
+      incumbent: { planId: id("11"), version: 1 },
+    });
+    const choice = JSON.stringify({ kind: "remove-them", ticked: [], commandId: "close-2" });
+    await store.run("UPDATE plan_week_delivery SET close_choice_json=? WHERE plan_id=?", [
+      choice,
+      id("11"),
+    ]);
+    await lifecycle.close({
+      command: stamp("close-2", 60),
+      planId: id("12"),
+      expectedVersion: 1,
+      closedAtMs: nowMs + 60,
+      todayDateKey: 19980103,
+      cleanupJobId: id("92"),
+    });
+    expect(
+      await store.get("SELECT close_choice_json FROM plan_week_delivery WHERE plan_id=?", [
+        id("11"),
+      ]),
+    ).toEqual({ close_choice_json: choice });
   });
 
   it("bounds cleanup after the final Plan day", async () => {

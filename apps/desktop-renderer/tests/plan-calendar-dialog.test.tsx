@@ -99,7 +99,9 @@ describe("activation calendar consequence", () => {
       render(<PlanCreationActivateDialog />);
       expect(
         await screen.findByText(
-          `Dated Workouts sync from ${closing ? "tomorrow" : "today"} through 15 Sept 1998.`,
+          closing
+            ? "Nothing changes on intervals.icu until you approve. The Calendar opens next with one Change Set: the old Plan’s workouts from tomorrow on come off, then the new Plan’s first two Training Weeks go on."
+            : "Nothing goes to intervals.icu until you approve. The Calendar opens next with your first two Training Weeks.",
         ),
       ).toBeVisible();
       expect(
@@ -158,7 +160,7 @@ describe("activation calendar consequence", () => {
       expect(
         await screen.findByText("Calendar updates wait until intervals.icu is connected."),
       ).toBeVisible();
-      expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+      expect(screen.queryByText(/Dated Workouts sync|Nothing goes to intervals\.icu/)).toBeNull();
       if (kind === "unloaded")
         expect(screen.getByRole("button", { name: "Activate Plan" })).toBeDisabled();
     },
@@ -195,7 +197,7 @@ describe("activation calendar consequence", () => {
       expect(
         await screen.findByText(
           calendarConnected
-            ? "Dated Workouts sync from today through 13 Sept 1998."
+            ? "Nothing goes to intervals.icu until you approve. The Calendar opens next with your first two Training Weeks."
             : "Calendar updates wait until intervals.icu is connected.",
         ),
       ).toBeVisible();
@@ -222,7 +224,7 @@ describe("activation calendar consequence", () => {
     expect(
       await screen.findByText("Calendar updates wait until intervals.icu is connected."),
     ).toBeVisible();
-    expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(screen.queryByText(/Dated Workouts sync|Nothing goes to intervals\.icu/)).toBeNull();
   });
 
   it("shows no sync line until the library read confirms the connection", async () => {
@@ -260,7 +262,7 @@ describe("activation calendar consequence", () => {
     expect(
       useEnduragentStore.getState().chatActions?.confirmPlanCreationActivate,
     ).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(screen.queryByText(/Dated Workouts sync|Nothing goes to intervals\.icu/)).toBeNull();
     expect(screen.queryByText(/Calendar updates wait/)).toBeNull();
     useEnduragentStore.setState({
       planLibrary: {
@@ -281,7 +283,7 @@ describe("activation calendar consequence", () => {
     expect(
       await screen.findByText("Calendar updates wait until intervals.icu is connected."),
     ).toBeVisible();
-    expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(screen.queryByText(/Dated Workouts sync|Nothing goes to intervals\.icu/)).toBeNull();
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);
     expect(
@@ -330,7 +332,7 @@ describe("activation calendar consequence", () => {
     expect(
       await screen.findByText("Calendar updates wait until intervals.icu is connected."),
     ).toBeVisible();
-    expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(screen.queryByText(/Dated Workouts sync|Nothing goes to intervals\.icu/)).toBeNull();
     expect(screen.getByRole("button", { name: "Activate Plan" })).toBeDisabled();
   });
 

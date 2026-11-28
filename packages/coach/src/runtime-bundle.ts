@@ -1,5 +1,6 @@
 import type { ConfirmationGate, ConversationStorePort, Memory } from "@enduragent/core";
 import type { IntentTranslationPort } from "@enduragent/engine";
+import type { CoachTextWriterPort } from "@enduragent/engine/coach-text-writer";
 import type {
   CoachEngine,
   GetArchivedTranscriptPageRpcParams,
@@ -9,10 +10,12 @@ import type {
   ListArchivedConversationsRpcParams,
   ListArchivedConversationsRpcResult,
 } from "@enduragent/coach-contract";
+import type { RideVerdictModel } from "./plan-calendar-review.js";
 import type { SpendMeterService } from "./spend-meter.js";
 
 export interface RuntimeBundle {
   readonly intentTranslator?: IntentTranslationPort;
+  readonly coachText?: CoachTextWriterPort;
   readonly engine: CoachEngine;
   readonly memory: Memory;
   readonly chatStore: ConversationStorePort;
@@ -21,8 +24,16 @@ export interface RuntimeBundle {
   readonly confirmations: ConfirmationGate;
 }
 
+export class CoachTextUnavailableError extends Error {
+  constructor() {
+    super("No coach model is configured.");
+    this.name = "CoachTextUnavailableError";
+  }
+}
+
 export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   readonly intentTranslator: IntentTranslationPort;
+  readonly coachText: RideVerdictModel;
   readonly engine: CoachEngine;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -73,6 +84,14 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
         run(
           async (bundle) => bundle.intentTranslator?.translateIntent(text, schema, context) ?? null,
         ),
+    },
+    coachText: {
+      available: () => active.coachText !== undefined,
+      writeCoachText: (facts, signal) =>
+        run(async (bundle) => {
+          if (bundle.coachText === undefined) throw new CoachTextUnavailableError();
+          return bundle.coachText.writeCoachText(facts, signal);
+        }),
     },
     engine: {
       chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),

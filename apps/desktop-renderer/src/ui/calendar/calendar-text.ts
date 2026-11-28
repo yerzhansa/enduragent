@@ -1,5 +1,5 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { dateOf } from "../../calendar/dates";
+import { dateOf, isoWeekday, type FirstDayOfWeek } from "../../calendar/dates";
 import { usePlanDate } from "../plan/plan-date";
 
 export interface CalendarText {
@@ -8,6 +8,11 @@ export interface CalendarText {
   weekdayDayMonth(dateKey: number): string;
   weekRange(startDateKey: number, endDateKey: number): string;
   weekday(isoDay: number): string;
+  weekdayLong(dateKey: number): string;
+  weekdayDay(dateKey: number): string;
+  isoWeekdayOf(dateKey: number): FirstDayOfWeek;
+  list(values: readonly string[]): string;
+  names(values: readonly string[]): string;
   dayOfMonth(dateKey: number): string;
   kilometres(metres: number): string;
 }
@@ -30,9 +35,11 @@ export function useCalendarText(): CalendarText {
     duration(seconds) {
       const minutes = Math.round(seconds / 60);
       const hours = Math.floor(minutes / 60);
-      return hours === 0
-        ? say("plan.calendar.duration.minutes", { minutes })
-        : say("plan.calendar.duration.hoursMinutes", { hours, minutes: minutes % 60 });
+      const text =
+        hours === 0
+          ? say("plan.calendar.duration.minutes", { minutes })
+          : say("plan.calendar.duration.hoursMinutes", { hours, minutes: minutes % 60 });
+      return text.replaceAll(" ", "\u00a0");
     },
     dayMonth,
     weekdayDayMonth: (dateKey) =>
@@ -60,6 +67,11 @@ export function useCalendarText(): CalendarText {
       planDate(isoText(WEEKDAY_SAMPLE[isoDay - 1] ?? WEEKDAY_SAMPLE[0] ?? 19980105), {
         weekday: "short",
       }),
+    weekdayLong: (dateKey) => planDate(isoText(dateKey), { weekday: "long" }),
+    weekdayDay: (dateKey) => planDate(isoText(dateKey), { weekday: "short", day: "numeric" }),
+    isoWeekdayOf: isoWeekday,
+    list: (values) => format.list(values, { type: "conjunction" }),
+    names: (values) => format.list(values, { type: "unit", style: "short" }),
     dayOfMonth,
     kilometres: (metres) =>
       say("plan.calendar.distance.kilometres", {

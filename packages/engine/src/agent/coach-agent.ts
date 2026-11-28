@@ -168,7 +168,7 @@ for (const name of MEMORY_MUTATING_TOOL_NAMES) {
 const SECTION_UPDATED_STAMP = "_updated: ";
 
 function archiveMarker(archivedAt: string): string {
-  return `Previous session archived at ${archivedAt}. Briefly disclose this before answering.`;
+  return `Previous session archived at ${archivedAt}. The athlete is already shown a fresh-session notice; answer directly.`;
 }
 
 const WINDOW_EXCEEDED_FINISH_MESSAGE =

@@ -89,7 +89,7 @@ export function ApplicationSection(): ReactElement {
   const copy = updateCopy(update.state, say);
   const updateBusy =
     mutating ||
-    update.actionDisabled ||
+    update.pendingAction !== "none" ||
     ["disabled", "checking", "downloading", "installing"].includes(update.state.status);
 
   return (

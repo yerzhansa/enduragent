@@ -11,7 +11,7 @@ const deepImportMustStayUnresolvable = null as unknown as ForbiddenDeepImport;
 void deepImportMustStayUnresolvable;
 
 describe("engine scaffold", () => {
-  it("pins the only three public package entry points", () => {
+  it("pins the only four public package entry points", () => {
     const manifest = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf8"),
     ) as { exports: unknown };
@@ -27,6 +27,10 @@ describe("engine scaffold", () => {
       "./calendar": {
         types: "./dist/calendar.d.ts",
         import: "./dist/calendar.js",
+      },
+      "./coach-text-writer": {
+        types: "./dist/coach-text-writer.d.ts",
+        import: "./dist/coach-text-writer.js",
       },
     });
   });
