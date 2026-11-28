@@ -44,6 +44,7 @@ export interface DesktopFixtureScript {
     request: unknown,
     emitFrame: (frame: string) => void,
   ) => string | Promise<string>;
+  readonly streamPlanTransitions?: true;
 }
 
 export interface DesktopFixturePaths {
@@ -652,6 +653,15 @@ export async function launchDesktopFixture(input: {
       >;
     },
     async executePlanTransition(request, onEvent) {
+      if (input.script.streamPlanTransitions === true) {
+        return (await scriptedStream(
+          input.script,
+          "executePlanTransition",
+          request,
+          onEvent,
+          0,
+        )) as Awaited<ReturnType<NonNullable<PlanningOperations["executePlanTransition"]>>>;
+      }
       const frames = await invoke("executePlanTransition", request);
       for (const event of eventFrames(frames)) onEvent?.(event as PlanProgressEvent);
       return finalFrame(frames) as Awaited<
