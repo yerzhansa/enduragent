@@ -4226,8 +4226,8 @@ packages:
     resolution: {integrity: sha512-N0GdEhFu/dCPjLQrezkydObmzKabQfALU/3fIMREfKKoFDP78PepnRj1VRzfplhI/iFeVDTAlkoxbTDfQXIncQ==}
     engines: {node: '>=18'}
 
-  ip-address@10.4.0:
-    resolution: {integrity: sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==}
+  ip-address@10.7.6:
+    resolution: {integrity: sha512-00LYkM6byILa9eQIx6qoaXCM40xTLd56AZ4vyaPW3YTyb49VZYPo5xsiAq4tuQ54GH4R7gVdYScJ1B7B77PuTg==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -8979,7 +8979,7 @@ snapshots:
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
       express: 5.2.1(supports-color@7.2.0)
-      ip-address: 10.4.0
+      ip-address: 10.7.6
     transitivePeerDependencies:
       - supports-color
 
@@ -9515,7 +9515,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  ip-address@10.4.0: {}
+  ip-address@10.7.6: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -10705,7 +10705,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.4.0
+      ip-address: 10.7.6
       smart-buffer: 4.2.0
 
   sort-keys@5.1.0:
