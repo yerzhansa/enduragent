@@ -68,14 +68,19 @@ export function endTurnSpan(turnId: string, ending: SpanEnding): void {
   finish(turn.span, ending);
 }
 
-export async function traceTurn<T>(turnId: string, run: () => Promise<T>): Promise<T> {
+export async function traceTurn<T>(
+  turnId: string,
+  run: () => Promise<T>,
+  classify: (error: unknown) => UsageLedgerLine["errorClass"],
+): Promise<T> {
   beginTurnSpan(turnId);
   try {
     const result = await run();
     endTurnSpan(turnId, { outcome: "ok" });
     return result;
   } catch (error) {
-    endTurnSpan(turnId, { outcome: "error", errorClass: openTurn(turnId)?.lastErrorClass });
+    const errorClass = openTurn(turnId)?.lastErrorClass ?? classify(error);
+    endTurnSpan(turnId, { outcome: "error", errorClass });
     throw error;
   }
 }

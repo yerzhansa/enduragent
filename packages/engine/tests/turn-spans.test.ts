@@ -184,6 +184,59 @@ function everythingOnSpans(): string {
   );
 }
 
+const DECISION: CoachDecisionReadModel = {
+  status: "unanswered",
+  decisionId: "decision-1",
+  chatId: MARKERS.chatId,
+  messageId: "message-1",
+  question: "Choose tomorrow's priority.",
+  options: [
+    {
+      id: "recovery",
+      label: "Recovery",
+      description: "Ride easy.",
+      recommended: true,
+      consequence: "Tomorrow becomes a recovery day.",
+    },
+    {
+      id: "tempo",
+      label: "Tempo",
+      description: "Keep the planned work.",
+      recommended: false,
+      consequence: "Tomorrow keeps the tempo session.",
+    },
+  ],
+};
+
+async function answerDecision(replyText: string): Promise<unknown> {
+  const root = mkdtempSync(join(tmpdir(), "turn-spans-decision-"));
+  roots.push(root);
+  const base = baseAgentConfig(root);
+  const ids = ["continuation-1", "turn-decision-resume"];
+  const engine = createCoachEngine({
+    sport: { ...sport, tools: () => [] },
+    ports: {
+      ...base,
+      randomId: () => ids.shift() ?? "unused",
+      modelTransportDecorator: () => ({ generate: async () => reply(replyText) }),
+    },
+  });
+  const store = base.coachDecisions;
+  if (store === undefined) throw new Error("no decision store");
+  store.appendDecisionRequested({
+    turnId: "turn-decision",
+    decision: DECISION,
+    toolCallId: "tool-1",
+    athleteText: MARKERS.prompt,
+    requestedAt: "1998-08-24T00:00:00.000Z",
+  });
+  return engine.answerCoachDecision({
+    chatId: MARKERS.chatId,
+    decisionId: "decision-1",
+    answer: { kind: "option", optionId: "recovery" },
+  });
+}
+
 describe("a coach turn's spans", () => {
   it("record one turn, its model call and each tool call, with no private text", async () => {
     const agent = agentWith(async (options) => {
@@ -356,58 +409,7 @@ describe("a coach turn's spans", () => {
   });
 
   it("gives a Coach decision continuation its own turn span", async () => {
-    const root = mkdtempSync(join(tmpdir(), "turn-spans-decision-"));
-    roots.push(root);
-    const base = baseAgentConfig(root);
-    const ids = ["continuation-1", "turn-decision-resume"];
-    const engine = createCoachEngine({
-      sport: { ...sport, tools: () => [] },
-      ports: {
-        ...base,
-        randomId: () => ids.shift() ?? "unused",
-        modelTransportDecorator: () => ({
-          generate: async () => reply(`Keep tomorrow easy. ${MARKERS.reply}`),
-        }),
-      },
-    });
-    const decision: CoachDecisionReadModel = {
-      status: "unanswered",
-      decisionId: "decision-1",
-      chatId: MARKERS.chatId,
-      messageId: "message-1",
-      question: "Choose tomorrow's priority.",
-      options: [
-        {
-          id: "recovery",
-          label: "Recovery",
-          description: "Ride easy.",
-          recommended: true,
-          consequence: "Tomorrow becomes a recovery day.",
-        },
-        {
-          id: "tempo",
-          label: "Tempo",
-          description: "Keep the planned work.",
-          recommended: false,
-          consequence: "Tomorrow keeps the tempo session.",
-        },
-      ],
-    };
-    const store = base.coachDecisions;
-    if (store === undefined) throw new Error("no decision store");
-    store.appendDecisionRequested({
-      turnId: "turn-decision",
-      decision,
-      toolCallId: "tool-1",
-      athleteText: MARKERS.prompt,
-      requestedAt: "1998-08-24T00:00:00.000Z",
-    });
-
-    await engine.answerCoachDecision({
-      chatId: MARKERS.chatId,
-      decisionId: "decision-1",
-      answer: { kind: "option", optionId: "recovery" },
-    });
+    await answerDecision(`Keep tomorrow easy. ${MARKERS.reply}`);
 
     const turn = onlyTurnSpan();
     expect(turn.attributes).toEqual({
@@ -420,5 +422,20 @@ describe("a coach turn's spans", () => {
     ).toEqual([[turn.spanContext().spanId, 1]]);
     const recorded = everythingOnSpans();
     for (const marker of Object.values(MARKERS)) expect(recorded).not.toContain(marker);
+  });
+
+  it("marks a Coach decision continuation failed when it ends with no reply", async () => {
+    await expect(answerDecision("   ")).rejects.toThrow("no Coach text");
+
+    const turn = onlyTurnSpan();
+    expect(turn.attributes).toMatchObject({
+      "enduragent.turn.id": "turn-decision-resume",
+      "enduragent.outcome": "error",
+      "error.type": expect.any(String),
+    });
+    expect(turn.status).toEqual({ code: 2 });
+    expect(spansNamed("llm.generate").map((span) => span.attributes["enduragent.outcome"])).toEqual(
+      ["ok"],
+    );
   });
 });

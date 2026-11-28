@@ -1954,52 +1954,56 @@ export class CoachAgent {
     const activeTurn = { turnId, controller: abortController };
     this.activeChatTurns.set(decision.chatId, activeTurn);
     try {
-      const result = await traceTurn(turnId, () =>
-        this.llm.generate({
-          system,
-          messages,
-          tools: continuationTools,
-          stopWhen: stepCountIs(10),
-          maxSteps: 10,
-          caller: "chat",
-          turnId,
-          context,
-          cacheKey: sha256_16(decision.chatId),
-          signal: abortController.signal,
-          onTextDelta: (delta) => {
-            streamedText += delta;
-            if (!isPlan) {
-              this.notifyDecisionEvent(onEvent, { type: "text_delta", turnId, delta });
-            }
-          },
-        }),
-      );
-      const coachText = result.text.trim();
-      if (coachText === "") throw new Error("Decision continuation returned no Coach text.");
-      if (isPlan) assertPlanCoachReplyAuthority(coachText);
-      const requestedPatch =
-        this.requireCoachDecisionStore().getDecisionPlanIntakePatch?.(
-          decision.chatId,
-          decision.decisionId,
-        ) ?? null;
-      const combinedPatch =
-        requestedPatch === null && context.planIntake.patch === null
-          ? null
-          : PlanIntakePatchSchema.parse({
-              ...requestedPatch,
-              ...context.planIntake.patch,
-            });
-      return this.completeCoachDecisionContinuation(
-        decision,
-        coachText,
+      return await traceTurn(
         turnId,
-        {
-          system,
-          messages,
-          templateHash: lineageTemplateHash,
-          planIntakePatch: combinedPatch,
+        async () => {
+          const result = await this.llm.generate({
+            system,
+            messages,
+            tools: continuationTools,
+            stopWhen: stepCountIs(10),
+            maxSteps: 10,
+            caller: "chat",
+            turnId,
+            context,
+            cacheKey: sha256_16(decision.chatId),
+            signal: abortController.signal,
+            onTextDelta: (delta) => {
+              streamedText += delta;
+              if (!isPlan) {
+                this.notifyDecisionEvent(onEvent, { type: "text_delta", turnId, delta });
+              }
+            },
+          });
+          const coachText = result.text.trim();
+          if (coachText === "") throw new Error("Decision continuation returned no Coach text.");
+          if (isPlan) assertPlanCoachReplyAuthority(coachText);
+          const requestedPatch =
+            this.requireCoachDecisionStore().getDecisionPlanIntakePatch?.(
+              decision.chatId,
+              decision.decisionId,
+            ) ?? null;
+          const combinedPatch =
+            requestedPatch === null && context.planIntake.patch === null
+              ? null
+              : PlanIntakePatchSchema.parse({
+                  ...requestedPatch,
+                  ...context.planIntake.patch,
+                });
+          return this.completeCoachDecisionContinuation(
+            decision,
+            coachText,
+            turnId,
+            {
+              system,
+              messages,
+              templateHash: lineageTemplateHash,
+              planIntakePatch: combinedPatch,
+            },
+            onEvent,
+          );
         },
-        onEvent,
+        (error) => this.classifyTurnFailure(error),
       );
     } catch (error) {
       if (!abortController.signal.aborted) throw error;
