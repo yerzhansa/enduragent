@@ -118,7 +118,7 @@ export function draftOnConfiguration(
   if (provider === undefined) return undefined;
   const modelOffered =
     draft.modelChoice === CUSTOM_MODEL_SELECTION ||
-    provider.models.some((model) => model.value === draft.modelChoice);
+    offersModel(provider, configuration.active, draft.modelChoice);
   return modelOffered
     ? { ...draft, catalogRevision: configuration.catalogRevision, provider }
     : draftForProvider(provider, configuration.catalogRevision);

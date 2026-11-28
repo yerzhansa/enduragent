@@ -614,6 +614,28 @@ describe("onboarding runtime completion gate", () => {
     harness.controller.dispose();
   });
 
+  it("keeps a retired saved model the athlete chose when a refresh reads a new model list", async () => {
+    const retired: OnboardingLlmConfiguration = {
+      ...KEYLESS_CONFIGURATION,
+      active: { provider: "anthropic", model: "claude-opus-5", kind: "retired", replacedBy: null },
+    };
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.llmConfiguration
+      .mockResolvedValueOnce(retired)
+      .mockResolvedValue({ ...retired, catalogRevision: 8 });
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+    harness.controller.selectModel("claude-opus-5");
+
+    await harness.controller.refresh(false);
+
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 8,
+      modelChoice: "claude-opus-5",
+    });
+    harness.controller.dispose();
+  });
+
   it("keeps the active coach ready when a draft Claude activation is refused", async () => {
     const bridge = activationBridge(async () => ({
       status: "refused",
