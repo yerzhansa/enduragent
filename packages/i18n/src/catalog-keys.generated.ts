@@ -1032,6 +1032,8 @@ export type CatalogKey =
   | "desktop.tray.telegram.transferRequired"
   | "language.chooseTitle"
   | "language.continue"
+  | "language.retry"
+  | "language.saveFailed"
   | "plan.calendar.activity.extra"
   | "plan.calendar.activity.untitled"
   | "plan.calendar.approve.approve"

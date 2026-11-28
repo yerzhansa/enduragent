@@ -1,6 +1,6 @@
 import { normalizeLocaleHint } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { Suspense, useEffect, type ReactElement } from "react";
+import { Suspense, useEffect, useState, type ReactElement } from "react";
 import { setupDisposition } from "../state/onboarding-slice";
 import { useEnduragentStore } from "../state/store";
 import { ChatView } from "../ui/chat/ChatView";
@@ -15,7 +15,15 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
   const { say, tag } = usePhrasebook();
   const activeView = useEnduragentStore((state) => state.activeView);
   const disposition = useEnduragentStore(setupDisposition);
-  const needsLanguage = useEnduragentStore(languageRequired);
+  const [languageSaveRequested, setLanguageSaveRequested] = useState(false);
+  const languageSaveFailed = useEnduragentStore(
+    (state) =>
+      languageSaveRequested &&
+      setupDisposition(state) === "required" &&
+      state.settings.language.status === "unavailable" &&
+      state.settings.language.value === null,
+  );
+  const needsLanguage = useEnduragentStore(languageRequired) || languageSaveFailed;
   const languageCheckPending = useEnduragentStore(
     (state) =>
       setupDisposition(state) === "required" &&
@@ -67,7 +75,10 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
         </div>
       ) : effectiveDisposition === "required" ? (
         needsLanguage ? (
-          <LanguageGate />
+          <LanguageGate
+            saveFailed={languageSaveFailed}
+            onSave={() => setLanguageSaveRequested(true)}
+          />
         ) : (
           <SetupGate />
         )

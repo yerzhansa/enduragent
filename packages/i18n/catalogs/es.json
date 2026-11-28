@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Elige tu idioma",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "retry": "Reintentar",
+    "saveFailed": "No se pudo guardar tu idioma. Inténtalo de nuevo."
   },
   "settings": {
     "appearance": {
