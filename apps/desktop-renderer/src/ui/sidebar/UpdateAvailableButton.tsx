@@ -12,7 +12,7 @@ export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): R
   const update = useEnduragentStore((state) => state.settings.update);
   const updatePort = useEnduragentStore((state) => state.settingsPorts?.update ?? null);
   const visible = update.state.status === "downloaded" || update.state.status === "installing";
-  const restarting = update.actionDisabled || update.state.status === "installing";
+  const restarting = update.pendingAction === "restarting" || update.state.status === "installing";
   const version = visible ? update.state.version : null;
   const announcement =
     version === null
@@ -35,7 +35,7 @@ export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): R
               : say("sidebar.update.installVersion", { version: version ?? "" })
           }
           aria-busy={restarting ? "true" : undefined}
-          disabled={locked || restarting || updatePort === null}
+          disabled={locked || restarting || update.pendingAction !== "none" || updatePort === null}
           onClick={() => {
             updatePort?.activate();
           }}
