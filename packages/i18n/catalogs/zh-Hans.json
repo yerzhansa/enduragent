@@ -547,6 +547,14 @@
       "date": "{{month}}{{day}}日",
       "detail": "语言模型费用与今日上限的对比",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "停止：在明天或提高上限之前，教练不会回复新消息。在此应用中发送的消息会等待，届时再发出。",
+        "detailWarn": "提醒：教练会继续回复，聊天中会显示提示。",
+        "enforce": "停止",
+        "overshoot": "上限在消息开始时检查，因此一条较长的回复仍可能超出上限。",
+        "title": "达到今日上限时",
+        "warn": "提醒"
+      },
       "month": {
         "april": "4月",
         "august": "8月",
@@ -1652,7 +1660,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "今日花费已达到 {{amount}} 的上限。仍可继续聊天，此提示不会阻止使用。"
+      "capReached": "今日花费已达到 {{amount}} 的上限。仍可继续聊天，此提示不会阻止使用。",
+      "capReachedStop": "今日花费已达到 {{amount}} 的上限。新消息会等到明天，或者提高上限，或在设置 › 费用中切换为“提醒”。"
     },
     "supportingEvent": {
       "accepted": "已接受的辅助赛事",
@@ -3234,6 +3243,9 @@
       "trainingLoad": "训练负荷改为 {{load}}",
       "unnamed": "未命名训练课程",
       "update": "更新 {{date}} 的训练课程“{{name}}”：{{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "今日语言模型花费已达到每日上限 {{cap}}，因此教练没有回复。如需今天继续，请提高上限，或在设置 › 费用中切换为“提醒”。"
     },
     "history": {
       "diskFull": "\n\n（提醒一下：磁盘已满，无法将这次交流保存到历史记录中，但消息已收到。方便时请清理一些空间。）",

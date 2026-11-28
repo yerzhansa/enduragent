@@ -1,5 +1,5 @@
 import { CoachClientDisconnectedError } from "@enduragent/coach-client";
-import type { SpendSummary } from "@enduragent/coach-contract";
+import type { SpendCapMode, SpendSummary } from "@enduragent/coach-contract";
 import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export const SPEND_REFRESH_INTERVAL_MS = 30_000;
@@ -39,6 +39,7 @@ export interface SpendMeterView {
     readonly onChangeCap: (value: string) => void;
     readonly onCommitCap: () => void;
     readonly onRetryCap: () => void;
+    readonly onSetMode: (mode: SpendCapMode) => void;
   }): void;
   render(state: SpendMeterState): void;
   dispose(): void;
@@ -49,12 +50,21 @@ export interface SpendMeterController {
   refresh(): Promise<void>;
   commitCap(): Promise<void>;
   retryCap(): Promise<void>;
+  setMode(mode: SpendCapMode): Promise<void>;
   dispose(): void;
 }
 
 interface CommittedCap {
   readonly revision: number;
   readonly value: DailyCapUsd;
+  readonly mode?: SpendCapMode;
+}
+
+function capApplied(summary: SpendSummary, committed: CommittedCap): boolean {
+  return (
+    summary.dailyCapUsd === committed.value &&
+    (committed.mode === undefined || summary.capMode === committed.mode)
+  );
 }
 
 function parseCapDraft(text: string): SpendCapDraft {
@@ -91,6 +101,7 @@ export function createSpendMeterController(input: {
   let saveOperation: Promise<void> | undefined;
   let postSaveRefresh: Promise<void> | undefined;
   let queuedCap: CommittedCap | undefined;
+  let pendingMode: SpendCapMode | undefined;
   let reconnectRequired = false;
   let failedClient: DesktopCoachClient | undefined;
   let recoveryRequired = false;
@@ -100,8 +111,19 @@ export function createSpendMeterController(input: {
     if (!disposed) input.view.render(state);
   };
 
+  const settlePendingMode = (summary: SpendSummary): void => {
+    if (summary.capMode === pendingMode) pendingMode = undefined;
+  };
+
+  const committedCap = (value: DailyCapUsd): CommittedCap => ({
+    revision: draftRevision,
+    value,
+    ...(pendingMode === undefined ? {} : { mode: pendingMode }),
+  });
+
   const renderSummary = (summary: SpendSummary, stale: boolean): void => {
     hadSummary = true;
+    settlePendingMode(summary);
     render({
       ...currentState,
       status: "ready",
@@ -161,8 +183,7 @@ export function createSpendMeterController(input: {
     if (saveOperation === undefined) return executeRefresh();
     if (postSaveRefresh !== undefined) return postSaveRefresh;
     const activeSave = saveOperation;
-    const pending = activeSave
-      .catch(() => undefined)
+    const pending = Promise.allSettled([activeSave])
       .then(() => executeRefresh())
       .finally(() => {
         if (postSaveRefresh === pending) postSaveRefresh = undefined;
@@ -176,7 +197,8 @@ export function createSpendMeterController(input: {
     committed: CommittedCap,
   ): "applied" | "not-applied" => {
     const currentDraftIsCommit = draftRevision === committed.revision;
-    const applied = summary.dailyCapUsd === committed.value;
+    const applied = capApplied(summary, committed);
+    settlePendingMode(summary);
     if (applied && currentDraftIsCommit) draftDirty = false;
     render({
       ...currentState,
@@ -196,7 +218,8 @@ export function createSpendMeterController(input: {
       const committed = queuedCap;
       queuedCap = undefined;
       const authority = currentState.summary;
-      if (authority !== null && authority.dailyCapUsd === committed.value) {
+      if (authority !== null && capApplied(authority, committed)) {
+        settlePendingMode(authority);
         if (draftRevision === committed.revision) draftDirty = false;
         continue;
       }
@@ -205,6 +228,7 @@ export function createSpendMeterController(input: {
         activeClient = await clientForOperation();
         const summary = await activeClient.call("setDailySpendCap", {
           dailyCapUsd: committed.value,
+          ...(committed.mode === undefined ? {} : { mode: committed.mode }),
         });
         if (disposed) return;
         if (
@@ -254,7 +278,7 @@ export function createSpendMeterController(input: {
     render({ ...currentState, capOperation: { kind: "saving" } });
     const pending = Promise.resolve()
       .then(async () => {
-        await olderRefresh?.catch(() => undefined);
+        await Promise.allSettled([olderRefresh]);
         if (!disposed) await drain();
       })
       .finally(() => {
@@ -270,7 +294,7 @@ export function createSpendMeterController(input: {
     render({ ...currentState, capOperation: { kind: "saving" } });
     const pending = Promise.resolve()
       .then(async () => {
-        await refreshOperation?.catch(() => undefined);
+        await Promise.allSettled([refreshOperation]);
         await executeRefresh();
         if (disposed) return;
         if (currentState.status === "unavailable" || currentState.stale) {
@@ -282,7 +306,7 @@ export function createSpendMeterController(input: {
         }
         recoveryRequired = false;
         if (queuedCap === undefined && currentState.capDraft.kind === "valid") {
-          queuedCap = { revision: draftRevision, value: currentState.capDraft.value };
+          queuedCap = committedCap(currentState.capDraft.value);
         }
         await drain();
       })
@@ -310,7 +334,7 @@ export function createSpendMeterController(input: {
     if (currentState.capDraft.kind === "invalid") {
       return Promise.resolve();
     }
-    queuedCap = { revision: draftRevision, value: currentState.capDraft.value };
+    queuedCap = committedCap(currentState.capDraft.value);
     if (recoveryRequired || isSaveFailure(currentState.capOperation)) return recoverAndDrain();
     return startDrain();
   };
@@ -326,10 +350,24 @@ export function createSpendMeterController(input: {
     return recoverAndDrain();
   };
 
+  const setMode = (mode: SpendCapMode): Promise<void> => {
+    if (disposed) return Promise.resolve();
+    const draft =
+      currentState.capDraft.kind === "valid" || currentState.summary === null
+        ? currentState.capDraft
+        : capDraftFromSummary(currentState.summary);
+    if (draft.kind !== "valid") return Promise.resolve();
+    pendingMode = mode;
+    queuedCap = committedCap(draft.value);
+    if (recoveryRequired || isSaveFailure(currentState.capOperation)) return recoverAndDrain();
+    return startDrain();
+  };
+
   input.view.bind({
     onChangeCap: changeCap,
     onCommitCap: () => void commitCap(),
     onRetryCap: () => void retryCap(),
+    onSetMode: (mode) => void setMode(mode),
   });
 
   return {
@@ -343,6 +381,7 @@ export function createSpendMeterController(input: {
     refresh,
     commitCap,
     retryCap,
+    setMode,
     dispose() {
       if (disposed) return;
       disposed = true;

@@ -216,6 +216,7 @@ import {
   createPlanningRequestIntakeService,
   createPlanningRequestPremiseReader,
 } from "./planning-request-intake.js";
+import { sameHome } from "./same-home.js";
 
 export interface LocalCoachComposition {
   readonly language: CoachLanguage;
@@ -602,15 +603,6 @@ function readLatestReference(dataDir: string) {
   } catch {
     return null;
   }
-}
-
-function sameHome(left: AthleteHome, right: AthleteHome): boolean {
-  return (
-    left.root === right.root &&
-    left.storeDir === right.storeDir &&
-    left.archiveDir === right.archiveDir &&
-    left.configDir === right.configDir
-  );
 }
 
 export async function createLocalCoachComposition(
@@ -1266,17 +1258,18 @@ export async function createLocalCoachComposition(
       };
       const engineInput = { sport: oneFtpCyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
+      const spendMeter = createSpendMeterService({
+        dataDir: input.home.root,
+        configDir: input.home.configDir,
+        timezone,
+        now,
+      });
       return {
         ...modelWriters(backend, ports, runtimeCredentialConfigured(input.home.configDir, config)),
         memory,
         chatStore: conversationStore,
         timezone,
-        spendMeter: createSpendMeterService({
-          dataDir: input.home.root,
-          configDir: input.home.configDir,
-          timezone,
-          now,
-        }),
+        spendMeter,
         confirmations,
         engine: createCoachEngineAdapter({
           coachLanguage,
@@ -1284,6 +1277,7 @@ export async function createLocalCoachComposition(
           getAthleteState: () => stateReader.getAthleteState(),
           cyclingFtpAnchorResolver,
           now,
+          spendCap: { reader: spendMeter, logger },
         }),
       };
     };

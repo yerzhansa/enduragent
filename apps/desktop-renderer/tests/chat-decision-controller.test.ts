@@ -251,6 +251,28 @@ describe("Coach decision controller", () => {
     });
   });
 
+  it("keeps the question open with the cap message when an enforced cap refuses the answer", async () => {
+    const refusal = { kind: "spend-cap-reached", dailyCapUsd: 0.5, knownSpendUsd: 0.62 } as const;
+    const { controller, states, controls } = subject(null, async (_method, options) => {
+      options?.onTerminalEnvelope?.({
+        jsonrpc: "2.0",
+        id: 2,
+        result: { decision: unanswered(), refusal },
+      });
+      return { decision: unanswered(), refusal };
+    });
+    await controller.submit("What should I do tomorrow?");
+    await controller.answerDecision("decision-1", { kind: "option", optionId: "recovery" });
+
+    expect(controls.at(-1)?.decision).toMatchObject({
+      value: { status: "unanswered", decisionId: "decision-1" },
+      phase: "idle",
+      error:
+        "Today’s model spend has reached your $0.50 daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.",
+    });
+    expect(states.at(-1)?.messages.map((message) => message.role)).toEqual(["athlete"]);
+  });
+
   it("skips without starting a continuation", async () => {
     const { controller, call, states, controls } = subject();
     await controller.submit("What should I do tomorrow?");
