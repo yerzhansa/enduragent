@@ -1,6 +1,11 @@
 import { msg, type Message } from "@enduragent/i18n";
 
+const SPEND_CAP_REFUSAL =
+  /^Today’s model spend has reached your (.+) daily cap, so the coach didn’t answer\. To keep going today, raise the cap or switch it to Warn in Settings › Spending\.$/u;
+
 export function chatFeedbackMessage(value: string): Message | null {
+  const refused = SPEND_CAP_REFUSAL.exec(value);
+  if (refused !== null) return msg("coach.refusal.spendCapReached", { cap: refused[1] ?? "" });
   switch (value) {
     case "This creation is no longer unfinished. Open the Plan library for its current result.":
       return msg("chat.notice.creationFinished");
@@ -162,7 +167,14 @@ export function spendWarningMessage(value: string, formattedAmount?: string): Me
     /^You’ve reached today’s (.+) spend cap\. You can keep chatting; this is a warning, not a block\.$/u.exec(
       value,
     );
-  return reached === null
+  if (reached !== null) {
+    return msg("chat.spend.capReached", { amount: formattedAmount ?? reached[1] ?? "" });
+  }
+  const stopped =
+    /^You’ve reached today’s (.+) spend cap\. New messages wait until tomorrow, or raise the cap or switch to Warn in Settings › Spending\.$/u.exec(
+      value,
+    );
+  return stopped === null
     ? null
-    : msg("chat.spend.capReached", { amount: formattedAmount ?? reached[1] ?? "" });
+    : msg("chat.spend.capReachedStop", { amount: formattedAmount ?? stopped[1] ?? "" });
 }

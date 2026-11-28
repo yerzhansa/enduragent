@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   AnswerCoachDecisionRpcParamsSchema,
+  AnswerCoachDecisionRpcResultSchema,
+  ChatQueueRunResultSchema,
+  SetDailySpendCapRpcParamsSchema,
+  TurnRefusalSchema,
   COACH_RPC_METHOD_REGISTRY,
   CoachDecisionReadModelSchema,
   CoachTurnEventNotificationEnvelopeSchema,
@@ -151,8 +155,8 @@ describe("coach decision wire contract", () => {
     expect(parsed.entries).toHaveLength(1);
   });
 
-  it("projects resume completion explicitly at protocol 39", () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+  it("projects resume completion explicitly at protocol 40", () => {
+    expect(PROTOCOL_VERSION).toBe(40);
     expect(
       ResumeCoachDecisionRpcResultSchema.parse({
         resumed: true,
@@ -170,5 +174,30 @@ describe("coach decision wire contract", () => {
         },
       }).resumed,
     ).toBe(true);
+  });
+
+  it("carries a spend cap refusal with the decision left as it was", () => {
+    const refusal = { kind: "spend-cap-reached", dailyCapUsd: 0.01, knownSpendUsd: 0.02 } as const;
+    expect(TurnRefusalSchema.parse(refusal)).toEqual(refusal);
+    expect(TurnRefusalSchema.safeParse({ ...refusal, kind: "budget" }).success).toBe(false);
+    expect(AnswerCoachDecisionRpcResultSchema.parse({ decision, refusal })).toEqual({
+      decision,
+      refusal,
+    });
+    expect(AnswerCoachDecisionRpcResultSchema.safeParse({ decision }).success).toBe(false);
+    expect(
+      ChatQueueRunResultSchema.parse({
+        snapshot: { schemaVersion: 1, revision: 0, items: [] },
+        refusal,
+      }).refusal,
+    ).toEqual(refusal);
+    expect(SetDailySpendCapRpcParamsSchema.parse({ dailyCapUsd: 1, mode: "enforce" })).toEqual({
+      dailyCapUsd: 1,
+      mode: "enforce",
+    });
+    expect(SetDailySpendCapRpcParamsSchema.parse({ dailyCapUsd: 1 })).toEqual({ dailyCapUsd: 1 });
+    expect(
+      SetDailySpendCapRpcParamsSchema.safeParse({ dailyCapUsd: 1, mode: "block" }).success,
+    ).toBe(false);
   });
 });

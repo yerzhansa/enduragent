@@ -1,8 +1,37 @@
-import type { SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
+import type { SpendCapMode, SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
 import type { SpendMeterState, SpendMeterView } from "../../spend-meter/controller";
 import type { SpendSettingsPort, SpendSurfaceState } from "../settings-slice";
 
 const SPEND_CAP_REACHED_PREFIX = "You’ve reached today’s ";
+
+export function capRefusesTurns(summary: SpendSummary | null): boolean {
+  return summary?.capMode === "enforce" && summary.capStatus === "reached";
+}
+
+interface SpendSummaryStore {
+  subscribe(
+    listener: (
+      state: { readonly settings: { readonly spend: { readonly summary: SpendSummary | null } } },
+      previous: {
+        readonly settings: { readonly spend: { readonly summary: SpendSummary | null } };
+      },
+    ) => void,
+  ): () => void;
+}
+
+export function resumeChatWhenCapLifts(
+  store: SpendSummaryStore,
+  resume: () => Promise<void>,
+): () => void {
+  return store.subscribe((state, previous) => {
+    if (
+      capRefusesTurns(previous.settings.spend.summary) &&
+      !capRefusesTurns(state.settings.spend.summary)
+    ) {
+      void resume();
+    }
+  });
+}
 
 export function currency(value: number, detail = false): string {
   if (value === 0) return "$0.00";
@@ -12,7 +41,10 @@ export function currency(value: number, detail = false): string {
 
 function capWarningCopy(summary: SpendSummary | null): string | null {
   if (summary?.capStatus !== "reached") return null;
-  return `${SPEND_CAP_REACHED_PREFIX}${currency(summary.dailyCapUsd)} spend cap. You can keep chatting; this is a warning, not a block.`;
+  const cap = currency(summary.dailyCapUsd);
+  return summary.capMode === "enforce"
+    ? `${SPEND_CAP_REACHED_PREFIX}${cap} spend cap. New messages wait until tomorrow, or raise the cap or switch to Warn in Settings › Spending.`
+    : `${SPEND_CAP_REACHED_PREFIX}${cap} spend cap. You can keep chatting; this is a warning, not a block.`;
 }
 
 export function notionalSpendCopy(summary: SpendSummary): string | null {
@@ -43,6 +75,7 @@ export function createSpendSettingsAdapter(input: {
         readonly onChangeCap: (value: string) => void;
         readonly onCommitCap: () => void;
         readonly onRetryCap: () => void;
+        readonly onSetMode: (mode: SpendCapMode) => void;
       }
     | undefined;
   let disposed = false;
@@ -70,6 +103,9 @@ export function createSpendSettingsAdapter(input: {
       },
       retryCap() {
         handlers?.onRetryCap();
+      },
+      setMode(mode) {
+        handlers?.onSetMode(mode);
       },
     },
   };

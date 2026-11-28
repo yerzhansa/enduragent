@@ -20,7 +20,7 @@ import { runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
-import { readPlanCreationAnswers } from "../src/plan-creation-answers.js";
+import { readPlanCreationAnswers } from "../src/plan-creation-answer-flow.js";
 
 const id = (value: number) => String(value).padStart(26, "0");
 const today = "1998-09-02";

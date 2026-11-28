@@ -236,8 +236,8 @@ describe("exit codes", () => {
 });
 
 describe("protocol version", () => {
-  it("is 39", () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+  it("is 40", () => {
+    expect(PROTOCOL_VERSION).toBe(40);
   });
 
   it("requires Stop to name the exact active turn", () => {
@@ -304,6 +304,7 @@ describe("spend contract", () => {
     malformedLineCount: 0,
     spendComplete: true,
     capStatus: "below",
+    capMode: "warn",
     cacheReadTokens: 10,
     knownCacheReadSavingsUsd: 0.001,
     cacheSavingsComplete: true,

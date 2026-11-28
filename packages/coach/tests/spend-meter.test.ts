@@ -25,6 +25,7 @@ import {
 } from "@enduragent/engine";
 import {
   DAILY_SPEND_CAP_FILE,
+  migrateDailySpendCap,
   DEFAULT_DAILY_SPEND_CAP_USD,
   createSpendMeterService,
 } from "../src/spend-meter.js";
@@ -380,10 +381,18 @@ describe("spend meter service", () => {
     expect(summary.capStatus).toBe("reached");
     expect(summary.spendComplete).toBe(false);
     const path = join(configDir, DAILY_SPEND_CAP_FILE);
-    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ version: 1, dailyCapUsd: 0.02 });
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.02,
+      mode: "warn",
+    });
     expect((await stat(path)).mode & 0o777).toBe(0o600);
     await expect(service.setDailySpendCap(0)).rejects.toThrow();
-    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ version: 1, dailyCapUsd: 0.02 });
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.02,
+      mode: "warn",
+    });
   });
 
   it("preserves the prior cap when an atomic replacement cannot be staged", async () => {
@@ -398,7 +407,67 @@ describe("spend meter service", () => {
     await chmod(configDir, 0o500);
     await expect(service.setDailySpendCap(0.8)).rejects.toThrow();
     await chmod(configDir, 0o700);
-    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ version: 1, dailyCapUsd: 0.4 });
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.4,
+      mode: "warn",
+    });
+  });
+
+  it("migrates a version 1 cap to warn mode with the same amount and writes version 2 next", async () => {
+    expect(migrateDailySpendCap({ version: 1, dailyCapUsd: 0.3 })).toEqual({
+      dailyCapUsd: 0.3,
+      mode: "warn",
+    });
+    const path = join(configDir, DAILY_SPEND_CAP_FILE);
+    await writeFile(path, JSON.stringify({ version: 1, dailyCapUsd: 0.3 }));
+    const service = createSpendMeterService({
+      dataDir: root,
+      configDir,
+      timezone: "UTC",
+      now: () => Date.UTC(1998, 6, 6, 18),
+    });
+    expect(await service.getSpendSummary()).toMatchObject({ dailyCapUsd: 0.3, capMode: "warn" });
+    await service.setDailySpendCap(0.3);
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.3,
+      mode: "warn",
+    });
+  });
+
+  it("round-trips a version 2 enforce cap without falling back to the default", async () => {
+    const path = join(configDir, DAILY_SPEND_CAP_FILE);
+    const service = () =>
+      createSpendMeterService({
+        dataDir: root,
+        configDir,
+        timezone: "UTC",
+        now: () => Date.UTC(1998, 6, 6, 18),
+      });
+    expect(await service().setDailySpendCap(0.01, "enforce")).toMatchObject({
+      dailyCapUsd: 0.01,
+      capMode: "enforce",
+    });
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.01,
+      mode: "enforce",
+    });
+    expect(await service().getSpendSummary()).toMatchObject({
+      dailyCapUsd: 0.01,
+      capMode: "enforce",
+    });
+    expect(await service().setDailySpendCap(0.02)).toMatchObject({
+      dailyCapUsd: 0.02,
+      capMode: "enforce",
+    });
+    expect(await service().setDailySpendCap(0.02, "warn")).toMatchObject({ capMode: "warn" });
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({
+      version: 2,
+      dailyCapUsd: 0.02,
+      mode: "warn",
+    });
   });
 
   it("falls back on missing, malformed, wrong-version, and extra-field cap files", async () => {
@@ -412,6 +481,8 @@ describe("spend meter service", () => {
     for (const value of [
       "not-json",
       JSON.stringify({ version: 2, dailyCapUsd: 1 }),
+      JSON.stringify({ version: 2, dailyCapUsd: 1, mode: "block" }),
+      JSON.stringify({ version: 3, dailyCapUsd: 1, mode: "warn" }),
       JSON.stringify({ version: 1, dailyCapUsd: -1 }),
       JSON.stringify({ version: 1, dailyCapUsd: 1, extra: true }),
     ]) {

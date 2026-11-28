@@ -80,6 +80,7 @@ describe("spend meter and failed model calls", () => {
       unpricedGenerationCount: 0,
       spendComplete: true,
       capStatus: "below",
+      capMode: "warn",
     });
   });
 
@@ -120,6 +121,7 @@ describe("spend meter and failed model calls", () => {
       unpricedGenerationCount: 1,
       spendComplete: false,
       capStatus: "unknown",
+      capMode: "warn",
     });
   });
 

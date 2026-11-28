@@ -155,6 +155,7 @@ const spendSummary = {
   malformedLineCount: 0,
   spendComplete: true,
   capStatus: "below",
+  capMode: "warn",
   cacheReadTokens: 0,
   knownCacheReadSavingsUsd: 0,
   cacheSavingsComplete: true,
@@ -335,6 +336,23 @@ function harness(
 }
 
 describe("runCoachServe", () => {
+  it("forwards the daily cap mode from the RPC to the spend meter", async () => {
+    const controller = new AbortController();
+    const test = harness();
+    const result = runCoachServe({ ...test.input, signal: controller.signal }, test.dependencies);
+    await vi.waitFor(() => expect(test.rpcInput()).toBeDefined());
+
+    await test.rpcInput()?.spend.setDailySpendCap({ dailyCapUsd: 2, mode: "enforce" });
+    await test.rpcInput()?.spend.setDailySpendCap({ dailyCapUsd: 3 });
+
+    expect(vi.mocked(test.lifecycle.spendMeter.setDailySpendCap).mock.calls).toEqual([
+      [2, "enforce"],
+      [3, undefined],
+    ]);
+    controller.abort();
+    await expect(result).resolves.toBe(EXIT_SUCCESS);
+  });
+
   it("does no private setup for an already-aborted signal", async () => {
     const controller = new AbortController();
     controller.abort(new Error("synthetic secret reason"));

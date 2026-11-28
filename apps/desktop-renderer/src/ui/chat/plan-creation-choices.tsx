@@ -1,6 +1,7 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
 import type { PlanCreationAnswerInput, PlanCreationOpenQuestion } from "@enduragent/coach-contract";
 import type { ReactElement, RefObject } from "react";
+import { Button } from "@enduragent/ui";
 import { ChevronRight, Plus } from "lucide-react";
 
 export const fieldClass =
@@ -97,5 +98,61 @@ export function ErrorText(props: {
     <p id={props.id} className="m-0 text-xs leading-4 text-danger" role="alert">
       {props.children}
     </p>
+  );
+}
+
+export function ChoiceActions(props: QuestionFormProps): ReactElement | null {
+  const { say } = usePhrasebook();
+  if (!props.editing) return null;
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="mr-auto border-line bg-surface"
+      disabled={props.busy}
+      onClick={props.onCancel}
+    >
+      {say("chat.planCreation.backToAnswers")}
+    </Button>
+  );
+}
+
+export function CustomActions(props: {
+  readonly submitLabel?: string;
+  readonly editing: boolean;
+  readonly onCancel: () => void;
+  readonly busy: boolean;
+  readonly continueDisabled: boolean;
+  readonly onBack: () => void;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  return (
+    <div className="flex flex-wrap justify-end gap-inset" data-parity="custom.actions">
+      {props.editing ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="mr-auto border-line bg-surface"
+          disabled={props.busy}
+          onClick={props.onCancel}
+        >
+          {say("chat.planCreation.backToAnswers")}
+        </Button>
+      ) : null}
+      <div className="flex gap-inset">
+        <Button
+          type="button"
+          variant="outline"
+          className="border-line bg-surface"
+          disabled={props.busy}
+          onClick={props.onBack}
+        >
+          {say("chat.planCreation.back")}
+        </Button>
+        <Button type="submit" disabled={props.busy || props.continueDisabled}>
+          {props.submitLabel ?? say("chat.planCreation.continue")}
+        </Button>
+      </div>
+    </div>
   );
 }

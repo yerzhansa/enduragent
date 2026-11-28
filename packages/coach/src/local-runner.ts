@@ -16,6 +16,7 @@ import type { SpendMeterService } from "./spend-meter.js";
 import { checkHomeReadiness, type ReadinessFailure } from "./readiness.js";
 import { withCoachStoreWriter } from "./runtime.js";
 import { startCoachTracing } from "./tracing.js";
+import { sameHome } from "./same-home.js";
 
 export interface LocalCoachLifecycle {
   readonly language: CoachLanguage;
@@ -49,15 +50,6 @@ type WriterValue<T> =
   | { readonly kind: "readiness-failure"; readonly result: ReadinessFailure }
   | { readonly kind: "fulfilled"; readonly value: T }
   | { readonly kind: "rejected"; readonly error: unknown };
-
-function sameHome(left: AthleteHome, right: AthleteHome): boolean {
-  return (
-    left.root === right.root &&
-    left.storeDir === right.storeDir &&
-    left.archiveDir === right.archiveDir &&
-    left.configDir === right.configDir
-  );
-}
 
 export async function withLocalCoach<T>(
   input: WithLocalCoachInput<T>,

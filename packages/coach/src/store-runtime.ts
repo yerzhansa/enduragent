@@ -47,6 +47,7 @@ import {
   type WallClockScheduler,
   type WallClockSchedulerDependencies,
 } from "./daemon/scheduler.js";
+import { sameHome } from "./same-home.js";
 
 export const STORE_REFRESH_INTERVAL_MS = 21_600_000;
 export const STORE_REQUEST_LIMIT = 64 as const;
@@ -124,15 +125,6 @@ export interface StoreRuntimeOptions {
   readonly writerContext?: CoachStoreWriterContext;
   readonly dependencies?: StoreRuntimeDependencies;
   readonly platform?: NodeJS.Platform;
-}
-
-function sameHome(left: AthleteHome, right: AthleteHome): boolean {
-  return (
-    left.root === right.root &&
-    left.storeDir === right.storeDir &&
-    left.archiveDir === right.archiveDir &&
-    left.configDir === right.configDir
-  );
 }
 
 export class StoreRuntime {

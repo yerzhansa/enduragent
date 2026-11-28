@@ -27,11 +27,13 @@ import {
 } from "@enduragent/kernel/planning";
 import {
   confirmedCommitments,
-  encodePlanCreationAnswer,
-  resolvePlanCreationAnswerFlow,
   validPlanCreationAnswer,
   validateCommitmentInterpretation,
 } from "./plan-creation-answers.js";
+import {
+  encodePlanCreationAnswer,
+  resolvePlanCreationAnswerFlow,
+} from "./plan-creation-answer-flow.js";
 
 export function typedCreationSubmission(
   answer: PlanCreationAnswerInput,

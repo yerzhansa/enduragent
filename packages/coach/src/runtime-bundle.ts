@@ -142,8 +142,8 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
     },
     spendMeter: {
       getSpendSummary: () => run((bundle) => bundle.spendMeter.getSpendSummary()),
-      setDailySpendCap: (dailyCapUsd) =>
-        run((bundle) => bundle.spendMeter.setDailySpendCap(dailyCapUsd)),
+      setDailySpendCap: (dailyCapUsd, mode) =>
+        run((bundle) => bundle.spendMeter.setDailySpendCap(dailyCapUsd, mode)),
     },
     confirmations: {
       peek: (chatId, phrasebook) =>

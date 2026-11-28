@@ -748,7 +748,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "You’ve reached today’s {{amount}} spend cap. You can keep chatting; this is a warning, not a block."
+      "capReached": "You’ve reached today’s {{amount}} spend cap. You can keep chatting; this is a warning, not a block.",
+      "capReachedStop": "You’ve reached today’s {{amount}} spend cap. New messages wait until tomorrow, or raise the cap or switch to Warn in Settings › Spending."
     },
     "supportingEvent": {
       "accepted": "Accepted Supporting Event",
@@ -1071,6 +1072,9 @@
       "trainingLoad": "training load to {{load}}",
       "unnamed": "Unnamed workout",
       "update": "Update workout \"{{name}}\" on {{date}} — {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Today’s model spend has reached your {{cap}} daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending."
     },
     "workoutPreparation": {
       "failed": "I couldn't prepare this workout review. No changes were applied.",
@@ -2439,6 +2443,14 @@
       "date": "{{month}} {{day}}",
       "detail": "Language model spend against today’s cap",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send in this app waits and goes out then.",
+        "detailWarn": "Warn: the coach keeps answering and Chat shows a notice.",
+        "enforce": "Stop",
+        "overshoot": "The cap is checked when a message starts, so one long reply can still go over it.",
+        "title": "When today’s cap is reached",
+        "warn": "Warn"
+      },
       "month": {
         "april": "Apr",
         "august": "Aug",

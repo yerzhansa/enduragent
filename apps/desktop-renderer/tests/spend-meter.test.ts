@@ -22,6 +22,7 @@ function spend(overrides: Partial<SpendSummary> = {}): SpendSummary {
     malformedLineCount: 0,
     spendComplete: true,
     capStatus: "below",
+    capMode: "warn",
     cacheReadTokens: 400,
     knownCacheReadSavingsUsd: 0.03,
     cacheSavingsComplete: true,
@@ -446,6 +447,116 @@ describe("spend controller", () => {
     await Promise.all([saving, postOne]);
 
     expect(trace).toEqual(["read:1", "read:2", "write", "read:3"]);
+  });
+
+  it("saves a new cap mode with the authoritative cap and skips a mode already saved", async () => {
+    const writes: unknown[] = [];
+    const call = vi.fn(async (method: string, params: unknown) => {
+      if (method === "setDailySpendCap") {
+        writes.push(params);
+        const { dailyCapUsd, mode } = params as {
+          readonly dailyCapUsd: number;
+          readonly mode: SpendSummary["capMode"];
+        };
+        return spend({ dailyCapUsd, capMode: mode });
+      }
+      return spend();
+    }) as unknown as CoachClient["call"];
+    const { controller, subject } = await startedController(call);
+
+    await controller.setMode("warn");
+    expect(writes).toEqual([]);
+
+    subject.changeCap("not-a-number");
+    await controller.setMode("enforce");
+
+    expect(writes).toEqual([{ dailyCapUsd: 0.5, mode: "enforce" }]);
+    expect(subject.state().summary?.capMode).toBe("enforce");
+    expect(subject.state().capOperation).toEqual({ kind: "idle" });
+  });
+
+  it("saves a valid unsaved draft together with the new mode", async () => {
+    const writes: unknown[] = [];
+    const call = vi.fn(async (method: string, params: unknown) => {
+      if (method === "setDailySpendCap") {
+        writes.push(params);
+        const { dailyCapUsd, mode } = params as {
+          readonly dailyCapUsd: number;
+          readonly mode: SpendSummary["capMode"];
+        };
+        return spend({ dailyCapUsd, capMode: mode });
+      }
+      return spend();
+    }) as unknown as CoachClient["call"];
+    const { controller, subject } = await startedController(call);
+
+    subject.changeCap("0.8");
+    await controller.setMode("enforce");
+
+    expect(writes).toEqual([{ dailyCapUsd: 0.8, mode: "enforce" }]);
+    expect(subject.state().summary).toMatchObject({ dailyCapUsd: 0.8, capMode: "enforce" });
+  });
+
+  it("keeps the chosen mode through a failed save and its retry", async () => {
+    const writes: unknown[] = [];
+    let failNext = true;
+    const call = vi.fn(async (method: string, params: unknown) => {
+      if (method === "setDailySpendCap") {
+        writes.push(params);
+        if (failNext) {
+          failNext = false;
+          throw new Error("daemon busy");
+        }
+        const { dailyCapUsd, mode } = params as {
+          readonly dailyCapUsd: number;
+          readonly mode: SpendSummary["capMode"];
+        };
+        return spend({ dailyCapUsd, capMode: mode });
+      }
+      return spend();
+    }) as unknown as CoachClient["call"];
+    const { controller, subject } = await startedController(call);
+
+    await controller.setMode("enforce");
+    expect(subject.state().capOperation).toEqual({ kind: "error", reason: "request-failed" });
+
+    await controller.retryCap();
+
+    expect(writes).toEqual([
+      { dailyCapUsd: 0.5, mode: "enforce" },
+      { dailyCapUsd: 0.5, mode: "enforce" },
+    ]);
+    expect(subject.state().summary?.capMode).toBe("enforce");
+    expect(subject.state().capOperation).toEqual({ kind: "idle" });
+  });
+
+  it("keeps a waiting mode when a cap edit is committed before it saves", async () => {
+    const writes: unknown[] = [];
+    const refresh = deferred<SpendSummary>();
+    let refreshes = 0;
+    const call = vi.fn(async (method: string, params: unknown) => {
+      if (method === "setDailySpendCap") {
+        writes.push(params);
+        const { dailyCapUsd, mode } = params as {
+          readonly dailyCapUsd: number;
+          readonly mode?: SpendSummary["capMode"];
+        };
+        return spend({ dailyCapUsd, capMode: mode ?? "warn" });
+      }
+      refreshes += 1;
+      return refreshes === 1 ? spend() : refresh.promise;
+    }) as unknown as CoachClient["call"];
+    const { controller, subject } = await startedController(call);
+
+    const slowRefresh = controller.refresh();
+    const modeSave = controller.setMode("enforce");
+    subject.changeCap("0.8");
+    const capSave = controller.commitCap();
+    refresh.resolve(spend());
+    await Promise.all([slowRefresh, modeSave, capSave]);
+
+    expect(writes).toEqual([{ dailyCapUsd: 0.8, mode: "enforce" }]);
+    expect(subject.state().summary).toMatchObject({ dailyCapUsd: 0.8, capMode: "enforce" });
   });
 
   it("ignores settlement after disposal and cancels its interval", async () => {

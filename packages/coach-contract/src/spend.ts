@@ -8,6 +8,18 @@ export type SpendCaching = z.infer<typeof SpendCachingSchema>;
 export const SpendCapStatusSchema = z.enum(["below", "reached", "unknown"]);
 export type SpendCapStatus = z.infer<typeof SpendCapStatusSchema>;
 
+export const SpendCapModeSchema = z.enum(["warn", "enforce"]);
+export type SpendCapMode = z.infer<typeof SpendCapModeSchema>;
+
+export const TurnRefusalSchema = z
+  .object({
+    kind: z.literal("spend-cap-reached"),
+    dailyCapUsd: z.number().finite().positive(),
+    knownSpendUsd: z.number().finite().nonnegative(),
+  })
+  .strict();
+export type TurnRefusal = z.infer<typeof TurnRefusalSchema>;
+
 export const SpendRouteSummarySchema = z
   .object({
     provider: z.string().min(1),
@@ -64,6 +76,7 @@ export const SpendSummarySchema = z
     malformedLineCount: z.number().int().nonnegative(),
     spendComplete: z.boolean(),
     capStatus: SpendCapStatusSchema,
+    capMode: SpendCapModeSchema,
     cacheReadTokens: z.number().int().nonnegative(),
     knownCacheReadSavingsUsd: z.number().finite().nonnegative(),
     cacheSavingsComplete: z.boolean(),
@@ -152,7 +165,7 @@ export const GetSpendSummaryRpcParamsSchema = z.object({}).strict();
 export type GetSpendSummaryRpcParams = z.infer<typeof GetSpendSummaryRpcParamsSchema>;
 
 export const SetDailySpendCapRpcParamsSchema = z
-  .object({ dailyCapUsd: z.number().finite().positive() })
+  .object({ dailyCapUsd: z.number().finite().positive(), mode: SpendCapModeSchema.optional() })
   .strict();
 export type SetDailySpendCapRpcParams = z.infer<typeof SetDailySpendCapRpcParamsSchema>;
 

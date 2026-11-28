@@ -551,6 +551,14 @@
       "date": "{{day}}. {{month}}",
       "detail": "Kielimallin kulutus suhteessa tämän päivän rajaan",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Pysäytä: valmentaja ei vastaa uusiin viesteihin ennen huomista tai ennen kuin nostat rajaa. Sovelluksessa lähettämäsi viesti odottaa ja lähtee silloin.",
+        "detailWarn": "Varoita: valmentaja vastaa edelleen, ja Chat näyttää ilmoituksen.",
+        "enforce": "Pysäytä",
+        "overshoot": "Raja tarkistetaan, kun viesti alkaa, joten yksi pitkä vastaus voi silti ylittää sen.",
+        "title": "Kun tämän päivän raja täyttyy",
+        "warn": "Varoita"
+      },
       "month": {
         "april": "huhtik.",
         "august": "elok.",
@@ -1667,7 +1675,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Olet saavuttanut tämän päivän kulutusrajan {{amount}}. Voit jatkaa keskustelua. Tämä on varoitus, ei esto."
+      "capReached": "Olet saavuttanut tämän päivän kulutusrajan {{amount}}. Voit jatkaa keskustelua. Tämä on varoitus, ei esto.",
+      "capReachedStop": "Olet saavuttanut tämän päivän kulutusrajan {{amount}}. Uudet viestit odottavat huomiseen, tai voit nostaa rajaa tai vaihtaa tilaan Varoita kohdassa Asetukset › Kulutus."
     },
     "supportingEvent": {
       "accepted": "Hyväksytty muu tapahtuma",
@@ -3309,6 +3318,9 @@
       "trainingLoad": "harjoituskuormaksi {{load}}",
       "unnamed": "Nimetön harjoitus",
       "update": "Päivitä harjoitus \"{{name}}\" päivälle {{date}}. {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Tämän päivän kielimallin kulutus on saavuttanut päivärajasi {{cap}}, joten valmentaja ei vastannut. Jos haluat jatkaa tänään, nosta rajaa tai vaihda tilaan Varoita kohdassa Asetukset › Kulutus."
     }
   },
   "telegram": {
