@@ -53,6 +53,7 @@ export const DROPPED_MODELS = {
     "moonshotai/kimi-k2.7-code": "moonshotai/kimi-k3.1-pro",
     "anthropic/claude-fable-5.1": null,
     "openai/gpt-6-astra": null,
+    "deepseek/deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash-1017",
   },
 } as const satisfies Partial<Record<LlmProvider, Readonly<Record<string, string | null>>>>;
 
