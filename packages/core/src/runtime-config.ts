@@ -444,7 +444,12 @@ export function persistedLlmBackgroundModels(
   const choices = config.llmBackgroundModels ?? inferBackgroundModelChoices(config.llm);
   return {
     flushModel: choices.flush.kind === "explicit" ? choices.flush.model : undefined,
-    compactModel: choices.compact.kind === "explicit" ? choices.compact.model : undefined,
+    compactModel:
+      choices.compact.kind === "explicit"
+        ? choices.compact.model
+        : choices.compact.kind === "provider-default"
+          ? config.llm.compactModel
+          : undefined,
     beforeAstraModel:
       config.llm.provider === "openai" && config.llm.model === ASTRA_MODEL_ID
         ? choices.beforeAstra

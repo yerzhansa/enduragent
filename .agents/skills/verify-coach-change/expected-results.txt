@@ -6,10 +6,10 @@ CoachChange FailedChangeLeavesCoachUnchanged holds
 CoachChange FailedChangeLeavesWindowUnchanged holds
 CoachChange NoSwapUnderARunningReply holds
 CoachChange NoDeadlock holds
-SummaryModel SummaryModelIsChosen openai breaks
-SummaryModel SummaryModelIsChosen openrouter breaks
-SummaryModel SummaryModelIsChosen anthropic breaks
-SummaryModel MemoryModelIsChosen openai breaks
+SummaryModel SummaryModelIsChosen openai holds
+SummaryModel SummaryModelIsChosen openrouter holds
+SummaryModel SummaryModelIsChosen anthropic holds
+SummaryModel MemoryModelIsChosen openai holds
 SummaryModel MemoryModelIsChosen openrouter holds
 SummaryModel MemoryModelIsChosen anthropic holds
 SummaryModel ProviderSwitchResetsBackgroundModels openai holds

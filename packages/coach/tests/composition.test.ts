@@ -24,6 +24,7 @@ import {
   loadConfig,
   loadStoredProfileSnapshot,
   recordIntervalsCredentialResponse,
+  resolveRuntimeConfig,
   saveStoredProfile,
   type Config,
 } from "@enduragent/core";
@@ -4544,7 +4545,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       },
       fakeContext(home),
       undefined,
-      { ...config(home), llm: { ...llm, apiKey: "synthetic" } },
+      { ...config(home), ...resolveRuntimeConfig({ llm: { ...llm, apiKey: "synthetic" } }) },
     );
 
     const oldTurn = lifecycle.engine.chat({ chatId: "reapply", message: "hold" });
@@ -6727,6 +6728,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "anthropic",
         model: "new-model",
         api_key: "obviously-fake-implicit-provider-key",
+        compact_model: "claude-haiku-5-5",
         retained_llm_field: true,
       },
     });
