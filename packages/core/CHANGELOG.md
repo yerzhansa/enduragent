@@ -1,5 +1,84 @@
 # @enduragent/core
 
+## 0.3.0
+
+### Minor Changes
+
+- dbe61e3: User-facing: When the coach can't answer because your Claude Code, Codex or ChatGPT sign-in has ended, your AI provider account is out of credits, or your provider no longer offers the model you picked, Chat now says so under your message and tells you what to do next. Before, it showed only a red icon and Retry, or blamed an API key you don't have.
+
+  Core classifies a provider error whose code or type is `model_not_found`, or Anthropic's `not_found_error` on the anthropic route, as the new `model_unavailable` failure (a bare 404, which a wrong base URL also returns, stays generic), and an OpenAI 429 whose error type or code is a billing limit (`insufficient_quota`, `credit_balance_exhausted`, spend or usage limits) as `payment_required`, so it is no longer retried as a rate limit. The route comes from the chat model's provider; a 429 from any other provider stays a rate limit. The engine chooses the athlete copy from the failure and the provider: a sign-in failure on Claude Code, Codex or ChatGPT gets the new `subscription-signed-out` kind with the existing "sign in again" message, a 402 from a key provider other than OpenRouter gets the new `provider-credits` kind, and a missing model gets the new `model-unavailable` kind. Chat shows these three, and OpenRouter's credits notice, as a red notice under the kept message. A rejected API key, rate limits and other failures keep the icon and Retry. Telegram and the terminal keep their existing replies. The three new error kinds change the turn-event wire, so the coach protocol moves from 38 to 39.
+
+### Patch Changes
+
+- 78c0c28: User-facing: Starting a fresh session automatically no longer drops queued follow-up messages or prints two fresh-session notices.
+
+  Preserves the durable chat queue across automatic stale-session resets, replays live queue events for overlapping `resumeChatQueue` callers, and removes the duplicate archive disclosure instruction from the model prompt.
+
+- a88cdea: User-facing: When ChatGPT stops accepting your sign-in, Setup now says the sign-in expired and offers Sign in with ChatGPT, which opens the browser so you can sign in again. Before, Setup kept showing ChatGPT as Connected and gave you no way to sign in again.
+
+  When the coach's refresh of the ChatGPT token is rejected twice, it marks the stored profile in `auth-profiles.json` as rejected, compared against the profile it refreshed so a newer sign-in is never marked. A successful refresh or a new browser sign-in clears the mark. Main's ChatGPT status reports a marked profile as `{ state: "configured", runtimeReady: false, reason: "sign-in-expired" }`. The renderer keeps it as an expired credential that cannot be activated, so Sign in starts a fresh browser sign-in, and Settings refreshes the sign-in status when it opens. The coach's OAuth token reader moves out of `composition.ts` into `oauth-access-token.ts`.
+
+- a4187b3: User-facing: Setup and Settings now offer each AI provider's current models, with up-to-date prices, and new setups start on a current model. If a provider has retired the model you picked, the app now uses its replacement.
+
+  Bundled model catalog seed revision 12, matching the published catalog revision 12. Revision 12 is revision 10 plus the old DeepSeek name `deepseek-v4-flash`, labelled "DeepSeek V4.1 Flash (old name)": released builds still default to it, and DeepSeek serves it with V4.1 Flash at the same price. New defaults: Anthropic `claude-sonnet-5-5`, OpenAI `gpt-6.2-sol`, Google `gemini-4-hydrogen`, DeepSeek `deepseek-flash` (replaces the retired `deepseek-v4-flash` name), Qwen `qwen4-max`, Kimi `kimi-k3.1-pro`, Z.ai `glm-5.3`, OpenRouter `deepseek/deepseek-v4.1-flash-1017`. Summariser defaults: Anthropic `claude-haiku-5-5`, OpenRouter `deepseek/deepseek-v4.1-flash-1017`. Retired or withdrawn ids are removed: MiniMax M2.7 and M2.7 Highspeed, Kimi K2.6 and K2.7 Code, Gemini 3.7 Flash, and `qwen/qwen3.8-max` on OpenRouter. Sign-in lanes (ChatGPT, Codex agent, Claude subscription) are unchanged. Saved configs that name a model its provider retired load with the replacement: `gemini-3.7-flash` to `gemini-3.8-flash`, `deepseek-v4-flash` to `deepseek-flash`, `MiniMax-M2.7` to `MiniMax-M3`, `MiniMax-M2.7-highspeed` to `MiniMax-M3.1-Flash`, and `qwen/qwen3.8-max` to `qwen/qwen4-max` on OpenRouter.
+
+- 9912a8c: User-facing: When the model your coach uses leaves Enduragent's model list, Settings → Coach and Setup → API key → Advanced now name it as no longer listed instead of showing it as a model you typed, say that your coach keeps using it, and offer a one-press switch to its replacement when there is one. Nothing changes until you press Switch or pick another model.
+
+  Main now answers the LLM configuration with the saved model classified as `listed`, `retired` (with `replacedBy`, or null when the model list offers no replacement) or `custom`, carried on `active` as `kind`. The classification reads the new `DROPPED_MODELS` table in `@enduragent/core`, which names the replacement for each model the list dropped but saved configurations keep, and offers a replacement only when the list the window received lists it. The preload checks the new keys exactly. Setup and Coach show the retired model as its own option, keep it selected, and re-send it unchanged when saved; the Switch button saves the replacement through the existing Coach and Setup save paths.
+
+- d928eff: User-facing: Desktop app updates now download much less data, and Telegram workout chart labels render reliably in the desktop app.
+
+  Exclude non-runtime TypeScript declarations, TypeScript sources under `node_modules`, workspace `src/` directories, build-time i18n catalogs/glossaries, and unused browser bundles from `app.asar`, and unpack `clawpdf`'s `pdfium.esm.wasm` and `@enduragent/core`'s `workout-chart-font.otf` into `app.asar.unpacked` so differential updates reuse immutable large binaries and `@resvg/resvg-js` can read the chart font from disk.
+
+- c9a1cc7: User-facing: If intervals.icu refuses your API key or sign-in while a sync downloads ride recordings, the sync now says it couldn't finish instead of saying your training data synced.
+
+  A 401 on a recording download no longer counts as an unfetched recording. `attempt` in the capture's lane report rethrows a refused sign-in, so the reference capture fails, the store window fails, and Sync shows its retryable failure. The older reference fetch now fails its stream loop on a 401 the same way. A 403 or a 404 on a recording download still counts as an unfetched recording. An OAuth 403 already starts the sign-in check, which marks the sign-in rejected when the check confirms the refusal. The change also runs `oxfmt` over `lane-report.ts` and the live-bundle test, which the format gate requires once a file changes.
+
+- 3cb16f8: User-facing: Changing your coach model in Settings no longer leaves chat summaries or memory saves stuck on a costlier model. Summaries stay on your provider's cheaper default when one exists, and follow your chosen model again after trying GPT-6 Astra.
+
+  Tracks explicit summary (`compactModel`) and memory-save (`flushModel`) overrides separately from derived defaults (`provider-default`, `follow-chat`, `astra-fallback`) in `resolveRuntimeConfig`, persists explicit overrides, the provider's summary default as before, and `before_astra_model` while on GPT-6 Astra; it no longer persists a summary or memory model that only followed the chat model or the pre-Astra model, which is what made them stick. `config.yaml` names the explicit ones in `explicit_background_models`, written only when there is one. `loadConfigFromYaml` reads a file without that list, as older versions wrote it, by value: a `compact_model` equal to the provider's summary default or to the chat model is derived again (the provider's summary default where there is one, else the chat model), because older versions moved a `compact_model` equal to the chat model along with every model pick; a `flush_model` equal to the chat model follows the chat model; on GPT-6 Astra both are the model used before Astra; any other saved value stays explicit. `LLM_COMPACT_MODEL` and `LLM_FLUSH_MODEL` stay explicit.
+
+- 0e2786b: User-facing: When intervals.icu asks the app to slow down during a sync, the app now waits a moment and tries the training-data check once more, so your training data still updates. Before, Sync now could end on "Sync needs attention", and a scheduled sync could leave your training data out of date until the next one.
+
+  A 429 on the reference refresh's athlete, activities, wellness or events request now ends that run as `fetch_failed` with the Retry-After it returned, as ADR-0011 asks. The sync window then waits that long, at least one second and only when it is 30 seconds or less, and runs the reference refresh once more inside the same window and request budget. A second 429, or a longer Retry-After, ends the window as before, and the next scheduled sync tries again. A 429 on the athlete, wellness or events request no longer blocks coaching as if the data were invalid.
+
+- 02c7694: The usage ledger's turn row (`kind: "turn"`) is now the sum of every chat-model call the turn made, failed and stopped attempts included, instead of the last successful call only. It is written on every exit that logs `turn_outcome`: a reply, a Coach decision, a failure after a write, a stop and a final failure. Each turn row carries `turnId`, `outcome` and, for a failed turn, `errorClass` (`aborted` for a stop, `budget` when the turn ran out of its budget). It sums known usage: a failed call with no usage figure is a known zero, so it keeps the turn's cost known, and a turn whose calls all failed that way records zero tokens and $0. A queue retry reuses the turn's ID, so the retry's turn row also adds the chat calls the earlier run left in the ledger; the latest turn row for a `turnId` is that turn's total. Compaction and memory-flush calls keep only their own rows. `pnpm usage:baseline` gains `--outcome ok|error|all`, defaulting to `ok` for every row kind, and keeps only the latest turn row for each `turnId`. Today's spend and season review read only per-call rows, so no figure an athlete sees changes.
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [09a5e23]
+- Updated dependencies [3adc44c]
+- Updated dependencies [0bcd503]
+- Updated dependencies [95d3c9a]
+- Updated dependencies [d984b4f]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [75e77dd]
+- Updated dependencies [78c0c28]
+- Updated dependencies [dbe61e3]
+- Updated dependencies [6b2d249]
+- Updated dependencies [a88cdea]
+- Updated dependencies [eefa039]
+- Updated dependencies [7d6ed8b]
+- Updated dependencies [c5b2b5e]
+- Updated dependencies [bba219f]
+- Updated dependencies [a6e5783]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+- Updated dependencies [9912a8c]
+- Updated dependencies [1ebd764]
+- Updated dependencies [9f32ae9]
+- Updated dependencies [02c7694]
+- Updated dependencies [cb4af29]
+- Updated dependencies [1799249]
+- Updated dependencies [c12d9f1]
+- Updated dependencies [9ef4f21]
+- Updated dependencies [b476f6d]
+  - @enduragent/coach-contract@0.3.0
+  - @enduragent/kernel@0.2.0
+  - @enduragent/engine@0.2.0
+  - @enduragent/i18n@0.4.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/coach",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "private": true,
   "description": "Private Node composition root for governed Reference layer sync orchestration.",
   "type": "module",

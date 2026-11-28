@@ -1,5 +1,30 @@
 # @enduragent/coach-client
 
+## 0.1.9
+
+### Patch Changes
+
+- 3436f66: User-facing: Your Plan now keeps this Training Week and next on intervals.icu, sending each new week 7 days before it starts. Changes you make to a Plan workout in intervals.icu are kept instead of being put back by the app.
+
+  The desktop calendar mirror sends whole Training Weeks and keeps intervals.icu's own read-back of each workout as its baseline. It writes only after re-reading the event and finding it unchanged, and never sends a write that changes nothing. End and Replace remove the old Plan's own workouts from tomorrow on, and leave today's workout and the ones the athlete changed. A new `plan.calendar` call approves weeks and saves the "Approve each week" setting.
+
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [0bcd503]
+- Updated dependencies [95d3c9a]
+- Updated dependencies [d984b4f]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [75e77dd]
+- Updated dependencies [dbe61e3]
+- Updated dependencies [6b2d249]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+- Updated dependencies [9f32ae9]
+- Updated dependencies [9ef4f21]
+  - @enduragent/coach-contract@0.3.0
+
 ## 0.1.8
 
 ### Patch Changes

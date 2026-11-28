@@ -1,5 +1,23 @@
 # @enduragent/sync-intervals-icu
 
+## 0.1.5
+
+### Patch Changes
+
+- c9a1cc7: User-facing: If intervals.icu refuses your API key or sign-in while a sync downloads ride recordings, the sync now says it couldn't finish instead of saying your training data synced.
+
+  A 401 on a recording download no longer counts as an unfetched recording. `attempt` in the capture's lane report rethrows a refused sign-in, so the reference capture fails, the store window fails, and Sync shows its retryable failure. The older reference fetch now fails its stream loop on a 401 the same way. A 403 or a 404 on a recording download still counts as an unfetched recording. An OAuth 403 already starts the sign-in check, which marks the sign-in rejected when the check confirms the refusal. The change also runs `oxfmt` over `lane-report.ts` and the live-bundle test, which the format gate requires once a file changes.
+
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [09a5e23]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+  - @enduragent/kernel@0.2.0
+
 ## 0.1.4
 
 ### Patch Changes

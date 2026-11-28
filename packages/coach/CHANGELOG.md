@@ -1,5 +1,160 @@
 # @enduragent/coach
 
+## 0.2.0
+
+### Minor Changes
+
+- 71a5e7d: User-facing: When you first open a ride in Activity review, the coach writes a short verdict on it with one reply on your own model; if that fails, the ride says so and spends nothing more until you press Write again. You can leave the coach a note on the ride that it reads when you write again, and Ask the coach, here and on a Calendar workout, now adds its question after whatever you have already typed in Chat.
+
+  The `plan.calendar` RPC gains `read-review`, `write-verdict` (with an `expected` state and reply count, refusing with `review-changed` when they moved on) and `save-note`; `decide-ride` also starts the verdict when the athlete answers the match, and a verdict that cannot start never fails the saved match. The verdict moves only through the engine's `coachTextStep`, which now records whether a failure came from the model or from an interrupted write and writes again on open only after an interrupted one. It runs in the background on the athlete's chat model under the new `coach-text` caller, asks for low reasoning effort with a 600-token cap only where the provider honours it (OpenAI reasoning models, codex-agent; Anthropic keeps thinking off at 600) and otherwise keeps the provider's default effort with a 2,000-token cap, aborts before its lease runs out, never abandons a write whose job is still running, and is stored with the note, the failure's cause and the last kept verdict in the new `activity_review` table (migration 037). The engine exports the writer from `@enduragent/engine/coach-text-writer`. `createWorkoutCardController` drops `composerEmpty` and prefills through `requestComposerPrefill`, like Activity review's Ask.
+
+- df8343a: User-facing: A new Activity review page, below Calendar, lists your rides by Training Week and shows each ride's facts. When the app asks "Is this the Plan Workout?", answer yes, no, or another day's workout, and the Calendar shows your answer.
+
+  The `plan.calendar` RPC gains `rides`, which runs the match refresher over the active Plan's part of the range and lists cycling rides with a ride-centric Plan Workout match and the Plan's Training Weeks, and `decide-ride`, which confirms a suggestion, turns it down as Extra, or matches the ride to another nearby workout, and refuses with `match-changed` when the match differs from the `expected` one the page showed. The Plan Workout match repository now lets the athlete take back a confirmed heuristic match and confirm a pairing turned down earlier, and never stores a second confirmed match, or a new suggestion, for a workout or ride that already has a confirmed one; `observe` returns null when it stores nothing and leaves an unchanged suggestion as it was. Confirming a match deletes the other suggestions for that workout and that ride, and the new `withdraw` deletes a suggestion or an intervals.icu pairing the system derived, never the athlete's own answers, so both come back when the evidence returns. The match refresher stores no length for a zero-length ride, withdraws an intervals.icu pairing the ride no longer carries, and the Plan page projection prefers a confirmed match over a suggestion. Turning down or moving a ride's match records its current intervals.icu pairing as unpaired, so the pairing does not come back. Matching a ride again to a workout whose intervals.icu pairing the athlete turned down clears that unpaired row (`clearUnpaired`) and stores the athlete's own match.
+
+- 09a5e23: User-facing: A new Plan now waits for your Approve before anything reaches intervals.icu. The Calendar shows this Training Week and next as one set to approve, and Settings can make each later week wait for its own Approve. You can also turn on starting Enduragent at login so later weeks go out on time.
+
+  Activation writes "waiting for Approve" in the same transaction. While the first Approve waits, later weeks show the day they will go out. The renderer gains a Start at login bridge over two trusted IPC channels, reusing the tray's durable login-item path.
+
+- 0bcd503: User-facing: When you edit, move or delete a Plan workout in intervals.icu, the Calendar now marks it and asks what you want. Keep makes the Plan follow your change; Put back restores the Plan's version on intervals.icu. Nothing is changed until you choose.
+
+  The `plan.calendar` RPC gains change-detail, keep-change and put-back. Each reads the event back from intervals.icu before it acts, and a newer edit is shown first instead of being overwritten. Keep on an edit or move applies a Plan Change that keeps the physical workout id.
+
+- 95d3c9a: User-facing: You can drag a workout to another day on the Calendar. The app asks first, offers to swap with a workout already on that day, and moves it on intervals.icu too. The card then reads "Moved by you".
+
+  The `plan.calendar` RPC gains `move-workout`. It applies one Plan Change with a `move-by-you` intent, which keeps physical workout ids, and marks the intervals.icu copies as moving so the next run updates the same events. Calendar workouts gain `movable` and `movedByYou`.
+
+- d984b4f: User-facing: A new Calendar page shows your Plan one Training Week per row, with each workout's result: done as planned, done differently, missed, or waiting for you to confirm a ride. Each week shows whether it is on intervals.icu yet, and rows start on your region's first day of the week. Without a Plan, it lists your Activities by date.
+
+  The `plan.calendar` call gains a `read` action that returns a date range of the active Plan's workouts, outcomes, copy states and Training Week status, plus the athlete's Activities. The desktop passes the region's first day of the week to the renderer from `app.getLocaleCountryCode()`.
+
+- 2efcf2b: User-facing: The Calendar has a Plan details panel with your Plan's dates, progress and history, and with Replace Plan and End Plan. Ending a Plan keeps today's workout and any workout you changed in intervals.icu, unless you choose to remove those too.
+
+  The `plan.calendar` RPC gains `plan-details` (history from applied Plan Changes, plus what End would remove, keep for today, and leave as the athlete's own) and `save-end-choice`, which stores the athlete's ticks for the cleanup run before the existing `plan.close`.
+
+- 7cba733: User-facing: Replacing your Plan no longer changes intervals.icu until you approve, so Not now leaves your old Plan there. The Approve sheet lists the old Plan's workouts that come off from tomorrow on, and the new Plan's first two Training Weeks go on only after those are gone.
+
+  Replace activation records a cleanup hold (migration 036, `plan_cleanup_hold`) instead of a cleanup job. The new Plan's first `approve-weeks` releases it in the same transaction through the engine's `athlete-approves-replacement` step, and can carry the athlete's ticked changes as the old Plan's close choice. Ending or completing the waiting Plan releases its holds, and the drain releases any hold whose replacement no longer waits. The `plan.calendar` read gains `replacing`.
+
+- 3436f66: User-facing: Your Plan now keeps this Training Week and next on intervals.icu, sending each new week 7 days before it starts. Changes you make to a Plan workout in intervals.icu are kept instead of being put back by the app.
+
+  The desktop calendar mirror sends whole Training Weeks and keeps intervals.icu's own read-back of each workout as its baseline. It writes only after re-reading the event and finding it unchanged, and never sends a write that changes nothing. End and Replace remove the old Plan's own workouts from tomorrow on, and leave today's workout and the ones the athlete changed. A new `plan.calendar` call approves weeks and saves the "Approve each week" setting.
+
+- 75e77dd: User-facing: Click a workout on the Calendar to open its card, where you can see whether it is on intervals.icu, move it to another day, ask the coach to change it, or export that day's workouts. A new Plan now starts on the first day of your week by default, or today when your event comes sooner, and you can still pick another day.
+
+  Workout cards in the grid are buttons that open the card over the grid; a workout changed in intervals.icu still opens its change sheet. Only one Calendar sheet is open at a time. Move… opens the existing move dialog, which gains Earlier day and Later day buttons that step over days the workout cannot move to and keep focus at the ends. Ask the coach saves a draft naming the workout and day into an empty composer and opens Change in Chat; nothing is sent. Export reuses the workout archive export for that day.
+
+  The start-timing question offers `first-day-of-week` (answered as `earliest` with the next first day of the computer's region week, computed in the renderer) and `earliest` ("Pick another day"), and gains an optional `latestAllowed`, the event date, which the coach enforces. A picked day is now the Plan's start; the draft builder moves it only by whole weeks, past weeks with no day to train or a picked day that has already passed, and the answer summary states that start. Stored `as-soon-as-possible` answers and stored questions keep their old meaning. The cycling creation builder version is now 2.
+
+- 1949824: User-facing: Enduragent now uses one FTP, the one in intervals.icu, shows each ride's FTP and FTP history on Activity review, and writes a coach's proposed FTP to intervals.icu only after you confirm. Chat's Change one thing no longer offers Correct FTP, past FTP changes stay in Plan history, and Plan details no longer shows old FTP guidance.
+- 9f32ae9: User-facing: In Settings › Spending you can now choose what happens when today's spend reaches your daily cap. Warn keeps the coach answering as before; Stop makes the coach skip new messages until tomorrow or until you raise the cap, and a message you send in the app meanwhile waits and goes out then.
+
+  The daily cap file moves to version 2 with a `mode` of `warn` or `enforce`; a version 1 file reads as `warn` with its amount unchanged, and a version 2 file round-trips instead of falling back to the $0.50 default. The coach engine adapter checks the cap before each of its six turn-running methods and, when the cap is enforced and reached, returns a `spend-cap-reached` refusal without calling the model. An unknown status never refuses. Protocol version 40 adds `capMode` to the spend summary, an optional `mode` to `setDailySpendCap`, and an optional `refusal` to chat, queue and decision results.
+
+- f15d20d: User-facing: You can now send a trace of each coach turn to a tracing tool you run yourself, such as Jaeger, to see how long the model and each tool took and what each turn cost. It is off unless you turn it on with two settings described in the privacy guide, and it never sends your messages, the coach's replies or your training data.
+
+  When the coach process starts with `ENDURAGENT_OTEL=1` and `OTEL_EXPORTER_OTLP_ENDPOINT` set, `withLocalCoach` starts an OpenTelemetry trace provider (service `enduragent-coach`) with a batch processor and an OTLP/HTTP exporter to `<endpoint>/v1/traces`, and flushes it after the coach shuts down. The SDK and exporter load by dynamic import only then; with either variable missing nothing loads and nothing is sent. An unusable endpoint prints a warning and keeps tracing off. Exports give up after 2 seconds, so a collector that is down loses that batch with a warning and never fails or holds up a turn or an exit. The README and the privacy guide name the exporter as an outbound request.
+
+- 9ef4f21: User-facing: Every training workout in a new Chat Plan now has real steps, a zone, an estimated load and a line on why it is there, and its Calendar card shows them, with watts from your FTP in intervals.icu or as % of FTP until one is set.
+
+  The creation builder moves to version 3 and stores typed `content` (steps as % of FTP, zone, load, why) on each non-event Draft workout. Plan Changes recompute it. Keeping an intervals.icu edit that changes a workout's length removes it, because the athlete's version is the truth. Undo restores it as it was, and Plans built before it keep no content until a change touches a workout. The `plan.calendar` read gains each workout's `content` and the current outdoor `ftp`, and the Draft card model gains `ftpWatts`. intervals.icu receives exactly what it did before; nothing new is sent.
+
+- b476f6d: User-facing: intervals.icu now shows each Plan workout's steps and load when it has your FTP, so your head unit gets watts for every step. Without an FTP in intervals.icu, workouts go there as before, with no steps.
+
+  The Chat calendar mirror writes each workout's description at send time from its stored `content`, as step lines in % of FTP, and only while the one FTP is known. A "Warmup" line heads a warm-up step and a "Cooldown" line a cool-down step; both are intervals.icu syntax and stay in English in every locale, like "3x". The text is part of the send fingerprint, so an FTP appearing or being removed rewrites the workouts in the two-week window once. Athlete edits are still never overwritten, and a past workout keeps what intervals.icu has. A workout matched to a ride keeps its text there when only the text would change. A coach change to its day, name, sport or length still goes out, with the current text. When the steps are removed, intervals.icu keeps the load and intensity it computed from them. Rows without `content` keep any stored description unchanged.
+
+### Patch Changes
+
+- cf69384: User-facing: When intervals.icu stops accepting your sign-in, your Plan no longer says "Updating calendar" while nothing is being sent; it asks you to connect instead. After you sign in again, your planned workouts go to your intervals.icu calendar right away, without waiting for you to open Plan or for the next sync.
+
+  The Plan calendar status and the plan-creation calendar line now treat a rejected intervals.icu sign-in as not connected, using the same check as the plan calendar drain. The 24-hour stale-sync pause on Plan Changes and the Supporting Event candidates still count any saved sign-in, so a rejected one neither lifts the pause nor hides synced races. Every store window, including the refresh after a new sign-in, now kicks the calendar drain when it finishes.
+
+- 6b2d249: User-facing: Stop now ends a reply at once even if you changed the coach in Settings while it was streaming. Changing the coach or deleting the AI key in use during a reply now fails right away with a "try again" message, instead of hanging or sending you to the Setup screen.
+
+  A runtime change (`configureRuntime`) that arrives while a chat turn runs now returns the refusal `busy-replying` before it puts the barrier up, so Stop, the runtime config read and the transcript reads are not queued behind a drain that waits for the whole reply. A catalog pin moves into the replacement's prepare step, so a refused change does not pin the new catalog. The startup refresh still waits for running turns. On a key delete, the desktop maps `busy-replying` to a `runtime-unavailable` refusal and leaves the key and its runtime state as they were.
+
+  The coach protocol version goes to 38, because the new `busy-replying` refusal reason is a wire change.
+
+- 4383fe4: User-facing: Disconnecting Intervals.icu while a sync is running now stops the sync and disconnects right away. Before, Disconnect could wait 30 seconds, fail with "could not be reconciled", lock Settings and leave the sign-in in place.
+
+  The coach's configureRuntime aborts the sync window that holds the store lane, and any window that starts while the clear waits, when it receives an intervals.icu clear_credential. The clear then applies inside the 25 s deadline and the vault revokes and removes the token. A sign-in replacement still waits for the sync.
+
+- a88cdea: User-facing: When ChatGPT stops accepting your sign-in, Setup now says the sign-in expired and offers Sign in with ChatGPT, which opens the browser so you can sign in again. Before, Setup kept showing ChatGPT as Connected and gave you no way to sign in again.
+
+  When the coach's refresh of the ChatGPT token is rejected twice, it marks the stored profile in `auth-profiles.json` as rejected, compared against the profile it refreshed so a newer sign-in is never marked. A successful refresh or a new browser sign-in clears the mark. Main's ChatGPT status reports a marked profile as `{ state: "configured", runtimeReady: false, reason: "sign-in-expired" }`. The renderer keeps it as an expired credential that cannot be activated, so Sign in starts a fresh browser sign-in, and Settings refreshes the sign-in status when it opens. The coach's OAuth token reader moves out of `composition.ts` into `oauth-access-token.ts`.
+
+- eefa039: User-facing: Today's spend in Settings now includes AI requests that failed, timed out or were stopped, with the usage your provider reported before they ended. A request that ended before reporting any usage adds $0.00, so today's total can be a little lower than your provider's bill.
+
+  Every model-call row in the usage ledger now carries the turn that made it (`turnId`), whether the call succeeded (`outcome: "ok" | "error"`) and, for a failed call, why (`errorClass`: a failure reason or `aborted`). A failed, timed-out or aborted call now writes its row with the known usage of the steps that finished before it ended. The spend meter counts a failed call with no usage figure as a known zero, so one failed call does not mark the day incomplete. Known usage is a lower bound: an HTTP error carries no usage figure, and the provider may still bill the step that was in flight.
+
+- aac85bb: User-facing: If you quit the app while your first sync is still downloading your intervals.icu history, the app now finishes that download by itself the next time you open it. Your recent rides still show up right away, and the older ones fill in after. Before, your older rides stayed missing until you pressed Sync now.
+
+  The coach's startup refresh publishes the usual 84-day snapshot first, as before. Then the coach reads the saved history-download state: not started, in progress at a saved cursor, or complete. Only a download in progress resumes, in a store window of its own that captures again when the download finishes. The store lane stays free during each intervals.icu request. A complete download is left alone. A download that never started is left to the first sync that runs when Setup finishes. Nothing resumes while intervals.icu rejects the sign-in. A failed resume is logged as `history_download_resume_failed` and changes neither the startup refresh nor the six-hour schedule. The next launch or Sync now picks the download up again from its cursor. Quitting the app stops the resumed download.
+
+- 0c559cf: User-facing: If a new Intervals.icu sign-in is refused while your current one still works, Intervals.icu now stays connected. Before, the sidebar and Setup asked you to sign in again although sync kept working with your current sign-in.
+
+  The coach's rejected-sign-in check in getRuntimeConfig now tests the applied intervals.icu credential when one is applied, and falls back to the offered credential only when none is. Before, it also tested the offered credential, which configureRuntime stores before the apply and keeps after a refusal. A replacement that intervals.icu answered with 401 during the account check, and that the coach then refused as ownership-unavailable, made the healthy credential in use read as rejected. A refused first sign-in, with nothing applied, still reads as rejected until it is replaced or removed.
+
+- 5de1cb7: User-facing: When the old Plan's workouts cannot be removed from your intervals.icu calendar, the new Plan's workouts now wait even if you replace the Plan again, and the active Plan shows "Calendar sync failed. Retry available." (or "Connect to mirror Workouts" while intervals.icu is not connected) instead of "Up to date".
+  User-facing: Retry calendar now stays available after repeated failures and removes the old Plan's workouts at once.
+
+  The calendar drain and the Plan library read one barrier from `readCleanupBarrier`: the active Plan's mirror waits while any cleanup of another Plan is not verified, not only the newest one, and the active card shows that cleanup. A failed cleanup always offers Retry. Retry sends `retryCalendar` on the next `plan.list`, which reopens failed cleanups. Automatic cleanup retries keep the 15-minute wait after five failures, and mirror jobs keep their five-failure budget.
+
+- 3cb16f8: User-facing: Changing your coach model in Settings no longer leaves chat summaries or memory saves stuck on a costlier model. Summaries stay on your provider's cheaper default when one exists, and follow your chosen model again after trying GPT-6 Astra.
+
+  Tracks explicit summary (`compactModel`) and memory-save (`flushModel`) overrides separately from derived defaults (`provider-default`, `follow-chat`, `astra-fallback`) in `resolveRuntimeConfig`, persists explicit overrides, the provider's summary default as before, and `before_astra_model` while on GPT-6 Astra; it no longer persists a summary or memory model that only followed the chat model or the pre-Astra model, which is what made them stick. `config.yaml` names the explicit ones in `explicit_background_models`, written only when there is one. `loadConfigFromYaml` reads a file without that list, as older versions wrote it, by value: a `compact_model` equal to the provider's summary default or to the chat model is derived again (the provider's summary default where there is one, else the chat model), because older versions moved a `compact_model` equal to the chat model along with every model pick; a `flush_model` equal to the chat model follows the chat model; on GPT-6 Astra both are the model used before Astra; any other saved value stays explicit. `LLM_COMPACT_MODEL` and `LLM_FLUSH_MODEL` stay explicit.
+
+- 7cb2cf2: User-facing: After your Mac wakes from sleep, your training data now starts refreshing within a minute if a scheduled sync was missed while it slept. Before, with the app window closed, it could stay out of date for up to six more hours.
+
+  The six-hour store refresh now waits in steps of at most one minute and runs once the wall clock reaches the six-hour mark. Before, it waited on one timer for the whole gap. macOS does not count sleep time toward that timer, so a Mac that slept past the mark synced up to six hours late unless something else woke the coach. A wall clock set back a little no longer runs the refresh just before the mark and then again at it.
+
+- 02c7694: The usage ledger's turn row (`kind: "turn"`) is now the sum of every chat-model call the turn made, failed and stopped attempts included, instead of the last successful call only. It is written on every exit that logs `turn_outcome`: a reply, a Coach decision, a failure after a write, a stop and a final failure. Each turn row carries `turnId`, `outcome` and, for a failed turn, `errorClass` (`aborted` for a stop, `budget` when the turn ran out of its budget). It sums known usage: a failed call with no usage figure is a known zero, so it keeps the turn's cost known, and a turn whose calls all failed that way records zero tokens and $0. A queue retry reuses the turn's ID, so the retry's turn row also adds the chat calls the earlier run left in the ledger; the latest turn row for a `turnId` is that turn's total. Compaction and memory-flush calls keep only their own rows. `pnpm usage:baseline` gains `--outcome ok|error|all`, defaulting to `ok` for every row kind, and keeps only the latest turn row for each `turnId`. Today's spend and season review read only per-call rows, so no figure an athlete sees changes.
+- Updated dependencies [71a5e7d]
+- Updated dependencies [df8343a]
+- Updated dependencies [09a5e23]
+- Updated dependencies [3adc44c]
+- Updated dependencies [0bcd503]
+- Updated dependencies [95d3c9a]
+- Updated dependencies [d984b4f]
+- Updated dependencies [2efcf2b]
+- Updated dependencies [7cba733]
+- Updated dependencies [3436f66]
+- Updated dependencies [75e77dd]
+- Updated dependencies [78c0c28]
+- Updated dependencies [dbe61e3]
+- Updated dependencies [6b2d249]
+- Updated dependencies [a88cdea]
+- Updated dependencies [eefa039]
+- Updated dependencies [7d6ed8b]
+- Updated dependencies [c5b2b5e]
+- Updated dependencies [a4187b3]
+- Updated dependencies [bba219f]
+- Updated dependencies [a6e5783]
+- Updated dependencies [1949824]
+- Updated dependencies [5de1cb7]
+- Updated dependencies [9912a8c]
+- Updated dependencies [1ebd764]
+- Updated dependencies [d928eff]
+- Updated dependencies [9f32ae9]
+- Updated dependencies [c9a1cc7]
+- Updated dependencies [3cb16f8]
+- Updated dependencies [0e2786b]
+- Updated dependencies [02c7694]
+- Updated dependencies [cb4af29]
+- Updated dependencies [1799249]
+- Updated dependencies [c12d9f1]
+- Updated dependencies [9ef4f21]
+- Updated dependencies [b476f6d]
+  - @enduragent/coach-contract@0.3.0
+  - @enduragent/kernel@0.2.0
+  - @enduragent/engine@0.2.0
+  - @enduragent/i18n@0.4.0
+  - @enduragent/sport-cycling@0.1.0
+  - @enduragent/core@0.3.0
+  - @enduragent/sync-intervals-icu@0.1.5
+  - @enduragent/coach-cli@0.1.9
+  - @enduragent/kernel-node@0.1.5
+
 ## 0.1.9
 
 ### Patch Changes
