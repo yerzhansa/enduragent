@@ -60,8 +60,8 @@ export function CoachDecisionPanel(props: {
   const errorMessage = rawError === null ? null : chatFeedbackMessage(rawError);
   const error = errorMessage === null ? rawError : say(errorMessage);
   const spendSummary = useEnduragentStore((state) => state.settings.spend.summary);
-  const shownError =
-    props.surface === undefined && repeatsSpendBanner(rawError, spendSummary) ? null : error;
+  const errorClass = (visible: string): string =>
+    props.surface === undefined && repeatsSpendBanner(rawError, spendSummary) ? "sr-only" : visible;
   const rawLoadError = props.surface?.loadError ?? chatLoadError;
   const loadErrorMessage = rawLoadError === null ? null : chatFeedbackMessage(rawLoadError);
   const loadError = loadErrorMessage === null ? rawLoadError : say(loadErrorMessage);
@@ -205,11 +205,9 @@ export function CoachDecisionPanel(props: {
         <p className="m-0 text-xs leading-4 text-ink-2">
           {answerLabel ?? say("chat.coachDecision.answer")}
         </p>
-        {shownError === null ? null : (
-          <p className="m-0 text-xs leading-4 text-danger" role="alert">
-            {shownError}
-          </p>
-        )}
+        <p className={errorClass("m-0 text-xs leading-4 text-danger")} role="alert">
+          {error}
+        </p>
       </RecordedAnswer>
     );
   }
@@ -243,9 +241,9 @@ export function CoachDecisionPanel(props: {
               })
             : (answerLabel ?? say("chat.coachDecision.answer"))}
         </p>
-        {shownError === null ? null : (
-          <p className="m-0 text-xs leading-4 text-danger" role="alert">
-            {shownError}
+        {error === null ? null : (
+          <p className={errorClass("m-0 text-xs leading-4 text-danger")} role="alert">
+            {error}
           </p>
         )}
       </RecordedAnswer>
@@ -387,9 +385,9 @@ export function CoachDecisionPanel(props: {
               setCustomOpen(true);
             }}
           />
-          {shownError === null ? null : (
-            <p className="m-0 px-2 pb-2 text-xs leading-4 text-danger" role="alert">
-              {shownError}
+          {error === null ? null : (
+            <p className={errorClass("m-0 px-2 pb-2 text-xs leading-4 text-danger")} role="alert">
+              {error}
             </p>
           )}
         </QuestionOptions>

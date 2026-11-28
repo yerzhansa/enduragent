@@ -53,6 +53,8 @@ import {
   FEEDBACK_SENT_COPY,
   FEEDBACK_TOO_LONG_COPY,
   FEEDBACK_USAGE_COPY,
+  idleBootProbes,
+  liftedSpendRefusal,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
   NEW_CONVERSATION_NOT_STARTED_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
@@ -70,7 +72,6 @@ import {
   writePlanCreationPause,
   type ActivePlanKnowledge,
   type ActiveStopRequest,
-  type BootProbeStatus,
   type ChatAppendDelta,
   type ChatController,
   type ChatQueueCall,
@@ -229,19 +230,7 @@ export function createChatController(input: {
   let initialized = false;
   let stalledDrainHeadId: string | null = null;
   let activeDrainTask: Promise<void> | undefined;
-  const bootProbes: {
-    decision: BootProbeStatus;
-    session: BootProbeStatus;
-    queue: BootProbeStatus;
-    attachments: BootProbeStatus;
-    planningRequests: BootProbeStatus;
-  } = {
-    decision: "idle",
-    session: "idle",
-    queue: "idle",
-    attachments: "idle",
-    planningRequests: "idle",
-  };
+  const bootProbes = idleBootProbes();
   let epoch = 0;
   const canChat = input.canChat ?? (() => true);
 
@@ -2245,7 +2234,15 @@ export function createChatController(input: {
     },
     resume() {
       stalledDrainHeadId = null;
-      return start().then(() => drain());
+      const lift = liftedSpendRefusal(decision, decisionError);
+      decisionError = lift.error;
+      const resumeDecision = () =>
+        lift.resume === null
+          ? render()
+          : continueDecision("resumeCoachDecision", lift.resume, undefined);
+      return start()
+        .then(() => drain())
+        .then(resumeDecision);
     },
     async refreshAttachments() {
       if (disposed || resetBlocksWork()) return;

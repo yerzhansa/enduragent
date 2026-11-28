@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { spendCapRefusalCopy } from "../src/chat/controller-helpers";
 import { INITIAL_SPEND_METER_STATE } from "../src/spend-meter/controller";
 import { createSpendSettingsAdapter } from "../src/state/adapters/spend";
+import { createChatViewAdapter } from "../src/state/adapters/chat";
 import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";
+import { EMPTY_CHAT_STATE } from "../src/turn-state";
 import { CoachDecisionPanel } from "../src/ui/chat/CoachDecisionPanel";
 import { Notice } from "../src/ui/chat/Notice";
 import { SpendNotice } from "../src/ui/chat/SpendNotice";
@@ -89,10 +91,13 @@ function renderEnglish(element: React.ReactElement) {
 }
 
 function capMessages(): HTMLElement[] {
-  return [
-    ...screen.queryAllByText(bannerCopy),
-    ...screen.queryAllByText(refusalCopy),
-  ].filter((node) => node.closest("[hidden]") === null);
+  return [...screen.queryAllByText(bannerCopy), ...screen.queryAllByText(refusalCopy)].filter(
+    (node) => node.closest("[hidden], .sr-only") === null,
+  );
+}
+
+function screenReaderOnly(text: string): boolean {
+  return screen.queryAllByText(text).some((node) => node.closest(".sr-only") !== null);
 }
 
 beforeEach(() => {
@@ -117,7 +122,31 @@ describe("one spend cap message in Chat", () => {
 
     expect(capMessages()).toHaveLength(1);
     expect(screen.getByText(bannerCopy)).toBeVisible();
-    expect(screen.queryByText(refusalCopy)).toBeNull();
+    expect(screenReaderOnly(refusalCopy)).toBe(true);
+  });
+
+  it("keeps Discard and Retry without repeating the banner when a refused retry stays offered", () => {
+    publishSpend(summary());
+    createChatViewAdapter({
+      bufferStreaming: false,
+      publish: (next) => useEnduragentStore.getState().setChatSurface(next),
+    }).view.render({ ...EMPTY_CHAT_STATE, status: "interrupted", progress: refusalCopy });
+    expect(useEnduragentStore.getState().chat).toMatchObject({
+      notice: refusalCopy,
+      noticeRetry: true,
+    });
+
+    renderEnglish(
+      <>
+        <SpendNotice />
+        <Notice />
+      </>,
+    );
+
+    expect(capMessages()).toHaveLength(1);
+    expect(screen.getByText(bannerCopy)).toBeVisible();
+    expect(screenReaderOnly(refusalCopy)).toBe(true);
+    expect(screen.getByRole("button", { name: "Retry message" })).toBeVisible();
   });
 
   it("shows the refusal when the banner is not up yet", () => {
@@ -155,7 +184,7 @@ describe("one spend cap message in Chat", () => {
 
     expect(capMessages()).toHaveLength(1);
     expect(screen.getByText("Choose tomorrow’s priority.")).toBeVisible();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screenReaderOnly(refusalCopy)).toBe(true);
   });
 
   it("keeps Try again on a refused saved choice without repeating the banner", () => {
@@ -178,7 +207,7 @@ describe("one spend cap message in Chat", () => {
 
     expect(capMessages()).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screenReaderOnly(refusalCopy)).toBe(true);
   });
 
   it("still shows the refusal on the Plan surface, which has no banner", () => {

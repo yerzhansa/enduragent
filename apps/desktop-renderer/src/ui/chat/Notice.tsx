@@ -22,7 +22,14 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const hasNoticeText = /\S/u.test(text);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
-  if (!noticeRetry && repeatsSpendBanner(notice, spendSummary)) return null;
+  const repeated = repeatsSpendBanner(notice, spendSummary);
+  if (repeated && !noticeRetry) {
+    return (
+      <p className="sr-only" role="status">
+        {text}
+      </p>
+    );
+  }
   const danger = tone === "danger";
   return (
     <div
@@ -35,7 +42,8 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
       data-tone={tone}
       hidden={!hasNoticeText && !noticeRetry}
     >
-      {hasNoticeText || !noticeRetry ? (
+      {repeated ? <span className="sr-only">{text}</span> : null}
+      {(hasNoticeText && !repeated) || !noticeRetry ? (
         <span className="flex min-w-0 items-center gap-inset">
           {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
           <span>{text}</span>
