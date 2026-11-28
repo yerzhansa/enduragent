@@ -27,3 +27,5 @@ export * from "./format-civil-date.js";
 export * from "./answer-check.js";
 export * from "./athlete-feedback.js";
 export * from "./plan-calendar.js";
+export * from "./plan-calendar-ftp.js";
+export * from "./plan-workout-guidance.js";

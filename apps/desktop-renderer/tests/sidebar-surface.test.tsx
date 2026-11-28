@@ -633,7 +633,7 @@ describe("sidebar sync chip", () => {
   it("keeps Strava remedy navigation independent from syncing", async () => {
     const user = userEvent.setup();
     const request = vi.fn();
-    useEnduragentStore.setState({ syncActions: { request } });
+    useEnduragentStore.setState({ syncActions: { request, refreshQuietly: vi.fn() } });
     render(<Sidebar />);
 
     update({
@@ -756,7 +756,7 @@ describe("sidebar sync chip", () => {
   it("requests a manual sync and restores keyboard focus to the activator", async () => {
     const user = userEvent.setup();
     const request = vi.fn();
-    useEnduragentStore.setState({ syncActions: { request } });
+    useEnduragentStore.setState({ syncActions: { request, refreshQuietly: vi.fn() } });
     render(<Sidebar />);
 
     await user.click(chip());
@@ -775,7 +775,7 @@ describe("sidebar sync chip", () => {
 
   it("restores keyboard focus to the chip wrapper when the activator becomes disabled", () => {
     const request = vi.fn();
-    useEnduragentStore.setState({ syncActions: { request } });
+    useEnduragentStore.setState({ syncActions: { request, refreshQuietly: vi.fn() } });
     render(<Sidebar />);
 
     fireEvent.click(chip());
@@ -862,7 +862,7 @@ describe("Intervals.icu sign-in renewal in the sync chip", () => {
     const request = vi.fn();
     const connectTrainingData = vi.fn();
     useEnduragentStore.setState({
-      syncActions: { request },
+      syncActions: { request, refreshQuietly: vi.fn() },
       onboarding: CONNECTED_ONBOARDING,
       onboardingActions: { connectTrainingData } as never,
       intervalsSignInRejected: true,

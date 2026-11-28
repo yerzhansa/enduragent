@@ -4,6 +4,7 @@ import type { EnduragentState } from "./store";
 
 export interface SyncActions {
   request(kind: "keyboard" | "pointer"): void;
+  refreshQuietly(): void;
 }
 
 export const IDLE_MANUAL_SYNC: ManualSyncViewState = Object.freeze({

@@ -368,6 +368,57 @@ describe("training sync coordinator", () => {
     expect(JSON.stringify(states)).not.toMatch(/private|cursor/u);
   });
 
+  it("keeps a quiet sync's failure out of view, but shows it once Sync is pressed during it", async () => {
+    const failing = async (options: SyncOptions): Promise<SyncRpcResult> => {
+      options.onNotificationEnvelope?.(envelope("started", 0));
+      options.onTerminalEnvelope?.(remoteTerminal());
+      throw new CoachRpcRemoteError(-32_000, "private daemon detail");
+    };
+    const states: TrainingSyncState[] = [];
+    const quiet = createTrainingSyncCoordinator({
+      clients: providerWith(clientWith(failing)),
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    quiet.subscribe((state) => states.push(state));
+    await quiet.request({ quiet: true });
+    expect(states).toEqual([
+      { status: "idle" },
+      { status: "queued", operation: 1 },
+      { status: "running", operation: 1 },
+      { status: "idle" },
+    ]);
+
+    const held = deferred<void>();
+    const pressed = createTrainingSyncCoordinator({
+      clients: providerWith(
+        clientWith(async (options) => {
+          await held.promise;
+          return failing(options);
+        }),
+      ),
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    const running = pressed.request({ quiet: true });
+    const press = pressed.request();
+    held.resolve();
+    await Promise.all([running, press]);
+    expect(pressed.getState()).toEqual({
+      status: "failed",
+      operation: 1,
+      kind: "operation",
+      retryable: true,
+    });
+  });
+
+  it("shows a quiet sync that succeeds like any other", async () => {
+    const coordinator = createTrainingSyncCoordinator({
+      clients: providerWith(clientWith((options) => exactCall(options, published))),
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+    await coordinator.request({ quiet: true });
+    expect(coordinator.getState()).toMatchObject({ status: "succeeded", kind: "published" });
+  });
+
   it("rejects completed progress followed by an error terminal as protocol-invalid", async () => {
     const client = clientWith(async (options) => {
       options.onNotificationEnvelope?.(envelope("started", 0));

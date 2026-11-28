@@ -67,6 +67,9 @@ function buildFlushUserPrompt(
   today: string,
 ): string {
   const sectionList = sections.map((s) => `- "${s.name}": ${s.description}`).join("\n");
+  const example =
+    sections.find((s) => s.factExample !== undefined)?.factExample ??
+    "- FTP 252W (athlete, 2026-06-08)";
   return `Review the new conversation messages above and save athlete details to
 structured memory sections. The current memory is shown below; write each
 section that has new or updated information.
@@ -81,7 +84,7 @@ section content — omitted facts will be lost.
 Dating discipline for durable facts:
 - Append "(<source>, <YYYY-MM-DD>)" to each material fact — who stated it
   (athlete, coach, intervals.icu) and the date it was last confirmed.
-  Example: "- FTP 252W (athlete, 2026-06-08)".
+  Example: "${example}".
 - When carrying an unchanged fact forward, keep its existing source and date;
   re-date a fact only when this conversation re-confirmed it.
 - If a fact's date is more than 6 months before today, keep the fact and

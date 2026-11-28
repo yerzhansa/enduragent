@@ -1077,7 +1077,7 @@ describe("Plan Change cards", () => {
     );
   });
 
-  it("offers Schedule and FTP changes in order and submits their defaults", async () => {
+  it("offers Schedule changes in order and submits their defaults", async () => {
     patchChange({ editorOpen: true });
     render(<PlanChangeCards />);
     const actions = useEnduragentStore.getState().chatActions;
@@ -1097,7 +1097,6 @@ describe("Plan Change cards", () => {
       "No hard training on a weekday",
       "Weekly duration cap",
       "Longest-Workout cap",
-      "Correct FTP",
       "Supporting Event",
     ]);
     await userEvent.click(await screen.findByRole("option", { name: "Weekday unavailable" }));
@@ -1142,25 +1141,18 @@ describe("Plan Change cards", () => {
     });
   });
 
-  it("edits FTP in whole watts and disables the field while busy", async () => {
+  it("offers no FTP change and says where the FTP is changed instead", async () => {
     patchChange({ editorOpen: true });
     render(<PlanChangeCards />);
+    const editor = screen.getByRole("region", { name: "What needs to change?" });
+    expect(editor).toHaveTextContent(
+      "To change your FTP, set it in intervals.icu, or use FTP history in Activity review.",
+    );
     await userEvent.click(screen.getByRole("combobox", { name: "Change" }));
-    await userEvent.click(await screen.findByRole("option", { name: "Correct FTP" }));
-    const field = screen.getByRole("spinbutton", { name: "FTP in watts" });
-    expect(field).toHaveValue(220);
-    expect(field).toHaveAttribute("step", "1");
-    expect(field).toHaveAttribute("min", "1");
-    expect(screen.queryByRole("combobox", { name: "Weekday" })).toBeNull();
-    await userEvent.clear(field);
-    await userEvent.type(field, "245");
-    await userEvent.click(screen.getByRole("button", { name: "Preview change" }));
-    expect(useEnduragentStore.getState().chatActions?.previewPlanChange).toHaveBeenCalledWith({
-      kind: "ftp",
-      watts: 245,
-    });
-    patchChange({ busy: true });
-    expect(field).toBeDisabled();
+    const options = (await screen.findAllByRole("option")).map((option) => option.textContent);
+    expect(options).not.toContain("Correct FTP");
+    expect(options.some((option) => option?.includes("FTP"))).toBe(false);
+    expect(screen.queryByRole("spinbutton", { name: "FTP in watts" })).toBeNull();
   });
 
   it("shows watts on either diff side while preserving absent and undated Workouts", () => {
@@ -1272,24 +1264,20 @@ describe("Plan Change cards", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  it("keeps a pending card actionable after FTP sources change", () => {
+  it("offers only Cancel on a Correct FTP left pending, and says where the FTP is changed", async () => {
     setChanges([change({ title: "Correct FTP", intent: { kind: "ftp", watts: 220 } })]);
-    patchChange({
-      notice: "The FTP sources changed. Request a fresh preview before applying this correction.",
-    });
-    render(
-      <>
-        <PlanChangeNotice />
-        <PlanChangeCards />
-      </>,
+    const actions = stubActions();
+    useEnduragentStore.setState({ chatActions: actions });
+    render(<PlanChangeCards />);
+    const card = screen.getByRole("region", { name: "Correct FTP" });
+    expect(within(card).getByText("Pending", { exact: true })).toBeVisible();
+    expect(card).toHaveTextContent(
+      "To change your FTP, set it in intervals.icu, or use FTP history in Activity review.",
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "The FTP sources changed. Request a fresh preview before applying this correction.",
-    );
-    expect(screen.getByText("Pending", { exact: true })).toBeVisible();
-    expect(screen.getByRole("button", { name: "View evidence" })).toBeEnabled();
-    expect(screen.queryByRole("button", { name: "Change one thing" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(within(card).queryByRole("button", { name: "Apply to Plan" })).toBeNull();
+    expect(within(card).getByRole("button", { name: "View evidence" })).toBeEnabled();
+    await userEvent.click(within(card).getByRole("button", { name: "Cancel" }));
+    expect(actions.applyPlanChange).toHaveBeenCalledExactlyOnceWith("cancel");
   });
 
   it("shows host totals and both null and undated sides with the changed after name", () => {

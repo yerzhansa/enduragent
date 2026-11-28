@@ -109,6 +109,8 @@ export const PURE_AUTHORED_TABLES = [
   "plan_week_delivery",
   "plan_cleanup_hold",
   "planning_calendar_setting",
+  "ftp_proposal_state",
+  "ftp_accepted",
   "plan_source_request",
   "plan_workout",
   "plan_workout_drift",

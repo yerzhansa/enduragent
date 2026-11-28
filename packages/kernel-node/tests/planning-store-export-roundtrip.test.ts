@@ -425,7 +425,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 37,
+            targetUserVersion: 38,
             ...webCryptoExportEnv,
           },
           { container },
@@ -470,7 +470,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 37,
+          targetUserVersion: 38,
           ...webCryptoExportEnv,
         },
         { container },
@@ -508,7 +508,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 37,
+            targetUserVersion: 38,
             ...webCryptoExportEnv,
           },
           { container },
@@ -558,7 +558,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 37,
+            targetUserVersion: 38,
             ...webCryptoExportEnv,
           },
           { container },
@@ -606,7 +606,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 37,
+          targetUserVersion: 38,
           ...webCryptoExportEnv,
         },
         { container: built.container },
@@ -622,7 +622,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 37,
+          targetUserVersion: 38,
           ...webCryptoExportEnv,
         },
         { container: built.container },
@@ -675,7 +675,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 37,
+          targetUserVersion: 38,
           ...webCryptoExportEnv,
         },
         { container: built.container },
@@ -685,6 +685,69 @@ describe("planning-domain SQLite export round-trip", () => {
       );
       expect(await dumpStore(destination)).toBe(sourceDump);
       expect(await destination.all("PRAGMA foreign_key_check")).toEqual([]);
+    } finally {
+      await source.close();
+      await destination.close();
+    }
+  });
+
+  it("restores the coach's FTP proposal and the FTPs the athlete accepted", async () => {
+    const source = openSqliteStorage(":memory:");
+    const destination = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(source, MIGRATIONS);
+      await runMigrations(destination, MIGRATIONS);
+      await populatePlanningDomain(source);
+      await source.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = (SELECT MIN(created_at_ms) FROM plan_creation) WHERE singleton = 1",
+      );
+      await source.run(
+        `INSERT INTO ftp_accepted (id,athlete_id,watts,previous_watts,basis,set_at_ms,icu_updated_ms,written_at_ms)
+        VALUES (?, 'i1998', 288, 282, 'drift', ?, ?, ?)`,
+        [id(51), BASE_MS + 5, BASE_MS + 5, BASE_MS + 6],
+      );
+      await source.run(
+        "INSERT INTO ftp_proposal_state (id,state_json,updated_at_ms) VALUES (1, ?, ?)",
+        [
+          JSON.stringify({
+            proposal: {
+              kind: "quiet",
+              memory: {
+                pause: { kind: "until", dateKey: 19980916 },
+                answeredTest: { kind: "none" },
+                ftpSeen: { kind: "seen", watts: 288, sinceDateKey: 19980819 },
+              },
+            },
+            shownOnDateKey: null,
+            usedIcuWatts: null,
+            icuChangedAtMs: null,
+            athleteId: "i1998",
+          }),
+          BASE_MS + 6,
+        ],
+      );
+      const sourceDump = await dumpStore(source);
+      const built = await buildExport(
+        { source: sqliteExportSource(source), manifest: emptyManifest, ...webCryptoExportEnv },
+        {},
+      );
+      expect(built.tables.find((entry) => entry.table === "ftp_accepted")?.count).toBe(1);
+      expect(built.tables.find((entry) => entry.table === "ftp_proposal_state")?.count).toBe(1);
+      await importExport(
+        {
+          sink: createSqliteImportSink(destination),
+          presence: completePresence,
+          targetUserVersion: 38,
+          ...webCryptoExportEnv,
+        },
+        { container: built.container },
+      );
+      for (const table of ["ftp_accepted", "ftp_proposal_state"]) {
+        expect(await destination.all(`SELECT * FROM ${table}`)).toEqual(
+          await source.all(`SELECT * FROM ${table}`),
+        );
+      }
+      expect(await dumpStore(destination)).toBe(sourceDump);
     } finally {
       await source.close();
       await destination.close();
@@ -706,7 +769,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 37,
+            targetUserVersion: 38,
             ...webCryptoExportEnv,
           },
           { container },

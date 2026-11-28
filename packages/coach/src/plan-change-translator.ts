@@ -13,7 +13,6 @@ export const supportedChangeKinds = [
   "hard-weekday",
   "weekly-duration",
   "longest-workout",
-  "ftp",
   "supporting-event",
   "choose-workout",
 ] satisfies Exclude<PlanChangeIntent["kind"], "inverse">[];
@@ -93,7 +92,7 @@ export async function translateChangeRequest(
         today: context.today,
         ...(context.language === undefined ? {} : { language: context.language }),
         expectations:
-          "Check one supported Plan change. Ask when the request is unclear, unsupported, or contains multiple changes. Skip when the athlete wants to cancel the request. Return understood only with one complete allowed intent. Do not guess missing amounts or dates. Choose only eligible candidate and event tokens supplied by the host.",
+          "Check one supported Plan change. Ask when the request is unclear, unsupported, or contains multiple changes. Skip when the athlete wants to cancel the request. Return understood only with one complete allowed intent. Do not guess missing amounts or dates. Choose only eligible candidate and event tokens supplied by the host. A new FTP is never a Plan change: ask, and say the FTP lives in intervals.icu, where the athlete sets it under Settings → Ride → FTP and the app reads it at the next sync, and that the coach's proposed FTP is under FTP history on Activity review, where Use sets it in intervals.icu after a confirm.",
       }),
     );
     if (!result.success) return null;

@@ -4,10 +4,19 @@ import { localTodayDateKey } from "../calendar/dates";
 import { planChangePendingCheck } from "../state/chat-slice";
 import type { EnduragentState, useEnduragentStore } from "../state/store";
 import { createActivityReviewController } from "./controller";
+import { createFtpController, type FtpPanelState } from "./ftp-controller";
 import { createRideReviewController } from "./review-controller";
 import { selectedRide } from "./rides";
 
 const POLL_MS = 1_500;
+
+function ftpHistorySignature(panel: Extract<FtpPanelState, { readonly kind: "ready" }>): string {
+  const current = panel.read.current;
+  return JSON.stringify([
+    current === null ? null : [current.watts, current.dateKey, current.source],
+    panel.read.history.map((entry) => [entry.watts, entry.dateKey, entry.source]),
+  ]);
+}
 
 function shownRideId(state: EnduragentState): string | null {
   if (state.activeView !== "activity-review" || state.activityReview.kind !== "ready") return null;
@@ -54,6 +63,34 @@ export function startActivityReview(
     },
     publish: (next) => store.getState().setRideReview(next),
   });
+  let lastFtpHistory: string | null = null;
+  const ftp = createFtpController({
+    read: async () => (await clients.getClient()).call("plan.calendar", { action: "ftp" }),
+    answer: async (request) =>
+      (await clients.getClient()).call("plan.calendar", { action: "ftp-answer", ...request }),
+    publish: (next) => {
+      store.getState().setFtpPanel(next);
+      if (next.kind === "ready") {
+        const signature = ftpHistorySignature(next);
+        const changed = lastFtpHistory !== null && lastFtpHistory !== signature;
+        lastFtpHistory = signature;
+        if (changed && next.notice !== "written") void controller.refresh();
+      }
+    },
+    written: () => {
+      void controller.refresh();
+      store.getState().syncActions?.refreshQuietly();
+    },
+  });
+  store.getState().bindFtpActions({
+    open: () => ftp.open(),
+    close: () => ftp.close(),
+    answer: (answer) => void ftp.answer(answer),
+    planTest: (request) => {
+      ftp.close();
+      askCoach(store, request);
+    },
+  });
   const decide = (decision: PlanCalendarRideDecision): void => {
     void controller.decide(decision).then(() => review.refresh());
   };
@@ -61,6 +98,7 @@ export function startActivityReview(
     refresh: () => {
       void controller.refresh();
       void review.refresh();
+      void ftp.load();
     },
     select: (activityId) => controller.select(activityId),
     change: () => controller.change(),
@@ -81,6 +119,7 @@ export function startActivityReview(
   const dispose = store.subscribe((state, previous) => {
     if (state.activeView === "activity-review" && previous.activeView !== "activity-review") {
       void controller.open();
+      void ftp.load();
     }
     const next = shownRideId(state);
     if (next === shown) return;
@@ -91,5 +130,6 @@ export function startActivityReview(
     dispose();
     review.dispose();
     store.getState().bindActivityReviewActions(null);
+    store.getState().bindFtpActions(null);
   };
 }

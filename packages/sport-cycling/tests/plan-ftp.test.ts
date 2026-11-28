@@ -32,8 +32,8 @@ describe("cycling Plan FTP adapter", () => {
       ftp: 215,
       eftp: 220,
       expected: [
-        { source: "manual", watts: 210, selected: true },
-        { source: "intervals-ftp", watts: 215, selected: false },
+        { source: "manual", watts: 210, selected: false },
+        { source: "intervals-ftp", watts: 215, selected: true },
         { source: "intervals-eftp", watts: 220, selected: false },
       ],
     },
@@ -56,7 +56,7 @@ describe("cycling Plan FTP adapter", () => {
     },
   );
 
-  it("uses manual FTP before Intervals FTP and Intervals eFTP", async () => {
+  it("uses intervals.icu's FTP and ignores a local correction", async () => {
     const adapter = createCyclingPlanFtpAdapter({
       readManual: async () => value(280),
       readIntervalsFtp: async () => value(282),
@@ -65,9 +65,24 @@ describe("cycling Plan FTP adapter", () => {
       refreshIntervals: async () => {},
     });
     await expect(adapter.read()).resolves.toMatchObject({
-      usedSource: "manual",
-      usedWatts: 280,
-      conflict: true,
+      usedSource: "intervals-ftp",
+      usedWatts: 282,
+      conflict: false,
+    });
+  });
+
+  it("uses intervals.icu's eFTP before a local value when intervals.icu has no FTP", async () => {
+    const adapter = createCyclingPlanFtpAdapter({
+      readManual: async () => value(280),
+      readIntervalsFtp: async () => null,
+      readIntervalsEftp: async () => value(289),
+      saveManual: async () => {},
+      refreshIntervals: async () => {},
+    });
+    await expect(adapter.read()).resolves.toMatchObject({
+      usedSource: "intervals-eftp",
+      usedWatts: 289,
+      conflict: false,
     });
   });
 
@@ -97,19 +112,19 @@ describe("cycling Plan FTP adapter", () => {
     await expect(adapter.read()).resolves.toMatchObject({
       usedSource: "intervals-ftp",
       usedWatts: 282,
-      conflict: true,
+      conflict: false,
     });
   });
 
-  it("saves a whole-watt manual value before resolving sources again", async () => {
+  it("saves a whole-watt manual value used only while intervals.icu has none", async () => {
     let manual: ReturnType<typeof value> | null = null;
     const saveManual = vi.fn(async (watts: number) => {
       manual = value(watts);
     });
     const adapter = createCyclingPlanFtpAdapter({
       readManual: async () => manual,
-      readIntervalsFtp: async () => value(282),
-      readIntervalsEftp: async () => value(289),
+      readIntervalsFtp: async () => null,
+      readIntervalsEftp: async () => null,
       saveManual,
       refreshIntervals: async () => {},
     });

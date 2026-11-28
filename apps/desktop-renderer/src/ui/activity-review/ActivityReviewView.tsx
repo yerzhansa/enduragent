@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import { selectedRide } from "../../activity-review/rides";
 import { rendererPlatformProjection } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
+import { FtpSheet } from "./FtpSheet";
 import { RideDetail } from "./RideDetail";
 import { RideList } from "./RideList";
 import { useReviewText } from "./review-text";
@@ -31,6 +32,8 @@ export function ActivityReviewView(): ReactElement {
   const state = useEnduragentStore((store) => store.activityReview);
   const actions = useEnduragentStore((store) => store.activityReviewActions);
   const review = useEnduragentStore((store) => store.rideReview);
+  const ftpPanel = useEnduragentStore((store) => store.ftpPanel);
+  const ftpActions = useEnduragentStore((store) => store.ftpActions);
   const ride = state.kind === "ready" ? selectedRide(state.read, state.selectedId) : null;
   const facts =
     ride === null ? null : { day: text.weekdayDayMonth(ride.dateKey), name: text.rideName(ride) };
@@ -84,7 +87,7 @@ export function ActivityReviewView(): ReactElement {
         </p>
       ) : null}
       {state.kind === "ready" && ride !== null ? (
-        <div className="flex h-full min-h-0" data-activity-review-state="ready">
+        <div className="relative flex h-full min-h-0" data-activity-review-state="ready">
           <RideList
             read={state.read}
             firstDay={rendererPlatformProjection().firstDayOfWeek}
@@ -104,6 +107,7 @@ export function ActivityReviewView(): ReactElement {
               actions={actions}
             />
           </div>
+          <FtpSheet state={ftpPanel} actions={ftpActions} />
         </div>
       ) : null}
     </Page>

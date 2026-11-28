@@ -184,6 +184,7 @@ export function bootRenderer(): Disposer {
   });
   store.getState().bindSyncActions({
     request: (kind) => void manualSyncController.activate(kind),
+    refreshQuietly: () => void trainingSyncCoordinator.request({ quiet: true }),
   });
   const spendAdapter = createSpendSettingsAdapter({
     publish: (next) => store.getState().patchSettings({ spend: next }),

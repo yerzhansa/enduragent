@@ -427,7 +427,7 @@ describe("shell", () => {
         kind: "published",
         droppedActivities: stravaDroppedActivities(),
       }),
-      syncActions: { request },
+      syncActions: { request, refreshQuietly: vi.fn() },
     });
     await renderWithLanguage(<Shell onReady={() => {}} />);
     expect(screen.getByRole("region", { name: "Ride review" })).toBeInTheDocument();
@@ -468,7 +468,7 @@ describe("shell", () => {
         kind: "published",
         droppedActivities: stravaDroppedActivities(),
       }),
-      syncActions: { request },
+      syncActions: { request, refreshQuietly: vi.fn() },
     });
     await renderWithLanguage(<Shell onReady={() => {}} />);
 

@@ -11627,6 +11627,350 @@
     "chat.planChange.draftSetAside": {
       "sourceHash": "f56f2d18a7a962cff75e7500ad7bf5a62311ef49e40dcef7ccc81553f0ff68fa",
       "translatedBy": "model"
+    },
+    "activity.review.ftp.chartCleared": {
+      "sourceHash": "1a6dd60185279608550a722167585ee415bb3a1328832b78df53a68d2059f169",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartFirstSync": {
+      "sourceHash": "9d51b66ba2f125e56c9a92b467460b4e8942820c7a52d9739e79cfde584aae0d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartLabel": {
+      "sourceHash": "9960586f2bc19bf1db46bff3b7ce81b488d988c365c9f7c442c38499732a0447",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartNoFtp": {
+      "sourceHash": "6e75d068492dc80b5c5431bad876a448756ff6fbc660e535499525323bb18c99",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartProposed": {
+      "sourceHash": "b23f62e01699639e3dd2582c2ba8a0dfb236a34c7fb1334a19fe5690fae48c76",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartStep": {
+      "sourceHash": "d3efd1fd0e6c68a978389dbb0016fddcb2ca43de7b99853ee6d05cf88f0f15e5",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.chartWatts": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.close": {
+      "sourceHash": "7d9eb7acb13e24625c404401d8e88b2350e32162455885f18276cf802f7701ed",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.closing": {
+      "sourceHash": "a76e7d1477d68e29aafdb5b09d648666d72864ec385f15467e56c3a25d5d5bff",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changed": {
+      "sourceHash": "10fe3609b81fc77ba6fcfe6a59a331fb92ff2d1e42636c6ae2215de84ed9c99d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changedAt": {
+      "sourceHash": "558ffc9587086b7bacb6489a1818e81588264ad79db88a64134549fb4e6b570d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changedNone": {
+      "sourceHash": "ea8189d8de3f1afa3fdbdc26f8929ad4453123697a160cb6670c29087cfbe3e1",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changes": {
+      "sourceHash": "99f49b7126b6768ccf36720758e48cb888c8d0837febf5eceb34fe5675eec1c2",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changesLabel": {
+      "sourceHash": "bbd4b6a86bc65b6ac8e79e97afc61499158edb40f7bb404c70637b46d80a7ad2",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.changesNone": {
+      "sourceHash": "6869398aa5fcdf3b59d512b0753d67417f623134393da62bd88668e441d1ebee",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.higher": {
+      "sourceHash": "d30db4684d956a30acca866ed300e240d170b9cb78af9d37bf3bd272350b375b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.instead": {
+      "sourceHash": "15d83e4d55ff8c8e6489af85978a218f9a8ef778e779466e6ae6ea30f0671a37",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.lower": {
+      "sourceHash": "ff725e96b4a301514d984a0509150f4ccdfdcd89fed471a357df75fd0325fdc3",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.same": {
+      "sourceHash": "2167c4491eed7112a773d0a08836718b0750007244952c851b45f43292014534",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.set": {
+      "sourceHash": "d25cd81ff5ad131b739d2a3c1545120b2a3ccfd0316d96108b8d8661be7b688f",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.stays": {
+      "sourceHash": "ebc5e0dd9fb26ee407d1fdff1eec8fa42f103cfff01714d121871fdbb09431d5",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.staysLabel": {
+      "sourceHash": "cd797aae8e52c1e228a8eeadc6c0fb6f92fcdb674dea010a777ac6e8dc1f3272",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.staysNone": {
+      "sourceHash": "68c252ba7547937fad64f094d8c692a6d4257e915aab8274f99c54c85ce1c981",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.title": {
+      "sourceHash": "2e66ac323931ffc541f33a4dcf5c0e7774806caf8718caf85dcd4accfecdad8b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.workouts_one": {
+      "sourceHash": "7f7008d45174aa7e5885cb159efab0ffe2cf87bcfdeeea44748262f2a3e79900",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.workouts_other": {
+      "sourceHash": "e676be9a848f28e9a27534fc134cf6a92df5e4fd56b47a5f770f9cc103571a6c",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.workoutsLabel": {
+      "sourceHash": "f6de4281c89a0ba2385c52e8c4633d5bc2368bf3228a0eb12314be71719b7553",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.workoutsNone": {
+      "sourceHash": "e64603989bf9cd6d956a027f0fcf16c2e063bc45c1a75dd61ff55a573c14d08e",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.confirm.workoutsUnknown": {
+      "sourceHash": "b14e4cfd49f4332f8a0fcd6be7fcde825c3975d5dcd7b4c5a5d07600c9cb053b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.currentWatts": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.explainer": {
+      "sourceHash": "b4872da90d8cc91f3927ff7faeb35fdac59a3188cb8528c278b29f69507181b6",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyCoachEstimate": {
+      "sourceHash": "9786de7576c982673e34e21489959072b4b56b0b5691b2e66efbbdca61c24246",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyCoachTest": {
+      "sourceHash": "19d230eebab70790a756dfc3a7ae6f90b4a242688298e708d0af6d526d854ed3",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyDate": {
+      "sourceHash": "99c40ab405926cb5ad1def9cff4d7ce624f8f8abfff4e85f655347fcb949d08e",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyFirstSync": {
+      "sourceHash": "dbd1e88a612da5a6511979a20276ccd1883ffca382bf846f22066c8ca9b2656a",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyFrom": {
+      "sourceHash": "8246c8b3652edfaea01b7142382f9512d667c35f531329ff43d617fe0abe35fb",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyLabel": {
+      "sourceHash": "68c0e40e80f2dd5eef292cc2b30d9d796cbc807dff1786764bfd755f87d299b4",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyWatts": {
+      "sourceHash": "e3a3425dc9db0e88eaf42607d522924bad10d3d4ad5601356d2024b57b6c5e3f",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.historyYou": {
+      "sourceHash": "7e61cb17f26b174039b29fb8b034b2c061bf82696c541daceb5892838520cfa4",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.indoorSource": {
+      "sourceHash": "730dd1a1a544b1f4434e43d3a399d439d28aa830014e9cec91d75f863d067115",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.indoorWatts": {
+      "sourceHash": "3ad35e427b94968cd1dbfc70b18936900903875bf82af87353f95e69adfbd0cc",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.line": {
+      "sourceHash": "2eba7eab849b88e1feaa5725f12a800a71f0c2781a72f2dbf8729517d4f8773c",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.lineFrom": {
+      "sourceHash": "426dcebb7972a559c5fe611ad575265f503c0b03730849e4cb258dbcf8dd7e6c",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.lineNone": {
+      "sourceHash": "61c0927f77806f75d28eceaf774ac847a949e5badb5bb282e35054078e26a16b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.lineTargets": {
+      "sourceHash": "e817db80eabe92179efcca87ec7da20fbd595cda7866469ba9335ff896e982b7",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.lineTargetsFrom": {
+      "sourceHash": "1aaac576c5e2a1d1f75779c254df16ee56a2022ee8058588f23db2f366d43924",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.loading": {
+      "sourceHash": "9b210d588047ca3eadd14f501b9adba1463b65cb01f3cedf496740b677731e84",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.noCurrent": {
+      "sourceHash": "108a46cba4aa2d247c3cf0b54836e9ff6dd7f63478f027c1b88fb559f0b384fa",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.failed": {
+      "sourceHash": "7cb801bb0c524d10a6b4ac0d366d786aba3925e2d1852fcceeb530a63503358a",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.reading": {
+      "sourceHash": "a55eebbb41405e81b3a1fe7afb09e78b07e63e2867b3a244158b965158e69c97",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.refused": {
+      "sourceHash": "bef7f2ebaae68e0429113fa99a575e5ed0dca7afddf026cff9a6f8d3d96894f7",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.unavailable": {
+      "sourceHash": "11a6743af03b39acee063b6d0e77c40ae8fe480407113c34fd40c48e56b657a5",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.writing": {
+      "sourceHash": "3c04bf6fef127ad9f0bd237abeafa44d8146ea271e652c2c4414ea2f5c57be35",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.notice.written": {
+      "sourceHash": "101e91fcc77143280aeec2a9b89c6f8ee22dd35d2be5b7266f0c84931a348fcb",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.open": {
+      "sourceHash": "68c0e40e80f2dd5eef292cc2b30d9d796cbc807dff1786764bfd755f87d299b4",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.outdoorUses": {
+      "sourceHash": "e8223ea65876e18e7d5861c91c6011d039cc139dc434ed5e4afece40a3efd6fa",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftAboveBody": {
+      "sourceHash": "47fce60a6e00a654e1bd2e56e8268830e3a8eaebbf31eb47a3ce81719af5696a",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftAboveLapsed": {
+      "sourceHash": "772e639e77bdee479288687ed9be5979a2f709edeb1350b71993fa3ee8515f72",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftAboveTitle": {
+      "sourceHash": "fb1da1eb2a186737c16a7d2668e5b42e09b76f473c1e434bc5516ae56a07f843",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftBelowBody": {
+      "sourceHash": "4288abcb52eb7848414bd816f64883407e1a17a4bb5eaec1a622af6db122483b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftBelowLapsed": {
+      "sourceHash": "1126620ad450c426651825d9878222b54b0b5bb0010214d6b2d4874825e697a8",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.driftBelowTitle": {
+      "sourceHash": "c224c114b99ded592c3778f2b088180d969248ee26925f5d7a4bd29ac5c61003",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.effectDown": {
+      "sourceHash": "97abae9caa2c516cf4fedaa7bb6025b035b86bd4a5c83808caa7e704d262af9c",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.effectNoFtp": {
+      "sourceHash": "2ce2697e62752cfb876ca874ff25b2a54cb2e9a2170bbb572145a19c9dc715b9",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.effectUp": {
+      "sourceHash": "28f77626b530c3b0224500b4958afc303953364e095030d5ea9146af4cc6fa02",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.keep": {
+      "sourceHash": "7b7a20adfcefb517ffadf798605ad37cebfc5cebc5944955f88288d9d395d255",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.keepNone": {
+      "sourceHash": "a0e63d7c7125d29af84d6919af5550529be77c327324940c98c4b2cb13a99c8c",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.label": {
+      "sourceHash": "d5bbbff8ce652de5ca97d4332a5b58c057dbbc95311709fb3600ce46089130e4",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.planTest": {
+      "sourceHash": "da2df55731a10ee698db89b659a35c5c29f1edad9c7d8f649449b09e65831297",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.range": {
+      "sourceHash": "f087f7faa025acfcbb39afb65b0d2b1543b689c8294a616ca57b2bcd06455f10",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.rangeOne": {
+      "sourceHash": "9bdc9d3bb04849ba822eb81045d267d4e2b0cf701fe1c933aebc3383f935d64d",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.tag": {
+      "sourceHash": "ae1a5f94472a26aee98175a0c9eb872795fbfd03eec85d774fc0a12f637fb0b6",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.testBestBody": {
+      "sourceHash": "483591e7cc98d53b4e17d79323062d372d342a1941c1ef7db0e1a0f66f8578b4",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.testBody": {
+      "sourceHash": "87ef46110b3d7fc7f2d1c50059c94129387d2688bfd2c516ad371b60827e56a2",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.testRequest": {
+      "sourceHash": "be3d65e187f7bf7c09a9198487d2ce789348fa9cec15cdf79d8fdee16f355216",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.testTitle": {
+      "sourceHash": "7d57b613cee1bc302ed3e99e336111f5e1ecb90f4f5e239c546eb3d1220cbc60",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.proposal.use": {
+      "sourceHash": "0ee69fccf9ea18b4227932a9696f9e1031d4cb757204e39f8ab62e0045c1aa1b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.sourceCoach": {
+      "sourceHash": "a380ae6bbb8cb777c2323481e5b50f712f10fc8c3c426ebbf5976ae8df831766",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.sourceFromIntervals": {
+      "sourceHash": "52a75563c3f5055f4b760b2d490c4dcf63796148c51a38e53a0b8aa446ee50e9",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.sourceInIntervals": {
+      "sourceHash": "9d960dd67e3452c335bb500fe873f1597df6246a78d6b8f61c77be9ec9ff7048",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.sourceYou": {
+      "sourceHash": "54418fbd0ed9d819707a40c3ea4f0830363fd40d1f519eaf92c36821259c7f0b",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.title": {
+      "sourceHash": "e3a3425dc9db0e88eaf42607d522924bad10d3d4ad5601356d2024b57b6c5e3f",
+      "translatedBy": "model"
+    },
+    "activity.review.ftp.unavailable": {
+      "sourceHash": "3f2faadd2e9908fadd30f615c4762da0549bf4a8f1b0f40c636dd48eaffcfc45",
+      "translatedBy": "model"
+    },
+    "chat.planChange.ftpElsewhere": {
+      "sourceHash": "61fbc3ee6e5fd7a68d2f3b10f69f0e340433d177a5d1e1ea334b1d0afd8b7da9",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.workoutSummaryNoGuidance": {
+      "sourceHash": "57c221ebd18f5409e984abc65b9684b8755ca3a844fdb7843d16732697d3a67c",
+      "translatedBy": "model"
     }
   }
 }

@@ -106,7 +106,8 @@ function started() {
     onConnectionOpen: () => () => undefined,
     close: async () => undefined,
   });
-  const actions = () => call.mock.calls.map(([, params]) => params.action);
+  const actions = () =>
+    call.mock.calls.flatMap(([, params]) => (params.action === "ftp" ? [] : [params.action]));
   return { dispose, actions };
 }
 

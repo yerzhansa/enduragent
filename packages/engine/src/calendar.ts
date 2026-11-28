@@ -4,6 +4,7 @@ export * from "./planning/icu-copy.js";
 export * from "./planning/workout-outcome.js";
 export * from "./planning/coach-text.js";
 export * from "./planning/ftp-proposal.js";
+export * from "./planning/ftp-history.js";
 export * from "./planning/plan-ending.js";
 export * from "./planning/calendar-codec.js";
 export * from "./planning/calendar-mirror.js";

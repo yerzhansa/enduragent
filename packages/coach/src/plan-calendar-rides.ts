@@ -33,6 +33,7 @@ import {
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
 import type { PlanCalendarEditDeps } from "./plan-calendar-edit.js";
 import { isoOf, latestRange } from "./plan-calendar-read.js";
+import type { RideFtpReader } from "./one-ftp-rides.js";
 
 export type PlanCalendarRidesRead = Extract<PlanCalendarRpcResult, { status: "rides" }>;
 
@@ -45,6 +46,7 @@ export interface PlanCalendarRidesDeps {
   readonly identity: Identity;
   readonly todayDateKey: () => number;
   readonly changed: () => Promise<void>;
+  readonly rideFtp: RideFtpReader;
 }
 
 interface DateRange {
@@ -261,6 +263,7 @@ function rideView(
   fromIntervals: boolean,
   context: ActivePlan | null,
   todayDateKey: number,
+  ftp: PlanCalendarRide["ftp"],
 ): PlanCalendarRide {
   const dateKey = Number(row.localDate.replaceAll("-", ""));
   const seconds = row.movingSeconds ?? row.elapsedSeconds;
@@ -284,6 +287,7 @@ function rideView(
     match,
     otherWorkouts:
       context === null ? [] : otherWorkouts({ activityId: row.id, dateKey }, match, context),
+    ftp,
   };
 }
 
@@ -292,6 +296,7 @@ async function ridesInside(
   todayDateKey: number,
   range: DateRange,
   context: ActivePlan | null,
+  rideFtp: RideFtpReader,
 ): Promise<PlanCalendarRide[]> {
   if (range.endDateKey < range.startDateKey) return [];
   const window = await createTrainingHistoryReader(store).readWindow({
@@ -299,6 +304,13 @@ async function ridesInside(
     end: isoOf(range.endDateKey),
   });
   const fromIntervals = await intervalsRides(store, range);
+  const ftps = await rideFtp(
+    window.rows.map((row) => ({
+      activityId: row.id,
+      startEpochSeconds: row.startEpochSeconds,
+      indoor: rideKind(row.subSport) === "indoor",
+    })),
+  );
   return [...window.rows]
     .sort(
       (left, right) =>
@@ -306,7 +318,15 @@ async function ridesInside(
         right.startEpochSeconds - left.startEpochSeconds ||
         left.id.localeCompare(right.id),
     )
-    .map((row) => rideView(row, fromIntervals.has(row.id), context, todayDateKey));
+    .map((row) =>
+      rideView(
+        row,
+        fromIntervals.has(row.id),
+        context,
+        todayDateKey,
+        ftps.get(row.id) ?? { kind: "unknown" },
+      ),
+    );
 }
 
 export interface RideInPlan {
@@ -319,11 +339,13 @@ export interface RideInPlan {
 }
 
 const WEEK_WORKOUTS = 14;
+const NO_RIDE_FTP: RideFtpReader = async () => new Map();
 
 export async function readRideInPlan(
   store: RideStore,
   todayDateKey: number,
   activityId: string,
+  rideFtp: RideFtpReader = NO_RIDE_FTP,
 ): Promise<RideInPlan | undefined> {
   const session = await store.get(
     "SELECT local_date_key FROM session WHERE session_key=? AND sport='cycling'",
@@ -332,7 +354,7 @@ export async function readRideInPlan(
   if (typeof session?.local_date_key !== "number") return undefined;
   const day = { startDateKey: session.local_date_key, endDateKey: session.local_date_key };
   const context = await activePlan(store);
-  const ride = (await ridesInside(store, todayDateKey, day, context)).find(
+  const ride = (await ridesInside(store, todayDateKey, day, context, rideFtp)).find(
     (entry) => entry.activityId === activityId,
   );
   if (ride === undefined) return undefined;
@@ -367,7 +389,12 @@ export async function readRideInPlan(
 }
 
 export async function readRides(
-  deps: { readonly store: RideStore; readonly identity: Identity; readonly todayDateKey: number },
+  deps: {
+    readonly store: RideStore;
+    readonly identity: Identity;
+    readonly todayDateKey: number;
+    readonly rideFtp: RideFtpReader;
+  },
   requested: DateRange,
 ): Promise<PlanCalendarRidesRead> {
   const range = latestRange(requested);
@@ -376,7 +403,7 @@ export async function readRides(
       await refreshSuggestions(deps.store, deps.identity, range);
     }
     const context = await activePlan(deps.store);
-    const rides = await ridesInside(deps.store, deps.todayDateKey, range, context);
+    const rides = await ridesInside(deps.store, deps.todayDateKey, range, context, deps.rideFtp);
     return {
       status: "rides",
       todayDateKey: deps.todayDateKey,
@@ -574,7 +601,7 @@ export async function decideRide(
   if (refusal !== null) return refusal;
   void deps.changed();
   const read = await deps.store.transaction(() =>
-    readRideInPlan(deps.store, deps.todayDateKey(), request.activityId),
+    readRideInPlan(deps.store, deps.todayDateKey(), request.activityId, deps.rideFtp),
   );
   return read === undefined ? refused("match-changed") : { status: "ride", ride: read.ride };
 }

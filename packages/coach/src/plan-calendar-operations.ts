@@ -24,6 +24,11 @@ import { readPlanCalendar } from "./plan-calendar-read.js";
 import { releaseReplacedPlans } from "./plan-calendar-replace.js";
 import { createPlanCalendarReview, type RideVerdictModel } from "./plan-calendar-review.js";
 import { decideRide, readRides } from "./plan-calendar-rides.js";
+import { readFtp, type OneFtpDeps } from "./one-ftp.js";
+import { answerFtp } from "./one-ftp-answer.js";
+import { createRideFtpReader } from "./one-ftp-rides.js";
+import type { IcuSportSettingsPort } from "./one-ftp-icu.js";
+import { createStoredFtpTestResults, type FtpTestResultSource } from "./one-ftp-tests.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
 
@@ -42,6 +47,17 @@ async function settledWithin(settled: () => Promise<void>, ms: number): Promise<
   clearTimeout(timer);
 }
 
+const NO_ICU_SETTINGS: IcuSportSettingsPort = {
+  readRide: () => Promise.reject(new Error("Intervals credentials are required.")),
+  writeRideFtp: () => Promise.reject(new Error("Intervals credentials are required.")),
+};
+
+export interface PlanCalendarFtpParts {
+  readonly icu: IcuSportSettingsPort;
+  readonly tests?: FtpTestResultSource;
+  readonly athleteId: () => string | null;
+}
+
 export interface PlanCalendarOperations {
   "plan.calendar"(request: PlanCalendarRpcParams): Promise<PlanCalendarRpcResult>;
 }
@@ -57,11 +73,27 @@ export function createPlanCalendarOperations(
     readonly changed: () => Promise<void>;
     readonly coachText?: RideVerdictModel;
     readonly logger?: { warn(event: string): void };
+    readonly ftp?: PlanCalendarFtpParts;
   },
 ): PlanCalendarOperations {
   const mirror = createPlanCalendarMirrorRepository(deps.store);
   const review = createPlanCalendarReview(deps);
   const plans = createLegacyPlanRepository(deps.store);
+  const ftp: OneFtpDeps = {
+    store: deps.store,
+    icu: deps.ftp?.icu ?? NO_ICU_SETTINGS,
+    tests: deps.ftp?.tests ?? createStoredFtpTestResults(deps.store),
+    todayDateKey: deps.todayDateKey,
+    now: deps.now,
+    dateKeyOfMs: deps.dateKeyOfMs,
+    newId: () => deps.identity.newUlid(),
+    athleteId: () => deps.ftp?.athleteId() ?? null,
+  };
+  const rideFtp = createRideFtpReader({
+    store: deps.store,
+    athleteId: ftp.athleteId,
+    dateKeyOfMs: deps.dateKeyOfMs,
+  });
   return {
     async "plan.calendar"(raw) {
       const request = PlanCalendarRpcParamsSchema.parse(raw);
@@ -78,11 +110,16 @@ export function createPlanCalendarOperations(
           );
         case "rides":
           return readRides(
-            { store: deps.store, identity: deps.identity, todayDateKey: deps.todayDateKey() },
+            {
+              store: deps.store,
+              identity: deps.identity,
+              todayDateKey: deps.todayDateKey(),
+              rideFtp,
+            },
             request,
           );
         case "decide-ride": {
-          const decided = await decideRide(deps, request);
+          const decided = await decideRide({ ...deps, rideFtp }, request);
           if (decided.status !== "ride") return decided;
           try {
             await review.matchDecided(request.activityId);
@@ -97,6 +134,10 @@ export function createPlanCalendarOperations(
           return review.write(request);
         case "save-note":
           return review.saveNote(request);
+        case "ftp":
+          return readFtp(ftp);
+        case "ftp-answer":
+          return answerFtp(ftp, request);
         case "send-again":
           await createPlanReconciliationRepository(deps.store).reopenFailedCleanups(deps.now());
           await settledWithin(deps.changed, SEND_AGAIN_WAIT_MS);

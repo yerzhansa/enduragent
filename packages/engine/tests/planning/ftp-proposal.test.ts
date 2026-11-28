@@ -128,18 +128,45 @@ function next(world: World): readonly Step<World>[] {
     ]);
   }
   if (world.proposal.kind === "confirming") {
+    if (world.icu === world.proposal.watts) {
+      steps.push([
+        "the app finds intervals.icu already holds the proposed number",
+        {
+          ...step(answer(world), { type: "icu-holds-proposal", icuWattsNow: world.icu }),
+          checked: "not-checked",
+        },
+      ]);
+    }
     steps.push([
       "the athlete confirms",
       step(world, { type: "athlete-confirms", icuWattsNow: world.icu }),
     ]);
-    steps.push(["the athlete cancels", step(world, { type: "athlete-cancels" })]);
+    steps.push([
+      "the athlete cancels",
+      { ...step(world, { type: "athlete-cancels" }), checked: "not-checked" },
+    ]);
   }
   if (world.proposal.kind === "writing") {
     steps.push(["the write runs", { ...appWrites(world), checked: "not-checked" }]);
-    steps.push(["intervals.icu does not answer", step(world, { type: "write-failed" })]);
+    steps.push([
+      "intervals.icu does not answer",
+      { ...step(world, { type: "write-failed" }), checked: "not-checked" },
+    ]);
   }
   if (world.icu !== ATHLETE_SET) {
-    steps.push(["the athlete sets FTP in intervals.icu", { ...world, icu: ATHLETE_SET }]);
+    steps.push([
+      "the athlete sets FTP in intervals.icu",
+      { ...world, icu: ATHLETE_SET, checked: "not-checked" },
+    ]);
+  }
+  if (
+    (world.proposal.kind === "shown" || world.proposal.kind === "confirming") &&
+    world.icu !== world.proposal.watts
+  ) {
+    steps.push([
+      "the athlete sets the proposed number in intervals.icu",
+      { ...world, icu: world.proposal.watts, checked: "not-checked" },
+    ]);
   }
   steps.push([
     "four weeks pass",
@@ -169,6 +196,11 @@ const RULES = {
   PlannedTestIsAnswered: (world: World) =>
     !(world.checked === "checked" && testIsOpen(world)) || world.proposal.kind !== "quiet",
   AnsweredTestIsNotAskedAgain: (world: World) => !world.askedAgain,
+  ShownProposalFollowsIntervalsFtp: (world: World) =>
+    world.checked === "not-checked" ||
+    world.proposal.kind !== "shown" ||
+    (world.proposal.memory.ftpSeen.kind === "seen" &&
+      world.proposal.memory.ftpSeen.watts === world.icu),
 };
 
 const START: World = {
@@ -229,6 +261,27 @@ describe("FTP", () => {
       watts: PROPOSED,
       expectedIcuWatts: ATHLETE_SET,
     });
+  });
+
+  it("ends a confirm quietly, test answered, when intervals.icu already holds the number", () => {
+    const confirming = step(shownFor("test-1"), { type: "athlete-uses", icuWatts: ICU_NOW });
+    if (confirming.proposal.kind !== "confirming") throw new TypeError("Expected a confirm");
+    const held = ftpProposalStep(confirming.proposal, {
+      type: "icu-holds-proposal",
+      icuWattsNow: PROPOSED,
+    });
+    expect(held.effect).toEqual({ kind: "none" });
+    expect(held.proposal).toEqual({
+      kind: "quiet",
+      memory: {
+        ...confirming.proposal.memory,
+        answeredTest: { kind: "answered", activityId: "test-1", dateKey: TODAY - 2 },
+      },
+    });
+    expect(
+      ftpProposalStep(confirming.proposal, { type: "icu-holds-proposal", icuWattsNow: ICU_NOW })
+        .proposal,
+    ).toBe(confirming.proposal);
   });
 
   it("answers a planned test within four weeks of Keep", () => {
@@ -310,10 +363,10 @@ describe("FTP", () => {
     const longAgo = addCivilDays(TODAY, -100);
     const drift = (samples: ReturnType<typeof daily>, ftpSetDateKey = longAgo) =>
       ftpDriftEvidence({ ftpWatts: 282, ftpSetDateKey, samples, todayDateKey: TODAY });
-    expect(drift(daily(14, 291))).toEqual({ kind: "drift", watts: 291 });
+    expect(drift(daily(14, 291))).toEqual({ kind: "drift", watts: 288 });
     expect(drift(daily(13, 291))).toEqual({ kind: "none" });
     expect(drift(daily(20, 289))).toEqual({ kind: "none" });
-    expect(drift(daily(20, 270))).toEqual({ kind: "drift", watts: 270 });
+    expect(drift(daily(20, 270))).toEqual({ kind: "drift", watts: 267 });
     const broken = [...daily(20, 291)];
     broken[12] = { dateKey: broken[12]?.dateKey ?? TODAY, estimatedFtpWatts: 283 };
     expect(drift(broken)).toEqual({ kind: "none" });
@@ -400,5 +453,49 @@ describe("FTP", () => {
       kind: "quiet",
       memory: { ftpSeen: { watts: ICU_NOW, sinceDateKey: TODAY } },
     });
+  });
+});
+
+describe("FTP changed in intervals.icu while a card is shown", () => {
+  it("retires a shown drift card when the athlete sets a new FTP in intervals.icu", () => {
+    const shown = shownFor("drift");
+    expect(shown.proposal).toMatchObject({ kind: "shown", basis: { kind: "drift" } });
+    const checked = ftpProposalStep(shown.proposal, {
+      type: "checked",
+      evidence: engineEvidence("drift"),
+      icuFtpWatts: ATHLETE_SET,
+      todayDateKey: TODAY,
+    });
+    expect(checked.proposal).toMatchObject({
+      kind: "quiet",
+      memory: { ftpSeen: { kind: "seen", watts: ATHLETE_SET, sinceDateKey: TODAY } },
+    });
+  });
+
+  it("asks again about an unanswered planned test against the FTP intervals.icu now holds", () => {
+    const shown = shownFor("test-1");
+    const checked = ftpProposalStep(shown.proposal, {
+      type: "checked",
+      evidence: engineEvidence("test-1"),
+      icuFtpWatts: ATHLETE_SET,
+      todayDateKey: TODAY,
+    });
+    expect(checked.proposal).toMatchObject({
+      kind: "shown",
+      basis: { kind: "planned-test", activityId: "test-1" },
+      memory: { ftpSeen: { watts: ATHLETE_SET } },
+    });
+  });
+
+  it("leaves an open confirm to its own reread of intervals.icu", () => {
+    const confirming = step(shownFor("drift"), { type: "athlete-uses", icuWatts: ICU_NOW });
+    expect(
+      ftpProposalStep(confirming.proposal, {
+        type: "checked",
+        evidence: engineEvidence("drift"),
+        icuFtpWatts: ATHLETE_SET,
+        todayDateKey: TODAY,
+      }).proposal,
+    ).toBe(confirming.proposal);
   });
 });

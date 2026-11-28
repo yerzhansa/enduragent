@@ -1,6 +1,7 @@
 import { chatFeedbackMessage } from "./copy";
 import type { CatalogKey } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
+import { workoutSummary } from "../plan/workout-summary";
 import { useChatDate } from "./use-chat-date";
 import type {
   PlanCreationAnswerSummary,
@@ -261,11 +262,7 @@ export function PlanCreationDraftCards(props: {
                         : formatDate(workout.date)}
                     </span>
                     <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
-                      {say("chat.planCreation.workoutSummary", {
-                        name: workout.name,
-                        minutes: format.number(workout.minutes, { useGrouping: false }),
-                        guidance: workout.guidance,
-                      })}
+                      {workoutSummary({ say, format }, workout)}
                     </strong>
                     <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
                       {workout.pinned

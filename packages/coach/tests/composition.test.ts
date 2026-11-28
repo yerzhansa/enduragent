@@ -1,4 +1,5 @@
 import * as calendarDrain from "../src/plan-calendar-drain.js";
+import { landIcuRideSettings } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { existsSync, unlinkSync } from "node:fs";
@@ -829,6 +830,29 @@ describe("local coach composition", () => {
     ).toBe(false);
     expect(policy!.requiresConfirmation({ chatId: "unknown", toolName: "plan_save" })).toBe(true);
     expect(lifecycle.confirmations.peek("telegram:73")).toBeUndefined();
+
+    await lifecycle.close();
+  });
+
+  it("gives the desktop coach the one-FTP rules instead of the shared FTP memory save", async () => {
+    const home = await freshHome();
+    const { engineInput, lifecycle } = await composeWithCapturedEngineInput(home);
+
+    expect(engineInput.sport.skills["one-ftp"]).toContain("the app reads it at the next sync");
+    expect(engineInput.sport.soul).toContain("personal details (weight, schedule, goals");
+    expect(engineInput.sport.soul).not.toContain("personal details (FTP,");
+    expect(engineInput.sport.memorySections[0]?.description).toMatch(/^Max HR, resting HR/);
+    engineInput.ports.memory.writeSection(
+      "cycling-profile",
+      "- FTP 250W (athlete, 1998-08-19)\n- Max HR 188 bpm (athlete, 1998-08-19)",
+      "chat-tool",
+    );
+    expect(engineInput.ports.memory.getContext()).toContain(
+      "- FTP (see intervals.icu) (athlete, 1998-08-19)\n- Max HR 188 bpm",
+    );
+    expect(engineInput.ports.memory.getContextWithProvenance?.().text).toContain(
+      "- FTP 250W (athlete, 1998-08-19)\n- Max HR 188 bpm",
+    );
 
     await lifecycle.close();
   });
@@ -2676,15 +2700,22 @@ describe("local coach composition", () => {
     const store = openSqliteStorage(join(home.storeDir, "store.db"));
     stores.push(store);
     await runMigrations(store, MIGRATIONS);
+    await landIcuRideSettings(store, {
+      id: 7,
+      ftp: 275,
+      indoorFtp: null,
+      updated: "1998-07-17T23:46:40.250+00:00",
+      athleteId: "synthetic",
+    });
     await store.run(
       "INSERT INTO anchor_history (id, sport, anchor_type, value, unit, valid_from, source, confidence, note, provenance, device_id, hlc_physical_ms, hlc_counter) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
       [
         "anchor-1",
         "cycling",
         "ftp",
-        275,
+        290,
         "W",
-        1_752_796_000,
+        900_720_000,
         "synthetic",
         "manual",
         null,
@@ -2733,30 +2764,19 @@ describe("local coach composition", () => {
     await lifecycle.close();
   });
 
-  it("composes Plan FTP precedence from Intervals anchors, eFTP, and athlete input", async () => {
+  it("composes Plan FTP from intervals.icu's settings, ignoring a typed correction", async () => {
     const home = await freshHome();
     await mkdir(home.storeDir, { recursive: true });
     const store = openSqliteStorage(join(home.storeDir, "store.db"));
     stores.push(store);
     await runMigrations(store, MIGRATIONS);
-    await store.run(
-      "INSERT INTO anchor_history (id, sport, anchor_type, value, unit, valid_from, source, confidence, note, provenance, device_id, hlc_physical_ms, hlc_counter) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      [
-        "intervals-ftp",
-        "cycling",
-        "ftp",
-        275,
-        "W",
-        1_752_796_000,
-        "intervals-icu",
-        "platform",
-        null,
-        "sync",
-        null,
-        null,
-        null,
-      ],
-    );
+    await landIcuRideSettings(store, {
+      id: 7,
+      ftp: 275,
+      indoorFtp: null,
+      updated: "1998-07-17T23:46:40.250+00:00",
+      athleteId: "synthetic",
+    });
     const lifecycle = await compose(
       home,
       {
@@ -2776,7 +2796,7 @@ describe("local coach composition", () => {
             usedSource: "intervals-ftp",
             usedWatts: 275,
             intervalsEftp: { watts: 260 },
-            conflict: true,
+            conflict: false,
           },
         },
       },
@@ -2792,8 +2812,14 @@ describe("local coach composition", () => {
     ).resolves.toMatchObject({
       status: "completed",
       state: {
-        scenarioId: "PL-S060",
-        data: { ftp: { usedSource: "manual", usedWatts: 282, conflict: true } },
+        data: {
+          ftp: {
+            manual: { watts: 282 },
+            usedSource: "intervals-ftp",
+            usedWatts: 275,
+            conflict: false,
+          },
+        },
       },
     });
     await expect(
@@ -2806,7 +2832,7 @@ describe("local coach composition", () => {
       }),
     ).resolves.toMatchObject({
       status: "completed",
-      state: { data: { ftp: { usedSource: "manual", usedWatts: 285 } } },
+      state: { data: { ftp: { manual: { watts: 285 }, usedSource: "intervals-ftp" } } },
     });
     await expect(
       store.get(

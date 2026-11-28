@@ -25,6 +25,14 @@ import {
   type PlanCreationRepository,
 } from "@enduragent/kernel/planning";
 import { createPlanCalendarOperations } from "../../../../packages/coach/src/plan-calendar-operations.js";
+import { checkFtp } from "../../../../packages/coach/src/one-ftp.js";
+import { createStoredFtpTestResults } from "../../../../packages/coach/src/one-ftp-tests.js";
+import {
+  createFakeIcuSportSettings,
+  landIcuEstimate,
+  landIcuRideSettings,
+} from "./icu-ftp-fake.js";
+import { seedPastFtpChange } from "./past-ftp-change.js";
 import type { PlanMirrorCalendarPort } from "@enduragent/engine";
 import type { CalendarMirrorPort } from "@enduragent/engine/calendar";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
@@ -172,6 +180,10 @@ export class PlanCreationBackend {
   planListReadFails = false;
   private sequence = 0;
   private instant = 883_612_800_000;
+  readonly icuFtp = createFakeIcuSportSettings(
+    { id: 77, ftp: null, indoorFtp: null, updated: "1998-01-01T00:00:00.000+00:00" },
+    () => this.instant,
+  );
   private civilDate = "1998-01-01";
   private closeFails = false;
   private queueRevision = 0;
@@ -358,6 +370,20 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
           } finally {
             if (fail) await this.requireStore().run("DROP TRIGGER reject_close");
           }
+        }
+        if (request.method === "sync") {
+          const empty = { total: 0, visible: 0, restrictions: [], other: 0 };
+          return [
+            JSON.stringify({ event: { phase: "started", completed: 0, total: 1 } }),
+            JSON.stringify({ event: { phase: "completed", completed: 1, total: 1 } }),
+            JSON.stringify({
+              schemaVersion: 1,
+              published: false,
+              referenceSucceeded: true,
+              requests: { store: 0, reference: 0, total: 0 },
+              droppedActivities: { overall: empty, recent7Days: empty },
+            }),
+          ];
         }
         if (request.method === "plan.calendar") {
           return response(
@@ -569,6 +595,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       },
       calendar: { mirror: this.options.calendar?.mirror ?? NO_CALENDAR },
       coachText: this.verdicts,
+      ftp: { icu: this.icuFtp.port, athleteId: () => "i1998" },
       identity: {
         deviceId: async () => "fixture-device",
         newUlid: () => `${++this.sequence}`.padStart(26, "0"),
@@ -594,6 +621,26 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     });
     await this.calendarRun();
     return result;
+  }
+
+  async syncFtp(): Promise<void> {
+    const store = this.requireStore();
+    await landIcuRideSettings(store, this.icuFtp.settings);
+    await checkFtp({
+      store,
+      icu: this.icuFtp.port,
+      tests: createStoredFtpTestResults(store),
+      todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
+      now: () => this.instant,
+      dateKeyOfMs: (ms: number) =>
+        Number(new Date(ms).toISOString().slice(0, 10).replaceAll("-", "")),
+      newId: () => `${++this.sequence}`.padStart(26, "0"),
+      athleteId: () => "i1998",
+    });
+  }
+
+  async landIcuEstimates(dateKeys: readonly number[], watts: number): Promise<void> {
+    for (const dateKey of dateKeys) await landIcuEstimate(this.requireStore(), dateKey, watts);
   }
 
   async calendarIdle(): Promise<void> {
@@ -881,6 +928,17 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     return this.changes["plan_change.apply"](params);
   }
 
+  async seedPastFtpChange(planId: string, watts: number, expectedVersion = 1) {
+    return seedPastFtpChange(this.requireStore(), {
+      planId,
+      expectedVersion,
+      watts,
+      todayDateKey: Number(this.civilDate.replaceAll("-", "")),
+      nowMs: this.instant++,
+      newId: () => `${++this.sequence}`.padStart(26, "0"),
+    });
+  }
+
   async seedLibrary(presence: {
     readonly creation: boolean;
     readonly active: boolean;
@@ -1155,6 +1213,7 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
     readonly movingS: number;
     readonly distanceM: number;
     readonly averageWatts?: number;
+    readonly subSport?: string;
     readonly match?: {
       readonly planId: string;
       readonly planWorkoutId: string;
@@ -1171,12 +1230,13 @@ BEGIN SELECT RAISE(ABORT, 'Activation could not be saved locally. Your previous 
       [ride.key, startUtc / 1000, ride.name, ride.key],
     );
     await store.run(
-      `INSERT INTO session (session_key, workout_key, session_seq, sport, start_utc, tz_offset_s,
+      `INSERT INTO session (session_key, workout_key, session_seq, sport, sub_sport, start_utc, tz_offset_s,
         local_date_key, elapsed_s, timer_s, moving_s, distance_m, is_transition)
-       VALUES (?, ?, 0, 'cycling', ?, 0, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, 0, 'cycling', ?, ?, 0, ?, ?, ?, ?, ?, 0)`,
       [
         ride.key,
         ride.key,
+        ride.subSport ?? null,
         startUtc / 1000,
         ride.dateKey,
         ride.movingS,

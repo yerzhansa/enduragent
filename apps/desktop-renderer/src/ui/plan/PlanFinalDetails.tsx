@@ -1,4 +1,5 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
+import { workoutSummary } from "./workout-summary";
 import type { CatalogKey } from "@enduragent/i18n";
 import type { Phrasebook } from "@enduragent/i18n/messages";
 import { usePlanDate } from "./plan-date";
@@ -197,11 +198,7 @@ export function PlanFinalDetails(props: {
                           : planDate(workout.date)}
                       </span>
                       <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
-                        {say("chat.planCreation.workoutSummary", {
-                          name: workout.name,
-                          minutes: format.number(workout.minutes, { useGrouping: false }),
-                          guidance: workout.guidance,
-                        })}
+                        {workoutSummary(phrasebook, workout)}
                       </strong>
                       <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
                         {workout.date === null && !workout.pinned

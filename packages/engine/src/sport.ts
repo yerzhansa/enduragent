@@ -90,6 +90,7 @@ export interface MemorySectionSpec {
   description: string;
   hint?: string;
   inject?: boolean;
+  factExample?: string;
 }
 
 export interface ToolRegistration {
@@ -193,6 +194,9 @@ export interface Sport {
   readonly skills: Readonly<Record<string, string>>;
   readonly sessionClusterGapMinutes: number;
   readonly memorySections: readonly MemorySectionSpec[];
+  readonly coreSectionText?: Readonly<
+    Record<string, Pick<MemorySectionSpec, "description" | "hint">>
+  >;
   readonly mustPreserveTokens: readonly string[] | ((memory: MemorySnapshot) => PreserveTokens);
   readonly intervalsActivityTypes: readonly IntervalsActivityType[];
   readonly athleteProfileSchema: z.ZodTypeAny;

@@ -47,6 +47,7 @@ export function ride(
     perceivedExertion: null,
     match: { kind: "none" },
     otherWorkouts: [],
+    ftp: { kind: "unknown" },
     ...extra,
   };
 }

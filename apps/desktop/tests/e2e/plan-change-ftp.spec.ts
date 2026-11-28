@@ -3,11 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Browser, type Page, type PlaywrightWorkerArgs } from "@playwright/test";
-import {
-  PlanChangePreviewRpcParamsSchema,
-  PlanChangeWorkoutSchema,
-  PlanCreationDraftSchema,
-} from "@enduragent/coach-contract";
+import { PlanChangeWorkoutSchema, PlanCreationDraftSchema } from "@enduragent/coach-contract";
 import { launchDesktopFixture, type RunningDesktopFixture } from "../helpers/desktop-fixture.js";
 import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
 
@@ -176,8 +172,11 @@ function storedWorkouts(stored: Stored) {
   );
 }
 
+const ftpElsewhere =
+  "To change your FTP, set it in intervals.icu, or use FTP history in Activity review.";
+
 for (const appearance of appearances) {
-  test(`corrects FTP and restores power with Undo at ${appearance.width} in ${appearance.colorScheme}`, async ({
+  test(`offers no Correct FTP and keeps a past FTP change undoable at ${appearance.width} in ${appearance.colorScheme}`, async ({
     playwright,
   }) => {
     test.setTimeout(120_000);
@@ -185,101 +184,44 @@ for (const appearance of appearances) {
     try {
       const initial = await scenario.backend.inspectActivation();
       expect(storedWorkouts(initial).every((workout) => workout.power === null)).toBe(true);
+      const past = await scenario.backend.seedPastFtpChange(scenario.seed.planId, 220);
+      const pastDiff =
+        (await scenario.backend.library()).changes.find(
+          (change) => change.changeId === past.changeId,
+        )?.diff ?? [];
+      expect(pastDiff.length).toBeGreaterThan(0);
       await scenario.page
         .getByRole("navigation", { name: "Main navigation" })
         .getByRole("button", { name: "Plan", exact: true })
         .click();
-      await scenario.page
-        .getByRole("region", { name: "Plan library", exact: true })
-        .getByRole("button", { name: "Change one thing", exact: true })
-        .click();
+      const library = scenario.page.getByRole("region", { name: "Plan library", exact: true });
+      await library.getByRole("button", { name: "Read Plan details", exact: true }).click();
+      await expect(scenario.page.getByRole("heading", { level: 1, name: "Plan" })).toBeVisible();
+      await expect(scenario.page.getByText(/confirmed FTP/u)).toHaveCount(0);
+      await capture(scenario, "plan-details");
+      await library.getByRole("button", { name: "Change one thing", exact: true }).click();
+      const applied = changeCard(scenario, changeTitle, "Applied");
+      await expect(applied.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
       const editor = changes(scenario).getByRole("region", {
         name: "What needs to change?",
         exact: true,
       });
+      await expect(editor).toContainText(ftpElsewhere);
+      await capture(scenario, "editor-note");
       await editor.getByRole("combobox", { name: "Change", exact: true }).click();
-      await scenario.page.getByRole("option", { name: changeTitle, exact: true }).click();
-      const watts = editor.getByRole("spinbutton", { name: "FTP in watts", exact: true });
-      await expect(watts).toHaveValue("220");
-      await expect(watts).toHaveAttribute("step", "1");
+      const options = scenario.page.getByRole("option");
+      await expect(options).toHaveText([
+        "Weekday duration cap",
+        "Weekday unavailable",
+        "No hard training on a weekday",
+        "Weekly duration cap",
+        "Longest-Workout cap",
+        "Supporting Event",
+      ]);
+      await expect(scenario.page.getByRole("option", { name: changeTitle })).toHaveCount(0);
       await capture(scenario, "editor");
-      await editor.getByRole("button", { name: "Preview change", exact: true }).click();
-      const pending = changeCard(scenario, changeTitle, "Pending");
-      await expect(pending.getByRole("heading")).toBeFocused();
-      const request = [...scenario.backend.creationRequests]
-        .reverse()
-        .find((entry) => entry.method === "plan_change.preview");
-      expect(PlanChangePreviewRpcParamsSchema.parse(request?.params)).toMatchObject({
-        planId: scenario.seed.planId,
-        expectedVersion: 1,
-        intent: { kind: "ftp", watts: 220 },
-      });
-      const preview = (await scenario.backend.library()).changes.find(
-        (change) => change.status === "pending",
-      );
-      if (!preview) throw new TypeError("FTP preview is unavailable");
-      expect(preview.diff).toHaveLength(12);
-      expect(
-        preview.diff.every((row) => row.before?.power === null && row.after?.power === 220),
-      ).toBe(true);
-      const difference = pending.getByRole("table", {
-        name: "Affected individual Workouts",
-        exact: true,
-      });
-      await expect(difference.getByRole("cell")).toHaveText(
-        preview.diff.map(() => / → .* · \d+ min · 220 W$/),
-      );
-      expect((await scenario.backend.inspectActivation()).revisions).toEqual(initial.revisions);
-      await capture(scenario, "preview");
-      await pending.getByRole("button", { name: "View evidence", exact: true }).click();
-      const evidence = changes(scenario).getByRole("region", {
-        name: "Source details",
-        exact: true,
-      });
-      await expect(evidence.getByRole("heading")).toBeFocused();
-      await expect(
-        evidence.getByRole("rowheader").filter({
-          hasText: "Saved profile and synchronized FTP evidence",
-        }),
-      ).toBeVisible();
-      await expect(
-        evidence.getByRole("listitem").filter({ hasText: "Intervals.icu FTP" }),
-      ).toHaveText(/Intervals\.icu FTP.*210 W.*selected/i);
-      await expect(evidence.getByRole("listitem").filter({ hasText: "Your entry" })).toHaveText(
-        /Your entry.*220 W/,
-      );
-      await capture(scenario, "evidence");
-      await evidence.getByRole("button", { name: "Back", exact: true }).click();
-      await pending.getByRole("button", { name: "Apply to Plan", exact: true }).click();
-      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
-        "Change applied locally. Training now matches the confirmed preview.",
-      );
-      const applied = changeCard(scenario, changeTitle, "Applied");
-      await expect(applied.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
-      const corrected = await scenario.backend.inspectActivation();
-      expect(corrected.planningPlans[0]).toMatchObject({ version: 2, current_revision_number: 2 });
-      expect(corrected.revisions).toHaveLength(2);
-      expect(corrected.revisions[1]).toMatchObject({
-        revision_number: 2,
-        parent_revision_number: 1,
-        source_kind: "plan-change",
-        source_id: preview.changeId,
-      });
-      const correctedDraft = PlanCreationDraftSchema.parse(
-        JSON.parse(String(corrected.revisions[1]?.snapshot_json)),
-      );
-      expect(correctedDraft.ftp).toBe(220);
-      expect(
-        correctedDraft.weeks.flatMap((week) => week.workouts).map((workout) => workout.power),
-      ).toEqual(Array.from({ length: 12 }, () => 220));
-      expect(storedWorkouts(corrected)).toEqual(
-        storedWorkouts(initial).map((workout) => ({
-          ...workout,
-          power: 220,
-          guidance: "Use your confirmed FTP of 220 W",
-        })),
-      );
-      await capture(scenario, "applied");
+      await scenario.page.keyboard.press("Escape");
+      await editor.getByRole("button", { name: "Back", exact: true }).click();
       await applied.getByRole("button", { name: "Undo", exact: true }).click();
       const inverse = changeCard(scenario, inverseTitle, "Pending");
       await expect(inverse.getByRole("heading")).toBeFocused();
@@ -287,22 +229,18 @@ for (const appearance of appearances) {
         inverse
           .getByRole("table", { name: "Affected individual Workouts", exact: true })
           .getByRole("cell"),
-      ).toHaveText(preview.diff.map(() => / · 220 W → .* · \d+ min/));
+      ).toHaveText(pastDiff.map(() => / · 220 W → .* · \d+ min/));
       await capture(scenario, "undo-preview");
       await inverse.getByRole("button", { name: "Apply to Plan", exact: true }).click();
       await expect(changeCard(scenario, inverseTitle, "Applied")).toBeVisible();
       const restored = await scenario.backend.inspectActivation();
       expect(restored.planningPlans[0]).toMatchObject({ version: 3, current_revision_number: 3 });
-      expect(restored.revisions).toHaveLength(3);
       const restoredDraft = PlanCreationDraftSchema.parse(
         JSON.parse(String(restored.revisions[2]?.snapshot_json)),
       );
       expect(restoredDraft.ftp).toBeNull();
       expect(restoredDraft.weeks).toEqual(scenario.seed.draft.weeks);
       expect(storedWorkouts(restored)).toEqual(storedWorkouts(initial));
-      await expect(
-        changes(scenario).getByRole("button", { name: "Undo", exact: true }),
-      ).toHaveCount(0);
       await capture(scenario, "restored");
     } finally {
       await close(scenario);
