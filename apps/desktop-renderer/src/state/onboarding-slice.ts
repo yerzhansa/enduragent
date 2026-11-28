@@ -73,15 +73,21 @@ export function setupDisposition(
   return "satisfied";
 }
 
+export function onboardingCredentialMutationsBlocked(
+  state: Pick<EnduragentState, "settings">,
+): boolean {
+  return credentialChangesBlocked(
+    state.settings.credentials,
+    nonTelegramSettingsMutationActive(state.settings),
+  );
+}
+
 export function setupSignInBlocked(
   state: Pick<EnduragentState, "onboarding" | "settings">,
 ): boolean {
   return (
     onboardingCredentialMutationActive(state.onboarding) ||
-    credentialChangesBlocked(
-      state.settings.credentials,
-      nonTelegramSettingsMutationActive(state.settings),
-    )
+    onboardingCredentialMutationsBlocked(state)
   );
 }
 

@@ -28,9 +28,12 @@ import { createUpdateSettingsAdapter } from "./state/adapters/update";
 import { EMPTY_PLAN_CHANGE_SURFACE, planChangePendingCheck } from "./state/chat-slice";
 import { credentialDrafts } from "./state/credential-drafts";
 import { restoreManualSyncFocus } from "./state/manual-sync-focus";
-import { useEnduragentStore, type EnduragentState } from "./state/store";
-import { setupReady, setupSurfaceOnScreen } from "./state/onboarding-slice";
-import { nonTelegramSettingsMutationActive } from "./state/settings-slice";
+import { useEnduragentStore } from "./state/store";
+import {
+  onboardingCredentialMutationsBlocked,
+  setupReady,
+  setupSurfaceOnScreen,
+} from "./state/onboarding-slice";
 import { validateImportPaths, type OnboardingBridge } from "./onboarding/bridge";
 import { openRouterSignInBridge } from "./onboarding/openrouter-sign-in";
 import { createOnboardingCompletionController } from "./onboarding/completion";
@@ -65,15 +68,6 @@ export type Disposer = () => void;
 function focusComposer(): void {
   const composer = document.querySelector("#message");
   if (composer instanceof HTMLTextAreaElement) composer.focus();
-}
-
-export function onboardingCredentialMutationsBlocked(
-  state: Pick<EnduragentState, "settings">,
-): boolean {
-  return credentialChangesBlocked(
-    state.settings.credentials,
-    nonTelegramSettingsMutationActive(state.settings),
-  );
 }
 
 export function bootRenderer(): Disposer {
