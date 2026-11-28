@@ -178,7 +178,16 @@ jobs:
       - name: Prepare Desktop package
         run: pnpm --filter @enduragent/desktop package:dir
       - name: Test Desktop integrations on macOS
-        run: pnpm --filter @enduragent/desktop exec vitest run tests/onboarding-first-run.integration.test.ts tests/spend-meter.integration.test.ts tests/chat-panels.integration.test.ts --maxWorkers=1
+        run: >-
+          pnpm --filter @enduragent/desktop exec vitest run --maxWorkers=1
+          tests/onboarding-first-run.integration.test.ts
+          tests/spend-meter.integration.test.ts
+          tests/chat-panels.integration.test.ts
+          tests/chat-attachment-lifecycle.integration.test.ts
+          tests/chat-queue-relaunch.integration.test.ts
+          tests/chat-recovery-relaunch.integration.test.ts
+          tests/chat-decision-continuation.integration.test.ts
+          tests/chat-plan-request-relaunch.integration.test.ts
       - name: Test Desktop E2E on macOS
         run: pnpm --filter @enduragent/desktop test:e2e
       - name: Verify native application UI states

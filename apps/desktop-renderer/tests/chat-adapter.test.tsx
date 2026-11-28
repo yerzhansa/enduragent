@@ -3,7 +3,7 @@ import { renderLocalized as render } from "./language-harness";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
-import type { PlanCreationCardModel } from "@enduragent/coach-contract";
+import type { PlanCreationCardModel, TranscriptPageEntry } from "@enduragent/coach-contract";
 import {
   CHAT_SEND_CONNECTING_COPY,
   type ChatView,
@@ -1369,6 +1369,225 @@ describe("chat view adapter", () => {
       { turnId: "turn-old", role: "coach", text: "Earlier reply", historical: true },
       { turnId: "turn-live", role: "athlete", text: "Current live question", historical: false },
       { turnId: "turn-live", role: "coach", text: "Current live reply", historical: false },
+    ]);
+  });
+
+  const stoppedAttempt = {
+    kind: "turn" as const,
+    turnId: "turn-retried",
+    completedAt: "1998-03-04T08:00:00.000Z",
+    athleteText: "Recheck the recovery ride.",
+    coachText: "The recovery ride stayed controlled until",
+    delivery: "interrupted" as const,
+  };
+  const retriedAttempt = {
+    kind: "turn" as const,
+    turnId: "turn-retried",
+    completedAt: "1998-03-04T08:05:00.000Z",
+    athleteText: "Recheck the recovery ride.",
+    coachText: "The recovery ride stayed controlled throughout.",
+  };
+
+  it.each([
+    ["before the page reloads", [stoppedAttempt]],
+    ["after the page reloads with the retried reply", [stoppedAttempt, retriedAttempt]],
+  ])(
+    "keeps a restored turn's athlete message and stopped reply beside its live retry %s",
+    (_label, entries) => {
+      const published: ChatSurfaceState[] = [];
+      const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+      let live = reduceChatState(EMPTY_CHAT_STATE, {
+        type: "submit",
+        requestKey: 1,
+        occurredAtMs: 0,
+        userMessage: "Recheck the recovery ride.",
+        userMessageId: "m1",
+        assistantMessageId: "m2",
+        includeUser: false,
+      });
+      live = reduceChatState(live, { type: "bind-turn", requestKey: 1, turnId: "turn-retried" });
+      live = reduceChatState(live, {
+        type: "event",
+        requestKey: 1,
+        event: {
+          type: "final-text",
+          turnId: "turn-retried",
+          text: "The recovery ride stayed controlled throughout.",
+        },
+      });
+      live = reduceChatState(live, { type: "complete", requestKey: 1 });
+
+      adapter.view.render(
+        { ...live, messages: mergeHydratedMessages([], live.messages, entries) },
+        controls({
+          hydration: {
+            status: "ready",
+            hasEarlier: false,
+            revision: 2,
+            change: "initial",
+            entries,
+          },
+        }),
+      );
+
+      const timelineMessages =
+        published
+          .at(-1)
+          ?.timeline.flatMap((item) => (item.kind === "message" ? [item.message] : [])) ?? [];
+      expect(
+        timelineMessages.map(({ turnId, role, text, historical }) => ({
+          turnId,
+          role,
+          text,
+          historical,
+        })),
+      ).toEqual([
+        {
+          turnId: "turn-retried",
+          role: "athlete",
+          text: "Recheck the recovery ride.",
+          historical: true,
+        },
+        {
+          turnId: "turn-retried",
+          role: "coach",
+          text: "The recovery ride stayed controlled until",
+          historical: true,
+        },
+        {
+          turnId: "turn-retried",
+          role: "coach",
+          text: "The recovery ride stayed controlled throughout.",
+          historical: false,
+        },
+      ]);
+    },
+  );
+
+  function renderTimeline(state: ChatState, entries: readonly TranscriptPageEntry[]) {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render(
+      { ...state, messages: mergeHydratedMessages([], state.messages, entries) },
+      controls({
+        hydration: { status: "ready", hasEarlier: false, revision: 2, change: "initial", entries },
+      }),
+    );
+    return (
+      published.at(-1)?.timeline.flatMap((item) =>
+        item.kind === "message"
+          ? [
+              {
+                role: item.message.role,
+                text: item.message.text,
+                historical: item.message.historical,
+              },
+            ]
+          : [],
+      ) ?? []
+    );
+  }
+
+  it.each([
+    ["bound to the stopped turn", "turn-1"],
+    ["stopped before the coach named the turn", undefined],
+  ])(
+    "shows a same-session retry under a new turn id once after the page reloads, %s",
+    (_label, firstTurnId) => {
+      const firstTurn = firstTurnId === undefined ? {} : { turnId: firstTurnId };
+      const live: ChatState = {
+        ...EMPTY_CHAT_STATE,
+        messages: [
+          {
+            id: "m1",
+            ...firstTurn,
+            role: "athlete",
+            text: "Recheck the ride.",
+            delivery: "complete",
+          },
+          { id: "m2", ...firstTurn, role: "coach", text: "Stopped", delivery: "interrupted" },
+          { id: "m3", turnId: "turn-2", role: "coach", text: "Finished.", delivery: "complete" },
+        ],
+      };
+      const stoppedEntries: TranscriptPageEntry[] =
+        firstTurnId === undefined
+          ? []
+          : [
+              {
+                kind: "turn",
+                turnId: firstTurnId,
+                completedAt: "1998-03-04T08:00:00.000Z",
+                athleteText: "Recheck the ride.",
+                coachText: "Stopped",
+                delivery: "interrupted",
+              },
+            ];
+      const entries: TranscriptPageEntry[] = [
+        ...stoppedEntries,
+        {
+          kind: "turn",
+          turnId: "turn-2",
+          completedAt: "1998-03-04T08:05:00.000Z",
+          athleteText: "Recheck the ride.",
+          coachText: "Finished.",
+        },
+      ];
+
+      expect(renderTimeline(live, entries)).toEqual([
+        { role: "athlete", text: "Recheck the ride.", historical: false },
+        { role: "coach", text: "Stopped", historical: false },
+        { role: "coach", text: "Finished.", historical: false },
+      ]);
+    },
+  );
+
+  it("keeps a restored message when the athlete later sends the same words", () => {
+    const live: ChatState = {
+      ...EMPTY_CHAT_STATE,
+      messages: [
+        { id: "m2", turnId: "turn-1", role: "coach", text: "Finished.", delivery: "complete" },
+        { id: "m3", turnId: "turn-3", role: "athlete", text: "Yes", delivery: "complete" },
+        { id: "m4", turnId: "turn-3", role: "coach", text: "Noted.", delivery: "complete" },
+      ],
+    };
+    const stopped: TranscriptPageEntry = {
+      kind: "turn",
+      turnId: "turn-1",
+      completedAt: "1998-03-04T08:00:00.000Z",
+      athleteText: "Yes",
+      coachText: "Stopped",
+      delivery: "interrupted",
+    };
+
+    expect(renderTimeline(live, [stopped])).toEqual([
+      { role: "athlete", text: "Yes", historical: true },
+      { role: "coach", text: "Stopped", historical: true },
+      { role: "coach", text: "Finished.", historical: false },
+      { role: "athlete", text: "Yes", historical: false },
+      { role: "coach", text: "Noted.", historical: false },
+    ]);
+  });
+
+  it("keeps a stopped reply that the retried reply repeats word for word", () => {
+    const live: ChatState = {
+      ...EMPTY_CHAT_STATE,
+      messages: [
+        { id: "m2", turnId: "turn-1", role: "coach", text: "Same words.", delivery: "complete" },
+      ],
+    };
+    const stopped: TranscriptPageEntry = {
+      kind: "turn",
+      turnId: "turn-1",
+      completedAt: "1998-03-04T08:00:00.000Z",
+      athleteText: "Recheck the ride.",
+      coachText: "Same words.",
+      delivery: "interrupted",
+    };
+
+    expect(renderTimeline(live, [stopped])).toEqual([
+      { role: "athlete", text: "Recheck the ride.", historical: true },
+      { role: "coach", text: "Same words.", historical: true },
+      { role: "coach", text: "Same words.", historical: false },
     ]);
   });
 
