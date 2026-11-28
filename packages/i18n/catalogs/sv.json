@@ -1311,7 +1311,9 @@
       "feedbackSent": "Tack — vi har tagit emot din anteckning.",
       "feedbackTooLong": "Håll anteckningen till 4000 tecken eller färre. Inget skickades.",
       "feedbackUsage": "Skicka /feedback följt av din anteckning.",
-      "addCredits": "Lägg till krediter"
+      "addCredits": "Lägg till krediter",
+      "discardMessage": "Kasta",
+      "discardMessageLabel": "Kasta meddelandet"
     },
     "planChange": {
       "activePlan": "Aktiv plan",
@@ -1634,7 +1636,8 @@
       "removeLabel": "Ta bort köat meddelande {{number}}",
       "retry": "Försök skicka avbrutet meddelande igen",
       "run": "Kör kommando",
-      "title": "Köade meddelanden"
+      "title": "Köade meddelanden",
+      "waitingForRetry": "Skickas när du försöker skicka det tidigare meddelandet igen eller kastar det."
     },
     "slashPopup": {
       "choose": "välj",

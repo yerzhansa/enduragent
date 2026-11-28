@@ -43,6 +43,7 @@ import {
   CHAT_EMPTY_RESPONSE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
+  CHAT_QUEUE_REMOVE_FAILURE_COPY,
   CHAT_RESPONSE_STOPPED_COPY,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
@@ -360,6 +361,7 @@ function client(
     ) => Promise<ChatAttachmentComposerReadModel>;
     readonly clearAttachmentDraft?: () => Promise<ChatAttachmentComposerReadModel>;
     readonly getChatQueue?: () => Promise<ChatQueueSnapshot>;
+    readonly discardQueuedTurn?: () => Promise<ChatQueueSnapshot>;
     readonly enqueueChatMessage?: (request: {
       readonly chatId: string;
       readonly submissionId: string;
@@ -568,6 +570,17 @@ function client(
       hideQueueCall();
       const value = request as { queuedMessageId: string };
       acknowledge(queued.filter((item) => item.queuedMessageId === value.queuedMessageId));
+      return Promise.resolve(snapshot()) as never;
+    }
+    if (method === "discardQueuedTurn") {
+      if (sessions.discardQueuedTurn !== undefined) return sessions.discardQueuedTurn() as never;
+      const claimId = (request as { claimId: string }).claimId;
+      if (retryRequired?.claimId !== claimId) {
+        return Promise.reject(new Error("The recovery claim changed before discard.")) as never;
+      }
+      const ids = new Set(retryRequired.queuedMessageIds);
+      retryRequired = undefined;
+      acknowledge(queued.filter((item) => ids.has(item.queuedMessageId)));
       return Promise.resolve(snapshot()) as never;
     }
     if (
@@ -1052,6 +1065,293 @@ describe("chat controller", () => {
       text: "Recovered",
       delivery: "complete",
     });
+  });
+
+  it("discards a stopped reply, keeps what was said, and sends the message that waited", async () => {
+    let firstOptions: CoachClientCallOptions<"chat"> | undefined;
+    let finishFirst!: (value: { text: string }) => void;
+    let callCount = 0;
+    const firstResult = new Promise<{ text: string }>((resolve) => {
+      finishFirst = resolve;
+    });
+    const fake = client(
+      async (_request, options) => {
+        callCount += 1;
+        if (callCount === 1) {
+          firstOptions = options;
+          deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+          deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial response" });
+          return firstResult;
+        }
+        deliver(options, { type: "turn-start", turnId: "turn-2", chatId: "desktop" });
+        deliver(options, { type: "final-text", turnId: "turn-2", text: "Second reply" });
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result: { text: "Second reply" } });
+        return { text: "Second reply" };
+      },
+      {
+        stopChat: async () => {
+          deliver(firstOptions, {
+            type: "interrupted",
+            turnId: "turn-1",
+            chatId: "desktop",
+            text: "Partial response",
+          });
+          firstOptions?.onTerminalEnvelope?.({
+            jsonrpc: "2.0",
+            id: 1,
+            result: { text: "Partial response" },
+          });
+          finishFirst({ text: "Partial response" });
+          return { stopped: true };
+        },
+      },
+    );
+    const { controller, states } = subject(fake);
+
+    const submission = controller.submit("Stop this");
+    await vi.waitFor(() => expect(states.at(-1)?.messages.at(-1)?.text).toBe("Partial response"));
+    await controller.submit("Send me next");
+    controller.stop();
+    await submission;
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+    expect(states.at(-1)?.queued.map((item) => item.text)).toEqual(["Stop this", "Send me next"]);
+
+    await Promise.all([controller.discardRetry(), controller.discardRetry()]);
+    await vi.waitFor(() =>
+      expect(states.at(-1)?.messages.at(-1)).toMatchObject({
+        text: "Second reply",
+        delivery: "complete",
+      }),
+    );
+
+    expect(
+      vi.mocked(fake.call).mock.calls.filter(([method]) => method === "discardQueuedTurn"),
+    ).toEqual([["discardQueuedTurn", { chatId: "desktop", claimId: "claim-1" }]]);
+    expect(chatMessages(fake)).toEqual(["Stop this", "Send me next"]);
+    expect(
+      states.at(-1)?.messages.map(({ role, text, delivery }) => ({ role, text, delivery })),
+    ).toEqual([
+      { role: "athlete", text: "Stop this", delivery: "complete" },
+      { role: "coach", text: "Partial response", delivery: "interrupted" },
+      { role: "athlete", text: "Send me next", delivery: "complete" },
+      { role: "coach", text: "Second reply", delivery: "complete" },
+    ]);
+    expect(states.at(-1)).toMatchObject({
+      status: "idle",
+      progress: null,
+      queued: [],
+      retryRequired: null,
+    });
+    await controller.retry();
+    expect(chatMessages(fake)).toEqual(["Stop this", "Send me next"]);
+    expect(controller.openNewConversation()).toBe(true);
+  });
+
+  it("drops a failed message on Discard, even after a failed retry, and never sends it again", async () => {
+    let attempt = 0;
+    const fake = client(async (_request, options) => {
+      attempt += 1;
+      if (attempt <= 2) {
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        throw new Error("synthetic model failure");
+      }
+      deliver(options, { type: "turn-start", turnId: "turn-2", chatId: "desktop" });
+      deliver(options, { type: "final-text", turnId: "turn-2", text: "Fresh reply" });
+      options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 3, result: { text: "Fresh reply" } });
+      return { text: "Fresh reply" };
+    });
+    const { controller, states } = subject(fake);
+
+    await controller.submit("This one fails");
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+    await controller.retryQueuedTurn("claim-1");
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+    expect(controller.openNewConversation()).toBe(true);
+    controller.cancelNewConversation();
+
+    await controller.discardRetry();
+    expect(states.at(-1)).toMatchObject({
+      status: "idle",
+      progress: null,
+      activeTurn: null,
+      messages: [],
+      queued: [],
+      retryRequired: null,
+    });
+
+    await controller.submit("Fresh question");
+    expect(chatMessages(fake)).toEqual(["This one fails", "This one fails", "Fresh question"]);
+    expect(states.at(-1)?.messages.map(({ role, text }) => ({ role, text }))).toEqual([
+      { role: "athlete", text: "Fresh question" },
+      { role: "coach", text: "Fresh reply" },
+    ]);
+  });
+
+  it("keeps the retry and says so when Discard cannot be saved", async () => {
+    const fake = client(
+      async (_request, options) => {
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        throw new Error("synthetic model failure");
+      },
+      { discardQueuedTurn: async () => Promise.reject(new Error("storage unavailable")) },
+    );
+    const { controller, states, controls } = subject(fake);
+    await controller.submit("Keep me");
+
+    await controller.discardRetry();
+
+    expect(controls.at(-1)?.queueMutationError).toBe(CHAT_QUEUE_REMOVE_FAILURE_COPY);
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+    expect(states.at(-1)?.messages.find((message) => message.role === "athlete")?.text).toBe(
+      "Keep me",
+    );
+  });
+
+  it("ignores Retry while a Discard is saving and keeps the stopped lines", async () => {
+    let firstOptions: CoachClientCallOptions<"chat"> | undefined;
+    let finishFirst!: (value: { text: string }) => void;
+    const firstResult = new Promise<{ text: string }>((resolve) => {
+      finishFirst = resolve;
+    });
+    let calls = 0;
+    const fake = client(
+      async (_request, options) => {
+        calls += 1;
+        if (calls === 1) {
+          firstOptions = options;
+          deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+          deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial" });
+          return firstResult;
+        }
+        deliver(options, { type: "turn-start", turnId: "turn-2", chatId: "desktop" });
+        deliver(options, { type: "final-text", turnId: "turn-2", text: "Next reply" });
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result: { text: "Next reply" } });
+        return { text: "Next reply" };
+      },
+      {
+        stopChat: async () => {
+          deliver(firstOptions, {
+            type: "interrupted",
+            turnId: "turn-1",
+            chatId: "desktop",
+            text: "Partial",
+          });
+          firstOptions?.onTerminalEnvelope?.({
+            jsonrpc: "2.0",
+            id: 1,
+            result: { text: "Partial" },
+          });
+          finishFirst({ text: "Partial" });
+          return { stopped: true };
+        },
+      },
+    );
+    const { controller, states } = subject(fake);
+    const submission = controller.submit("Stop this");
+    await vi.waitFor(() => expect(states.at(-1)?.messages.at(-1)?.text).toBe("Partial"));
+    await controller.submit("Send me next");
+    controller.stop();
+    await submission;
+
+    const stoppedAt = states.length;
+    await Promise.all([controller.discardRetry(), controller.retry()]);
+    await vi.waitFor(() =>
+      expect(states.at(-1)?.messages.at(-1)).toMatchObject({ delivery: "complete" }),
+    );
+
+    const retried = states
+      .slice(stoppedAt)
+      .some(
+        (state) => state.status === "streaming" && state.activeTurn?.userMessage === "Stop this",
+      );
+    expect(retried).toBe(false);
+    expect(chatMessages(fake)).toEqual(["Stop this", "Send me next"]);
+    expect(states.at(-1)?.messages.map(({ text }) => text)).toEqual([
+      "Stop this",
+      "Partial",
+      "Send me next",
+      "Next reply",
+    ]);
+  });
+
+  it("clears a failed Discard's error once the message is retried", async () => {
+    let attempt = 0;
+    const fake = client(
+      async (_request, options) => {
+        attempt += 1;
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        if (attempt === 1) throw new Error("synthetic model failure");
+        deliver(options, { type: "final-text", turnId: "turn-1", text: "Recovered" });
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result: { text: "Recovered" } });
+        return { text: "Recovered" };
+      },
+      { discardQueuedTurn: async () => Promise.reject(new Error("storage unavailable")) },
+    );
+    const { controller, states, controls } = subject(fake);
+    await controller.submit("Keep me");
+    await controller.discardRetry();
+    expect(controls.at(-1)?.queueMutationError).toBe(CHAT_QUEUE_REMOVE_FAILURE_COPY);
+
+    await controller.retry();
+
+    expect(states.at(-1)?.retryRequired).toBeNull();
+    expect(controls.at(-1)?.queueMutationError).toBeNull();
+  });
+
+  it("discards a retry restored at relaunch and sends the message waiting behind it", async () => {
+    const waiting = {
+      queuedMessageId: "queued-2",
+      messageId: "message-2",
+      submissionId: "submission-2",
+      text: "Send me next",
+      kind: "ordinary" as const,
+      attachmentIds: [],
+      position: 0,
+      restored: true,
+    };
+    const discardQueuedTurn = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      revision: 3,
+      items: [waiting],
+    }));
+    const resumeChatQueue = vi.fn(async () => ({
+      snapshot: { schemaVersion: 1 as const, revision: 4, items: [] },
+    }));
+    const restored: ChatQueueSnapshot = {
+      schemaVersion: 1,
+      revision: 2,
+      items: [
+        { ...waiting, queuedMessageId: "queued-1", messageId: "message-1", text: "Stale" },
+        { ...waiting, position: 1 },
+      ],
+      retryRequired: {
+        claimId: "claim-1",
+        queuedMessageIds: ["queued-1"],
+        turnId: "turn-1",
+        status: "retry-required",
+      },
+    };
+    const { controller, states } = subject(
+      client(replies(), {
+        discardQueuedTurn,
+        resumeChatQueue,
+        getChatQueue: async () => restored,
+      }),
+      undefined,
+      async () => {},
+      async () => {},
+      () => true,
+      true,
+      vi.fn(),
+      restored,
+    );
+    await controller.start();
+
+    await controller.discardRetry();
+
+    expect(discardQueuedTurn).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(resumeChatQueue).toHaveBeenCalledOnce());
+    expect(states.at(-1)).toMatchObject({ retryRequired: null, progress: null });
   });
 
   it("restores stopped copy when relaunch hydrates a retry-required queue", () => {
@@ -4043,7 +4343,7 @@ describe("chat controller", () => {
     );
   });
 
-  it("blocks new conversation until durable retry resolves, then confirmation blocks submit", async () => {
+  it("keeps New chat open while a durable retry waits, then confirmation blocks submit and retry", async () => {
     let attempt = 0;
     const fake = client(async (_request, options) => {
       attempt += 1;
@@ -4057,13 +4357,16 @@ describe("chat controller", () => {
     });
     const { controller, states } = subject(fake);
     await controller.submit("Original");
-    expect(controller.openNewConversation()).toBe(false);
     expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
-    await controller.retryQueuedTurn("claim-1");
     expect(controller.openNewConversation()).toBe(true);
     vi.mocked(fake.call).mockClear();
 
-    await Promise.all([controller.submit("Blocked"), controller.retryInterrupted()]);
+    await Promise.all([
+      controller.submit("Blocked"),
+      controller.retryInterrupted(),
+      controller.retryQueuedTurn("claim-1"),
+      controller.discardRetry(),
+    ]);
     expect(fake.call).not.toHaveBeenCalled();
 
     controller.cancelNewConversation();
@@ -4199,37 +4502,28 @@ describe("chat controller", () => {
     ).toHaveLength(1);
   });
 
-  it("blocks reset while a durable retry is unresolved and preserves retry ownership", async () => {
-    let attempt = 0;
-    const fake = client(
-      async (_request, options) => {
-        attempt += 1;
-        if (attempt === 1) {
-          deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial" });
-          throw new CoachClientDisconnectedError(1006, "synthetic");
-        }
-        deliver(options, { type: "final-text", turnId: "turn-2", text: "Recovered" });
-        options?.onTerminalEnvelope?.({
-          jsonrpc: "2.0",
-          id: 2,
-          result: { text: "Recovered" },
-        });
-        return { text: "Recovered" };
-      },
-      { resetSession: async () => Promise.reject(new Error("uncertain")) },
-    );
-    const { controller, provider, states } = subject(fake);
+  it("starts a New chat over an unresolved durable retry and never sends the stale message", async () => {
+    const fake = client(async (_request, options) => {
+      deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial" });
+      throw new CoachClientDisconnectedError(1006, "synthetic");
+    });
+    const { controller, states } = subject(fake);
     await controller.submit("Original");
-    expect(controller.openNewConversation()).toBe(false);
-    await controller.confirmNewConversation();
-    expect(vi.mocked(fake.call).mock.calls.filter(([method]) => method === "resetSession")).toEqual(
-      [],
-    );
     expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
-    await controller.retryQueuedTurn("claim-1");
+    expect(controller.openNewConversation()).toBe(true);
 
-    expect(provider.reconnect).not.toHaveBeenCalled();
-    expect(states.at(-1)?.messages.at(-1)?.text).toBe("Recovered");
+    await controller.confirmNewConversation();
+    expect(states.at(-1)).toMatchObject({
+      status: "idle",
+      messages: [],
+      queued: [],
+      retryRequired: null,
+      session: { resetPhase: "idle" },
+    });
+    vi.mocked(fake.call).mockClear();
+    await Promise.all([controller.retry(), controller.retryQueuedTurn("claim-1")]);
+
+    expect(chatMessages(fake)).toEqual([]);
   });
 
   it("holds one reset pending while repeated confirm, submit, and retry dispatch no chat", async () => {

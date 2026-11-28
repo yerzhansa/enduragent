@@ -1311,7 +1311,9 @@
       "feedbackSent": "Gracias: hemos recibido tu nota.",
       "feedbackTooLong": "Deja tu nota en 4000 caracteres o menos. No se ha enviado nada.",
       "feedbackUsage": "Envía /feedback seguido de tu nota.",
-      "addCredits": "Añadir créditos"
+      "addCredits": "Añadir créditos",
+      "discardMessage": "Descartar",
+      "discardMessageLabel": "Descartar mensaje"
     },
     "planChange": {
       "activePlan": "Plan activo",
@@ -1634,7 +1636,8 @@
       "removeLabel": "Quitar el mensaje en cola {{number}}",
       "retry": "Reintentar el mensaje interrumpido",
       "run": "Ejecutar comando",
-      "title": "Mensajes en cola"
+      "title": "Mensajes en cola",
+      "waitingForRetry": "Se enviará cuando reintentes o descartes el mensaje anterior."
     },
     "slashPopup": {
       "choose": "elegir",

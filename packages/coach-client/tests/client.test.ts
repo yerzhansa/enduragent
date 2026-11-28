@@ -111,6 +111,7 @@ const rpcDeadlineCases = [
   ["resumeChatQueue", { chatId: "chat-1" }, 660_000],
   ["runQueuedCommand", { chatId: "chat-1", queuedMessageId: "queued-1" }, 660_000],
   ["retryQueuedTurn", { chatId: "chat-1", claimId: "claim-1" }, 660_000],
+  ["discardQueuedTurn", { chatId: "chat-1", claimId: "claim-1" }, 30_000],
   ["getCoachDecision", { chatId: "chat-1" }, 30_000],
   [
     "answerCoachDecision",
@@ -1033,6 +1034,7 @@ describe("RPC receive and observers", () => {
         resumeChatQueue: { snapshot: { schemaVersion: 1, revision: 2, items: [] } },
         runQueuedCommand: { snapshot: { schemaVersion: 1, revision: 2, items: [] } },
         retryQueuedTurn: { snapshot: { schemaVersion: 1, revision: 2, items: [] } },
+        discardQueuedTurn: { schemaVersion: 1, revision: 3, items: [] },
         getCoachDecision: { decision: { ...decision, status: "unanswered" } },
         answerCoachDecision: { decision: completedDecision },
         skipCoachDecision: { decision: { ...decision, status: "skipped" } },

@@ -76,6 +76,7 @@ function PlanHandoffCard(props: {
 function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactElement {
   const { say } = usePhrasebook();
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
+  const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
   const actions = useEnduragentStore((state) => state.chatActions);
   const error = props.message.error;
   const text = useWireMessageText(error ?? "", props.message.errorMessage);
@@ -91,6 +92,19 @@ function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactE
         <div className="min-w-0 flex-1">
           <AthleteMessage text={props.message.text} />
         </div>
+      )}
+      {retryRequired === null ? null : (
+        <Button
+          type="button"
+          className="chat-message-discard shrink-0 text-ink-2 hover:text-ink"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={say("chat.notice.discardMessageLabel")}
+          disabled={workBlocked || actions === null}
+          onClick={() => actions?.discardRetry()}
+        >
+          <X aria-hidden="true" />
+        </Button>
       )}
       <Button
         type="button"

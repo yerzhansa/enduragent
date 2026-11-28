@@ -909,6 +909,53 @@ describe("engine durable chat queue", () => {
     expect(generate).toHaveBeenCalledTimes(2);
   });
 
+  it("discards a stopped claim so a message sent during the stopped turn drains next", async () => {
+    let started!: () => void;
+    const active = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const generate = vi.fn((request: ModelTransportRequest) => {
+      if (generate.mock.calls.length > 1) return Promise.resolve(generated("Second reply"));
+      return new Promise<GenerateResult>((_resolve, reject) => {
+        started();
+        request.options.signal?.addEventListener("abort", () => reject(new Error("stopped")), {
+          once: true,
+        });
+      });
+    });
+    const completeQueuedTurn = vi.fn<ChatAttachmentTurnPort["completeQueuedTurn"]>();
+    const { engine } = setup(undefined, generate, {
+      prepareQueuedTurn: async () => ({ activities: [] }),
+      completeQueuedTurn,
+    });
+    await engine.enqueueChatMessage!({ chatId: "desktop", submissionId: "s1", text: "First" });
+    let activeTurnId: string | undefined;
+    const running = engine.resumeChatQueue!({ chatId: "desktop" }, (event) => {
+      if (event.type === "turn-start") activeTurnId = event.turnId;
+    });
+    await active;
+    await engine.enqueueChatMessage!({ chatId: "desktop", submissionId: "s2", text: "Second" });
+    await engine.stopChat!({ chatId: "desktop", turnId: activeTurnId! });
+    const stopped = await running;
+    const claimId = stopped.snapshot.retryRequired!.claimId;
+    expect(stopped.snapshot.items.map((item) => item.text)).toEqual(["First", "Second"]);
+    expect(completeQueuedTurn).not.toHaveBeenCalled();
+
+    await expect(
+      engine.discardQueuedTurn!({ chatId: "desktop", claimId: "other-claim" }),
+    ).rejects.toThrow(/changed before discard/u);
+    const discarded = await engine.discardQueuedTurn!({ chatId: "desktop", claimId });
+    expect(discarded.retryRequired).toBeUndefined();
+    expect(discarded.items.map((item) => item.text)).toEqual(["Second"]);
+    expect(completeQueuedTurn).not.toHaveBeenCalled();
+
+    const drained = await engine.resumeChatQueue!({ chatId: "desktop" });
+    expect(drained.response?.text).toBe("Second reply");
+    expect(drained.snapshot.items).toEqual([]);
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(completeQueuedTurn).toHaveBeenCalledTimes(1);
+  });
+
   it("completes a claimed turn and keeps follow-ups when a stale-reset fires mid-turn", async () => {
     const generate = vi.fn(async (request: ModelTransportRequest) => {
       if (request.options.caller === "flush") return generated("Flushed");

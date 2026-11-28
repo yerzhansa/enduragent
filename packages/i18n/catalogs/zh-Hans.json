@@ -1300,7 +1300,9 @@
       "feedbackSent": "谢谢，我们已收到你的备注。",
       "feedbackTooLong": "请将备注控制在 4000 个字符以内。未发送任何内容。",
       "feedbackUsage": "发送 /feedback，后接你的备注。",
-      "addCredits": "添加额度"
+      "addCredits": "添加额度",
+      "discardMessage": "放弃",
+      "discardMessageLabel": "放弃消息"
     },
     "planChange": {
       "activePlan": "当前启用的计划",
@@ -1619,7 +1621,8 @@
       "removeLabel": "移除第 {{number}} 条排队消息",
       "retry": "重试中断的消息",
       "run": "执行命令",
-      "title": "排队消息"
+      "title": "排队消息",
+      "waitingForRetry": "重试或放弃之前的消息后发送。"
     },
     "slashPopup": {
       "choose": "选择",

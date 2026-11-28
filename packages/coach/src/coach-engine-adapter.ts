@@ -20,6 +20,7 @@ import {
   RemoveQueuedChatMessageRequestSchema,
   ResumeChatQueueRequestSchema,
   RetryQueuedTurnRequestSchema,
+  DiscardQueuedTurnRequestSchema,
   RunQueuedCommandRequestSchema,
   SkipCoachDecisionRpcParamsSchema,
   SkipCoachDecisionRpcResultSchema,
@@ -59,10 +60,10 @@ export interface CoachEngineAdapterInput {
 }
 
 export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachEngine {
-  const queueStream = async (
-    operation: (onEvent: (event: TurnEvent) => void) => Promise<ChatQueueRunResult>,
+  const validatedEvents = async <Result>(
+    operation: (onEvent: (event: TurnEvent) => void) => Promise<Result>,
     onEvent?: (event: TurnEvent) => void,
-  ): Promise<ChatQueueRunResult> => {
+  ): Promise<Result> => {
     let firstEventValidationError: unknown | undefined;
     const response = await operation((event) => {
       if (firstEventValidationError !== undefined) return;
@@ -73,11 +74,23 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
       }
       try {
         onEvent?.(result.data);
-      } catch {}
+      } catch {
+        return;
+      }
     });
     if (firstEventValidationError !== undefined) throw firstEventValidationError;
-    return ChatQueueRunResultSchema.parse(response);
+    return response;
   };
+  const queueUnavailable = (): never => {
+    throw new Error("Durable chat queue is unavailable.");
+  };
+  const queueStream = async (
+    operation: (onEvent: (event: TurnEvent) => void) => Promise<ChatQueueRunResult> | undefined,
+    onEvent?: (event: TurnEvent) => void,
+  ): Promise<ChatQueueRunResult> =>
+    ChatQueueRunResultSchema.parse(
+      await validatedEvents((emit) => operation(emit) ?? queueUnavailable(), onEvent),
+    );
   return {
     async chat(request, onEvent) {
       const parsed = ChatRequestSchema.parse(request);
@@ -99,20 +112,9 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
           languageSource: language.source,
         },
       };
-      let firstEventValidationError: unknown | undefined;
-      const response = await input.backend.chat(resolvedRequest, (event) => {
-        if (firstEventValidationError !== undefined) return;
-        const result = TurnEventSchema.safeParse(event);
-        if (!result.success) {
-          firstEventValidationError = result.error;
-          return;
-        }
-        try {
-          onEvent?.(result.data);
-        } catch {}
-      });
-      if (firstEventValidationError !== undefined) throw firstEventValidationError;
-      return ChatResponseSchema.parse(response);
+      return ChatResponseSchema.parse(
+        await validatedEvents((emit) => input.backend.chat(resolvedRequest, emit), onEvent),
+      );
     },
     async stopChat(request) {
       const parsed = StopChatRequestSchema.parse(request);
@@ -140,21 +142,21 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async resumeChatQueue(request, onEvent) {
       const parsed = ResumeChatQueueRequestSchema.parse(request);
-      if (input.backend.resumeChatQueue === undefined)
-        throw new Error("Durable chat queue is unavailable.");
-      return queueStream((emit) => input.backend.resumeChatQueue!(parsed, emit), onEvent);
+      return queueStream((emit) => input.backend.resumeChatQueue?.(parsed, emit), onEvent);
     },
     async runQueuedCommand(request, onEvent) {
       const parsed = RunQueuedCommandRequestSchema.parse(request);
-      if (input.backend.runQueuedCommand === undefined)
-        throw new Error("Durable chat queue is unavailable.");
-      return queueStream((emit) => input.backend.runQueuedCommand!(parsed, emit), onEvent);
+      return queueStream((emit) => input.backend.runQueuedCommand?.(parsed, emit), onEvent);
     },
     async retryQueuedTurn(request, onEvent) {
       const parsed = RetryQueuedTurnRequestSchema.parse(request);
-      if (input.backend.retryQueuedTurn === undefined)
+      return queueStream((emit) => input.backend.retryQueuedTurn?.(parsed, emit), onEvent);
+    },
+    async discardQueuedTurn(request) {
+      const parsed = DiscardQueuedTurnRequestSchema.parse(request);
+      if (input.backend.discardQueuedTurn === undefined)
         throw new Error("Durable chat queue is unavailable.");
-      return queueStream((emit) => input.backend.retryQueuedTurn!(parsed, emit), onEvent);
+      return ChatQueueSnapshotSchema.parse(await input.backend.discardQueuedTurn(parsed));
     },
     async resetSession(request) {
       const parsed = ResetSessionRequestSchema.parse(request);
@@ -173,20 +175,9 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async answerCoachDecision(request, onEvent) {
       const parsed = AnswerCoachDecisionRpcParamsSchema.parse(request);
-      let firstEventValidationError: unknown | undefined;
-      const response = await input.backend.answerCoachDecision(parsed, (event) => {
-        if (firstEventValidationError !== undefined) return;
-        const result = TurnEventSchema.safeParse(event);
-        if (!result.success) {
-          firstEventValidationError = result.error;
-          return;
-        }
-        try {
-          onEvent?.(result.data);
-        } catch {}
-      });
-      if (firstEventValidationError !== undefined) throw firstEventValidationError;
-      return AnswerCoachDecisionRpcResultSchema.parse(response);
+      return AnswerCoachDecisionRpcResultSchema.parse(
+        await validatedEvents((emit) => input.backend.answerCoachDecision(parsed, emit), onEvent),
+      );
     },
     async skipCoachDecision(request) {
       const parsed = SkipCoachDecisionRpcParamsSchema.parse(request);
@@ -194,20 +185,9 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async resumeCoachDecision(request, onEvent) {
       const parsed = ResumeCoachDecisionRpcParamsSchema.parse(request);
-      let firstEventValidationError: unknown | undefined;
-      const response = await input.backend.resumeCoachDecision(parsed, (event) => {
-        if (firstEventValidationError !== undefined) return;
-        const result = TurnEventSchema.safeParse(event);
-        if (!result.success) {
-          firstEventValidationError = result.error;
-          return;
-        }
-        try {
-          onEvent?.(result.data);
-        } catch {}
-      });
-      if (firstEventValidationError !== undefined) throw firstEventValidationError;
-      return ResumeCoachDecisionRpcResultSchema.parse(response);
+      return ResumeCoachDecisionRpcResultSchema.parse(
+        await validatedEvents((emit) => input.backend.resumeCoachDecision(parsed, emit), onEvent),
+      );
     },
   };
 }

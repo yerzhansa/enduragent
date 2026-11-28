@@ -181,6 +181,7 @@ export interface ChatStorePort {
   completeChatQueueClaim?(chatId: string, claimId: string): ChatQueueSnapshot;
   requireChatQueueRetry?(chatId: string, claimId: string): ChatQueueSnapshot;
   retryChatQueueClaim?(chatId: string, claimId: string, turnId: string): ChatQueueSnapshot;
+  discardChatQueueClaim?(chatId: string, claimId: string): ChatQueueSnapshot;
   clearChatQueue?(chatId: string): ChatQueueSnapshot;
   getCompletedChatQueueClaim?(chatId: string): {
     readonly turnId: string;

@@ -1300,7 +1300,9 @@
       "feedbackSent": "감사합니다. 메모를 받았습니다.",
       "feedbackTooLong": "메모는 4000자 이하로 적어 주세요. 아무것도 전송되지 않았습니다.",
       "feedbackUsage": "/feedback 다음에 메모를 보내세요.",
-      "addCredits": "크레딧 추가"
+      "addCredits": "크레딧 추가",
+      "discardMessage": "버리기",
+      "discardMessageLabel": "메시지 버리기"
     },
     "planChange": {
       "activePlan": "활성 계획",
@@ -1619,7 +1621,8 @@
       "removeLabel": "대기 중인 메시지 {{number}} 삭제",
       "retry": "중단된 메시지 재시도",
       "run": "명령 실행",
-      "title": "대기 중인 메시지"
+      "title": "대기 중인 메시지",
+      "waitingForRetry": "이전 메시지를 재시도하거나 버리면 전송됩니다."
     },
     "slashPopup": {
       "choose": "선택",

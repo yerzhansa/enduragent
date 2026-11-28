@@ -1524,6 +1524,39 @@ describe("chat view adapter", () => {
     expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
   });
 
+  it("shows a failed Discard on the notice when no other message waits", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const failure = "We couldn’t remove that saved message. Try again.";
+    const recovering: ChatState = {
+      ...submitted(),
+      status: "idle",
+      retryRequired: {
+        claimId: "claim-1",
+        queuedMessageIds: ["q1"],
+        turnId: TURN_ID,
+        status: "retry-required",
+      },
+      queued: [{ id: "q1", text: "How is my form?", command: false, restored: true }],
+    };
+
+    adapter.view.render(recovering, controls({ queueMutationError: failure }));
+    expect(published.at(-1)).toMatchObject({ notice: failure, noticeTone: "danger" });
+
+    adapter.view.render(
+      {
+        ...recovering,
+        queued: [
+          ...recovering.queued,
+          { id: "q2", text: "And my long ride?", command: false, restored: true },
+        ],
+      },
+      controls({ queueMutationError: failure }),
+    );
+    expect(published.at(-1)?.notice).not.toBe(failure);
+    expect(published.at(-1)?.queueMutationError).toBe(failure);
+  });
+
   it("retries a restored failed send from the hydrated athlete message", () => {
     const published: ChatSurfaceState[] = [];
     const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });

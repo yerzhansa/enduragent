@@ -621,6 +621,99 @@ describe("desktop turn state", () => {
     });
   });
 
+  it("keeps a stopped turn's text but leaves recovery when its retry is discarded", () => {
+    const bound = reduceChatState(started(), {
+      type: "bind-turn",
+      requestKey: 1,
+      turnId: "turn-1",
+    });
+    const stopped = reduceChatState(bound, {
+      type: "event",
+      requestKey: 1,
+      event: { type: "interrupted", turnId: "turn-1", chatId: DESKTOP_CHAT_ID, text: "Partial" },
+    });
+
+    const discarded = reduceChatState(stopped, { type: "discard-recovery", turnId: "turn-1" });
+
+    expect(discarded).toMatchObject({ status: "idle", progress: null, activeTurn: null });
+    expect(discarded.messages).toEqual(stopped.messages);
+  });
+
+  it("keeps a stopped turn's saved lines when a later retry of it fails and is discarded", () => {
+    const stopped = reduceChatState(
+      reduceChatState(started(), { type: "bind-turn", requestKey: 1, turnId: "turn-1" }),
+      {
+        type: "event",
+        requestKey: 1,
+        event: { type: "interrupted", turnId: "turn-1", chatId: DESKTOP_CHAT_ID, text: "Partial" },
+      },
+    );
+    const retried = reduceChatState(
+      reduceChatState(
+        reduceChatState(stopped, {
+          type: "submit",
+          requestKey: 2,
+          occurredAtMs: 1,
+          userMessage: "How should I train?",
+          userMessageId: "message-3",
+          assistantMessageId: "message-4",
+          includeUser: false,
+        }),
+        { type: "bind-turn", requestKey: 2, turnId: "turn-1" },
+      ),
+      { type: "fail", requestKey: 2, copy: "failed" },
+    );
+
+    const discarded = reduceChatState(retried, { type: "discard-recovery", turnId: "turn-1" });
+
+    expect(discarded.messages.map(({ id, text }) => ({ id, text }))).toEqual([
+      { id: "message-1", text: "How should I train?" },
+      { id: "message-2", text: "Partial" },
+    ]);
+  });
+
+  it("drops a failed turn's lines when its retry is discarded, bound or not", () => {
+    const failedUnbound = reduceChatState(started(), {
+      type: "fail",
+      requestKey: 1,
+      copy: "The coach couldn't respond. Please try again.",
+    });
+    expect(
+      reduceChatState(failedUnbound, { type: "discard-recovery", turnId: "turn-1" }),
+    ).toMatchObject({ status: "idle", progress: null, activeTurn: null, messages: [] });
+
+    const firstAttempt = reduceChatState(
+      reduceChatState(started(), { type: "bind-turn", requestKey: 1, turnId: "turn-1" }),
+      { type: "fail", requestKey: 1, copy: "failed" },
+    );
+    const retried = reduceChatState(
+      reduceChatState(
+        reduceChatState(firstAttempt, {
+          type: "submit",
+          requestKey: 2,
+          occurredAtMs: 1,
+          userMessage: "How should I train?",
+          userMessageId: "message-3",
+          assistantMessageId: "message-4",
+          includeUser: false,
+        }),
+        { type: "bind-turn", requestKey: 2, turnId: "turn-1" },
+      ),
+      { type: "fail", requestKey: 2, copy: "failed" },
+    );
+    const earlier = {
+      id: "older",
+      role: "athlete" as const,
+      text: "Hi",
+      delivery: "complete" as const,
+    };
+    const discarded = reduceChatState(
+      { ...retried, messages: [earlier, ...retried.messages] },
+      { type: "discard-recovery", turnId: "turn-1" },
+    );
+    expect(discarded.messages).toEqual([earlier]);
+  });
+
   it("records probe presence without letting a stale absence erase proven server presence", () => {
     const present = reduceChatState(EMPTY_CHAT_STATE, {
       type: "session-probe",

@@ -220,9 +220,7 @@ describe("coach engine adapter", () => {
       coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
-          try {
-            onEvent?.(invalidEvent);
-          } catch {}
+          onEvent?.(invalidEvent);
           return { text: "ok" };
         },
       }),
@@ -450,6 +448,7 @@ describe("coach engine adapter", () => {
     expect(Object.keys(engine).sort()).toEqual([
       "answerCoachDecision",
       "chat",
+      "discardQueuedTurn",
       "enqueueChatMessage",
       "getAthleteState",
       "getChatQueue",

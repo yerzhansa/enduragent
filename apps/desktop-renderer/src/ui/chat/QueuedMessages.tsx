@@ -40,6 +40,10 @@ export function QueuedMessages(): ReactElement | null {
               ? queueMutationError
               : say(queueMutationErrorMessage)}
           </p>
+        ) : retryRequired !== null ? (
+          <p className="m-0 border-t border-line px-ctl-px py-inset text-xs text-ink-2">
+            {say("chat.queued.waitingForRetry")}
+          </p>
         ) : null
       }
     >

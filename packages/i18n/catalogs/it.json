@@ -1311,7 +1311,9 @@
       "feedbackSent": "Grazie: abbiamo ricevuto la tua nota.",
       "feedbackTooLong": "Tieni la nota entro 4000 caratteri. Non è stato inviato nulla.",
       "feedbackUsage": "Invia /feedback seguito dalla tua nota.",
-      "addCredits": "Aggiungi crediti"
+      "addCredits": "Aggiungi crediti",
+      "discardMessage": "Scarta",
+      "discardMessageLabel": "Scarta messaggio"
     },
     "planChange": {
       "activePlan": "Piano attivo",
@@ -1634,7 +1636,8 @@
       "removeLabel": "Rimuovi messaggio in coda {{number}}",
       "retry": "Riprova il messaggio interrotto",
       "run": "Esegui comando",
-      "title": "Messaggi in coda"
+      "title": "Messaggi in coda",
+      "waitingForRetry": "Verrà inviato dopo che riproverai o scarterai il messaggio precedente."
     },
     "slashPopup": {
       "choose": "scegli",

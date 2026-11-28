@@ -40,7 +40,10 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
         </span>
       ) : null}
       {noticeAddCredits && hasNoticeText ? <AddOpenRouterCreditsButton /> : null}
-      <RetryBar />
+      <span className="flex shrink-0 items-center gap-inset" hidden={!noticeRetry}>
+        <DiscardRetryButton />
+        <RetryBar />
+      </span>
     </div>
   );
 }
@@ -81,6 +84,26 @@ export function AddOpenRouterCreditsButton(): ReactElement {
       onClick={() => actions?.openOpenRouterCredits()}
     >
       {say("chat.notice.addCredits")}
+    </Button>
+  );
+}
+
+function DiscardRetryButton(): ReactElement | null {
+  const { say } = usePhrasebook();
+  const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
+  const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
+  const actions = useEnduragentStore((state) => state.chatActions);
+  if (retryRequired === null) return null;
+  return (
+    <Button
+      type="button"
+      className="chat-discard text-ink-2 hover:text-ink"
+      variant="ghost"
+      size="xs"
+      disabled={workBlocked || actions === null}
+      onClick={() => actions?.discardRetry()}
+    >
+      {say("chat.notice.discardMessage")}
     </Button>
   );
 }

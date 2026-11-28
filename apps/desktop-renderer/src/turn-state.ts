@@ -52,6 +52,7 @@ export interface ChatTranscriptMessage {
   readonly attachments?: readonly ChatSentAttachment[];
   readonly planReference?: PlanReferenceSelection;
   readonly planHandoff?: PlanHandoffSuggestion;
+  readonly stopped?: true;
 }
 
 export type ChatSentAttachment = Pick<
@@ -122,6 +123,7 @@ export type ChatAction =
   | { readonly type: "complete"; readonly requestKey: number }
   | { readonly type: "discard"; readonly requestKey: number }
   | { readonly type: "discard-submission"; readonly requestKey: number }
+  | { readonly type: "discard-recovery"; readonly turnId: string }
   | { readonly type: "interrupt"; readonly requestKey: number; readonly copy: string }
   | { readonly type: "retry-pending"; readonly requestKey: number }
   | { readonly type: "fail"; readonly requestKey: number; readonly copy: string }
@@ -349,13 +351,18 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             },
           };
         case "interrupted": {
-          const next = { ...active, draft: action.event.text };
+          const text = action.event.text;
+          const next = { ...active, draft: text };
           return {
             ...state,
             status: "interrupted",
             progress: CHAT_RESPONSE_STOPPED_COPY,
             activeTurn: next,
-            messages: updateAssistant(state, next, action.event.text, "interrupted"),
+            messages: state.messages.map((message) =>
+              message.id === active.assistantMessageId
+                ? { ...message, text, delivery: "interrupted", stopped: true }
+                : message,
+            ),
           };
         }
         case "tool-start":
@@ -403,6 +410,29 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
           (message) =>
             message.id !== active.assistantMessageId && message.id !== active.userMessageId,
         ),
+      };
+    }
+    case "discard-recovery": {
+      const active = state.activeTurn;
+      const activeIds =
+        active !== null && (active.turnId === null || active.turnId === action.turnId)
+          ? [active.userMessageId, active.assistantMessageId]
+          : [];
+      const stopped = state.messages.some(
+        (message) => message.turnId === action.turnId && message.stopped === true,
+      );
+      return {
+        ...state,
+        status: "idle",
+        progress: null,
+        activeTurn: null,
+        messages:
+          state.status === "interrupted"
+            ? state.messages
+            : state.messages.filter(
+                (message) =>
+                  (stopped || message.turnId !== action.turnId) && !activeIds.includes(message.id),
+              ),
       };
     }
     case "interrupt": {

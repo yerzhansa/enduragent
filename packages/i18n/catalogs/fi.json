@@ -1311,7 +1311,9 @@
       "feedbackSent": "Kiitos — vastaanotimme viestisi.",
       "feedbackTooLong": "Pidä viesti enintään 4000 merkin pituisena. Mitään ei lähetetty.",
       "feedbackUsage": "Lähetä /feedback ja sen perään viestisi.",
-      "addCredits": "Lisää krediittejä"
+      "addCredits": "Lisää krediittejä",
+      "discardMessage": "Hylkää",
+      "discardMessageLabel": "Hylkää viesti"
     },
     "planChange": {
       "activePlan": "Aktiivinen suunnitelma",
@@ -1634,7 +1636,8 @@
       "removeLabel": "Poista jonossa oleva viesti {{number}}",
       "retry": "Yritä keskeytynyttä viestiä uudelleen",
       "run": "Suorita komento",
-      "title": "Jonossa olevat viestit"
+      "title": "Jonossa olevat viestit",
+      "waitingForRetry": "Lähetetään, kun yrität aiempaa viestiä uudelleen tai hylkäät sen."
     },
     "slashPopup": {
       "choose": "valitse",
