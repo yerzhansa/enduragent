@@ -30,7 +30,10 @@ function nameOf(structureJson: string): string {
   return String(structure.name);
 }
 
-async function launchWithWorkout(playwright: Playwright): Promise<{
+async function launchWithWorkout(
+  playwright: Playwright,
+  options: { readonly sync?: boolean } = {},
+): Promise<{
   readonly scenario: Scenario;
   readonly chosen: Chosen;
 }> {
@@ -41,6 +44,9 @@ async function launchWithWorkout(playwright: Playwright): Promise<{
       const seed = await backend.seedActiveTraining();
       if (seed.planId === null) throw new TypeError("Training Plan was not activated");
       await backend.calendarIdle();
+      if (options.sync === true) {
+        await backend.recordSuccessfulSync(Date.parse(`${isoDay(MONDAY)}T06:00:00Z`));
+      }
       const workouts = (await backend.physicalWorkouts(seed.planId))
         .filter((workout) => workout.dateKey !== null && workout.dateKey > MONDAY)
         .sort((left, right) => (left.dateKey ?? 0) - (right.dateKey ?? 0));
@@ -342,6 +348,82 @@ test.describe("The workout card", () => {
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
       await expect(source).toBeFocused();
+    } finally {
+      await close(scenario);
+    }
+  });
+
+  test("sets aside an earlier Chat draft during Calendar Ask and restores it on cancel and after send", async ({
+    playwright,
+  }) => {
+    const { scenario, chosen } = await launchWithWorkout(playwright, { sync: true });
+    const earlierDraft = "Should I add an easy spin before the weekend?";
+    try {
+      const page = scenario.page;
+      const composer = page.locator("#message");
+      await expect(composer).toBeVisible();
+      await composer.fill(earlierDraft);
+      await expect(composer).toHaveValue(earlierDraft);
+      await snap(scenario, "calendar-ask-earlier-draft-light");
+
+      await openCalendar(scenario);
+      const source = page.locator(`[data-workout-id="${chosen.id}"]`);
+      await source.click();
+      const card = page.getByRole("dialog", { name: chosen.name, exact: true });
+      await expect(card, "clicking a workout opens no card").toBeVisible();
+      await card.getByRole("button", { name: "Ask the coach to change it", exact: true }).click();
+
+      const expectedPrefix = new RegExp(`^Please change “${chosen.name}” on [^\\n]+:$`, "u");
+      await expect(composer).toBeVisible();
+      await expect(
+        composer,
+        "Calendar Ask kept the earlier Chat draft in the Plan-change composer",
+      ).toHaveValue(expectedPrefix);
+      const changeBar = page.locator("[data-plan-change-composer-bar]");
+      await expect(
+        changeBar,
+        "set-aside notice is missing while earlier draft is set aside",
+      ).toContainText("Your earlier draft comes back after this change.");
+      await snap(scenario, "calendar-ask-clean-draft-light");
+
+      await changeBar.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(
+        composer,
+        "cancelling Plan-change mode did not restore the earlier Chat draft",
+      ).toHaveValue(earlierDraft);
+      await expect(changeBar).toHaveCount(0);
+      await snap(scenario, "calendar-ask-cancelled-restored-light");
+
+      await openCalendar(scenario);
+      await source.click();
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: "Ask the coach to change it", exact: true }).click();
+      await expect(composer).toHaveValue(expectedPrefix);
+      const cleanPrompt = await composer.inputValue();
+      const editedRequest = `${cleanPrompt} make it 45 min`;
+      await composer.fill(editedRequest);
+      await page.getByRole("button", { name: "Send message", exact: true }).click();
+
+      await expect
+        .poll(
+          () =>
+            scenario.backend.creationRequests.filter(
+              (request) => request.method === "plan_change.preview",
+            ).length,
+        )
+        .toBe(1);
+      const preview = scenario.backend.creationRequests.find(
+        (request) => request.method === "plan_change.preview",
+      );
+      expect(preview?.params).toMatchObject({
+        request: { kind: "text", text: editedRequest },
+      });
+      await expect(
+        composer,
+        "sending the Plan-change request did not restore the earlier Chat draft verbatim",
+      ).toHaveValue(earlierDraft);
+      await expect(changeBar).toHaveCount(0);
+      await snap(scenario, "calendar-ask-sent-restored-light");
     } finally {
       await close(scenario);
     }

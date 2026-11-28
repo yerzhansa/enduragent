@@ -344,6 +344,7 @@
         "wed": "Wed"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Your earlier draft comes back after this change.",
       "durationLimit": "Duration limit in minutes",
       "editorTitle": "What needs to change?",
       "events": "Supporting Events",

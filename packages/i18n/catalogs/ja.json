@@ -1236,6 +1236,7 @@
         "wed": "水"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "この変更が終わると、以前の下書きが戻ります。",
       "durationLimit": "時間の上限（分）",
       "editorTitle": "何を変更しますか？",
       "events": "補助イベント",

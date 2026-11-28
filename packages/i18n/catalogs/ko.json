@@ -1236,6 +1236,7 @@
         "wed": "수"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "이 변경이 끝나면 이전 초안이 다시 돌아옵니다.",
       "durationLimit": "시간 제한(분)",
       "editorTitle": "무엇을 변경할까요?",
       "events": "보조 이벤트",

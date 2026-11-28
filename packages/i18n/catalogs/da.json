@@ -1246,6 +1246,7 @@
         "wed": "ons."
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Din tidligere kladde kommer tilbage efter denne ændring.",
       "durationLimit": "Maksimal varighed i minutter",
       "editorTitle": "Hvad skal ændres?",
       "events": "Supplerende begivenheder",

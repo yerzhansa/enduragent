@@ -1246,6 +1246,7 @@
         "wed": "ons"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Ditt tidigare utkast kommer tillbaka efter den här ändringen.",
       "durationLimit": "Tidsgräns i minuter",
       "editorTitle": "Vad behöver ändras?",
       "events": "Sekundära evenemang",

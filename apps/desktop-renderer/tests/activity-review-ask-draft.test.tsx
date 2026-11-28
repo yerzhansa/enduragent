@@ -277,7 +277,7 @@ describe("Ask the coach around a message the athlete sent", () => {
 });
 
 describe("both Ask the coach buttons with a draft already typed", () => {
-  it("adds the Calendar card's question, then Activity review's, after the draft, and sends nothing", async () => {
+  it("starts a clean Plan-change draft from the Calendar card, then restores and appends Activity review's question", async () => {
     const test = started();
     render(<ChatView />);
     const user = userEvent.setup();
@@ -291,10 +291,7 @@ describe("both Ask the coach buttons with a draft already typed", () => {
     });
     expect(store.getState().activeView).toBe("chat");
     await waitFor(
-      () =>
-        expect(composer()).toHaveValue(
-          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:",
-        ),
+      () => expect(composer()).toHaveValue("Please change “Long endurance” on Wed 14 Jan:"),
       SETTLED,
     );
     act(() => store.getState().setActiveView("activity-review"));
@@ -308,14 +305,14 @@ describe("both Ask the coach buttons with a draft already typed", () => {
     await waitFor(
       () =>
         expect(composer()).toHaveValue(
-          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
+          "Keep my question\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
         ),
       SETTLED,
     );
     await vi.waitFor(
       () =>
         expect(store.getState().chat.attachments?.draft?.text).toBe(
-          "Keep my question\n\nPlease change “Long endurance” on Wed 14 Jan:\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
+          "Keep my question\n\nWhat do you make of my ride “Road ride” on Thu 20 Aug?",
         ),
       SETTLED,
     );

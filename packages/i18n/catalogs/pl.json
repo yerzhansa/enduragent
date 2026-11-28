@@ -1266,6 +1266,7 @@
         "wed": "śr."
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Twoja wcześniejsza wersja robocza wróci po tej zmianie.",
       "durationLimit": "Limit czasu w minutach",
       "editorTitle": "Co trzeba zmienić?",
       "events": "Wydarzenia dodatkowe",
