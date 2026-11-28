@@ -158,6 +158,9 @@ export const RetryQueuedTurnRequestSchema = z
   .strict();
 export type RetryQueuedTurnRequest = z.infer<typeof RetryQueuedTurnRequestSchema>;
 
+export const DiscardQueuedTurnRequestSchema = RetryQueuedTurnRequestSchema;
+export type DiscardQueuedTurnRequest = z.infer<typeof DiscardQueuedTurnRequestSchema>;
+
 export const ChatQueueRunResultSchema = z
   .object({
     snapshot: ChatQueueSnapshotSchema,

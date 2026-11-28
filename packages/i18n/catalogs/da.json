@@ -1337,7 +1337,9 @@
       "feedbackSent": "Tak — vi har modtaget din note.",
       "feedbackTooLong": "Hold din note på 4000 tegn eller færre. Der blev ikke sendt noget.",
       "feedbackUsage": "Send /feedback efterfulgt af din note.",
-      "addCredits": "Tilføj kreditter"
+      "addCredits": "Tilføj kreditter",
+      "discardMessage": "Kassér",
+      "discardMessageLabel": "Kassér besked"
     },
     "planChange": {
       "activePlan": "Aktiv træningsplan",
@@ -1662,7 +1664,8 @@
       "removeLabel": "Fjern besked {{number}} fra køen",
       "retry": "Prøv den afbrudte besked igen",
       "run": "Kør kommando",
-      "title": "Beskeder i kø"
+      "title": "Beskeder i kø",
+      "waitingForRetry": "Sendes, når du prøver den tidligere besked igen eller kasserer den."
     },
     "slashPopup": {
       "choose": "vælg",

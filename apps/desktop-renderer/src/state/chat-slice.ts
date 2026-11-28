@@ -173,6 +173,7 @@ export interface ChatActions {
   runQueuedCommand(id: string): void;
   retryQueuedTurn(claimId: string): void;
   retry(): void;
+  discardRetry(): void;
   openOpenRouterCredits(): void;
   loadEarlier(): void;
   retryHydration(): void;

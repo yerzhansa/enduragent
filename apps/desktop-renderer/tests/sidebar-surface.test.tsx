@@ -58,6 +58,7 @@ function stubActions(): ChatActions {
     runQueuedCommand: vi.fn(),
     retryQueuedTurn: vi.fn(),
     retry: vi.fn(),
+    discardRetry: vi.fn(),
     loadEarlier: vi.fn(),
     retryHydration: vi.fn(),
     openNewConversation: vi.fn(),

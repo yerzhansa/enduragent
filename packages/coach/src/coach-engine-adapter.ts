@@ -21,6 +21,7 @@ import {
   RemoveQueuedChatMessageRequestSchema,
   ResumeChatQueueRequestSchema,
   RetryQueuedTurnRequestSchema,
+  DiscardQueuedTurnRequestSchema,
   RunQueuedCommandRequestSchema,
   SkipCoachDecisionRpcParamsSchema,
   SkipCoachDecisionRpcResultSchema,
@@ -243,6 +244,12 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
       const refused = await refusal(parsed.chatId);
       if (refused !== undefined) return refuseQueue(parsed.chatId, refused);
       return queueStream((emit) => retry(parsed, emit), onEvent);
+    },
+    async discardQueuedTurn(request) {
+      const parsed = DiscardQueuedTurnRequestSchema.parse(request);
+      const discard = input.backend.discardQueuedTurn;
+      if (discard === undefined) throw new Error("Durable chat queue is unavailable.");
+      return ChatQueueSnapshotSchema.parse(await discard.call(input.backend, parsed));
     },
     async resetSession(request) {
       const parsed = ResetSessionRequestSchema.parse(request);

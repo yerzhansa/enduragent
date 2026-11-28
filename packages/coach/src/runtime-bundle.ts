@@ -127,6 +127,8 @@ export function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
         runTurn(
           (bundle) => bundle.engine.retryQueuedTurn?.(request, onEvent) ?? queueUnavailable(),
         ),
+      discardQueuedTurn: (request) =>
+        run((bundle) => bundle.engine.discardQueuedTurn?.(request) ?? queueUnavailable()),
       getCoachDecision: (request) => run((bundle) => bundle.engine.getCoachDecision(request)),
       answerCoachDecision: (request, onEvent) =>
         runTurn((bundle) => bundle.engine.answerCoachDecision(request, onEvent)),

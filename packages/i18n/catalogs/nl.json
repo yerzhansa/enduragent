@@ -1337,7 +1337,9 @@
       "feedbackSent": "Dank je — we hebben je bericht ontvangen.",
       "feedbackTooLong": "Houd je bericht op 4000 tekens of minder. Er is niets verzonden.",
       "feedbackUsage": "Stuur /feedback gevolgd door je bericht.",
-      "addCredits": "Tegoed toevoegen"
+      "addCredits": "Tegoed toevoegen",
+      "discardMessage": "Verwerpen",
+      "discardMessageLabel": "Bericht verwerpen"
     },
     "planChange": {
       "activePlan": "Actief trainingsschema",
@@ -1662,7 +1664,8 @@
       "removeLabel": "Bericht {{number}} uit de wachtrij verwijderen",
       "retry": "Onderbroken bericht opnieuw proberen",
       "run": "Opdracht uitvoeren",
-      "title": "Berichten in de wachtrij"
+      "title": "Berichten in de wachtrij",
+      "waitingForRetry": "Wordt verzonden nadat je het vorige bericht opnieuw probeert of verwerpt."
     },
     "slashPopup": {
       "choose": "kiezen",

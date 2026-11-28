@@ -76,6 +76,7 @@ function stubActions(): ChatActions {
     runQueuedCommand: vi.fn(),
     retryQueuedTurn: vi.fn(),
     retry: vi.fn(),
+    discardRetry: vi.fn(),
     loadEarlier: vi.fn(),
     retryHydration: vi.fn(),
     retryDecision: vi.fn(),
@@ -2290,6 +2291,80 @@ describe("chat surface", () => {
       expect(actions.retry).toHaveBeenCalledTimes(1);
     });
 
+    it("offers Discard before Retry message only while a message waits for retry", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({ notice: "Connection interrupted.", noticeRetry: true, retryRequired: null });
+      expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
+
+      setChat({
+        notice: "Response stopped. Your partial response is preserved.",
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      });
+      const discard = screen.getByRole("button", { name: "Discard" });
+      const pinned = discard.closest(".chat-notice");
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("notice missing");
+      const buttons = Array.from(pinned.querySelectorAll("button")).filter((b) => !b.hidden);
+      expect(buttons.map((button) => button.textContent)).toEqual(["Discard", "Retry message"]);
+      await user.click(discard);
+      expect(actions.discardRetry).toHaveBeenCalledTimes(1);
+      expect(actions.retry).not.toHaveBeenCalled();
+
+      setChat({ workBlocked: true });
+      expect(discard).toBeDisabled();
+    });
+
+    it("puts Discard before Retry on a failed message and explains why later messages wait", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({
+        notice: null,
+        noticeRetry: false,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+        queued: [{ id: "queued-2", text: "And my long ride?", command: false, restored: false }],
+        messages: [
+          {
+            id: "athlete-1",
+            role: "athlete",
+            delivery: "complete",
+            historical: false,
+            text: "How is my form?",
+            retry: true,
+          },
+        ],
+      });
+
+      const discard = screen.getByRole("button", { name: "Discard message" });
+      const athlete = discard.closest(".chat-message--athlete");
+      if (!(athlete instanceof HTMLElement)) throw new TypeError("athlete row missing");
+      expect(Array.from(athlete.querySelectorAll("button"))).toEqual([
+        discard,
+        screen.getByRole("button", { name: "Retry message" }),
+      ]);
+      await user.click(discard);
+      expect(actions.discardRetry).toHaveBeenCalledTimes(1);
+      const queue = screen.getByRole("region", { name: "Queued messages, 1 queued message" });
+      expect(queue).toHaveTextContent("Sends after you retry or discard the earlier message.");
+
+      setChat({ queueMutationError: "We couldn’t remove that saved message. Try again." });
+      expect(queue).not.toHaveTextContent("Sends after you retry");
+      expect(queue).toHaveTextContent("We couldn’t remove that saved message. Try again.");
+
+      setChat({ queueMutationError: null, retryRequired: null });
+      expect(queue).not.toHaveTextContent("Sends after you retry");
+      expect(screen.queryByRole("button", { name: "Discard message" })).toBeNull();
+    });
+
     it("retries restored recovery from the pinned notice when no athlete row is in view", async () => {
       const user = userEvent.setup();
       render(<Harness />);
@@ -2436,7 +2511,7 @@ describe("chat surface", () => {
 
       expect(notice().hidden).toBe(false);
       expect(retry().hidden).toBe(false);
-      expect(notice().firstElementChild).toBe(retry());
+      expect(notice().firstElementChild).toBe(retry().parentElement);
       expect(notice().textContent?.replace(/\s+/gu, " ").trim()).toBe("Retry message");
     });
 

@@ -302,7 +302,6 @@ export function createChatController(input: {
     state.session.resetPhase === "idle" &&
     !chatWorkInFlight() &&
     !decisionBlocksReset() &&
-    state.retryRequired == null &&
     resetTask === undefined;
   const newConversationCheckControl = (): NewConversationCheck => {
     if (state.session.resetPhase !== "uncertain" || newConversationCheck?.trigger === "automatic") {
@@ -428,13 +427,41 @@ export function createChatController(input: {
     render(appendDelta);
   };
   const applyQueueSnapshot = (snapshot: ChatQueueSnapshot): void => {
+    const claimId = state.retryRequired?.claimId;
     state = reduceChatState(state, { type: "queue-snapshot", snapshot });
+    if (state.retryRequired?.claimId !== claimId) queueMutationError = null;
     if (stalledDrainHeadId !== null && state.queued[0]?.id !== stalledDrainHeadId) {
       stalledDrainHeadId = null;
     }
     render();
   };
   const readPage = input.readTranscriptPage ?? readEmptyTranscript;
+  const queueRunBlocked = (): boolean =>
+    disposed ||
+    !queueLoaded ||
+    queueMutationCount > 0 ||
+    resetBlocksWork() ||
+    decisionBlocksWork() ||
+    planCreationBlocksWork();
+  const mutateQueue = async (
+    request: (client: DesktopCoachClient) => Promise<ChatQueueSnapshot>,
+    beforeSnapshot: () => void = () => undefined,
+  ): Promise<void> => {
+    queueMutationError = null;
+    queueMutationCount += 1;
+    render();
+    try {
+      const snapshot = await request(await input.clients.getClient());
+      if (disposed) return;
+      beforeSnapshot();
+      applyQueueSnapshot(snapshot);
+    } catch {
+      if (!disposed) queueMutationError = CHAT_QUEUE_REMOVE_FAILURE_COPY;
+    } finally {
+      queueMutationCount -= 1;
+      render();
+    }
+  };
   const hydrator = createTranscriptHydrator({
     readPage,
     onChange(next) {
@@ -3021,52 +3048,12 @@ export function createChatController(input: {
     },
     removeQueued(id) {
       if (disposed || resetBlocksWork()) return;
-      queueMutationError = null;
-      queueMutationCount += 1;
-      render();
-      void input.clients
-        .getClient()
-        .then(
-          async (client) => {
-            try {
-              const acknowledged = await client.call("removeQueuedChatMessage", {
-                chatId: DESKTOP_CHAT_ID,
-                queuedMessageId: id,
-              });
-              if (!disposed) {
-                queueMutationError = null;
-                applyQueueSnapshot(acknowledged);
-              }
-            } catch {
-              if (!disposed) {
-                queueMutationError = CHAT_QUEUE_REMOVE_FAILURE_COPY;
-                render();
-              }
-            }
-          },
-          () => {
-            if (!disposed) {
-              queueMutationError = CHAT_QUEUE_REMOVE_FAILURE_COPY;
-              render();
-            }
-          },
-        )
-        .finally(() => {
-          queueMutationCount -= 1;
-          render();
-        });
+      void mutateQueue((client) =>
+        client.call("removeQueuedChatMessage", { chatId: DESKTOP_CHAT_ID, queuedMessageId: id }),
+      );
     },
     runQueuedCommand(id) {
-      if (
-        disposed ||
-        !queueLoaded ||
-        resetBlocksWork() ||
-        decisionBlocksWork() ||
-        planCreationBlocksWork() ||
-        state.status !== "idle"
-      ) {
-        return activeTask ?? Promise.resolve();
-      }
+      if (queueRunBlocked() || state.status !== "idle") return activeTask ?? Promise.resolve();
       const head = state.queued[0];
       if (head?.id !== id || !head.command) return Promise.resolve();
       return dispatchQueue(head.text, {
@@ -3076,14 +3063,7 @@ export function createChatController(input: {
       });
     },
     retryQueuedTurn(claimId) {
-      if (
-        disposed ||
-        !queueLoaded ||
-        resetBlocksWork() ||
-        decisionBlocksWork() ||
-        planCreationBlocksWork() ||
-        (state.status !== "idle" && state.status !== "interrupted")
-      ) {
+      if (queueRunBlocked() || (state.status !== "idle" && state.status !== "interrupted")) {
         return activeTask ?? Promise.resolve();
       }
       if (state.retryRequired?.claimId !== claimId) return Promise.resolve();
@@ -3092,6 +3072,7 @@ export function createChatController(input: {
         .filter((item) => ids.has(item.id))
         .map((item) => item.text)
         .join("\n\n");
+      queueMutationError = null;
       return dispatchQueue(
         text,
         { method: "retryQueuedTurn", claimId, queuedMessageIds: [...ids] },
@@ -3149,6 +3130,22 @@ export function createChatController(input: {
       const claim = state.retryRequired;
       if (claim != null) return controller.retryQueuedTurn(claim.claimId);
       return controller.retryInterrupted();
+    },
+    async discardRetry() {
+      const claim = state.retryRequired;
+      if (disposed || claim == null || resetBlocksWork() || queueMutationCount > 0) return;
+      if (state.status === "streaming") return;
+      await mutateQueue(
+        (client) =>
+          client.call("discardQueuedTurn", { chatId: DESKTOP_CHAT_ID, claimId: claim.claimId }),
+        () => {
+          if (state.retryRequired?.claimId !== claim.claimId || state.status === "streaming")
+            return;
+          queuedRetry = undefined;
+          interruptedQueueOrigin = undefined;
+          state = reduceChatState(state, { type: "discard-recovery", turnId: claim.turnId });
+        },
+      );
     },
     loadEarlier() {
       return hydrator.loadEarlier();

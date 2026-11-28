@@ -18,6 +18,7 @@ import {
 import type {
   ChatQueueRunResult,
   ChatQueueSnapshot,
+  DiscardQueuedTurnRequest,
   EnqueueChatMessageRequest,
   GetChatQueueRequest,
   RemoveQueuedChatMessageRequest,
@@ -170,6 +171,7 @@ export interface CoachEngine {
     request: RetryQueuedTurnRequest,
     onEvent?: (event: TurnEvent) => void,
   ): Promise<ChatQueueRunResult>;
+  discardQueuedTurn?(request: DiscardQueuedTurnRequest): Promise<ChatQueueSnapshot>;
   getCoachDecision(request: GetCoachDecisionRpcParams): Promise<GetCoachDecisionRpcResult>;
   answerCoachDecision(
     request: AnswerCoachDecisionRpcParams,

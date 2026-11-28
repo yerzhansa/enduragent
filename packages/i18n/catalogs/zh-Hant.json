@@ -1326,7 +1326,9 @@
       "feedbackSent": "謝謝，我們已收到你的備註。",
       "feedbackTooLong": "請將備註控制在 4000 個字元以內。未傳送任何內容。",
       "feedbackUsage": "傳送 /feedback，後接你的備註。",
-      "addCredits": "新增額度"
+      "addCredits": "新增額度",
+      "discardMessage": "捨棄",
+      "discardMessageLabel": "捨棄訊息"
     },
     "planChange": {
       "activePlan": "目前啟用的計畫",
@@ -1647,7 +1649,8 @@
       "removeLabel": "移除第 {{number}} 則佇列訊息",
       "retry": "重試中斷的訊息",
       "run": "執行指令",
-      "title": "佇列訊息"
+      "title": "佇列訊息",
+      "waitingForRetry": "重試或捨棄先前的訊息後傳送。"
     },
     "slashPopup": {
       "choose": "選擇",

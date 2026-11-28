@@ -389,6 +389,8 @@
       "decisionFailure": "We couldn’t continue from your choice. Please try again.",
       "decisionLoadFailure": "We couldn’t check for a saved Coach question. Reconnect and try again.",
       "decisionSkipFailure": "We couldn’t skip this question. Please try again.",
+      "discardMessage": "Discard",
+      "discardMessageLabel": "Discard message",
       "draftSaveFailure": "Couldn’t reach the coach, so your message is still in the box.",
       "emptyResponse": "The coach returned an empty response. Please try again.",
       "feedbackFailed": "Couldn't send that note. It's still in the box — try again.",
@@ -735,7 +737,8 @@
       "removeLabel": "Remove queued message {{number}}",
       "retry": "Retry interrupted message",
       "run": "Run command",
-      "title": "Queued messages"
+      "title": "Queued messages",
+      "waitingForRetry": "Sends after you retry or discard the earlier message."
     },
     "slashPopup": {
       "choose": "choose",

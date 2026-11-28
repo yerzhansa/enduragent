@@ -1337,7 +1337,9 @@
       "feedbackSent": "Merci — nous avons bien reçu ta note.",
       "feedbackTooLong": "Garde ta note à 4000 caractères ou moins. Rien n’a été envoyé.",
       "feedbackUsage": "Envoie /feedback suivi de ta note.",
-      "addCredits": "Ajouter des crédits"
+      "addCredits": "Ajouter des crédits",
+      "discardMessage": "Abandonner",
+      "discardMessageLabel": "Abandonner le message"
     },
     "planChange": {
       "activePlan": "Plan actif",
@@ -1662,7 +1664,8 @@
       "removeLabel": "Supprimer le message en attente {{number}}",
       "retry": "Réessayer le message interrompu",
       "run": "Exécuter la commande",
-      "title": "Messages en attente"
+      "title": "Messages en attente",
+      "waitingForRetry": "Sera envoyé une fois que tu auras réessayé ou abandonné le message précédent."
     },
     "slashPopup": {
       "choose": "choisir",

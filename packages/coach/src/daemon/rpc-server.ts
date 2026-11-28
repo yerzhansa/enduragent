@@ -520,6 +520,7 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "resumeChatQueue",
   "runQueuedCommand",
   "retryQueuedTurn",
+  "discardQueuedTurn",
   "getCoachDecision",
   "answerCoachDecision",
   "skipCoachDecision",
@@ -936,6 +937,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       generic.data.method === "resumeChatQueue" ||
       generic.data.method === "runQueuedCommand" ||
       generic.data.method === "retryQueuedTurn" ||
+      generic.data.method === "discardQueuedTurn" ||
       generic.data.method === "getCoachDecision" ||
       generic.data.method === "answerCoachDecision" ||
       generic.data.method === "skipCoachDecision" ||
@@ -1136,40 +1138,16 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
             }
             break;
           case "enqueueChatMessage":
-            try {
-              if (input.engine.enqueueChatMessage === undefined) {
-                throw new TypeError("Chat queue is unavailable.");
-              }
-              result = await input.engine.enqueueChatMessage(
-                COACH_RPC_METHOD_REGISTRY.enqueueChatMessage.requestSchema.parse(
-                  generic.data.params,
-                ),
-              );
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
           case "getChatQueue":
-            try {
-              if (input.engine.getChatQueue === undefined) {
-                throw new TypeError("Chat queue is unavailable.");
-              }
-              result = await input.engine.getChatQueue(
-                COACH_RPC_METHOD_REGISTRY.getChatQueue.requestSchema.parse(generic.data.params),
-              );
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
           case "removeQueuedChatMessage":
+          case "discardQueuedTurn":
             try {
-              if (input.engine.removeQueuedChatMessage === undefined) {
+              const method = registry.wireName;
+              if (input.engine[method] === undefined) {
                 throw new TypeError("Chat queue is unavailable.");
               }
-              result = await input.engine.removeQueuedChatMessage(
-                COACH_RPC_METHOD_REGISTRY.removeQueuedChatMessage.requestSchema.parse(
-                  generic.data.params,
-                ),
+              result = await input.engine[method]?.(
+                COACH_RPC_METHOD_REGISTRY[method].requestSchema.parse(generic.data.params) as never,
               );
             } catch (error) {
               invocationFailure = { error };

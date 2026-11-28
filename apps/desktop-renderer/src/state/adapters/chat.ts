@@ -499,6 +499,10 @@ export function createChatViewAdapter(input: {
         command: message.command,
         restored: message.restored === true,
       }));
+    const discardFailure =
+      state.retryRequired != null && queued.length === 0 && state.status !== "streaming"
+        ? (controls?.queueMutationError ?? null)
+        : null;
     const liveTurnIds = new Set(
       messages.flatMap((message) =>
         !message.historical && message.turnId !== undefined ? [message.turnId] : [],
@@ -631,9 +635,9 @@ export function createChatViewAdapter(input: {
       planCreationFocusRequest: planCreation?.focusRequest ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
-      noticeMessage: recovery.noticeMessage,
-      notice: recovery.notice,
-      noticeTone: recovery.noticeTone,
+      noticeMessage: discardFailure === null ? recovery.noticeMessage : undefined,
+      notice: discardFailure ?? recovery.notice,
+      noticeTone: discardFailure === null ? recovery.noticeTone : "danger",
       noticeRetry: recovery.noticeRetry,
       noticeAddCredits: recovery.noticeAddCredits,
       coachProgress:

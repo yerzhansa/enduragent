@@ -1326,7 +1326,9 @@
       "feedbackSent": "ありがとうございます。メモを受け取りました。",
       "feedbackTooLong": "メモは4000文字以内にしてください。送信されていません。",
       "feedbackUsage": "/feedback のあとにメモを送ってください。",
-      "addCredits": "クレジットを追加"
+      "addCredits": "クレジットを追加",
+      "discardMessage": "破棄",
+      "discardMessageLabel": "メッセージを破棄"
     },
     "planChange": {
       "activePlan": "有効なプラン",
@@ -1647,7 +1649,8 @@
       "removeLabel": "送信待ちのメッセージ{{number}}を削除",
       "retry": "中断されたメッセージを再試行",
       "run": "コマンドを実行",
-      "title": "送信待ちのメッセージ"
+      "title": "送信待ちのメッセージ",
+      "waitingForRetry": "前のメッセージを再試行するか破棄すると送信されます。"
     },
     "slashPopup": {
       "choose": "選択",
