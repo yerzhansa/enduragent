@@ -16,6 +16,7 @@ import {
   saveIcuCopy,
   storedIcuCopy,
   type CalendarMirrorPort,
+  type DescribeWorkout,
 } from "./calendar-mirror.js";
 import { writeIfUnchanged } from "./conditional-write.js";
 import { icuCopyDeleted, type IcuCopy } from "./icu-copy.js";
@@ -27,6 +28,7 @@ export interface CalendarCleanupDeps {
   readonly workouts: (planId: string) => Promise<readonly PlanWorkoutRecord[]>;
   readonly mirror: PlanCalendarMirrorRepository;
   readonly reconciliation: PlanReconciliationRepository;
+  readonly describers: readonly DescribeWorkout[];
   now(): number;
 }
 
@@ -126,7 +128,7 @@ export async function cleanupPlanCalendar(
   const expected = new Map(
     (await deps.workouts(running.planId)).map((workout) => [
       workout.id,
-      expectedIcuFingerprint(workout),
+      new Set(deps.describers.map((describe) => expectedIcuFingerprint(workout, describe))),
     ]),
   );
   const releases: [string, readonly PlanMirrorEvent[]][] = [];
@@ -141,7 +143,7 @@ export async function cleanupPlanCalendar(
     for (const event of events) {
       if (event.id === deletedEventId) continue;
       const fingerprint = icuEventFingerprint(event);
-      if (fingerprint !== expected.get(planWorkoutId)) {
+      if (expected.get(planWorkoutId)?.has(fingerprint) !== true) {
         unproven.push(event);
         continue;
       }

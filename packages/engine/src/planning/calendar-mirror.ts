@@ -19,6 +19,7 @@ import {
   icuCopyWritten,
   ICU_COPY_NOT_SENT,
   type IcuCopy,
+  type IcuCopyDecision,
   type IcuCopyEffect,
   type IcuPlanSide,
   type IcuSighting,
@@ -26,12 +27,30 @@ import {
 import {
   planMirrorExternalId,
   planMirrorExternalIdPrefix,
-  type PlanMirrorCreateInput,
   type PlanMirrorEvent,
-  type PlanMirrorUpdateInput,
 } from "./reconciler.js";
 import { thisTrainingWeekAndNext, trainingWeek, trainingWeekOfDate } from "./training-week.js";
 import { WEEK_DELIVERY_START, weekIsAllowed, type WeekDelivery } from "./week-delivery.js";
+
+export type DescribeWorkout = (structureJson: string) => string | null;
+
+export interface CalendarEventFields {
+  readonly dateKey: number;
+  readonly name: string;
+  readonly sport: string;
+  readonly durationS: number | null;
+  readonly description: string | null;
+}
+
+export interface CalendarEventCreate extends CalendarEventFields {
+  readonly planId: string;
+  readonly planWorkoutId: string;
+  readonly externalId: string;
+}
+
+export interface CalendarEventUpdate extends CalendarEventFields {
+  readonly eventId: number;
+}
 
 export interface CalendarMirrorPort {
   listEvents(input: {
@@ -39,14 +58,15 @@ export interface CalendarMirrorPort {
     readonly endDateKey: number;
   }): Promise<readonly PlanMirrorEvent[]>;
   readEvent(input: { readonly eventId: number }): Promise<PlanMirrorEvent | null>;
-  createEvent(input: PlanMirrorCreateInput): Promise<PlanMirrorEvent>;
-  updateEvent(input: PlanMirrorUpdateInput): Promise<PlanMirrorEvent>;
+  createEvent(input: CalendarEventCreate): Promise<PlanMirrorEvent>;
+  updateEvent(input: CalendarEventUpdate): Promise<PlanMirrorEvent>;
   deleteEvent(input: { readonly eventId: number }): Promise<void>;
 }
 
 export interface CalendarMirrorDeps {
   readonly calendar: CalendarMirrorPort;
   readonly mirror: PlanCalendarMirrorRepository;
+  readonly describe: DescribeWorkout;
   now(): number;
 }
 
@@ -55,6 +75,10 @@ export interface CalendarMirrorInput {
   readonly workouts: readonly PlanWorkoutRecord[];
   readonly todayDateKey: number;
   readonly firstEligibleDateKey: number;
+}
+
+export interface CalendarMirrorRun extends CalendarMirrorInput {
+  readonly matchedWorkoutIds: ReadonlySet<string>;
 }
 
 export type CalendarMirrorResult =
@@ -85,17 +109,6 @@ export interface AppliedIcuCopy {
   readonly copy: IcuCopy;
   readonly lastWrite: PlanIcuLastWrite;
   readonly wrote: "wrote" | "no-write";
-}
-
-function descriptionOf(structureJson: string): string | null {
-  try {
-    const value: unknown = JSON.parse(structureJson);
-    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
-    const description = Object.fromEntries(Object.entries(value)).description;
-    return typeof description === "string" ? description : null;
-  } catch {
-    return null;
-  }
 }
 
 export function icuEventType(sport: string): string {
@@ -152,18 +165,38 @@ export function icuFingerprintParts(
   }
 }
 
-export function planWorkoutFingerprint(workout: PlanWorkoutRecord): string {
+export function planWorkoutFingerprint(
+  workout: PlanWorkoutRecord,
+  describe: DescribeWorkout,
+): string {
   return JSON.stringify([
     workout.dateKey,
     workout.name,
     workout.sport,
     workout.durationS,
-    descriptionOf(workout.structureJson),
+    describe(workout.structureJson),
   ]);
 }
 
-export function expectedIcuFingerprint(workout: PlanWorkoutRecord): string {
-  const description = shownText(descriptionOf(workout.structureJson));
+function fieldsBesideText(planFingerprint: string): string | null {
+  try {
+    const parts: unknown = JSON.parse(planFingerprint);
+    return Array.isArray(parts) && parts.length === 5 ? JSON.stringify(parts.slice(0, 4)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function onlyTextDiffers(sentFingerprint: string, planFingerprint: string): boolean {
+  const sent = fieldsBesideText(sentFingerprint);
+  return sent !== null && sent === fieldsBesideText(planFingerprint);
+}
+
+export function expectedIcuFingerprint(
+  workout: PlanWorkoutRecord,
+  describe: DescribeWorkout,
+): string {
+  const description = shownText(describe(workout.structureJson));
   return JSON.stringify([
     FINGERPRINT_FORMAT,
     workout.dateKey,
@@ -238,16 +271,13 @@ function tracked(copy: IcuCopy): boolean {
   return copy.kind === "on-icu" || copy.kind === "moving-by-you" || copy.kind === "changed-in-icu";
 }
 
-function createInput(planId: string, workout: PlanWorkoutRecord): PlanMirrorCreateInput {
+function eventFields(workout: PlanWorkoutRecord, describe: DescribeWorkout): CalendarEventFields {
   return {
-    planId,
-    planWorkoutId: workout.id,
     dateKey: workout.dateKey,
-    externalId: planMirrorExternalId(planId, workout.id),
     name: workout.name,
     sport: workout.sport,
     durationS: workout.durationS,
-    structureJson: workout.structureJson,
+    description: describe(workout.structureJson),
   };
 }
 
@@ -352,7 +382,12 @@ export async function applyIcuCopyEffect(
       if (workout === undefined) return quiet;
       let created: PlanMirrorEvent;
       try {
-        created = await deps.calendar.createEvent(createInput(planId, workout));
+        created = await deps.calendar.createEvent({
+          ...eventFields(workout, deps.describe),
+          planId,
+          planWorkoutId: workout.id,
+          externalId: planMirrorExternalId(planId, workout.id),
+        });
       } catch {
         return failed(copy, "calendar-create-failed");
       }
@@ -370,18 +405,14 @@ export async function applyIcuCopyEffect(
         read: () => readIcuSighting(deps.calendar, effect.eventId),
         alreadyWritten: (current) =>
           current.kind === "present" &&
-          current.version.fingerprint === expectedIcuFingerprint(workout),
+          current.version.fingerprint === expectedIcuFingerprint(workout, deps.describe),
         stillAsSeen: (current) =>
           current.kind === "present" && current.version.fingerprint === effect.expected.fingerprint,
         write: async () =>
           icuSighting(
             await deps.calendar.updateEvent({
+              ...eventFields(workout, deps.describe),
               eventId: effect.eventId,
-              dateKey: workout.dateKey,
-              name: workout.name,
-              sport: workout.sport,
-              durationS: workout.durationS,
-              structureJson: workout.structureJson,
             }),
           ),
       });
@@ -435,6 +466,7 @@ function targets(
   setting: Parameters<typeof weekIsAllowed>[1],
   copies: ReadonlyMap<string, PlanIcuCopyRecord>,
   window: Window,
+  describe: DescribeWorkout,
 ): readonly IcuCopyTarget[] {
   const result: IcuCopyTarget[] = [];
   const planned = new Set<string>();
@@ -459,7 +491,7 @@ function targets(
       stored,
       copy,
       plan: send
-        ? { kind: "send", planFingerprint: planWorkoutFingerprint(workout) }
+        ? { kind: "send", planFingerprint: planWorkoutFingerprint(workout, describe) }
         : { kind: "withdraw", reason: "not-due" },
     });
   }
@@ -549,8 +581,22 @@ export function dueWindow(input: CalendarMirrorInput): Window | null {
   return window.startDateKey > window.endDateKey ? null : window;
 }
 
+function heldForRide(
+  input: CalendarMirrorRun,
+  target: IcuCopyTarget,
+  decided: IcuCopyDecision,
+): IcuCopyEffect {
+  return decided.effect.kind === "update" &&
+    decided.copy.kind === "on-icu" &&
+    target.plan.kind === "send" &&
+    input.matchedWorkoutIds.has(target.planWorkoutId) &&
+    onlyTextDiffers(decided.copy.baseline.planFingerprint, target.plan.planFingerprint)
+    ? { kind: "none" }
+    : decided.effect;
+}
+
 export async function mirrorPlanCalendar(
-  input: CalendarMirrorInput,
+  input: CalendarMirrorRun,
   deps: CalendarMirrorDeps,
 ): Promise<CalendarMirrorResult> {
   const delivery = await readWeekDelivery(deps.mirror, input.plan.id);
@@ -568,14 +614,20 @@ export async function mirrorPlanCalendar(
   let written = 0;
   const failures: PlanIcuWriteErrorCode[] = [];
   let changedInIcu = 0;
-  for (const target of targets(input, delivery, setting, copies, window)) {
+  for (const target of targets(input, delivery, setting, copies, window, deps.describe)) {
     const sighting = await sightingFor(deps, target, listed);
     let applied: AppliedIcuCopy;
     if (sighting === "read-failed") {
       applied = failed(target.copy, "calendar-read-failed");
     } else {
       const decided = icuCopyOnRun(rebaselined(target.copy, sighting), target.plan, sighting);
-      applied = await applyIcuCopyEffect(deps, input.plan.id, target, decided.copy, decided.effect);
+      applied = await applyIcuCopyEffect(
+        deps,
+        input.plan.id,
+        target,
+        decided.copy,
+        heldForRide(input, target, decided),
+      );
     }
     if (applied.wrote === "wrote") written += 1;
     if (applied.lastWrite.kind === "failed") failures.push(applied.lastWrite.errorCode);
@@ -623,7 +675,7 @@ export async function observeIcuCopies(
       workout,
       stored,
       copy,
-      plan: { kind: "send", planFingerprint: planWorkoutFingerprint(workout) },
+      plan: { kind: "send", planFingerprint: planWorkoutFingerprint(workout, deps.describe) },
     });
   }
   if (watched.length === 0) return { kind: "nothing-tracked" };

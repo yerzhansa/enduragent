@@ -90,11 +90,7 @@ export function decodeIcuCopy(json: string): IcuCopy {
     case "on-icu":
       return { kind: "on-icu", baseline: baseline(value.baseline) };
     case "moving-by-you":
-      return {
-        kind: "moving-by-you",
-        baseline: baseline(value.baseline),
-        planFingerprint: text(value.planFingerprint, "invalid-copy"),
-      };
+      return { kind: "moving-by-you", baseline: baseline(value.baseline) };
     case "changed-in-icu":
       return {
         kind: "changed-in-icu",

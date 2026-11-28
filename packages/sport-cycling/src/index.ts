@@ -69,6 +69,7 @@ export {
   SET_RECOVERY_PERCENT,
   SWEET_SPOT_SET,
   WARM_UP_PERCENT,
+  intervalsStepsText,
   workoutContent,
 } from "./workout-steps.js";
 export {

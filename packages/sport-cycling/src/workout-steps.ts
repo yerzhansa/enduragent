@@ -159,3 +159,50 @@ export function workoutContent(
   const blocks = shape.blocks(minutes);
   return { version: 1, zone: shape.zone, load: workoutLoad(blocks), why: shape.why, blocks };
 }
+
+function durationText(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes === 0) return `${rest}s`;
+  return rest === 0 ? `${minutes}m` : `${minutes}m${rest}`;
+}
+
+function targetText(target: WorkoutTarget): string {
+  switch (target.kind) {
+    case "steady":
+      return `${target.percent}%`;
+    case "range":
+      return `${target.low}-${target.high}%`;
+    case "ramp":
+      return `ramp ${target.from}-${target.to}%`;
+  }
+}
+
+function stepLine(entry: WorkoutStep): string {
+  return `- ${durationText(entry.seconds)} ${targetText(entry.target)}`;
+}
+
+const SECTION_HEADER: Readonly<Partial<Record<WorkoutStep["part"], string>>> = {
+  "warm-up": "Warmup",
+  "cool-down": "Cooldown",
+};
+
+function blockLines(block: WorkoutBlock): readonly string[] {
+  if (block.kind === "repeat") return [`${block.times}x`, ...block.steps.map(stepLine)];
+  const header = SECTION_HEADER[block.step.part];
+  return header === undefined ? [stepLine(block.step)] : [header, stepLine(block.step)];
+}
+
+function startsSection(block: WorkoutBlock): boolean {
+  return block.kind === "repeat" || SECTION_HEADER[block.step.part] !== undefined;
+}
+
+export function intervalsStepsText(content: WorkoutContent): string {
+  return content.blocks
+    .flatMap((block, index) => {
+      const previous = content.blocks[index - 1];
+      const apart = previous !== undefined && (startsSection(block) || previous.kind === "repeat");
+      return apart ? ["", ...blockLines(block)] : blockLines(block);
+    })
+    .join("\n");
+}
