@@ -1,0 +1,19 @@
+# Blind visual review (PR 5a — One FTP)
+
+Visual review complete for `one-ftp` desktop light-theme recordings (2560x1720).
+
+| Check | Desktop (2560x1720) |
+| --- | --- |
+| 1. First-sync ride FTP line & sheet (AFTER 1) | **pass** — Ride shows `FTP 268 W from intervals.icu.` + `FTP history` (`frames-one-ftp/frame-03.png`); open `FTP` sheet shows `268 W in intervals.icu`, flat step chart with no set date, one row `268 W` / `In intervals.icu when the app first synced`, closing note, and no proposal card (`frames-one-ftp/frame-04.png`, `frame-05.png`). |
+| 2. Updated FTP & 14-day proposal (AFTER 1) | **pass** — Header `282 W set by you in intervals.icu on 9 Feb`, matching ride line behind sheet, step-up chart with dotted eFTP line and orange `288 W proposed` dot, two history rows (`9 Feb` / `282 W` / `Set by you in intervals.icu` above `268 W`), and `PROPOSED BY THE COACH · SUN 1 MAR` card with `Keep 282 W`, `Use 288 W from today`, and `Plan a 20-minute test` (`frames-one-ftp/frame-06.png`). |
+| 3. Confirm dialog before writing (AFTER 1) | **pass** — Proposal card replaced by `Set your FTP to 288 W in intervals.icu?` with `Changes`, `Workouts`, `Stays`, `Set 288 W in intervals.icu`, and `Cancel`; ride detail behind sheet shows `FTP 282 W...`, no stale 268 W (`frames-one-ftp/frame-07.png`). |
+| 4. After confirm (AFTER 1) | **pass** — Header updates to `288 W set in intervals.icu on 1 Mar from the coach’s proposal`, chart steps to 288 W, top history row `1 Mar` / `288 W` / `Coach’s proposal from intervals.icu’s estimate; you chose Use`, cards gone, confirmation line `Your FTP in intervals.icu is now 288 W. Every planned workout follows it from today.`, green `Sync` dot, no error banner (`frames-one-ftp/frame-08.png`). |
+| 5. Same-day & indoor ride lines (AFTER 1) | **pass** — `Synthetic morning ride` keeps `FTP 282 W, set by you in intervals.icu on 9 Feb.` (`frames-one-ftp/frame-10.png`); `Synthetic trainer ride` shows `FTP 274 W indoor · set by you in intervals.icu on 9 Feb` and `Outdoor rides use 282 W.` (`frames-one-ftp/frame-11.png`, `frame-12.png`). |
+| 6. Plan a 20-minute test keeps earlier draft (AFTER 2) | **pass** — Chat shows `Keep my existing draft` with no scrollbar (`frames-plan-test-draft/frame-02.png`); FTP sheet shows `Plan a 20-minute test` (`frame-04.png`); after click, Chat keeps `Keep my existing draft` at top with scrollbar (`frame-05.png`), scrolling reveals `Please add a 20-minute FTP test to my Plan, so we can check my FTP.` below it (`frame-06.png`, `frame-07.png`, `frame-08.png`), and no message is sent. |
+| 7. Missing FTP line & Change one thing (AFTER 3) | **pass** — Ride shows `No FTP is known for this ride.` + `FTP history` (`frames-change-one-thing/frame-02.png`); `Change` dropdown has 6 options with no `Correct FTP` (`frame-05.png`, `frame-06.png`); closing dropdown shows `To change your FTP, set it in intervals.icu, or use FTP history in Activity review.` (`frame-07.png`, `frame-08.png`). |
+| 8. Layout & readability | **pass** — All light-theme frames render cleanly with readable text, crisp borders, accurate charts, and no clipped labels or overlapping buttons (`frames-one-ftp/frame-03.png`–`frame-12.png`, `frames-plan-test-draft/frame-02.png`–`frame-08.png`, `frames-change-one-thing/frame-02.png`, `frame-04.png`–`frame-08.png`). |
+| 9. Compared with BEFORE | **pass** — Yes, both differences are clearly resolved: BEFORE has no FTP line/`FTP history` button (`frames-before/frame-02.png`) and lists `Correct FTP` with no note (`frames-before/frame-05.png`), while AFTER shows the FTP line/`FTP history` (`frames-one-ftp/frame-03.png`, `frames-change-one-thing/frame-02.png`), drops `Correct FTP` (`frames-change-one-thing/frame-05.png`), and shows the one-FTP note (`frames-change-one-thing/frame-07.png`). |
+
+Other issues: none
+
+VERIFIED
