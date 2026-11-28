@@ -6,7 +6,11 @@ import { finished } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { createPackage, createPackageWithOptions } from "@electron/asar";
 import { afterEach, describe, expect, it } from "vitest";
-import { KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN } from "../scripts/package-inventory.mjs";
+import {
+  PDFIUM_WASM_ASAR_PATH,
+  REQUIRED_ASAR_UNPACK_PATTERNS,
+  WORKOUT_CHART_FONT_ASAR_PATH,
+} from "../scripts/package-inventory.mjs";
 import { WINDOWS_LOCALE_PAK_PATHS } from "../scripts/package-locales.mjs";
 import {
   WINDOWS_PACKAGE_GUID,
@@ -42,6 +46,13 @@ const exclusions = [
   "!**/node_modules/@vitest/**",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+  "!**/*.d.{ts,mts,cts}",
+  "!**/node_modules/**/*.{ts,tsx,mts,cts}",
+  "!**/node_modules/@enduragent/*/src/**",
+  "!**/node_modules/@enduragent/i18n/catalogs/**",
+  "!**/node_modules/@enduragent/i18n/glossaries/**",
+  "!**/node_modules/mammoth/mammoth.browser*.js",
+  "!**/node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js",
 ];
 const runtimeFiles = [
   "LICENSE.electron.txt",
@@ -172,7 +183,7 @@ function builderYaml(): string {
     "productName: Enduragent",
     "asar: true",
     "asarUnpack:",
-    `  - ${KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN}`,
+    ...REQUIRED_ASAR_UNPACK_PATTERNS.map((pattern) => `  - ${pattern}`),
     "electronFuses:",
     "  runAsNode: false",
     "  enableNodeOptionsEnvironmentVariable: false",
@@ -705,6 +716,42 @@ describe("Windows package verification", () => {
         'windows-package/asar-inventory: undeclared runtime package: "node_modules/@resvg/resvg-js-win32-x64-msvc/package.json", "node_modules/@resvg/resvg-js/package.json"',
       );
     });
+  });
+
+  it("accepts unpacked pdfium wasm and workout chart font on Windows and rejects them when packed", async () => {
+    const fixture = await syntheticWindowsPackage();
+    const core = telegramRuntimePackages[0];
+    await fixture.writeArchive(
+      `${core.root}/package.json`,
+      `${JSON.stringify({
+        name: core.name,
+        version: "1.0.0",
+        main: core.main,
+        dependencies: { ...core.dependencies, clawpdf: "0.3.1" },
+      })}\n`,
+    );
+    await fixture.writeArchive(
+      "node_modules/clawpdf/package.json",
+      `${JSON.stringify({ name: "clawpdf", version: "0.3.1", main: "dist/index.js" })}\n`,
+    );
+    await fixture.writeArchive("node_modules/clawpdf/dist/index.js");
+    await fixture.writeArchive(PDFIUM_WASM_ASAR_PATH, Buffer.from([0x00, 0x61, 0x73, 0x6d]));
+    await fixture.writeArchive(WORKOUT_CHART_FONT_ASAR_PATH, Buffer.from("OTTOsynthetic"));
+    await fixture.rebuild();
+    await expect(
+      verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+    ).rejects.toThrow(/windows-package\/asar-inventory: declared unpacked binary asset is packed/u);
+
+    const archive = join(fixture.application, "resources/app.asar");
+    await rm(archive, { force: true });
+    await finished(
+      await createPackageWithOptions(fixture.archiveSource, archive, {
+        unpack: "*.{wasm,otf}",
+      }),
+    );
+    await expect(
+      verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+    ).resolves.toMatchObject({ peMachine: 0x8664 });
   });
 
   it("rejects undeclared runtime packages and ASAR roots", async () => {

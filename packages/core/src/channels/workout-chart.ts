@@ -13,9 +13,22 @@ const plotWidth = plotRight - plotLeft;
 const plotHeight = 100;
 const fontFamily = "Noto Sans CJK SC";
 const bundledFontPath = fileURLToPath(new URL("./workout-chart-font.otf", import.meta.url));
+const asarArchiveSegment = /([\\/])app\.asar([\\/])/gu;
 
-function resolveFontPath(): string {
-  if (existsSync(bundledFontPath)) return bundledFontPath;
+function unpackedAsarPath(filePath: string): string | undefined {
+  const matches = [...filePath.matchAll(asarArchiveSegment)];
+  const last = matches.at(-1);
+  if (last === undefined || last.index === undefined) return undefined;
+  return `${filePath.slice(0, last.index)}${last[1]}app.asar.unpacked${last[2]}${filePath.slice(last.index + last[0].length)}`;
+}
+
+export function resolveWorkoutChartFontPath(
+  bundledPath: string = bundledFontPath,
+  fileExists: (path: string) => boolean = existsSync,
+): string {
+  const unpackedPath = unpackedAsarPath(bundledPath);
+  if (unpackedPath !== undefined && fileExists(unpackedPath)) return unpackedPath;
+  if (fileExists(bundledPath)) return bundledPath;
   return createRequire(import.meta.url).resolve(
     "@fontpkg/noto-sans-cjk-sc/NotoSansCJKsc-Regular.otf",
   );
@@ -297,7 +310,7 @@ export async function renderWorkoutChart(model: WorkoutChartModel): Promise<Uint
     fitTo: { mode: "width", value: 1230 },
     font: {
       defaultFontFamily: fontFamily,
-      fontFiles: [resolveFontPath()],
+      fontFiles: [resolveWorkoutChartFontPath()],
       loadSystemFonts: false,
       sansSerifFamily: fontFamily,
     },
