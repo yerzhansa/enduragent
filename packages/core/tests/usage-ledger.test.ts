@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { cyclingSport } from "@enduragent/sport-cycling";
-import type { EngineConfig } from "@enduragent/engine";
+import type { EngineConfig, GenerateOptions } from "@enduragent/engine";
 import type { Config } from "../src/config.js";
 import type { Sport } from "../src/sport.js";
 import type { UsageLedgerLine } from "../src/usage-ledger.js";
@@ -408,7 +408,6 @@ describe("LLM.generate — AI-SDK path", () => {
 
     const parsed = JSON.parse(readLines(dir)[0]) as UsageLedgerLine;
     expect(parsed.cost).toBeDefined();
-    // 1,000,000 input tokens at a per-million-token rate equals exactly that rate.
     expect(parsed.cost?.input).toBeCloseTo(knownCost.input, 10);
     expect(parsed.cost?.total).toBeCloseTo(knownCost.input, 10);
   });
@@ -422,7 +421,7 @@ describe("LLM.generate — AI-SDK path", () => {
       totalUsage: { inputTokens: 30, outputTokens: 20, totalTokens: 50 },
       steps: [{ s: "a" }],
     });
-    const llm = new LLM(anthropicConfig(dir), llmPorts()); // model "claude-test" — not catalogued
+    const llm = new LLM(anthropicConfig(dir), llmPorts());
 
     await llm.generate({ prompt: "hi", caller: "chat" });
 
@@ -502,7 +501,6 @@ describe("codex bridge — usage accumulation across the loop", () => {
       profileName: "openai-codex",
     });
 
-    // gpt-5.4: input 2.5, output 15 per 1e6 tokens → (2.5*10 + 15*5)/1e6 = 0.0001.
     expect(result.cost?.total).toBeCloseTo(0.0001, 12);
   });
 });
@@ -549,8 +547,6 @@ describe("turn line — winning generation usage and cost", () => {
     mkdirSync(agentDataDir, { recursive: true });
     mkdirSync(join(agentDataDir, "memory"), { recursive: true });
     vi.resetModules();
-    // A sibling describe block stubs the codex bridge to a fixed reply; drop
-    // that registration so this block drives the real retry loop.
     vi.doUnmock("../../engine/src/agent/codex-bridge.js");
   });
 
@@ -573,7 +569,23 @@ describe("turn line — winning generation usage and cost", () => {
     };
   }
 
-  async function setupAgent(complete: () => Promise<ReturnType<typeof mkAssistant>>) {
+  function languageUsage(usage: ReturnType<typeof tokens>) {
+    return {
+      inputTokens: usage.input,
+      outputTokens: usage.output,
+      totalTokens: usage.totalTokens,
+      inputTokenDetails: {
+        noCacheTokens: usage.input,
+        cacheReadTokens: usage.cacheRead,
+        cacheWriteTokens: usage.cacheWrite,
+      },
+      outputTokenDetails: { textTokens: usage.output, reasoningTokens: 0 },
+    };
+  }
+
+  async function setupAgent(
+    complete: (options: GenerateOptions) => Promise<ReturnType<typeof mkAssistant>>,
+  ) {
     const { CoachAgent } = await import("../src/agent/coach-agent.js");
     const config = baseAgentConfig(agentDataDir);
     return new CoachAgent(
@@ -585,19 +597,9 @@ describe("turn line — winning generation usage and cost", () => {
       {
         catalog: bundledAcceptedCatalog(),
         modelTransportDecorator: () => ({
-          generate: async () => {
-            const result = await complete();
-            const usage = {
-              inputTokens: result.usage.input,
-              outputTokens: result.usage.output,
-              totalTokens: result.usage.totalTokens,
-              inputTokenDetails: {
-                noCacheTokens: result.usage.input,
-                cacheReadTokens: result.usage.cacheRead,
-                cacheWriteTokens: result.usage.cacheWrite,
-              },
-              outputTokenDetails: { textTokens: result.usage.output, reasoningTokens: 0 },
-            };
+          generate: async (request) => {
+            const result = await complete(request.options);
+            const usage = languageUsage(result.usage);
             return {
               text: result.text,
               toolCalls: [],
@@ -613,15 +615,14 @@ describe("turn line — winning generation usage and cost", () => {
     );
   }
 
-  it("records the final successful generation's usage/cost, not a failed attempt's", async () => {
+  it("sums every attempt's known usage and cost into the turn line", async () => {
     let n = 0;
-    const complete = vi.fn(async () => {
+    const complete = vi.fn(async (options: GenerateOptions) => {
       n++;
       if (n === 1) {
-        // First attempt overflows: its usage must never reach the turn line.
+        options.onStepUsage?.({ usage: languageUsage(tokens(20, 8)) });
         throw new Error("Request exceeds the maximum context length of 272000 tokens");
       }
-      // The winning retry carries the figures the turn line must report.
       return mkAssistant("recovered", tokens(30, 12));
     });
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -630,14 +631,24 @@ describe("turn line — winning generation usage and cost", () => {
     const response = await agent.chat({ chatId: "turn-winner", message: "hello" });
     expect(response).toEqual({ text: "recovered" });
 
-    const turnLine = readLines(agentDataDir)
-      .map((l) => JSON.parse(l) as UsageLedgerLine)
-      .find((l) => l.kind === "turn");
-    expect(turnLine).toBeDefined();
-    expect(turnLine?.inputTokens).toBe(30);
-    expect(turnLine?.outputTokens).toBe(12);
-    expect(turnLine?.totalTokens).toBe(42);
-    expect(turnLine?.cost?.total).toBeCloseTo(0.00051, 12);
+    const lines = readLines(agentDataDir).map((l) => JSON.parse(l) as UsageLedgerLine);
+    const turnLine = lines.find((l) => l.kind === "turn");
+    const chatCalls = lines.filter(
+      (l) => l.kind === "generate" && l.caller === "chat" && l.turnId === turnLine?.turnId,
+    );
+    expect(chatCalls.map((l) => l.outcome)).toEqual(["error", "ok"]);
+    expect(turnLine?.turnId).toEqual(expect.any(String));
+    expect(turnLine?.outcome).toBe("ok");
+    expect(turnLine?.errorClass).toBeUndefined();
+    expect(turnLine?.steps).toBe(2);
+    expect(turnLine?.inputTokens).toBe(50);
+    expect(turnLine?.outputTokens).toBe(20);
+    expect(turnLine?.totalTokens).toBe(70);
+    expect(turnLine?.cost?.total).toBeCloseTo(0.00085, 12);
+    expect(turnLine?.cost?.total).toBeCloseTo(
+      chatCalls.reduce((sum, l) => sum + (l.cost?.total ?? 0), 0),
+      12,
+    );
     expect(turnLine?.templateHash).toMatch(/^[0-9a-f]{16}$/);
   });
 });
