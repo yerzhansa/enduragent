@@ -64,8 +64,7 @@ function createPlanCoach() {
   let turns = 0;
   let claims = 0;
   let operations = 0;
-  let enqueued = 0;
-  const queued = [deferred(), deferred()];
+  const firstReplyFinishes = deferred();
   const stopped = deferred();
   const engineCalls: string[] = [];
   const discardedClaims: string[] = [];
@@ -102,14 +101,14 @@ function createPlanCoach() {
     turn.emit({ type: "turn-start", turnId: turn.turnId, chatId: CHAT_ID });
     if (turn.text === FIRST_MESSAGE) {
       turn.emit({ type: "text_delta", turnId: turn.turnId, delta: FIRST_REPLY });
-      await queued[0]!.promise;
+      await firstReplyFinishes.promise;
       turn.emit({ type: "final-text", turnId: turn.turnId, text: FIRST_REPLY });
       persist(turn.turnId, turn.text, FIRST_REPLY);
       return "completed";
     }
     if (turn.text === HELD_MESSAGE) {
       turn.emit({ type: "text_delta", turnId: turn.turnId, delta: HELD_PARTIAL });
-      await Promise.all([queued[1]!.promise, stopped.promise]);
+      await stopped.promise;
       turn.emit({ type: "interrupted", turnId: turn.turnId, chatId: CHAT_ID, text: HELD_PARTIAL });
       persist(turn.turnId, turn.text, HELD_PARTIAL);
       return "interrupted";
@@ -153,6 +152,7 @@ function createPlanCoach() {
   return {
     engineCalls,
     discardedClaims,
+    finishFirstReply: () => firstReplyFinishes.resolve(),
     script: {
       streamPlanTransitions: true as const,
       onRequest(value: unknown): readonly string[] {
@@ -178,8 +178,6 @@ function createPlanCoach() {
               attachmentIds: [],
               restored: false,
             });
-            enqueued += 1;
-            queued[enqueued - 1]?.resolve();
             return rpcReply(snapshot());
           }
           case "stopChat":
@@ -249,6 +247,8 @@ test("a stopped Plan chat message can be discarded so the messages queued after 
     await expect(page.getByText(FIRST_REPLY)).toBeVisible();
     await composer.fill(HELD_MESSAGE);
     await composer.press("Enter");
+    await expect(queue.getByText(HELD_MESSAGE)).toBeVisible();
+    coach.finishFirstReply();
     await expect(page.getByText(HELD_PARTIAL)).toBeVisible();
     await composer.fill(WAITING_MESSAGE);
     await composer.press("Enter");
