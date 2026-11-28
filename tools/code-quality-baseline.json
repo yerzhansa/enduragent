@@ -439,7 +439,6 @@
     "apps/desktop/src/main/telegram-power.ts": 802,
     "apps/desktop/src/preload/index.ts": 1669,
     "packages/coach-contract/src/athlete-state.ts": 1031,
-    "packages/coach-contract/src/plan-creation.ts": 904,
     "packages/coach-contract/src/planning.ts": 1682,
     "packages/coach-contract/src/rpc.ts": 2537,
     "packages/coach/src/composition.ts": 2133,
