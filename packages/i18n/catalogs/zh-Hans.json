@@ -1231,6 +1231,7 @@
     },
     "composer": {
       "attach": "添加附件",
+      "finishAnswer": "请先完成上方的回答",
       "finishPlanQuestion": "请先回答上方的计划问题",
       "label": "给教练发消息",
       "messagePlaceholder": "给教练发消息",

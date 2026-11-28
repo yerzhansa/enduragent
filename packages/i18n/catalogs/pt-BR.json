@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Anexar arquivos",
+      "finishAnswer": "Conclua sua resposta acima",
       "finishPlanQuestion": "Conclua a pergunta do Plano acima",
       "label": "Envie uma mensagem ao seu treinador",
       "messagePlaceholder": "Envie uma mensagem ao seu treinador",

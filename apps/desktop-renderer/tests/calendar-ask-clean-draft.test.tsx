@@ -387,6 +387,60 @@ describe("Calendar workout card Ask with clean Plan-change draft", () => {
     test.dispose();
   });
 
+  it("keeps one copy of each draft when Ask arrives while a coaching-choice editor is open", async () => {
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    const earlier = "Keep my earlier question";
+
+    await user.type(composer(), earlier);
+    act(() =>
+      store.setState({
+        chat: {
+          ...store.getState().chat,
+          decision: {
+            decisionId: "decision-set-aside",
+            chatId: "desktop",
+            messageId: "message-set-aside",
+            question: "Choose tomorrow’s priority.",
+            status: "unanswered",
+            options: [
+              {
+                id: "recovery",
+                label: "Prioritize recovery",
+                description: "Choose an easy day.",
+                recommended: true,
+                consequence: "Tomorrow becomes a recovery day.",
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: /Something else/u }));
+    expect(composer()).toBeDisabled();
+
+    askFromWorkoutCard(CHANGE_DRAFT);
+
+    await waitFor(() => expect(composer()).toHaveValue(CHANGE_DRAFT), SETTLED);
+    expect(composer()).toBeDisabled();
+    expect(store.getState().chat.attachments?.draft?.text).toBe(earlier);
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(composer()).toBeEnabled();
+    expect(composer()).toHaveValue(CHANGE_DRAFT);
+    expect(screen.getByText(SET_ASIDE_NOTICE)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(composer()).toHaveValue(earlier), SETTLED);
+    await vi.waitFor(
+      () => expect(store.getState().chat.attachments?.draft?.text).toBe(earlier),
+      SETTLED,
+    );
+    expect(actions.submit).not.toHaveBeenCalled();
+    test.dispose();
+  });
+
   it("shows no set-aside notice and restores nothing when there was no earlier draft", async () => {
     const test = started();
     render(<ChatView />);

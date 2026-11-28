@@ -283,6 +283,7 @@ export type CatalogKey =
   | "chat.commands.whatsnew"
   | "chat.commands.workout"
   | "chat.composer.attach"
+  | "chat.composer.finishAnswer"
   | "chat.composer.finishPlanQuestion"
   | "chat.composer.label"
   | "chat.composer.messagePlaceholder"

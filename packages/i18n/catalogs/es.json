@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Adjuntar archivos",
+      "finishAnswer": "Termina tu respuesta de arriba",
       "finishPlanQuestion": "Responde a la pregunta del plan de arriba",
       "label": "Escribe a tu entrenador",
       "messagePlaceholder": "Escribe a tu entrenador",

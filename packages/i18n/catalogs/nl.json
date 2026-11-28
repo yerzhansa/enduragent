@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Bestanden bijvoegen",
+      "finishAnswer": "Maak eerst je antwoord hierboven af",
       "finishPlanQuestion": "Beantwoord eerst de vraag over je trainingsschema hierboven",
       "label": "Stuur je coach een bericht",
       "messagePlaceholder": "Stuur je coach een bericht",

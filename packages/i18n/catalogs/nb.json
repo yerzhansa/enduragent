@@ -1242,6 +1242,7 @@
     },
     "composer": {
       "attach": "Legg ved filer",
+      "finishAnswer": "Gjør ferdig svaret ditt ovenfor",
       "finishPlanQuestion": "Svar ferdig på planspørsmålet ovenfor",
       "label": "Skriv til treneren din",
       "messagePlaceholder": "Skriv til treneren din",

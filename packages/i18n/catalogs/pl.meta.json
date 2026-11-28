@@ -3156,6 +3156,10 @@
       "sourceHash": "e697cc1e45afa5418934fb94f7d9c1bf8e45628cade57a6d31871f5961978d77",
       "translatedBy": "model"
     },
+    "chat.composer.finishAnswer": {
+      "sourceHash": "bda1d0abe66cbc53b9def1c125db3af9c24025913f844e09ebac6cc650d6b3be",
+      "translatedBy": "model"
+    },
     "chat.composer.finishPlanQuestion": {
       "sourceHash": "38f9f55340931f82b601043f4e8cc2384e8cbc155262dbea9865ea74c1128e15",
       "translatedBy": "model"
