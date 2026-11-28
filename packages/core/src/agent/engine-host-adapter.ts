@@ -31,7 +31,7 @@ import { safeReadJson } from "../io/safe-read-json.js";
 import { createSubsystemLogger } from "../logging/index.js";
 import { Memory } from "../memory/store.js";
 import { resolveSecretRef } from "../secrets/resolve.js";
-import { appendUsageLine } from "../usage-ledger.js";
+import { usageLedgerPort } from "../usage-ledger-port.js";
 import { makeChatClient } from "../reference/sync/intervals-client-factory.js";
 import { createConversationStore, type ConversationStorePort } from "./conversation-store.js";
 import {
@@ -190,7 +190,7 @@ export function createEngineHostAdapter(
       secrets: { resolve: resolveSecretRef },
       platform: { legacyClient, athleteData, calendarMutations },
       logger: createSubsystemLogger("agent", config.dataDir),
-      usage: { append: (line) => appendUsageLine(config.dataDir, line) },
+      usage: usageLedgerPort(config.dataDir),
       stateReader: input.stateReader,
       readReferenceState,
       getAccessToken: getFreshToken,

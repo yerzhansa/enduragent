@@ -869,6 +869,7 @@ export class CoachAgent {
       untrustedAttachmentText?: string;
       nativeMedia?: readonly ChatNativeMediaInput[];
       attachments?: readonly ChatAttachmentReference[];
+      resumesTurn?: boolean;
     },
     onEvent?: TurnEventHandler,
     onDecision?: (decision: CoachDecisionReadModel) => void,
@@ -921,7 +922,7 @@ export class CoachAgent {
           this.repairCoachDecisionSession(existingDecision);
         }
         const turnStart = this.ports.now();
-        this.turnUsage.begin(turnId);
+        this.turnUsage.begin(turnId, turn?.resumesTurn === true);
         const emitEvent = (event: TurnEvent): void => {
           try {
             onEvent?.(event);

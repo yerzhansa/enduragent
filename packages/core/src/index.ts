@@ -44,6 +44,7 @@ export {
   USAGE_LEDGER_MAX_BYTES,
   type UsageLedgerReadResult,
 } from "./usage-ledger.js";
+export { usageLedgerPort } from "./usage-ledger-port.js";
 export { atomicWriteJson } from "./io/atomic-write-json.js";
 export {
   MODEL_CATALOG_ENDPOINT,

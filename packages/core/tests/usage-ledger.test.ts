@@ -12,7 +12,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { cyclingSport } from "@enduragent/sport-cycling";
-import type { EngineConfig, GenerateOptions } from "@enduragent/engine";
+import type { EngineConfig } from "@enduragent/engine";
+import type { GenerateOptions } from "@enduragent/engine/sport";
 import type { Config } from "../src/config.js";
 import type { Sport } from "../src/sport.js";
 import type { UsageLedgerLine } from "../src/usage-ledger.js";

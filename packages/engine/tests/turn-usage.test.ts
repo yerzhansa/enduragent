@@ -100,14 +100,18 @@ describe("sumTurnUsage", () => {
 });
 
 describe("TurnUsageLedger", () => {
-  function ledger(fail = false) {
-    const rows: UsageLedgerLine[] = [];
+  function ledger(fail = false, earlier: readonly UsageLedgerLine[] = []) {
+    const rows: UsageLedgerLine[] = [...earlier];
     const warnings: string[] = [];
     const turns = new TurnUsageLedger(
       {
         append: (line) => {
           if (fail && line.kind === "turn") throw new Error("disk full");
           rows.push(line);
+        },
+        callsForTurn: (turnId) => {
+          if (fail) throw new Error("ledger unreadable");
+          return rows.filter((row) => row.turnId === turnId);
         },
       },
       { provider: "openrouter", model: "synthetic-model" },
@@ -125,7 +129,7 @@ describe("TurnUsageLedger", () => {
 
   it("sums only this turn's chat calls and forwards every row", () => {
     const { rows, turns } = ledger();
-    turns.begin("turn-a");
+    turns.begin("turn-a", false);
     turns.port.append(call());
     turns.port.append(call({ caller: "compact", inputTokens: 500 }));
     turns.port.append(call({ turnId: "turn-b", inputTokens: 900 }));
@@ -149,7 +153,7 @@ describe("TurnUsageLedger", () => {
 
   it("writes one row per turn and maps an interrupted turn to aborted", () => {
     const { rows, turns } = ledger();
-    turns.begin("turn-a");
+    turns.begin("turn-a", false);
     turns.end("turn-a", { ok: false, error_class: "interrupted" }, timing);
     turns.end("turn-a", { ok: true }, timing);
 
@@ -158,16 +162,53 @@ describe("TurnUsageLedger", () => {
 
   it("writes nothing for a discarded turn", () => {
     const { rows, turns } = ledger();
-    turns.begin("turn-a");
+    turns.begin("turn-a", false);
     turns.discard("turn-a");
     turns.end("turn-a", { ok: false, error_class: "budget" }, timing);
 
     expect(rows).toEqual([]);
   });
 
+  it("adds a resumed turn's earlier chat calls to its total", () => {
+    const earlier = [
+      call({ outcome: "error", errorClass: "timeout", inputTokens: 7, cost: cost(0.01) }),
+      call({ caller: "flush", inputTokens: 400 }),
+      call({ kind: "turn", inputTokens: 7 }),
+      call({ turnId: "turn-b", inputTokens: 900 }),
+    ];
+    const { rows, turns } = ledger(false, earlier);
+    turns.begin("turn-a", true);
+    turns.port.append(call());
+    turns.end("turn-a", { ok: true }, timing);
+
+    expect(rows.at(-1)).toMatchObject({
+      kind: "turn",
+      turnId: "turn-a",
+      steps: 2,
+      inputTokens: 17,
+    });
+    expect(rows.at(-1)?.cost?.total).toBeCloseTo(0.03, 12);
+  });
+
+  it("starts a fresh turn from zero even when the ledger holds its ID", () => {
+    const { rows, turns } = ledger(false, [call({ inputTokens: 7 })]);
+    turns.begin("turn-a", false);
+    turns.port.append(call());
+    turns.end("turn-a", { ok: true }, timing);
+
+    expect(rows.at(-1)).toMatchObject({ kind: "turn", inputTokens: 10 });
+  });
+
+  it("resumes from zero with a warning when the ledger cannot be read", () => {
+    const { warnings, turns } = ledger(true);
+    turns.begin("turn-a", true);
+
+    expect(warnings).toEqual(["turn_usage_resume_failed"]);
+  });
+
   it("keeps the turn going when the turn row cannot be written", () => {
     const { rows, warnings, turns } = ledger(true);
-    turns.begin("turn-a");
+    turns.begin("turn-a", false);
     turns.port.append(call());
 
     expect(() => turns.end("turn-a", { ok: true }, timing)).not.toThrow();

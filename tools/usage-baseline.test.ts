@@ -118,6 +118,15 @@ describe("selectLines — outcome filter", () => {
   it("keeps every row with outcome=all", () => {
     expect(selectLines(lines, "turn", "chat", "all")).toHaveLength(4);
   });
+  it("keeps only the latest row of a turn that a queue retry ran again", () => {
+    const retried = [
+      line({ turnId: "turn-retried", outcome: "error", errorClass: "timeout", inputTokens: 20 }),
+      line({ turnId: "turn-other", outcome: "ok", inputTokens: 5 }),
+      line({ turnId: "turn-retried", outcome: "ok", inputTokens: 50 }),
+    ];
+    expect(selectLines(retried, "turn", "chat", "all").map((l) => l.inputTokens)).toEqual([5, 50]);
+    expect(selectLines(retried, "turn", "chat", "error")).toEqual([]);
+  });
 });
 
 describe("parseCli", () => {

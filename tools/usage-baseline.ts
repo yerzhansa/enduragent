@@ -122,13 +122,23 @@ function outcomeOf(line: UsageLedgerLine): "ok" | "error" {
   return line.outcome ?? "ok";
 }
 
+function latestRowPerTurn(lines: readonly UsageLedgerLine[]): UsageLedgerLine[] {
+  const latest = new Map<string, UsageLedgerLine>();
+  for (const l of lines) {
+    if (l.kind === "turn" && l.turnId !== undefined) latest.set(l.turnId, l);
+  }
+  return lines.filter(
+    (l) => l.kind !== "turn" || l.turnId === undefined || latest.get(l.turnId) === l,
+  );
+}
+
 export function selectLines(
   lines: readonly UsageLedgerLine[],
   kind: UsageLedgerLine["kind"],
   caller: CliArgs["caller"],
   outcome: OutcomeFilter = DEFAULT_OUTCOME,
 ): UsageLedgerLine[] {
-  return lines.filter(
+  return latestRowPerTurn(lines).filter(
     (l) =>
       l.kind === kind &&
       (kind === "boot" || caller === "all" || caller === undefined || l.caller === caller) &&

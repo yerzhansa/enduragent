@@ -461,6 +461,7 @@ export interface UsageLedgerLine {
 
 export interface UsagePort {
   append(line: UsageLedgerLine): void;
+  callsForTurn?(turnId: string): readonly UsageLedgerLine[];
 }
 
 export type FailureReason =

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LanguageModelUsage } from "ai";
 import { CoachAgent } from "../src/agent/coach-agent.js";
+import { createCoachEngine } from "../src/index.js";
+import { readUsageLedger } from "../../core/src/usage-ledger.js";
 import { COACH_DECISION_TOOL_NAME } from "../src/agent/coach-decision-tool.js";
 import type {
   EngineConfig,
@@ -332,4 +334,78 @@ describe("every exit of a turn writes one cost row", () => {
       expect.objectContaining({ turnId: "turn-fail", ok: false, error_class: "unknown" }),
     ]);
   });
+});
+
+describe("a queue retry adds to the turn it resumes", () => {
+  function queueEngine(
+    root: string,
+    respond: (options: GenerateOptions) => Promise<GenerateResult>,
+  ) {
+    const base = baseAgentConfig(root);
+    let sequence = 0;
+    const ports: EngineHostPorts = {
+      ...base,
+      config: { ...base.config, models: pricedModels() },
+      transcriptWriter: base.chatStore as unknown as EngineHostPorts["transcriptWriter"],
+      randomId: () => `id-${root.length}-${++sequence}`,
+      modelTransportDecorator: () => ({ generate: async (request) => respond(request.options) }),
+    };
+    return createCoachEngine({ sport, ports });
+  }
+
+  function ledgerFor(root: string, turnId: string) {
+    const lines = readUsageLedger(root).lines.filter((line) => line.turnId === turnId);
+    return {
+      turnRows: lines.filter((line) => line.kind === "turn"),
+      chatCalls: lines.filter((line) => line.kind === "generate" && line.caller === "chat"),
+    };
+  }
+
+  it.each(["in the same engine", "after a restart"])(
+    "sums both runs into the retried turn's row %s",
+    async (when) => {
+      const root = mkdtempSync(join(tmpdir(), "turn-usage-queue-"));
+      roots.push(root);
+      mkdirSync(join(root, "memory"));
+      let calls = 0;
+      const respond = async (options: GenerateOptions): Promise<GenerateResult> => {
+        calls += 1;
+        if (calls > 1) return reply("Ride easy for an hour today.", usage(30, 12));
+        options.onStepUsage?.({ usage: usage(20, 8) });
+        throw new Error("Provider returned an unexpected payload");
+      };
+      const first = queueEngine(root, respond);
+      await first.enqueueChatMessage?.({
+        chatId: "desktop",
+        submissionId: "submission-1",
+        text: "Plan my week.",
+      });
+      await expect(first.resumeChatQueue?.({ chatId: "desktop" })).rejects.toThrow(
+        "Provider returned an unexpected payload",
+      );
+      const retry = (await first.getChatQueue?.({ chatId: "desktop" }))?.retryRequired;
+      if (retry === undefined) throw new Error("Expected a retry claim");
+      expect(ledgerFor(root, retry.turnId).turnRows).toEqual([
+        expect.objectContaining({ outcome: "error", errorClass: "unknown", inputTokens: 20 }),
+      ]);
+
+      const second = when === "in the same engine" ? first : queueEngine(root, respond);
+      await second.retryQueuedTurn?.({ chatId: "desktop", claimId: retry.claimId });
+
+      const { turnRows, chatCalls } = ledgerFor(root, retry.turnId);
+      expect(chatCalls.map((call) => call.outcome)).toEqual(["error", "ok"]);
+      expect(turnRows).toHaveLength(2);
+      expect(turnRows[1]).toMatchObject({
+        turnId: retry.turnId,
+        outcome: "ok",
+        steps: 2,
+        inputTokens: 50,
+        outputTokens: 20,
+      });
+      expect(turnRows[1]?.cost?.total).toBeCloseTo(
+        sumOf(chatCalls, (call) => call.cost?.total),
+        12,
+      );
+    },
+  );
 });

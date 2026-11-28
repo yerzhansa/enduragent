@@ -113,6 +113,10 @@ export function sumTurnUsage(lines: readonly UsageLedgerLine[]): TurnUsageTotal 
   };
 }
 
+function isChatCall(line: UsageLedgerLine): boolean {
+  return line.kind === "generate" && line.caller === "chat";
+}
+
 function turnEnding(status: TurnStatus): Pick<UsageLedgerLine, "outcome" | "errorClass"> {
   if (status.ok) return { outcome: "ok" };
   return {
@@ -140,8 +144,8 @@ export class TurnUsageLedger {
     };
   }
 
-  begin(turnId: string): void {
-    this.openTurns.set(turnId, []);
+  begin(turnId: string, resumed: boolean): void {
+    this.openTurns.set(turnId, resumed ? this.earlierRuns(turnId) : []);
   }
 
   end(turnId: string, status: TurnStatus, timing: TurnRowTiming): void {
@@ -170,8 +174,19 @@ export class TurnUsageLedger {
     this.openTurns.delete(turnId);
   }
 
+  private earlierRuns(turnId: string): UsageLedgerLine[] {
+    try {
+      return (this.sink.callsForTurn?.(turnId) ?? []).filter(
+        (line) => isChatCall(line) && line.turnId === turnId,
+      );
+    } catch (error) {
+      this.log.warn("turn_usage_resume_failed", error);
+      return [];
+    }
+  }
+
   private observe(line: UsageLedgerLine): void {
-    if (line.kind !== "generate" || line.caller !== "chat" || line.turnId === undefined) return;
+    if (!isChatCall(line) || line.turnId === undefined) return;
     this.openTurns.get(line.turnId)?.push(line);
   }
 }

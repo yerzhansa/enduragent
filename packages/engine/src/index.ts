@@ -328,6 +328,7 @@ export function createCoachEngine(
           queueText(selected),
           {
             languageDetectionText,
+            resumesTurn: mode === "retry",
             ...(normalizedAttachmentContext.length === 0
               ? {}
               : { attachmentContext: normalizedAttachmentContext }),

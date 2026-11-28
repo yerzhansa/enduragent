@@ -21,7 +21,7 @@ import { parse as parseYaml, stringify as toYaml } from "yaml";
 import {
   ConfirmationGate,
   RefreshTokenReusedError,
-  appendUsageLine,
+  usageLedgerPort,
   acceptModelCatalogSnapshot,
   bootstrapReference,
   classifyFailure,
@@ -1378,7 +1378,7 @@ export async function createLocalCoachComposition(
               : createPlatformCalendarMutations(legacyClient),
         },
         logger,
-        usage: { append: (line) => appendUsageLine(input.home.root, line) },
+        usage: usageLedgerPort(input.home.root),
         stateReader,
         readReferenceState: () => readReferenceState(input.home.root),
         getAccessToken,
