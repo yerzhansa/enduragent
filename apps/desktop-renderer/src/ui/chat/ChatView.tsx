@@ -593,6 +593,7 @@ export function ChatView(): ReactElement {
                   {newConversationCheck === "hidden" ? null : (
                     <Button
                       type="button"
+                      className="shrink-0 text-ink-2 hover:text-ink"
                       variant="ghost"
                       size="xs"
                       disabled={newConversationCheck === "busy"}
