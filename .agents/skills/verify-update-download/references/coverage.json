@@ -1,0 +1,33 @@
+{
+  "syncCommit": "0c559cf8",
+  "fingerprints": {
+    "apps/desktop/src/main/update-controller.ts :: const canCheck =": "7b33adf560bd",
+    "apps/desktop/src/main/update-controller.ts :: const isCurrent =": "a719ce0ca1d1",
+    "apps/desktop/src/main/update-controller.ts :: const armReadinessWatch =": "8bb69b181590",
+    "apps/desktop/src/main/update-controller.ts :: const releaseOperationIfIdle =": "c75a2fbb161d",
+    "apps/desktop/src/main/update-controller.ts :: const finishOperation =": "25e2dbc56436",
+    "apps/desktop/src/main/update-controller.ts :: const failOperation =": "bb7d4a2b16a9",
+    "apps/desktop/src/main/update-controller.ts :: const expireOperation =": "a07bcc5ae216",
+    "apps/desktop/src/main/update-controller.ts :: const publishIfReady =": "5cc414f19bf2",
+    "apps/desktop/src/main/update-controller.ts :: const noteZipReady =": "2c6573594a1f",
+    "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "4c7d2f5cfcda",
+    "apps/desktop/src/main/update-controller.ts :: const runCheck =": "358a76e9b5fe",
+    "apps/desktop/src/main/update-controller.ts :: const initializeUpdater =": "10122aaf4f0d",
+    "apps/desktop/src/main/update-controller.ts :: const check =": "bef75a17cabb",
+    "apps/desktop/src/main/update-controller.ts :: const start =": "6d457671ddfd",
+    "apps/desktop/src/main/update-controller.ts :: restart() {": "1ff8216cf874",
+    "apps/desktop/src/main/update-controller.ts :: completeInstallAfterDrain(allowFinalQuit)": "4b77e1ed0f8f",
+    "apps/desktop/src/main/update-controller.ts :: close() {": "d62893f7f4e9",
+    "apps/desktop/src/main/quit-coordinator.ts :: export async function completeDesktopShutdown(": "46d79521c07a",
+    "apps/desktop/src/main/quit-coordinator.ts :: export function createDesktopQuitCoordinator(": "e647334aa496",
+    "apps/desktop/src/main/update-version-floor.ts :: recordRunningVersion(version)": "f69c6b4dfbd6",
+    "apps/desktop/src/main/update-ipc.ts :: export function installDesktopUpdateIpc(": "3d91a22d2b4a",
+    "apps/desktop/src/main/index.ts :: const shutdown =": "3d140562548f",
+    "apps/desktop/src/main/index.ts :: \"before-quit\"": "b9bc2104d60b",
+    "apps/desktop-renderer/src/update/controller.ts :: export function createDesktopUpdateController(": "99fb044e0d36",
+    "apps/desktop-renderer/src/state/adapters/update.ts :: export function createUpdateSettingsAdapter(": "1d2f0e8c3cb7",
+    "apps/desktop-renderer/src/state/settings-slice.ts :: const EMPTY_UPDATE_SURFACE:": "41d59f3a6591",
+    "apps/desktop-renderer/src/ui/sidebar/UpdateAvailableButton.tsx :: export function UpdateAvailableButton(": "e5673170ea6e",
+    "apps/desktop-renderer/src/ui/settings/ApplicationSection.tsx :: export function ApplicationSection(": "c6c8e99bf55d"
+  }
+}
