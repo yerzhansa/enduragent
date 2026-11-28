@@ -199,18 +199,17 @@ export function createClaudeCliStatus(
   let activeRead: ReadSlot | undefined;
   let queuedRecheck: ReadSlot | undefined;
   let latestReady: { readonly status: ClaudeCliStatus; readonly at: number } | null = null;
+  let settledGeneration = 0;
 
   const read = async (forceRecheck: boolean): Promise<ClaudeCliStatus> => {
     let settings: ClaudeCliSettings;
     try {
       settings = await options.settings();
     } catch {
-      latestReady = null;
       return { state: "not-logged-in" };
     }
     const baseEnv = { ...environment() };
     if (!isClaudeCliLaneEligible({ environment: baseEnv, enabled: settings.enabled })) {
-      latestReady = null;
       return { state: "disabled" };
     }
     try {
@@ -228,10 +227,8 @@ export function createClaudeCliStatus(
           probeDependencies,
         ),
       );
-      latestReady = { status, at: Date.now() };
       return status;
     } catch (error) {
-      latestReady = null;
       return { state: stateForFailure(error) };
     }
   };
@@ -248,7 +245,7 @@ export function createClaudeCliStatus(
       timeout.unref?.();
       const settleLate = (): void => {
         invalidate();
-        latestReady = null;
+        if (generation >= settledGeneration) latestReady = null;
       };
       void rawTask.then(
         (status) => {
@@ -257,6 +254,11 @@ export function createClaudeCliStatus(
             return;
           }
           clearTimeout(timeout);
+          if (generation >= settledGeneration) {
+            settledGeneration = generation;
+            const ready = status.state === "ready" || status.state === "ready-api-key";
+            latestReady = ready ? { status, at: Date.now() } : null;
+          }
           resolve(status);
         },
         (error: unknown) => {
