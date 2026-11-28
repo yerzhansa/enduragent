@@ -372,15 +372,21 @@ OpenRouterSignInIsStored ==
 -----------------------------------------------------------------------------
 (* Settings: Coach provider save and key delete *)
 
-\* provider-model-controller.ts commit -> vault.applyLlmSelection. CoachSection's
-\* controlsDisabled also holds while onboardingCredentialMutationActive.
+\* provider-model-controller.ts commit -> vault.applyLlmSelection. CoachSection
+\* locks its controls and Retry while Setup loads or runs an operation a refresh
+\* would drop (setupOperationRunning without the ride import).
 AthleteSavesCoachInSettings(p) ==
     /\ On("coach-save")
     /\ Athlete
     /\ page.alive
     /\ settings.op = "idle"
     /\ telegramRow = "idle"
-    /\ ~OnboardingCredentialMutationActive
+    /\ ~setup.loading
+    /\ ~setup.busy
+    /\ setup.keySave = NoOne
+    /\ setup.chatgpt \notin {"signing-in", "activating"}
+    /\ setup.intervals = "idle"
+    /\ setup.openRouter = "idle"
     /\ p \in stored \cap (KeyProviders \cup {ChatGpt})
     /\ p # coach.active
     /\ settings' = [settings EXCEPT !.op = "coach-save", !.arg = p]

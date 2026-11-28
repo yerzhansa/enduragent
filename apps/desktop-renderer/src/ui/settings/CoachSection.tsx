@@ -8,7 +8,7 @@ import type {
   ProviderModelFormState,
   ProviderModelSettingsState,
 } from "../../settings/provider-model-controller";
-import { onboardingCredentialMutationActive } from "../../onboarding/controller";
+import { setupOperationRunning } from "../../onboarding/setup-operation";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
@@ -81,11 +81,13 @@ export function CoachSection(): ReactElement {
   const state = useEnduragentStore((store) => store.settings.coach);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.coach ?? null);
-  const controlsDisabled = useEnduragentStore(
-    (store) =>
-      store.settings.savingOwners.some((owner) => owner !== "provider-model") ||
-      onboardingCredentialMutationActive(store.onboarding),
+  const setupBusy = useEnduragentStore(
+    (store) => store.onboarding.loading || setupOperationRunning(store.onboarding, "ride-import"),
   );
+  const otherSettingSaving = useEnduragentStore((store) =>
+    store.settings.savingOwners.some((owner) => owner !== "provider-model"),
+  );
+  const controlsDisabled = setupBusy || otherSettingSaving;
   const customModel = useRef<HTMLInputElement>(null);
   const focusCustomModel = useRef(false);
 
@@ -288,7 +290,7 @@ export function CoachSection(): ReactElement {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={mutating}
+                disabled={mutating || setupBusy}
                 onClick={() => {
                   port?.retry();
                 }}
