@@ -267,23 +267,23 @@ function choiceFromDecision(
 
 interface LiveTurns {
   readonly turnIds: ReadonlySet<string>;
-  readonly athleteTurnIds: ReadonlySet<string>;
+  readonly sentTurnIds: ReadonlySet<string>;
   readonly coachReplies: ReadonlySet<string>;
 }
 
 function liveTurns(messages: readonly ChatMessageView[]): LiveTurns {
   const turnIds = new Set<string>();
-  const athleteTurnIds = new Set<string>();
+  const sentTurnIds = new Set<string>();
   const coachReplies = new Set<string>();
   for (const message of messages) {
     if (message.historical || message.turnId === undefined) continue;
     turnIds.add(message.turnId);
-    if (message.role === "athlete") athleteTurnIds.add(message.turnId);
+    if (message.role === "athlete") sentTurnIds.add(message.turnId);
     if (message.role === "coach" && hasVisibleText(message.text)) {
       coachReplies.add(JSON.stringify([message.turnId, message.text]));
     }
   }
-  return { turnIds, athleteTurnIds, coachReplies };
+  return { turnIds, sentTurnIds, coachReplies };
 }
 
 function historicalTimeline(
@@ -300,9 +300,7 @@ function historicalTimeline(
   const timeline: ChatTranscriptItemView[] = [];
   for (const entry of entries) {
     if (entry.kind === "turn") {
-      // A retry of a saved turn is live without its athlete message, so only a live athlete
-      // message makes the whole saved turn a duplicate.
-      if (live.athleteTurnIds.has(entry.turnId)) continue;
+      if (live.sentTurnIds.has(entry.turnId)) continue;
       const attempt = (turnAttempts.get(entry.turnId) ?? 0) + 1;
       turnAttempts.set(entry.turnId, attempt);
       if (

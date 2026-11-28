@@ -1429,8 +1429,6 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
       });
       await captureQaEvidence(fixture, "05-restored-image-draft");
 
-      // The runtime now reports an OpenAI key, so the app's key store must hold one too.
-      // Without it Setup correctly asks for the missing key and Settings is unreachable.
       backend.exposeProviderSettings();
       expect(await storeSyntheticOpenAiKey(fixture)).toEqual({
         slot: "openai",
