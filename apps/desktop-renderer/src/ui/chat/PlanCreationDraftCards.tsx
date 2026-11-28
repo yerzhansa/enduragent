@@ -194,7 +194,13 @@ export function PlanCreationDraftCards(props: {
             aria-label={say("chat.planCreation.builtTitle")}
           >
             <Fact label={say("chat.planCreation.guidanceLabel")}>
-              {say("chat.planCreation.guidance")}
+              {say(
+                !workouts.some((workout) => workout.content !== undefined)
+                  ? "chat.planCreation.guidance"
+                  : props.model.ftpWatts == null
+                    ? "chat.planCreation.guidanceByFeel"
+                    : "chat.planCreation.guidanceFtp",
+              )}
             </Fact>
             <Fact label={say("chat.planCreation.approachLabel")}>
               {say("chat.planCreation.approach")}

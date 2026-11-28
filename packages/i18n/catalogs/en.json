@@ -622,6 +622,8 @@
       },
       "goalLabel": "Main Goal",
       "guidance": "Heart rate or perceived effort. No FTP test.",
+      "guidanceByFeel": "Targets by feel until an FTP is set.",
+      "guidanceFtp": "Targets as % of your FTP in intervals.icu.",
       "guidanceLabel": "Guidance",
       "improveFitness": "Improve fitness",
       "inProgress": "In progress",
@@ -1452,16 +1454,47 @@
       "workout": {
         "ask": "Ask the coach to change it",
         "askDraft": "Please change “{{name}}” on {{day}}:",
+        "byFeel": "Targets by feel until an FTP is set",
         "close": "Close",
         "export": "Export this day’s workouts",
+        "load": "Load ≈ {{load}}",
         "move": "Move…",
         "moving": "Moving on intervals.icu",
         "onIntervals": "On intervals.icu",
         "onIntervalsYours": "On intervals.icu, with your edit",
+        "part": {
+          "coolDown": "Cool-down",
+          "interval": "Interval",
+          "main": "Steady",
+          "recovery": "Easy",
+          "warmUp": "Warm-up"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "In the Plan only, not sent yet",
         "planOnlyGoesOut": "In the Plan only, goes out {{date}}",
         "planWorkout": "Plan Workout",
-        "today": "Today"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervals, {{duration}} easy after each",
+        "steps": "Steps",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Today",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Builds your aerobic base.",
+          "endurance": "Builds endurance for long days.",
+          "recover": "Lets you recover while keeping your legs moving.",
+          "sustainedPower": "Builds sustained power just under your threshold."
+        },
+        "whyTitle": "Why this workout",
+        "zone": {
+          "endurance": "Endurance",
+          "recovery": "Recovery",
+          "sweetSpot": "Sweet spot"
+        }
       }
     },
     "details": {

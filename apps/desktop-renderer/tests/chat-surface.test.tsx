@@ -3717,6 +3717,73 @@ describe("chat surface", () => {
       expect(composer()).toBeEnabled();
     });
 
+    it.each([
+      [
+        "a Draft built before workout content",
+        false,
+        null,
+        "Heart rate or perceived effort. No FTP test.",
+      ],
+      ["workout content and no FTP yet", true, null, "Targets by feel until an FTP is set."],
+      [
+        "workout content and an FTP in intervals.icu",
+        true,
+        210,
+        "Targets as % of your FTP in intervals.icu.",
+      ],
+    ] as const)("states the Draft's targets for %s", async (_case, withContent, ftpWatts, text) => {
+      const draft = planCreationDraft();
+      if (withContent)
+        for (const workout of draft.weeks.flatMap((week) => week.workouts))
+          workout.content = {
+            version: 1,
+            zone: "endurance",
+            load: 45,
+            why: "aerobic-base",
+            blocks: [
+              {
+                kind: "step",
+                step: {
+                  part: "warm-up",
+                  seconds: 600,
+                  target: { kind: "range", low: 45, high: 65 },
+                },
+              },
+              {
+                kind: "step",
+                step: {
+                  part: "main",
+                  seconds: 2_400,
+                  target: { kind: "range", low: 56, high: 75 },
+                },
+              },
+              {
+                kind: "step",
+                step: { part: "cool-down", seconds: 600, target: { kind: "steady", percent: 45 } },
+              },
+            ],
+          };
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft,
+        ftpWatts,
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+      await userEvent.click(screen.getByText("How this Plan was built"));
+      const built = screen.getByRole("table", { name: "How this Plan was built" });
+      expect(
+        within(built)
+          .getAllByRole("row")
+          .find((row) => row.textContent?.startsWith("Guidance")),
+      ).toHaveTextContent(text);
+    });
+
     it("offers Draft review only after its actions leave the viewport and returns to the Card", async () => {
       const model: PlanCreationCardModel = {
         ...planCreationModel(null),

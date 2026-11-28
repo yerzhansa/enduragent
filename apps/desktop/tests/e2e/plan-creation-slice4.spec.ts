@@ -281,7 +281,7 @@ for (const appearance of [
         .filter({ has: scenario.page.locator("summary", { hasText: "How this Plan was built" }) });
       await expect(disclosure).not.toHaveAttribute("open", "");
       await disclosure.locator("summary").click();
-      await expect(disclosure).toContainText("Heart rate or perceived effort. No FTP test.");
+      await expect(disclosure).toContainText("Targets by feel until an FTP is set.");
       await disclosure.locator("summary").click();
       for (const week of first.draft.weeks) {
         await expect(scenario.page.getByText(new RegExp(`^Week ${week.number} ·`))).toHaveCount(1);

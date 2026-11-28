@@ -1,8 +1,10 @@
 import { renderLocalized as render } from "./language-harness";
 import type {
+  PlanCalendarCurrentFtp,
   PlanCalendarRpcResult,
   PlanCalendarWeek,
   PlanCalendarWorkout,
+  PlanWorkoutContent,
 } from "@enduragent/coach-contract";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -136,6 +138,94 @@ afterEach(() => {
       trainingExport: IDLE_TRAINING_EXPORT,
       trainingExportActions: null,
     });
+  });
+});
+
+const SWEET_SPOT: PlanWorkoutContent = {
+  version: 1,
+  zone: "sweet-spot",
+  load: 36,
+  why: "sustained-power",
+  blocks: [
+    {
+      kind: "step",
+      step: { part: "warm-up", seconds: 600, target: { kind: "range", low: 45, high: 65 } },
+    },
+    {
+      kind: "repeat",
+      times: 3,
+      steps: [
+        { part: "interval", seconds: 360, target: { kind: "range", low: 88, high: 94 } },
+        { part: "recovery", seconds: 180, target: { kind: "steady", percent: 50 } },
+      ],
+    },
+    {
+      kind: "step",
+      step: { part: "cool-down", seconds: 480, target: { kind: "steady", percent: 45 } },
+    },
+  ],
+};
+
+function withContent(ftp: PlanCalendarCurrentFtp | null): PlanCalendarRead {
+  return {
+    ...read({ second: { name: "Controlled effort", durationS: 2_700, content: SWEET_SPOT } }),
+    ftp,
+  };
+}
+
+const plain = (element: Element | null) => element?.textContent?.replaceAll("\u00a0", " ") ?? "";
+
+async function openControlledEffort(calendar: PlanCalendarRead) {
+  const user = userEvent.setup();
+  show(calendar);
+  render(<CalendarView />);
+  await user.click(gridCard(workoutId(2)));
+  return screen.getByRole("dialog", { name: "Controlled effort" });
+}
+
+describe("the workout card's content", () => {
+  it("shows load, zone, each step with watts from the one FTP, and why", async () => {
+    const card = await openControlledEffort(withContent({ watts: 210, dateKey: 19980102 }));
+    expect(plain(card.querySelector("[data-workout-load]"))).toBe("Load ≈ 36");
+    expect(plain(card.querySelector("[data-workout-zone]"))).toBe("Sweet spot");
+    const steps = within(card).getByRole("list", { name: "Steps" });
+    expect(within(steps).getAllByRole("listitem").map(plain)).toEqual([
+      "10mWarm-up45–65% · 95–137 W",
+      "3 × 6mIntervals, 3m easy after each88–94% · 185–197 W",
+      "8mCool-down45% · 95 W",
+    ]);
+    expect(plain(card.querySelector("[data-workout-ftp]"))).toBe(
+      "Targets use FTP 210 W from intervals.icu.",
+    );
+    expect(within(card).getByRole("heading", { name: "Why this workout" })).toBeInTheDocument();
+    expect(card).toHaveTextContent("Builds sustained power just under your threshold.");
+  });
+
+  it("shows the steps in % and says targets are by feel when no FTP is known", async () => {
+    const card = await openControlledEffort(withContent(null));
+    const steps = within(card).getByRole("list", { name: "Steps" });
+    expect(within(steps).getAllByRole("listitem").map(plain)).toEqual([
+      "10mWarm-up45–65%",
+      "3 × 6mIntervals, 3m easy after each88–94%",
+      "8mCool-down45%",
+    ]);
+    expect(plain(card)).not.toMatch(/\d W/u);
+    expect(plain(card.querySelector("[data-workout-ftp]"))).toBe(
+      "Targets by feel until an FTP is set",
+    );
+  });
+
+  it("keeps today's card for a workout with no content", async () => {
+    const user = userEvent.setup();
+    show({ ...read(), ftp: { watts: 210, dateKey: 19980102 } });
+    render(<CalendarView />);
+    await user.click(gridCard(workoutId(1)));
+    const card = screen.getByRole("dialog", { name: "Long endurance" });
+    expect(
+      card.querySelector("[data-workout-load], [data-workout-steps], [data-workout-ftp]"),
+    ).toBeNull();
+    expect(within(card).queryByRole("heading", { name: "Why this workout" })).toBeNull();
+    expect(plain(card)).not.toContain("Load");
   });
 });
 
