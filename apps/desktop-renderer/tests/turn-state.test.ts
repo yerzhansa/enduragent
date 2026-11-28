@@ -639,7 +639,7 @@ describe("desktop turn state", () => {
     expect(discarded.messages).toEqual(stopped.messages);
   });
 
-  it("keeps a stopped turn's saved lines when a later retry of it fails and is discarded", () => {
+  it("keeps only a stopped turn's saved lines when later retries of it fail and it is discarded", () => {
     const stopped = reduceChatState(
       reduceChatState(started(), { type: "bind-turn", requestKey: 1, turnId: "turn-1" }),
       {
@@ -648,28 +648,40 @@ describe("desktop turn state", () => {
         event: { type: "interrupted", turnId: "turn-1", chatId: DESKTOP_CHAT_ID, text: "Partial" },
       },
     );
-    const retried = reduceChatState(
-      reduceChatState(
-        reduceChatState(stopped, {
+    const failRetry = (state: ChatState, requestKey: number, draft: string): ChatState => {
+      const retrying = reduceChatState(
+        reduceChatState(state, {
           type: "submit",
-          requestKey: 2,
-          occurredAtMs: 1,
+          requestKey,
+          occurredAtMs: requestKey,
           userMessage: "How should I train?",
-          userMessageId: "message-3",
-          assistantMessageId: "message-4",
+          userMessageId: `retry-athlete-${requestKey}`,
+          assistantMessageId: `retry-coach-${requestKey}`,
           includeUser: false,
         }),
-        { type: "bind-turn", requestKey: 2, turnId: "turn-1" },
-      ),
-      { type: "fail", requestKey: 2, copy: "failed" },
-    );
+        { type: "bind-turn", requestKey, turnId: "turn-1" },
+      );
+      const drafted =
+        draft === ""
+          ? retrying
+          : reduceChatState(retrying, {
+              type: "event",
+              requestKey,
+              event: { type: "text_delta", turnId: "turn-1", delta: draft },
+            });
+      return reduceChatState(drafted, { type: "fail", requestKey, copy: "failed" });
+    };
 
-    const discarded = reduceChatState(retried, { type: "discard-recovery", turnId: "turn-1" });
-
-    expect(discarded.messages.map(({ id, text }) => ({ id, text }))).toEqual([
-      { id: "message-1", text: "How should I train?" },
-      { id: "message-2", text: "Partial" },
-    ]);
+    for (const failed of [
+      failRetry(stopped, 2, ""),
+      failRetry(failRetry(stopped, 2, "Failed draft"), 3, ""),
+    ]) {
+      const discarded = reduceChatState(failed, { type: "discard-recovery", turnId: "turn-1" });
+      expect(discarded.messages.map(({ id, text }) => ({ id, text }))).toEqual([
+        { id: "message-1", text: "How should I train?" },
+        { id: "message-2", text: "Partial" },
+      ]);
+    }
   });
 
   it("drops a failed turn's lines when its retry is discarded, bound or not", () => {

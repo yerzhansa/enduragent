@@ -431,7 +431,9 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             ? state.messages
             : state.messages.filter(
                 (message) =>
-                  (stopped || message.turnId !== action.turnId) && !activeIds.includes(message.id),
+                  !activeIds.includes(message.id) &&
+                  (message.turnId !== action.turnId ||
+                    (stopped && (message.role === "athlete" || message.stopped === true))),
               ),
       };
     }

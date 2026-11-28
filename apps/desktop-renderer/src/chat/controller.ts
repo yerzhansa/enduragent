@@ -3042,6 +3042,7 @@ export function createChatController(input: {
         .filter((item) => ids.has(item.id))
         .map((item) => item.text)
         .join("\n\n");
+      queueMutationError = null;
       return dispatchQueue(
         text,
         { method: "retryQueuedTurn", claimId, queuedMessageIds: [...ids] },

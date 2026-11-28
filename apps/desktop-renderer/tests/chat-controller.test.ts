@@ -1298,6 +1298,25 @@ describe("chat controller", () => {
     expect(controls.at(-1)?.queueMutationError).toBeNull();
   });
 
+  it("clears a failed Discard's error when the athlete retries and that retry fails too", async () => {
+    const fake = client(
+      async (_request, options) => {
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        throw new Error("synthetic model failure");
+      },
+      { discardQueuedTurn: async () => Promise.reject(new Error("storage unavailable")) },
+    );
+    const { controller, states, controls } = subject(fake);
+    await controller.submit("Keep me");
+    await controller.discardRetry();
+    expect(controls.at(-1)?.queueMutationError).toBe(CHAT_QUEUE_REMOVE_FAILURE_COPY);
+
+    await controller.retry();
+
+    expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
+    expect(controls.at(-1)?.queueMutationError).toBeNull();
+  });
+
   it("discards a retry restored at relaunch and sends the message waiting behind it", async () => {
     const waiting = {
       queuedMessageId: "queued-2",
