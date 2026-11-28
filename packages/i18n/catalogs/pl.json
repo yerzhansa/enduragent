@@ -559,6 +559,14 @@
       "date": "{{day}} {{month}}",
       "detail": "Wydatki na model językowy względem dzisiejszego limitu",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Zatrzymaj: trener nie odpowiada na nowe wiadomości do jutra albo do czasu, aż podniesiesz limit. Wysłana wiadomość czeka i zostanie wtedy wysłana.",
+        "detailWarn": "Ostrzegaj: trener dalej odpowiada, a czat pokazuje powiadomienie.",
+        "enforce": "Zatrzymaj",
+        "overshoot": "Limit jest sprawdzany na początku wiadomości, więc jedna długa odpowiedź może go jeszcze trochę przekroczyć.",
+        "title": "Gdy dzisiejszy limit zostanie osiągnięty",
+        "warn": "Ostrzegaj"
+      },
       "month": {
         "april": "kwi",
         "august": "sie",
@@ -1694,7 +1702,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Dzisiejszy limit wydatków {{amount}} został osiągnięty. Możesz dalej rozmawiać. To ostrzeżenie, nie blokada."
+      "capReached": "Dzisiejszy limit wydatków {{amount}} został osiągnięty. Możesz dalej rozmawiać. To ostrzeżenie, nie blokada.",
+      "capReachedStop": "Dzisiejszy limit wydatków {{amount}} został osiągnięty. Nowe wiadomości poczekają do jutra albo podnieś limit lub przełącz na Ostrzegaj w Ustawienia › Wydatki."
     },
     "supportingEvent": {
       "accepted": "Zaakceptowane wydarzenie dodatkowe",
@@ -3436,6 +3445,9 @@
       "trainingLoad": "obciążenie treningowe na {{load}}",
       "unnamed": "Trening bez nazwy",
       "update": "Zaktualizuj trening „{{name}}” z {{date}} — {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Dzisiejsze wydatki na model językowy osiągnęły twój dzienny limit {{cap}}, więc trener nie odpowiedział. Aby kontynuować dziś, podnieś limit albo przełącz na Ostrzegaj w Ustawienia › Wydatki."
     }
   },
   "telegram": {

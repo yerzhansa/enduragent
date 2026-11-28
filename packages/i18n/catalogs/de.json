@@ -551,6 +551,14 @@
       "date": "{{day}}. {{month}}",
       "detail": "Ausgaben für Sprachmodelle im Verhältnis zum heutigen Limit",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Stoppen: Der Coach beantwortet neue Nachrichten erst morgen wieder oder sobald du das Limit erhöhst. Eine Nachricht, die du sendest, wartet und geht dann raus.",
+        "detailWarn": "Warnen: Der Coach antwortet weiter, und im Chat erscheint ein Hinweis.",
+        "enforce": "Stoppen",
+        "overshoot": "Das Limit wird geprüft, wenn eine Nachricht beginnt. Eine lange Antwort kann es daher noch etwas überschreiten.",
+        "title": "Wenn das heutige Limit erreicht ist",
+        "warn": "Warnen"
+      },
       "month": {
         "april": "Apr",
         "august": "Aug",
@@ -1664,7 +1672,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Du hast dein heutiges Ausgabenlimit von {{amount}} erreicht. Du kannst weiterchatten; dies ist eine Warnung und keine Sperre."
+      "capReached": "Du hast dein heutiges Ausgabenlimit von {{amount}} erreicht. Du kannst weiterchatten; dies ist eine Warnung und keine Sperre.",
+      "capReachedStop": "Du hast dein heutiges Ausgabenlimit von {{amount}} erreicht. Neue Nachrichten warten bis morgen, oder du erhöhst das Limit oder wechselst unter Einstellungen › Ausgaben zu Warnen."
     },
     "supportingEvent": {
       "accepted": "Angenommene ergänzende Veranstaltung",
@@ -3306,6 +3315,9 @@
       "trainingLoad": "Trainingsbelastung auf {{load}}",
       "unnamed": "Unbenanntes Training",
       "update": "Training \"{{name}}\" am {{date}} aktualisieren: {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Die heutigen Ausgaben für das Sprachmodell haben dein Tageslimit von {{cap}} erreicht, deshalb hat der Coach nicht geantwortet. Um heute weiterzumachen, erhöhe das Limit oder wechsle unter Einstellungen › Ausgaben zu Warnen."
     }
   },
   "telegram": {

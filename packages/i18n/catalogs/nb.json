@@ -551,6 +551,14 @@
       "date": "{{day}}. {{month}}",
       "detail": "Kostnader for språkmodellen sammenlignet med dagens grense",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Stopp: coachen svarer ikke på nye meldinger før i morgen eller til du hever grensen. En melding du sender, venter og går ut da.",
+        "detailWarn": "Varsle: coachen fortsetter å svare, og Chat viser et varsel.",
+        "enforce": "Stopp",
+        "overshoot": "Grensen sjekkes når en melding starter, så ett langt svar kan likevel gå litt over den.",
+        "title": "Når dagens grense er nådd",
+        "warn": "Varsle"
+      },
       "month": {
         "april": "apr.",
         "august": "aug.",
@@ -1664,7 +1672,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Du har nådd dagens kostnadsgrense på {{amount}}. Du kan fortsette å chatte. Dette er et varsel, ikke en sperre."
+      "capReached": "Du har nådd dagens kostnadsgrense på {{amount}}. Du kan fortsette å chatte. Dette er et varsel, ikke en sperre.",
+      "capReachedStop": "Du har nådd dagens kostnadsgrense på {{amount}}. Nye meldinger venter til i morgen, eller hev grensen eller bytt til Varsle under Innstillinger › Kostnader."
     },
     "supportingEvent": {
       "accepted": "Godtatt delmålarrangement",
@@ -3305,6 +3314,9 @@
       "trainingLoad": "treningsbelastning til {{load}}",
       "unnamed": "Treningsøkt uten navn",
       "update": "Oppdater treningsøkten «{{name}}» den {{date}} — {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Dagens kostnader til språkmodellen har nådd den daglige grensen din på {{cap}}, så coachen svarte ikke. For å fortsette i dag kan du heve grensen eller bytte til Varsle under Innstillinger › Kostnader."
     }
   },
   "cli": {

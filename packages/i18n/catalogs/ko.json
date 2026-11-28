@@ -548,6 +548,14 @@
       "date": "{{month}} {{day}}일",
       "detail": "오늘의 한도 대비 언어 모델 지출",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "중지: 내일이 되거나 한도를 올릴 때까지 코치가 새 메시지에 답하지 않습니다. 보낸 메시지는 대기했다가 그때 전송됩니다.",
+        "detailWarn": "경고: 코치는 계속 답하고 채팅에 알림이 표시됩니다.",
+        "enforce": "중지",
+        "overshoot": "한도는 메시지가 시작될 때 확인되므로 긴 답변 하나가 한도를 조금 넘을 수 있습니다.",
+        "title": "오늘 한도에 도달하면",
+        "warn": "경고"
+      },
       "month": {
         "april": "4월",
         "august": "8월",
@@ -1649,7 +1657,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "오늘의 지출 한도 {{amount}}에 도달했습니다. 계속 채팅할 수 있습니다. 사용을 차단하지 않는 경고입니다."
+      "capReached": "오늘의 지출 한도 {{amount}}에 도달했습니다. 계속 채팅할 수 있습니다. 사용을 차단하지 않는 경고입니다.",
+      "capReachedStop": "오늘의 지출 한도 {{amount}}에 도달했습니다. 새 메시지는 내일까지 대기합니다. 한도를 올리거나 설정 › 지출에서 경고로 바꾸세요."
     },
     "supportingEvent": {
       "accepted": "반영된 보조 이벤트",
@@ -3241,6 +3250,9 @@
       "trainingLoad": "훈련 부하를 {{load}}(으)로",
       "unnamed": "이름 없는 워크아웃",
       "update": "{{date}}의 워크아웃 \"{{name}}\" 수정: {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "오늘 언어 모델 지출이 하루 한도 {{cap}}에 도달해 코치가 답하지 않았습니다. 오늘 계속하려면 한도를 올리거나 설정 › 지출에서 경고로 바꾸세요."
     }
   },
   "telegram": {

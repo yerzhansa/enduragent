@@ -551,6 +551,14 @@
       "date": "{{day}} {{month}}",
       "detail": "Gasto en modelos de lenguaje respecto al límite de hoy",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Detener: el coach no responde a mensajes nuevos hasta mañana o hasta que subas el límite. Un mensaje que envíes espera y sale entonces.",
+        "detailWarn": "Avisar: el coach sigue respondiendo y el chat muestra un aviso.",
+        "enforce": "Detener",
+        "overshoot": "El límite se comprueba cuando empieza un mensaje, así que una respuesta larga aún puede pasarse un poco.",
+        "title": "Cuando se alcanza el límite de hoy",
+        "warn": "Avisar"
+      },
       "month": {
         "april": "abr",
         "august": "ago",
@@ -1664,7 +1672,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Has alcanzado el límite de gasto de hoy de {{amount}}. Puedes seguir chateando; es un aviso, no un bloqueo."
+      "capReached": "Has alcanzado el límite de gasto de hoy de {{amount}}. Puedes seguir chateando; es un aviso, no un bloqueo.",
+      "capReachedStop": "Has alcanzado el límite de gasto de hoy de {{amount}}. Los mensajes nuevos esperan hasta mañana, o puedes subir el límite o cambiar a Avisar en Ajustes › Gasto."
     },
     "supportingEvent": {
       "accepted": "Evento secundario aceptado",
@@ -3306,6 +3315,9 @@
       "trainingLoad": "carga de entrenamiento a {{load}}",
       "unnamed": "Entrenamiento sin nombre",
       "update": "Actualizar el entrenamiento \"{{name}}\" el {{date}}: {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "El gasto de hoy en el modelo de lenguaje ha alcanzado tu límite diario de {{cap}}, así que el coach no respondió. Para seguir hoy, sube el límite o cambia a Avisar en Ajustes › Gasto."
     }
   },
   "telegram": {

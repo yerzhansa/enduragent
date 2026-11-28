@@ -552,6 +552,14 @@
       "date": "{{day}} {{month}}",
       "detail": "Kostnader för språkmodellen jämfört med dagens gräns",
       "minimumAmount": "{{amount}}+",
+      "mode": {
+        "detailEnforce": "Stoppa: coachen svarar inte på nya meddelanden förrän i morgon eller tills du höjer gränsen. Ett meddelande du skickar väntar och går iväg då.",
+        "detailWarn": "Varna: coachen fortsätter att svara och chatten visar ett meddelande.",
+        "enforce": "Stoppa",
+        "overshoot": "Gränsen kontrolleras när ett meddelande börjar, så ett långt svar kan ändå gå lite över den.",
+        "title": "När dagens gräns är nådd",
+        "warn": "Varna"
+      },
       "month": {
         "april": "apr",
         "august": "aug",
@@ -1664,7 +1672,8 @@
     },
     "spend": {
       "belowAmount": "<{{amount}}",
-      "capReached": "Du har nått dagens kostnadsgräns på {{amount}}. Du kan fortsätta chatta. Det här är en varning och spärrar inte chatten."
+      "capReached": "Du har nått dagens kostnadsgräns på {{amount}}. Du kan fortsätta chatta. Det här är en varning och spärrar inte chatten.",
+      "capReachedStop": "Du har nått dagens kostnadsgräns på {{amount}}. Nya meddelanden väntar till i morgon, eller höj gränsen eller byt till Varna under Inställningar › Kostnader."
     },
     "supportingEvent": {
       "accepted": "Godkänt sekundärt evenemang",
@@ -3306,6 +3315,9 @@
       "trainingLoad": "träningsbelastning till {{load}}",
       "unnamed": "Namnlöst träningspass",
       "update": "Uppdatera träningspasset \"{{name}}\" den {{date}}. {{detail}}"
+    },
+    "refusal": {
+      "spendCapReached": "Dagens kostnader för språkmodellen har nått din dagliga gräns på {{cap}}, så coachen svarade inte. För att fortsätta i dag kan du höja gränsen eller byta till Varna under Inställningar › Kostnader."
     }
   },
   "telegram": {

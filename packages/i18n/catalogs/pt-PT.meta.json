@@ -1008,6 +1008,30 @@
       "sourceHash": "2c3c0c455e15c21e15007b07d9d97fc0fae380f2c4f4d1547d5b92d48a37a8e4",
       "translatedBy": "model"
     },
+    "settings.spend.mode.detailEnforce": {
+      "sourceHash": "27e01f136a8cbfb8dbd0ffae5e9a1d2d93ddf079816b88361cb22603c10f199c",
+      "translatedBy": "model"
+    },
+    "settings.spend.mode.detailWarn": {
+      "sourceHash": "6c0ee3d9eb15bda4840f40cde656cb0604bd4c3aefd49140caa910ef23e24108",
+      "translatedBy": "model"
+    },
+    "settings.spend.mode.enforce": {
+      "sourceHash": "cae7d57bc067a514b8e34c9589631a95c7dc051638ddd2a190773269279a99df",
+      "translatedBy": "model"
+    },
+    "settings.spend.mode.overshoot": {
+      "sourceHash": "e47ed133281d15833a2dae70716f979d4382e613db26042a99fd9680be3ba40f",
+      "translatedBy": "model"
+    },
+    "settings.spend.mode.title": {
+      "sourceHash": "ad7c00d684b93b08137213f6ce6cafa3dbc6037dbcb2245449d23c15e5679725",
+      "translatedBy": "model"
+    },
+    "settings.spend.mode.warn": {
+      "sourceHash": "8448814dc5caff5ce9443cc7f2e82be582fd362afb5cb8d759f66bb58d8b3fae",
+      "translatedBy": "model"
+    },
     "settings.spend.month.april": {
       "sourceHash": "617531b4fec3488c34f60417bf571d1c30e7e2cd8fec9fb06206815345f1df74",
       "translatedBy": "model"
@@ -4534,6 +4558,10 @@
     },
     "chat.spend.capReached": {
       "sourceHash": "f24b3b2b7cd5ec07fb341e065157993af2f3e2fd7b20881c40f313398fdf2a88",
+      "translatedBy": "model"
+    },
+    "chat.spend.capReachedStop": {
+      "sourceHash": "2f1dbceaf79e72b0c02d72e9e5a88520abbb6ea4b9d154079325caa970c60e90",
       "translatedBy": "model"
     },
     "chat.supportingEvent.accepted": {
@@ -9082,6 +9110,10 @@
     },
     "coach.proposal.update": {
       "sourceHash": "7512657492d27c8cfffa78985e66af29dca5838f6ef7f8c3b2177ca07cc17ce1",
+      "translatedBy": "model"
+    },
+    "coach.refusal.spendCapReached": {
+      "sourceHash": "8f5272cec1d855645d8f783cc4a4ef182a4c827f791003521fc8e70177a0e8e9",
       "translatedBy": "model"
     },
     "telegram.capture.code": {
