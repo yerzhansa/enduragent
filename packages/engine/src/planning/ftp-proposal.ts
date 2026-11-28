@@ -3,6 +3,7 @@ import { addCivilDays } from "@enduragent/kernel/planning";
 export const FTP_DRIFT_RATIO = 0.03;
 export const FTP_DRIFT_DAYS = 14;
 export const FTP_KEEP_PAUSE_DAYS = 28;
+export const FTP_DRIFT_MARGIN_PERCENT = 1;
 
 export interface IcuSportFtp {
   readonly ftpWatts: number | null;
@@ -81,6 +82,7 @@ export type FtpProposalEvent =
   | { readonly type: "athlete-uses"; readonly icuWatts: number | null }
   | { readonly type: "athlete-confirms"; readonly icuWattsNow: number | null }
   | { readonly type: "athlete-cancels" }
+  | { readonly type: "icu-holds-proposal"; readonly icuWattsNow: number | null }
   | { readonly type: "write-finished" }
   | { readonly type: "write-failed" }
   | { readonly type: "write-refused"; readonly icuWattsNow: number | null };
@@ -134,30 +136,62 @@ function driftSide(ftpWatts: number, estimateWatts: number): DriftSide {
   return "near";
 }
 
-export function ftpDriftEvidence(input: {
+export interface FtpDriftInput {
   readonly ftpWatts: number;
   readonly ftpSetDateKey: number;
   readonly samples: readonly FtpEstimateSample[];
   readonly todayDateKey: number;
-}): FtpEvidence {
+}
+
+export interface FtpDriftRun {
+  readonly direction: "above" | "below";
+  readonly sinceDateKey: number;
+  readonly lastDateKey: number;
+  readonly lowWatts: number;
+  readonly highWatts: number;
+  readonly lowestRecentWatts: number;
+  readonly proposedWatts: number;
+}
+
+export function ftpDriftRun(input: FtpDriftInput): FtpDriftRun | null {
   const sorted = input.samples
     .filter(
       (sample) => sample.dateKey > input.ftpSetDateKey && sample.dateKey <= input.todayDateKey,
     )
     .sort((left, right) => left.dateKey - right.dateKey);
   const last = sorted.at(-1);
-  if (last === undefined) return { kind: "none" };
+  if (last === undefined) return null;
   const side = driftSide(input.ftpWatts, last.estimatedFtpWatts);
-  if (side === "near") return { kind: "none" };
+  if (side === "near") return null;
   const run: FtpEstimateSample[] = [];
   for (const sample of [...sorted].reverse()) {
     if (driftSide(input.ftpWatts, sample.estimatedFtpWatts) !== side) break;
     run.push(sample);
   }
   const first = run.at(-1);
-  if (first === undefined || run.length < 2) return { kind: "none" };
-  if (addCivilDays(first.dateKey, FTP_DRIFT_DAYS - 1) > last.dateKey) return { kind: "none" };
-  return { kind: "drift", watts: Math.round(last.estimatedFtpWatts) };
+  if (first === undefined || run.length < 2) return null;
+  if (addCivilDays(first.dateKey, FTP_DRIFT_DAYS - 1) > last.dateKey) return null;
+  const watts = run.map((sample) => Math.round(sample.estimatedFtpWatts));
+  const recentFrom = addCivilDays(last.dateKey, -(FTP_DRIFT_DAYS - 1));
+  const lowestRecentWatts = Math.min(
+    ...run
+      .filter((sample) => sample.dateKey >= recentFrom)
+      .map((sample) => Math.round(sample.estimatedFtpWatts)),
+  );
+  return {
+    direction: side,
+    sinceDateKey: first.dateKey,
+    lastDateKey: last.dateKey,
+    lowWatts: Math.min(...watts),
+    highWatts: Math.max(...watts),
+    lowestRecentWatts,
+    proposedWatts: Math.floor((lowestRecentWatts * (100 - FTP_DRIFT_MARGIN_PERCENT)) / 100),
+  };
+}
+
+export function ftpDriftEvidence(input: FtpDriftInput): FtpEvidence {
+  const run = ftpDriftRun(input);
+  return run === null ? { kind: "none" } : { kind: "drift", watts: run.proposedWatts };
 }
 
 function pauseCovers(pause: FtpDriftPause, todayDateKey: number): boolean {
@@ -181,10 +215,17 @@ function alreadyAnswered(answered: FtpAnsweredTest, activityId: string, dateKey:
   );
 }
 
+function ftpMoved(memory: FtpMemory, watts: number | null): boolean {
+  return memory.ftpSeen.kind === "seen" ? memory.ftpSeen.watts !== watts : watts !== null;
+}
+
 function onChecked(
   proposal: FtpProposal,
   event: Extract<FtpProposalEvent, { type: "checked" }>,
 ): FtpProposalStep {
+  if (proposal.kind === "shown" && ftpMoved(proposal.memory, event.icuFtpWatts)) {
+    return onChecked({ kind: "quiet", memory: proposal.memory }, event);
+  }
   if (proposal.kind !== "quiet") return stay(proposal);
   const current = proposal.memory;
   const memory: FtpMemory = {
@@ -263,6 +304,10 @@ export function ftpProposalStep(proposal: FtpProposal, event: FtpProposalEvent):
         basis: proposal.basis,
         memory: proposal.memory,
       });
+    case "icu-holds-proposal":
+      return proposal.kind === "confirming" && event.icuWattsNow === proposal.watts
+        ? stay({ kind: "quiet", memory: answeredMemory(proposal.memory, proposal.basis) })
+        : stay(proposal);
     case "write-finished":
       return proposal.kind === "writing"
         ? stay({ kind: "quiet", memory: answeredMemory(proposal.memory, proposal.basis) })

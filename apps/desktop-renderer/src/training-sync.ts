@@ -50,7 +50,7 @@ export type TrainingSyncStateListener = (state: TrainingSyncState) => void;
 export interface TrainingSyncCoordinator {
   getState(): TrainingSyncState;
   subscribe(listener: TrainingSyncStateListener): () => void;
-  request(): Promise<void>;
+  request(options?: { readonly quiet?: boolean }): Promise<void>;
   dispose(): void;
 }
 
@@ -133,10 +133,17 @@ export function createTrainingSyncCoordinator(input: {
   let reasks = 0;
   let pendingReask: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<TrainingSyncStateListener>();
+  let quietRun: { readonly operation: number; readonly before: TrainingSyncState } | undefined;
 
   const current = (selectedEpoch: number): boolean => !disposed && selectedEpoch === epoch;
-  const publish = (next: TrainingSyncState): void => {
+  const publish = (requested: TrainingSyncState): void => {
     if (disposed) return;
+    const next =
+      requested.status === "failed" &&
+      requested.kind !== "protocol" &&
+      quietRun?.operation === requested.operation
+        ? quietRun.before
+        : requested;
     if (isSameTrainingSyncState(state, next)) return;
     state = next;
     for (const listener of listeners) {
@@ -162,9 +169,10 @@ export function createTrainingSyncCoordinator(input: {
   ): Promise<DesktopCoachClient> =>
     previous === undefined ? input.clients.getClient() : input.clients.reconnect(previous);
 
-  const begin = (reasking: boolean): Promise<void> => {
+  const begin = (reasking: boolean, quiet = false): Promise<void> => {
     const selectedEpoch = ++epoch;
     const selectedOperation = ++operation;
+    quietRun = quiet ? { operation: selectedOperation, before: state } : undefined;
     publish({ status: "queued", operation: selectedOperation });
 
     let selectedClient: DesktopCoachClient | undefined;
@@ -428,14 +436,17 @@ export function createTrainingSyncCoordinator(input: {
     void begin(true);
   };
 
-  const request = (): Promise<void> => {
+  const request = (options?: { readonly quiet?: boolean }): Promise<void> => {
     if (disposed || (state.status === "failed" && state.kind === "protocol")) {
       return Promise.resolve();
     }
-    if (inFlight !== undefined) return inFlight;
+    if (inFlight !== undefined) {
+      if (options?.quiet !== true) quietRun = undefined;
+      return inFlight;
+    }
     cancelReask();
     reasks = 0;
-    return begin(false);
+    return begin(false, options?.quiet === true);
   };
 
   const stopFollowingConnections = input.clients.onConnectionOpen(() => {

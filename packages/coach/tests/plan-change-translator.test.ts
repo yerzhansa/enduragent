@@ -60,7 +60,7 @@ describe("model-only Plan Change checks", () => {
       outcome,
       title: "Check this request",
       body: "One paragraph from the coach.",
-      value: outcome === "understood" ? { kind: "ftp", watts: 220 } : null,
+      value: outcome === "understood" ? { kind: "weekly-duration", hours: 6 } : null,
     };
     await expect(
       translateChangeRequest("request", { ...context, translator: modelReturning(result) }),
@@ -201,7 +201,6 @@ describe("model-only Plan Change checks", () => {
       { kind: "hard-weekday", day: 5 },
       { kind: "weekly-duration", hours: 6 },
       { kind: "longest-workout", minutes: 90 },
-      { kind: "ftp", watts: 220 },
       { kind: "choose-workout", workoutId: "candidate-2" },
       {
         kind: "supporting-event",
@@ -226,6 +225,20 @@ describe("model-only Plan Change checks", () => {
     const schema = changeTranslationSchema(context);
     for (const intent of intents) expect(schema.safeParse(understood(intent)).success).toBe(true);
     expect(new Set(intents.map((intent) => intent.kind))).toEqual(new Set(supportedChangeKinds));
+  });
+
+  it("never offers an FTP Plan Change, and tells the model where the FTP lives", async () => {
+    expect(supportedChangeKinds).not.toContain("ftp");
+    expect(
+      changeTranslationSchema(context).safeParse(understood({ kind: "ftp", watts: 220 })).success,
+    ).toBe(false);
+    const translator = modelReturning(asked);
+    await translateChangeRequest("set my FTP to 300", { ...context, translator });
+    expect(translator.calls.mock.calls[0]?.[2]).toMatchObject({
+      expectations: expect.stringContaining(
+        "A new FTP is never a Plan change: ask, and say the FTP lives in intervals.icu",
+      ),
+    });
   });
 
   it("serializes an empty allowed-kind set without admitting an intent", () => {

@@ -28,6 +28,7 @@ import {
 import { useEnduragentStore } from "../../state/store";
 
 import { AnswerCheckCard } from "./AnswerCheckCard";
+import { PendingChangeActions } from "./PendingChangeActions";
 import { SupportingEventFields } from "./SupportingEventFields";
 import { currentSupportingEvents, supportingEventDifference } from "../../plan/supporting-events";
 
@@ -40,6 +41,10 @@ const days: readonly CatalogKey[] = [
   "chat.planChange.day.sat",
   "chat.planChange.day.sun",
 ];
+function dayKey(day: number): CatalogKey {
+  return days[day - 1] ?? "chat.planChange.day.mon";
+}
+
 const statusLabels = {
   pending: "chat.planChange.status.pending",
   applied: "chat.planChange.status.applied",
@@ -306,13 +311,13 @@ function premiseValue(
   switch (intent.kind) {
     case "weekday-duration":
       return say("chat.planChange.weekdayMinutes", {
-        day: say(days[intent.day - 1]!),
+        day: say(dayKey(intent.day)),
         minutes: format.number(intent.minutes, { useGrouping: false }),
       });
     case "weekday-unavailable":
-      return say("chat.planChange.weekdayBlocked", { day: say(days[intent.day - 1]!) });
+      return say("chat.planChange.weekdayBlocked", { day: say(dayKey(intent.day)) });
     case "hard-weekday":
-      return say("chat.planChange.weekdayEasy", { day: say(days[intent.day - 1]!) });
+      return say("chat.planChange.weekdayEasy", { day: say(dayKey(intent.day)) });
     case "weekly-duration":
       return say("chat.planChange.weeklyHours", {
         count: intent.hours,
@@ -341,7 +346,6 @@ function ChangeEditor(): ReactElement {
     { value: "hard-weekday", label: say("chat.planChange.option.hardWeekday") },
     { value: "weekly-duration", label: say("chat.planChange.option.weeklyDuration") },
     { value: "longest-workout", label: say("chat.planChange.option.longestWorkout") },
-    { value: "ftp", label: say("chat.planChange.option.ftp") },
     { value: "supporting-event", label: say("chat.planChange.option.supportingEvent") },
   ] satisfies Array<{ value: PlanChangeIntent["kind"]; label: string }>;
 
@@ -354,7 +358,6 @@ function ChangeEditor(): ReactElement {
   const [day, setDay] = useState(3);
   const [minutes, setMinutes] = useState("30");
   const [hours, setHours] = useState("3");
-  const [watts, setWatts] = useState("220");
   const state = useEnduragentStore((store) => store.planChange);
   const actions = useEnduragentStore((store) => store.chatActions);
   const firstControl = useRef<HTMLButtonElement>(null);
@@ -386,9 +389,6 @@ function ChangeEditor(): ReactElement {
             case "weekly-duration":
               intent = { kind, hours: Number(hours) };
               break;
-            case "ftp":
-              intent = { kind, watts: Number(watts) };
-              break;
             case "longest-workout":
               intent = { kind, minutes: Number(minutes) };
               break;
@@ -411,7 +411,6 @@ function ChangeEditor(): ReactElement {
               setDay(option.value === "hard-weekday" ? 1 : 3);
               setMinutes(option.value === "longest-workout" ? "60" : "30");
               setHours("3");
-              setWatts("220");
             }}
           >
             <SelectTrigger id="plan-change-kind" ref={firstControl} className="w-full">
@@ -425,6 +424,9 @@ function ChangeEditor(): ReactElement {
               ))}
             </SelectContent>
           </Select>
+          <p className="m-0 text-xs text-ink-2" data-plan-change-ftp-note="">
+            {say("chat.planChange.ftpElsewhere")}
+          </p>
         </div>
         {kind === "supporting-event" ? (
           <SupportingEventFields
@@ -490,23 +492,6 @@ function ChangeEditor(): ReactElement {
               value={hours}
               disabled={state.busy}
               onChange={(event) => setHours(event.target.value)}
-            />
-          </div>
-        ) : null}
-        {kind === "ftp" ? (
-          <div className="grid gap-[calc(var(--inset)/2)]">
-            <label htmlFor="plan-change-watts" className="text-xs text-ink-2">
-              {say("chat.planChange.ftpWatts")}
-            </label>
-            <input
-              className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              id="plan-change-watts"
-              type="number"
-              min="1"
-              step="1"
-              value={watts}
-              disabled={state.busy}
-              onChange={(event) => setWatts(event.target.value)}
             />
           </div>
         ) : null}
@@ -841,26 +826,13 @@ export function PlanChangeCard(props: { readonly change: PlanChangeModel }): Rea
               {say("chat.planChange.viewEvidence")}
             </Button>
           </div>
-          <div
-            className="mt-row flex flex-wrap gap-inset"
-            data-pending-navigation-source={pendingNavigationKey}
-          >
-            <Button
-              variant="outline"
-              className="border-line bg-surface"
-              disabled={state.busy || checkPending || actions === null}
-              onClick={() => actions?.applyPlanChange("cancel")}
-            >
-              {say("common.cancel")}
-            </Button>
-            <Button
-              disabled={paused || state.busy || checkPending || actions === null}
-              aria-describedby={pausedReason}
-              onClick={() => actions?.applyPlanChange("apply")}
-            >
-              {say("chat.planChange.apply")}
-            </Button>
-          </div>
+          <PendingChangeActions
+            change={change}
+            navigationKey={pendingNavigationKey}
+            busy={state.busy || checkPending}
+            paused={paused}
+            pausedReason={pausedReason}
+          />
         </ChangeCard>
       ) : (
         <ChangeCard

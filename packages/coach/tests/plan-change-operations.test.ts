@@ -6,6 +6,7 @@ import type { PlanFtpSourceValue } from "@enduragent/engine/sport";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   PlanCreationDraftSchema,
+  shownWorkoutGuidance,
   PlanChangePendingCheckSchema,
   type PlanCreationAnswerInput,
   type PlanChangeIntent,
@@ -23,6 +24,7 @@ import {
 import { dumpStore, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { seedPastFtpChange } from "../../../apps/desktop/tests/helpers/past-ftp-change.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import {
   createPlanChangeOperations,
@@ -281,6 +283,18 @@ async function activatedPlan(
     changes,
     planId,
     preview,
+    pastFtp: async (watts: number, expectedVersion = 1, pending = false) =>
+      (
+        await seedPastFtpChange(store, {
+          planId,
+          expectedVersion,
+          watts,
+          todayDateKey: todayDateKey(),
+          nowMs,
+          newId: identity.newUlid,
+          pending,
+        })
+      ).changeId,
     workouts,
     draft: draftResult.planCreation.draft,
   };
@@ -1579,146 +1593,44 @@ describe("race-window protection", () => {
 });
 
 describe("FTP Plan Changes", () => {
-  it.each([
-    { manual: null, intervalsFtp: null, intervalsEftp: null, candidates: [] },
-    {
-      manual: 210,
-      intervalsFtp: null,
-      intervalsEftp: null,
-      candidates: [{ source: "manual", watts: 210, selected: true }],
-    },
-    {
-      manual: null,
-      intervalsFtp: 205,
-      intervalsEftp: null,
-      candidates: [{ source: "intervals-ftp", watts: 205, selected: true }],
-    },
-    {
-      manual: null,
-      intervalsFtp: null,
-      intervalsEftp: 215,
-      candidates: [{ source: "intervals-eftp", watts: 215, selected: true }],
-    },
-    {
-      manual: 210,
-      intervalsFtp: 205,
-      intervalsEftp: 215,
-      candidates: [
-        { source: "manual", watts: 210, selected: true },
-        { source: "intervals-ftp", watts: 205, selected: false },
-        { source: "intervals-eftp", watts: 215, selected: false },
-      ],
-    },
-  ])("records the source values for $manual/$intervalsFtp/$intervalsEftp", async (sources) => {
+  it("refuses a new FTP Plan Change, by intent or by text, and stores nothing", async () => {
     const test = await activatedPlan();
-    const value = (watts: number | null) =>
-      watts === null ? null : { watts, refreshedAtMs: 904_694_400_000 };
-    test.setFtpSources({
-      manual: value(sources.manual),
-      intervalsFtp: value(sources.intervalsFtp),
-      intervalsEftp: value(sources.intervalsEftp),
-    });
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
-    expect(preview.change.title).toBe("Correct FTP");
-    expect(preview.change.premises.find((premise) => premise.id === "ftp-sources")).toEqual({
-      id: "ftp-sources",
-      label: "FTP source comparison at this decision",
-      source: "Saved profile and synchronized FTP evidence",
-      value: { acceptedPlanFtp: null, requestedFtp: 220, candidates: sources.candidates },
-    });
-    expect(test.saveManual).not.toHaveBeenCalled();
-  });
-
-  it("rejects changed source values without mutation and keeps the preview pending", async () => {
-    const test = await activatedPlan();
-    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_400_000 } });
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
     const before = await dumpStore(test.store);
-    test.setFtpSources({ intervalsFtp: { watts: 206, refreshedAtMs: 904_694_400_000 } });
-    expect(
-      await test.changes["plan_change.apply"]({
-        commandId: "ftp-apply",
-        planId: test.planId,
-        expectedVersion: 1,
-        changeId: preview.change.changeId,
-        decision: "apply",
-      }),
-    ).toEqual({ status: "rejected", reason: "ftp-sources-changed" });
-    expect(await dumpStore(test.store)).toEqual(before);
-    expect(
-      (await test.creation["plan.list"]({})).changes.find(
-        (change) => change.changeId === preview.change.changeId,
-      )?.status,
-    ).toBe("pending");
-    expect(test.saveManual).not.toHaveBeenCalled();
-  });
-
-  it("ignores refreshed timestamps, persists once after revision write, and replays without a second save", async () => {
-    const test = await activatedPlan();
-    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_400_000 } });
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
-    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_500_000 } });
-    test.saveManual.mockImplementationOnce(async () => {
-      const revision = await test.store.get(
-        "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=2",
-        [test.planId],
-      );
-      expect(revision).toBeDefined();
-      expect(PlanCreationDraftSchema.parse(JSON.parse(String(revision?.snapshot_json))).ftp).toBe(
-        220,
-      );
-    });
-    const request = {
-      commandId: "ftp-apply",
-      planId: test.planId,
-      expectedVersion: 1,
-      changeId: preview.change.changeId,
-      decision: "apply" as const,
-    };
-    const applied = await test.changes["plan_change.apply"](request);
-    expect(applied.status).toBe("applied");
-    test.setFtpSources({ intervalsFtp: { watts: 300, refreshedAtMs: 904_694_500_000 } });
-    expect(await test.changes["plan_change.apply"](request)).toEqual(applied);
-    expect(test.saveManual).toHaveBeenCalledExactlyOnceWith(220);
     expect(
       await test.changes["plan_change.preview"]({
-        commandId: "change-preview",
+        commandId: "ftp-preview",
         planId: test.planId,
         expectedVersion: 1,
         intent: { kind: "ftp", watts: 220 },
       }),
-    ).toEqual(preview);
+    ).toEqual({ status: "rejected", reason: "invalid-intent" });
+    expect(await dumpStore(test.store)).toBe(before);
+    expect(test.saveManual).not.toHaveBeenCalled();
   });
 
-  it("keeps a successful apply when saving athlete FTP fails", async () => {
+  it("refuses to apply an FTP Plan Change still pending from an earlier version, and cancels it", async () => {
     const test = await activatedPlan();
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
-    test.saveManual.mockRejectedValueOnce(new Error("Synthetic save failure"));
-    const request = {
-      commandId: "ftp-apply",
-      planId: test.planId,
-      expectedVersion: 1,
-      changeId: preview.change.changeId,
-      decision: "apply" as const,
-    };
-    const result = await test.changes["plan_change.apply"](request);
-    expect(result.status).toBe("applied");
-    expect(test.logger.warn).toHaveBeenCalledExactlyOnceWith("plan_change_manual_ftp_save_failed");
-    expect(await test.changes["plan_change.apply"](request)).toEqual(result);
-    expect(test.saveManual).toHaveBeenCalledTimes(1);
-  });
-
-  it("cancels without rechecking or saving changed FTP sources", async () => {
-    const test = await activatedPlan();
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
-    test.setFtpSources({ manual: { watts: 200, refreshedAtMs: 904_694_400_000 } });
+    const changeId = await test.pastFtp(220, 1, true);
+    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_400_000 } });
+    const before = await dumpStore(test.store);
+    const request = { planId: test.planId, expectedVersion: 1, changeId };
+    expect(
+      await test.changes["plan_change.apply"]({
+        ...request,
+        commandId: "ftp-apply",
+        decision: "apply",
+      }),
+    ).toEqual({
+      status: "rejected",
+      reason: "not-eligible",
+      message: "The FTP is set in intervals.icu now, so this Change can no longer be applied.",
+    });
+    expect(await dumpStore(test.store)).toBe(before);
     expect(
       (
         await test.changes["plan_change.apply"]({
+          ...request,
           commandId: "ftp-cancel",
-          planId: test.planId,
-          expectedVersion: 1,
-          changeId: preview.change.changeId,
           decision: "cancel",
         })
       ).status,
@@ -1726,86 +1638,86 @@ describe("FTP Plan Changes", () => {
     expect(test.saveManual).not.toHaveBeenCalled();
   });
 
-  it("allows FTP increases and their inverse in the race window and restores null FTP and power", async () => {
+  it("records the FTP sources when a past Correct FTP is undone, and rejects them once changed", async () => {
+    const test = await activatedPlan();
+    const changeId = await test.pastFtp(220);
+    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_400_000 } });
+    const inverse = await test.preview({ kind: "inverse", changeId }, "ftp-inverse", 2);
+    expect(inverse.change.premises.find((premise) => premise.id === "ftp-sources")).toEqual({
+      id: "ftp-sources",
+      label: "FTP source comparison at this decision",
+      source: "Saved profile and synchronized FTP evidence",
+      value: {
+        acceptedPlanFtp: 220,
+        requestedFtp: null,
+        candidates: [{ source: "intervals-ftp", watts: 205, selected: true }],
+      },
+    });
+    const before = await dumpStore(test.store);
+    test.setFtpSources({ intervalsFtp: { watts: 206, refreshedAtMs: 904_694_400_000 } });
+    const request = {
+      commandId: "ftp-restore",
+      planId: test.planId,
+      expectedVersion: 2,
+      changeId: inverse.change.changeId,
+      decision: "apply" as const,
+    };
+    expect(await test.changes["plan_change.apply"](request)).toEqual({
+      status: "rejected",
+      reason: "ftp-sources-changed",
+    });
+    expect(await dumpStore(test.store)).toEqual(before);
+    test.setFtpSources({ intervalsFtp: { watts: 205, refreshedAtMs: 904_694_500_000 } });
+    const applied = await test.changes["plan_change.apply"](request);
+    expect(applied.status).toBe("applied");
+    expect(await test.changes["plan_change.apply"](request)).toEqual(applied);
+    expect((await revisionSnapshot(test, 3)).ftp).toBeNull();
+    expect(test.saveManual).not.toHaveBeenCalled();
+  });
+
+  it("undoes the newer of two past Correct FTPs to the older, in the race window too", async () => {
     const test = await activatedPlan(
       () => 19980902,
       { connected: false, lastSuccessfulSyncAtMs: null },
       "1998-09-08",
     );
-    const preview = await test.preview({ kind: "ftp", watts: 220 });
-    expect(preview.change.diff.length).toBeGreaterThan(0);
-    expect(
-      (
-        await test.changes["plan_change.apply"]({
-          commandId: "ftp-apply",
-          planId: test.planId,
-          expectedVersion: 1,
-          changeId: preview.change.changeId,
-          decision: "apply",
-        })
-      ).status,
-    ).toBe("applied");
-    const lower = await test.preview({ kind: "ftp", watts: 200 }, "lower-preview", 2);
-    expect(
-      (
-        await test.changes["plan_change.apply"]({
-          commandId: "lower-apply",
-          planId: test.planId,
-          expectedVersion: 2,
-          changeId: lower.change.changeId,
-          decision: "apply",
-        })
-      ).status,
-    ).toBe("applied");
-    const inverse = await test.preview(
-      { kind: "inverse", changeId: lower.change.changeId },
-      "inverse-preview",
-      3,
-    );
+    await test.pastFtp(220);
+    const lower = await test.pastFtp(200, 2);
+    const inverse = await test.preview({ kind: "inverse", changeId: lower }, "inverse-preview", 3);
+    expect(inverse.change.diff.length).toBeGreaterThan(0);
     expect(
       inverse.change.diff.every((row) => row.before?.power === 200 && row.after?.power === 220),
     ).toBe(true);
-    expect(
-      (
-        await test.changes["plan_change.apply"]({
-          commandId: "inverse-apply",
-          planId: test.planId,
-          expectedVersion: 3,
-          changeId: inverse.change.changeId,
-          decision: "apply",
-        })
-      ).status,
-    ).toBe("applied");
-    expect(test.saveManual).toHaveBeenCalledTimes(2);
-    const second = await activatedPlan();
-    const corrected = await second.preview({ kind: "ftp", watts: 220 });
-    await second.changes["plan_change.apply"]({
-      commandId: "ftp-apply",
-      planId: second.planId,
-      expectedVersion: 1,
-      changeId: corrected.change.changeId,
-      decision: "apply",
-    });
-    const restored = await second.preview(
-      { kind: "inverse", changeId: corrected.change.changeId },
-      "inverse-preview",
-      2,
+    await applyChange(test, inverse.change.changeId, 3, "inverse-apply");
+    expect((await revisionSnapshot(test, 4)).ftp).toBe(220);
+    expect(test.saveManual).not.toHaveBeenCalled();
+  });
+
+  it("wrote guidance that the shared display filter hides, and no other guidance", async () => {
+    const test = await activatedPlan();
+    const original = (await revisionSnapshot(test, 1)).weeks.flatMap((week) => week.workouts);
+    await test.pastFtp(220);
+    const touched = (await revisionSnapshot(test, 2)).weeks
+      .flatMap((week) => week.workouts)
+      .filter((workout) => workout.power === 220);
+    expect(touched.length).toBeGreaterThan(0);
+    expect(touched.map((workout) => shownWorkoutGuidance(workout.guidance))).toEqual(
+      touched.map(() => null),
     );
+    expect(original.map((workout) => shownWorkoutGuidance(workout.guidance))).toEqual(
+      original.map((workout) => workout.guidance),
+    );
+  });
+
+  it("restores null FTP and power when the only past Correct FTP is undone", async () => {
+    const test = await activatedPlan();
+    const changeId = await test.pastFtp(220);
+    const restored = await test.preview({ kind: "inverse", changeId }, "inverse-preview", 2);
+    expect(restored.change.diff.length).toBeGreaterThan(0);
     expect(restored.change.diff.every((row) => row.after?.power === null)).toBe(true);
-    await second.changes["plan_change.apply"]({
-      commandId: "inverse-apply",
-      planId: second.planId,
-      expectedVersion: 2,
-      changeId: restored.change.changeId,
-      decision: "apply",
-    });
-    const revision = await second.store.get(
-      "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=3",
-      [second.planId],
-    );
-    expect(
-      PlanCreationDraftSchema.parse(JSON.parse(String(revision?.snapshot_json))).ftp,
-    ).toBeNull();
+    await applyChange(test, restored.change.changeId, 2, "inverse-apply");
+    expect((await revisionSnapshot(test, 3)).ftp).toBeNull();
+    expect(test.logger.warn).not.toHaveBeenCalled();
   });
 });
 
@@ -1813,33 +1725,28 @@ it("restores Plan FTP through Undo when all Workouts have elapsed", async () => 
   let today = 19980902;
   const test = await activatedPlan(() => today);
   today = 19990101;
-  const preview = await test.preview({ kind: "ftp", watts: 220 });
-  expect(preview.change.diff).toEqual([]);
-  await applyChange(test, preview.change.changeId, 1, "ftp-apply");
-  const inverse = await test.preview(
-    { kind: "inverse", changeId: preview.change.changeId },
-    "ftp-inverse",
-    2,
-  );
+  const changeId = await test.pastFtp(220);
+  const inverse = await test.preview({ kind: "inverse", changeId }, "ftp-inverse", 2);
   expect(inverse.change.diff).toEqual([]);
   await applyChange(test, inverse.change.changeId, 2, "ftp-restore");
   expect((await revisionSnapshot(test, 3)).ftp).toBeNull();
-  expect(test.saveManual).toHaveBeenCalledExactlyOnceWith(220);
+  expect(test.saveManual).not.toHaveBeenCalled();
 });
 
 it("checks FTP source changes inside apply admission and retries the same refused command", async () => {
   const test = await activatedPlan();
-  const preview = await test.preview({ kind: "ftp", watts: 220 });
+  const changeId = await test.pastFtp(220);
+  const inverse = await test.preview({ kind: "inverse", changeId }, "ftp-inverse", 2);
   const transaction = test.store.transaction.bind(test.store);
   vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
     test.setFtpSources({ manual: { watts: 210, refreshedAtMs: 904_694_400_000 } });
     return transaction(fn);
   });
   const request = {
-    commandId: "ftp-apply",
+    commandId: "ftp-restore",
     planId: test.planId,
-    expectedVersion: 1,
-    changeId: preview.change.changeId,
+    expectedVersion: 2,
+    changeId: inverse.change.changeId,
     decision: "apply" as const,
   };
   expect(await test.changes["plan_change.apply"](request)).toEqual({
@@ -1848,7 +1755,7 @@ it("checks FTP source changes inside apply admission and retries the same refuse
   });
   test.setFtpSources({ manual: null });
   expect((await test.changes["plan_change.apply"](request)).status).toBe("applied");
-  expect(test.saveManual).toHaveBeenCalledExactlyOnceWith(220);
+  expect(test.saveManual).not.toHaveBeenCalled();
 });
 
 it("does not read FTP evidence for other Changes or their inverse", async () => {
@@ -2288,8 +2195,7 @@ describe("Supporting Event Plan Changes", () => {
 
 it("restores flexible Plan Workouts and the revision fingerprint after an Important event undo", async () => {
   const test = await activatedPlan(undefined, undefined, null, "flexible");
-  const baseline = await test.preview({ kind: "ftp", watts: 220 });
-  await applyChange(test, baseline.change.changeId, 1, "baseline-ftp");
+  await test.pastFtp(220);
   const before = await revisionSnapshot(test, 2);
   const undated = before.weeks.flatMap((week) => week.workouts);
   expect(undated.length).toBeGreaterThan(0);
@@ -2682,6 +2588,40 @@ describe("written Plan Change checks", () => {
     },
   );
 
+  it.each([
+    understoodChange({ kind: "ftp", watts: 300 }),
+    {
+      outcome: "ask",
+      title: "Set your FTP in intervals.icu",
+      body: "Your FTP lives in intervals.icu under Settings, Ride, FTP; the app reads it at the next sync.",
+      value: null,
+    },
+  ])(
+    "makes no Plan Change and no FTP write when the athlete asks for a new FTP: %j",
+    async (value) => {
+      const translator = checkingModel(value);
+      const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
+      const before = await test.workouts();
+      const check = pending(
+        await test.changes["plan_change.preview"]({
+          commandId: "new-ftp",
+          planId: test.planId,
+          expectedVersion: 1,
+          request: { kind: "text", text: "Please set my FTP to 300 W." },
+        }),
+      );
+      expect(
+        check.state === "error" || (check.state === "ready" && check.result?.outcome === "ask"),
+      ).toBe(true);
+      expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+      expect(await test.workouts()).toEqual(before);
+      expect(test.saveManual).not.toHaveBeenCalled();
+      expect(
+        await test.store.all("SELECT * FROM anchor_history WHERE confidence = 'manual'"),
+      ).toEqual([]);
+    },
+  );
+
   it("returns an error when no model lane is available", async () => {
     const test = await activatedPlan();
     const check = pending(
@@ -2722,7 +2662,7 @@ describe("written Plan Change checks", () => {
   it("retries only an error with a fresh command and cancels without changing training", async () => {
     let valid = false;
     const translator = checkingModel(() =>
-      valid ? understoodChange({ kind: "ftp", watts: 220 }) : null,
+      valid ? understoodChange({ kind: "weekly-duration", hours: 6 }) : null,
     );
     const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
     const before = await test.workouts();
@@ -2731,7 +2671,7 @@ describe("written Plan Change checks", () => {
         commandId: "first",
         planId: test.planId,
         expectedVersion: 1,
-        request: { kind: "text", text: "threshold 220" },
+        request: { kind: "text", text: "six hours a week" },
       }),
     );
     expect(first.state).toBe("error");

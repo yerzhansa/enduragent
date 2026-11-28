@@ -149,7 +149,7 @@ describe("legacy v11 store upgrade and startup", () => {
 
     expect(result.applied).toEqual([
       12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
-      35, 36, 37,
+      35, 36, 37, 38,
     ]);
     expect(await dumpLegacyV11Tables(store)).toEqual(before);
     const newTables = (await tableNames()).filter((name) => !previousTables.has(name));
@@ -163,6 +163,8 @@ describe("legacy v11 store upgrade and startup", () => {
       "chat_attachment_object",
       "chat_message_attachment",
       "chat_plan_outbox",
+      "ftp_accepted",
+      "ftp_proposal_state",
       "plan",
       "plan_adaptation_ledger",
       "plan_change",
@@ -214,7 +216,7 @@ describe("legacy v11 store upgrade and startup", () => {
         hlc_counter: null,
       },
     ]);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 37 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 38 });
   });
 
   it("creates no Plan or startup marker when the legacy JSON is absent", async () => {

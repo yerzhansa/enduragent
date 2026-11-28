@@ -19,7 +19,6 @@ import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import {
-  Memory,
   ConfirmationGate,
   RefreshTokenReusedError,
   appendUsageLine,
@@ -63,14 +62,10 @@ import {
   type EngineHostPorts,
   type ChatAttachmentTurnPort,
   type ModelTransportDecorator,
-  type PlanFtpSourceValue,
   type ReferenceStateSnapshot,
 } from "@enduragent/engine";
 import { resolveUserTimezone, todayInTZ } from "@enduragent/engine/sport";
-import {
-  createCyclingFtpAnchorResolver,
-  type CyclingFtpAnchorResolver,
-} from "@enduragent/kernel/anchors";
+import type { CyclingFtpAnchorResolver } from "@enduragent/kernel/anchors";
 import {
   createAnchorRepository,
   createChatPlanOutboxRepository,
@@ -129,7 +124,6 @@ import {
   type VerifyIntervalsCredentialRpcResult,
 } from "@enduragent/coach-contract";
 import {
-  createCyclingPlanFtpAdapter,
   cyclingSport,
   projectCyclingEstimatedCp,
   projectCyclingReadinessInput,
@@ -204,6 +198,10 @@ import { createCyclingPlanDraftBuilder } from "./cycling-plan-draft-builder.js";
 import { createPlanCalendarOperations, dateKeyOfMsIn } from "./plan-calendar-operations.js";
 import type { LocalCoachOperations } from "./composition-operations.js";
 import { createPlanMirrorCalendarAdapter } from "./planning-calendar.js";
+import { createOneFtpAnchorResolver } from "./one-ftp-anchor.js";
+import { createOneFtpPlanAdapter } from "./one-ftp-plan.js";
+import { OneFtpMemory, oneFtpCyclingSport } from "./one-ftp-coach.js";
+import { createOneFtpWiring } from "./one-ftp-wiring.js";
 import { createNodePlanRaceCourseAdapter } from "./planning-race-course.js";
 import { serializeBoundaryError } from "./daemon/error-boundary.js";
 import { createManagedChatAttachmentOperations } from "./attachment-operations.js";
@@ -1195,7 +1193,9 @@ export async function createLocalCoachComposition(
       input.context.store,
     );
     const cyclingFtpAnchorResolver = (
-      dependencies.createResolver ?? createCyclingFtpAnchorResolver
+      dependencies.createResolver ??
+      (() =>
+        createOneFtpAnchorResolver(input.context.store, () => approvedConfig().intervals.athleteId))
     )(repository);
     const powerProgress = createPowerProgressStateSource({
       store: input.context.store,
@@ -1230,7 +1230,7 @@ export async function createLocalCoachComposition(
               ...config,
               session: { ...config.session, timezone },
             };
-      const memory = new Memory(input.home.root, timezone, {
+      const memory = new OneFtpMemory(input.home.root, timezone, {
         platform: dependencies.platform,
         persistPlan,
         planReadGate: async () =>
@@ -1396,7 +1396,7 @@ export async function createLocalCoachComposition(
             chatId !== "desktop" && chatId !== "cli" && !chatId.startsWith("cli:"),
         }),
       };
-      const engineInput = { sport: cyclingSport, ports } satisfies CreateCoachEngineInput;
+      const engineInput = { sport: oneFtpCyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
       return {
         ...modelWriters(backend, ports, runtimeCredentialConfigured(input.home.configDir, config)),
@@ -1885,85 +1885,13 @@ export async function createLocalCoachComposition(
       },
       dependencies.operationsDependencies,
     );
-    const readFtpAnchor = async (
-      confidence: "manual" | "platform",
-    ): Promise<PlanFtpSourceValue | null> => {
-      const row =
-        confidence === "manual"
-          ? await input.context.store.get(
-              "SELECT value, valid_from FROM anchor_history WHERE sport = ? AND anchor_type = ? AND confidence = ? ORDER BY valid_from DESC, id DESC LIMIT 1",
-              ["cycling", "ftp", confidence],
-            )
-          : await input.context.store.get(
-              "SELECT value, valid_from FROM anchor_history WHERE sport = ? AND anchor_type = ? AND confidence = ? AND source = ? ORDER BY valid_from DESC, id DESC LIMIT 1",
-              ["cycling", "ftp", confidence, "intervals-icu"],
-            );
-      if (
-        row === undefined ||
-        typeof row.value !== "number" ||
-        typeof row.valid_from !== "number"
-      ) {
-        return null;
-      }
-      return { watts: row.value, refreshedAtMs: row.valid_from * 1_000 };
-    };
-    const ftp = createCyclingPlanFtpAdapter({
-      readManual: () => readFtpAnchor("manual"),
-      readIntervalsFtp: () => readFtpAnchor("platform"),
-      async readIntervalsEftp() {
-        const latest = readReferenceState(input.home.root).latest;
-        const watts = latest?.derived_metrics?.eftp;
-        const refreshedAtMs = Date.parse(latest?.metadata?.last_updated ?? "");
-        return typeof watts === "number" && Number.isFinite(refreshedAtMs)
-          ? { watts, refreshedAtMs }
-          : null;
-      },
-      async saveManual(watts) {
-        const stamp = planningIdentity.hlcStamp();
-        const validFrom = Math.floor(stamp.physicalMs / 1_000);
-        const deviceId = await planningIdentity.deviceId();
-        const inserted = await repository.insertIfAbsent({
-          id: planningIdentity.newUlid(),
-          sport: "cycling",
-          anchor_type: "ftp",
-          value: watts,
-          unit: "W",
-          valid_from: validFrom,
-          source: "athlete",
-          confidence: "manual",
-          note: null,
-          provenance: "manual",
-          device_id: deviceId,
-          hlc_physical_ms: stamp.physicalMs,
-          hlc_counter: stamp.counter,
-        });
-        if (inserted) return;
-        const existing = await input.context.store.get(
-          "SELECT confidence FROM anchor_history WHERE sport = ? AND anchor_type = ? AND valid_from = ?",
-          ["cycling", "ftp", validFrom],
-        );
-        if (existing?.confidence !== "manual") throw new Error("Manual FTP could not be saved.");
-        await input.context.store.run(
-          "UPDATE anchor_history SET value = ?, unit = ?, source = ?, note = ?, provenance = ?, device_id = ?, hlc_physical_ms = ?, hlc_counter = ? WHERE sport = ? AND anchor_type = ? AND valid_from = ? AND confidence = ?",
-          [
-            watts,
-            "W",
-            "athlete",
-            null,
-            "manual",
-            deviceId,
-            stamp.physicalMs,
-            stamp.counter,
-            "cycling",
-            "ftp",
-            validFrom,
-            "manual",
-          ],
-        );
-      },
-      async refreshIntervals() {
-        await coachOperations.sync({});
-      },
+    const ftp = createOneFtpPlanAdapter({
+      store: input.context.store,
+      athleteId: () => approvedConfig().intervals.athleteId,
+      repository,
+      identity: planningIdentity,
+      readLatest: () => readReferenceState(input.home.root).latest,
+      refreshIntervals: () => coachOperations.sync({}).then(() => undefined),
     });
     const planChangeOperations = createPlanChangeOperations({
       language: (text) => planningLanguage(text),
@@ -1981,23 +1909,37 @@ export async function createLocalCoachComposition(
     });
     await planCreationOperations.ready();
     await planChangeOperations.ready();
-    const planCalendar = createPlanMirrorCalendarAdapter(() => {
+    const intervalsClient = () => {
       const intervals = approvedConfig().intervals;
       return intervals.apiKey.length === 0
         ? null
         : makeChatClient({ apiKey: intervals.apiKey, athleteId: intervals.athleteId });
+    };
+    const planCalendar = createPlanMirrorCalendarAdapter(intervalsClient);
+    const dateKeyOfMs = dateKeyOfMsIn(() => planningTimezone);
+    const oneFtp = createOneFtpWiring({
+      store: input.context.store,
+      readClient: intervalsClient,
+      now,
+      dateKeyOfMs,
+      logger,
+      todayDateKey: planningDateKey,
+      identity: planningIdentity,
+      closing: () => closing,
+      athleteId: () => approvedConfig().intervals.athleteId,
     });
     const calendarDeps = {
       store: input.context.store,
       calendarConnected,
       todayDateKey: planningDateKey,
       now,
-      dateKeyOfMs: dateKeyOfMsIn(() => planningTimezone),
+      dateKeyOfMs,
       applyChange: planChangeOperations["plan_change.apply"],
       calendar: planCalendar,
       identity: planningIdentity,
       logger,
       coachText: reconfigurable.coachText,
+      ftp: oneFtp.parts,
       changed: () => (closing ? Promise.resolve() : drain.kick().then(() => drain.idle())),
     };
     const drain = createPlanCalendarDrain(calendarDeps);
@@ -2008,8 +1950,8 @@ export async function createLocalCoachComposition(
         if (!closing) void drain.kick();
         return result;
       };
-    runtime.runWindow = kickAfter(runtime.runWindow.bind(runtime));
-    runtime.runWindowAfter = kickAfter(runtime.runWindowAfter.bind(runtime));
+    runtime.runWindow = kickAfter(oneFtp.afterSync(runtime.runWindow.bind(runtime)));
+    runtime.runWindowAfter = kickAfter(oneFtp.afterSync(runtime.runWindowAfter.bind(runtime)));
     const readiness = {
       async read({
         plan,

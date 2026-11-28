@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  PlanCalendarFtpParamsSchemas,
+  PlanCalendarFtpReadSchema,
+  PlanCalendarRideFtpSchema,
+} from "./plan-calendar-ftp.js";
 
 const UlidSchema = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/u);
 const DateKeySchema = z.number().int().min(10101).max(99991231);
@@ -68,6 +73,7 @@ export const PlanCalendarRpcParamsSchema = z.discriminatedUnion("action", [
       note: z.string().max(PLAN_CALENDAR_NOTE_MAX),
     })
     .strict(),
+  ...PlanCalendarFtpParamsSchemas,
   z
     .object({
       action: z.literal("rides"),
@@ -381,6 +387,7 @@ export const PlanCalendarRideSchema = z
     perceivedExertion: z.number().min(0).max(10).nullable(),
     match: PlanCalendarRideMatchSchema,
     otherWorkouts: z.array(PlanCalendarRideWorkoutSchema).max(32),
+    ftp: PlanCalendarRideFtpSchema,
   })
   .strict();
 export type PlanCalendarRide = z.infer<typeof PlanCalendarRideSchema>;
@@ -448,6 +455,7 @@ export type PlanCalendarRideReview = z.infer<typeof PlanCalendarRideReviewSchema
 
 export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("review"), review: PlanCalendarRideReviewSchema }).strict(),
+  PlanCalendarFtpReadSchema,
   z
     .object({
       status: z.literal("rides"),

@@ -263,6 +263,44 @@ describe("final Plan details", () => {
     ]);
   });
 
+  it("hides the guidance a past Correct FTP change wrote, and keeps the stored text", () => {
+    const value = history();
+    const firstWeek = value.revision.snapshot.weeks[0];
+    if (firstWeek === undefined) throw new Error("Missing first week");
+    firstWeek.workouts = [
+      {
+        id: "corrected",
+        name: "Endurance ride",
+        kind: "endurance",
+        date: "1998-09-08",
+        minutes: 60,
+        pinned: false,
+        guidance: "Use your confirmed FTP of 220 W",
+        power: 220,
+      },
+      {
+        id: "untouched",
+        name: "Tempo ride",
+        kind: "endurance",
+        date: "1998-09-10",
+        minutes: 45,
+        pinned: false,
+        guidance: "Comfortable effort",
+        power: null,
+      },
+    ];
+    render(<PlanFinalDetails history={value} backToLibrary={vi.fn()} />);
+    const rows = within(screen.getByRole("list", { name: "Week 1 Workouts" })).getAllByRole(
+      "listitem",
+    );
+    expect(within(rows[0] as HTMLElement).getByText("Endurance ride · 60 min")).toBeVisible();
+    expect(rows[0]).not.toHaveTextContent("confirmed FTP");
+    expect(
+      within(rows[1] as HTMLElement).getByText("Tempo ride · 45 min · Comfortable effort"),
+    ).toBeVisible();
+    expect(firstWeek.workouts[0]?.guidance).toBe("Use your confirmed FTP of 220 W");
+  });
+
   it("invites a new event preparation Plan when the Event Goal is beyond the Plan end", () => {
     const value = history();
     value.revision.snapshot.goal = { kind: "event", name: "Spring ride", date: "1999-02-14" };

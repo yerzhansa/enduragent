@@ -160,7 +160,6 @@ const appearances = [
   { width: 720, colorScheme: "dark" },
 ] as const;
 const durationTitle = "Limit weekday duration";
-const ftpTitle = "Correct FTP";
 
 function changes(scenario: Scenario) {
   return scenario.page.locator('[data-conversation-projection^="plan-change"]');
@@ -311,41 +310,6 @@ for (const appearance of appearances) {
       await expect(pendingCard(scenario, durationTitle)).toHaveCount(0);
 
       await openChanges(scenario);
-      await send(scenario, "my ftp is 220");
-      const ftpCheck = scenario.page.getByRole("region", {
-        name: "Did I read this right?",
-        exact: true,
-      });
-      await expect(ftpCheck).toBeVisible();
-      expect(
-        (await scenario.backend.library()).changes.filter((change) => change.status === "pending"),
-      ).toHaveLength(0);
-      await capture(scenario, "typed-check-ftp");
-      await ftpCheck.getByRole("button", { name: "Confirm", exact: true }).click();
-      const ftp = pendingCard(scenario, ftpTitle);
-      await expect(ftp.getByRole("heading")).toBeFocused();
-      const ftpPreview = (await scenario.backend.library()).changes.find(
-        (change) => change.status === "pending",
-      );
-      expect(ftpPreview?.intent).toEqual({ kind: "ftp", watts: 220 });
-      expect(ftpPreview?.diff).toHaveLength(12);
-      expect(
-        ftpPreview?.diff.every((row) => row.before?.power === null && row.after?.power === 220),
-      ).toBe(true);
-      await expect(
-        ftp
-          .getByRole("table", {
-            name: "Affected individual Workouts",
-            exact: true,
-          })
-          .getByRole("cell"),
-      ).toHaveText(ftpPreview?.diff.map(() => / → .* · \d+ min · 220 W$/) ?? []);
-      await ftp.getByRole("heading").scrollIntoViewIfNeeded();
-      await capture(scenario, "text-ftp-preview");
-      await ftp.getByRole("button", { name: "Cancel", exact: true }).click();
-      await expect(ftp).toHaveCount(0);
-
-      await openChanges(scenario);
       const previewsBeforeRejections = (await scenario.backend.library()).changes;
       for (const request of [
         {
@@ -358,6 +322,11 @@ for (const appearance of appearances) {
           text: "wednesdays at most 30 minutes and my ftp is 220",
           explanation: "Ask for one change at a time.",
           screenshot: "combined-notice",
+        },
+        {
+          text: "my ftp is 220",
+          explanation: "Your FTP lives in intervals.icu; the app reads it at the next sync.",
+          screenshot: "ftp-notice",
         },
       ]) {
         await send(scenario, request.text);
@@ -388,7 +357,7 @@ for (const appearance of appearances) {
         .poll(async () => (await scenario.backend.library()).pendingChangeCheck)
         .toBeNull();
       scenario.backend.checker.failures = 1;
-      await send(scenario, "my ftp is 220");
+      await send(scenario, "wednesdays at most 30 minutes");
       const failed = scenario.page.getByRole("region", {
         name: "I could not check that answer",
         exact: true,
@@ -400,7 +369,7 @@ for (const appearance of appearances) {
         .getByRole("region", { name: "Did I read this right?", exact: true })
         .getByRole("button", { name: "Confirm", exact: true })
         .click();
-      await pendingCard(scenario, ftpTitle)
+      await pendingCard(scenario, durationTitle)
         .getByRole("button", { name: "Cancel", exact: true })
         .click();
       const previewRequests = scenario.backend.creationRequests

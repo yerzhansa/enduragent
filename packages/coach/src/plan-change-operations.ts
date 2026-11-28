@@ -29,6 +29,7 @@ import {
   type PlanChangesPaused,
 } from "@enduragent/coach-contract";
 import { readAppliedIntent } from "./plan-change-applied-intent.js";
+import { draftIdOf, materializePlanChange } from "./plan-change-materialize.js";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   createPlanChangeRepository,
@@ -43,7 +44,6 @@ import {
   PlanChangeEnvelopeSchema,
   PlanChangePreviewStoreResultSchema,
   dateKeyFromText,
-  type PlanWorkoutRecord,
   type PlanChangeRepository,
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
@@ -76,7 +76,8 @@ export async function readPlanChangesPaused(input: {
     : null;
 }
 
-const DraftIdSchema = z.object({ id: z.string() }).passthrough();
+const FTP_LIVES_IN_INTERVALS =
+  "The FTP is set in intervals.icu now, so this Change can no longer be applied.";
 
 const titles = {
   "weekday-duration": "Limit weekday duration",
@@ -144,7 +145,7 @@ async function readCompletedWorkoutIds(
     [planId],
   );
   return new Set(
-    rows.map((row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id),
+    rows.map((row) => draftIdOf({ structureJson: z.string().parse(row.structure_json) })),
   );
 }
 
@@ -305,7 +306,7 @@ export function createPlanChangeOperations(input: {
   timezone?: () => string;
   now: () => number;
   calendarConnected: () => Promise<boolean>;
-  ftp: Pick<PlanFtpAdapter, "read" | "saveManual">;
+  ftp: Pick<PlanFtpAdapter, "read">;
   logger: { warn(event: string): void };
   eventSources: { read(): Promise<PlanChangeEventSource[]> };
   translator?: IntentTranslationPort;
@@ -400,6 +401,7 @@ export function createPlanChangeOperations(input: {
     expectedChangeSequence?: number;
     submittedText?: string;
   }): Promise<PlanChangePreviewResult> => {
+    if (intent.kind === "ftp") return { status: "rejected", reason: "invalid-intent" };
     let occupiedByClosedPlan = false;
     let previewTodayDateKey: number;
     let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
@@ -420,8 +422,7 @@ export function createPlanChangeOperations(input: {
           intent.kind === "inverse"
             ? await readAppliedIntent(store, planId, intent.changeId)
             : null;
-        if (intent.kind === "ftp" || original?.kind === "ftp")
-          ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
+        if (original?.kind === "ftp") ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
         const eventIntent =
           intent.kind === "supporting-event"
             ? intent
@@ -542,11 +543,7 @@ export function createPlanChangeOperations(input: {
           return { status: "rejected", reason: "invalid-intent" };
         if (intent.kind === "inverse" && diff.length === 0 && !metadataChanged(draft, after))
           return { status: "rejected", reason: "invalid-intent" };
-        const correctsFtp =
-          intent.kind === "ftp" ||
-          (intent.kind === "inverse" &&
-            newestApplied !== null &&
-            PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "ftp");
+        const correctsFtp = originalIntent?.kind === "ftp";
         const window = correctsFtp
           ? null
           : planChangeRaceWindow({
@@ -883,7 +880,6 @@ export function createPlanChangeOperations(input: {
     async "plan_change.apply"(request) {
       const parsed = PlanChangeApplyRpcParamsSchema.parse(request);
       const command = await stamp(parsed);
-      let correctedWatts: number | null = null;
       const result = await repository.apply({
         admit,
         async admitChange(
@@ -893,6 +889,8 @@ export function createPlanChangeOperations(input: {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(afterSnapshotJson));
           const parsedIntent = PlanChangeModelSchema.shape.intent.safeParse(rawIntent);
           const intent = parsedIntent.success ? parsedIntent.data : null;
+          if (intent?.kind === "ftp")
+            return { status: "rejected", reason: "not-eligible", message: FTP_LIVES_IN_INTERVALS };
           const eventPremise = premises.find((premise) => premise.id === "event-source");
           if (eventPremise !== undefined) {
             const source = PlanChangeEventSourceSchema.parse(eventPremise.value);
@@ -932,10 +930,6 @@ export function createPlanChangeOperations(input: {
             if (canonicalJson(sources.candidates) !== canonicalJson(current))
               return "ftp-sources-changed";
           }
-          if (intent?.kind === "ftp") {
-            correctedWatts = intent.watts;
-            return null;
-          }
           const original =
             intent?.kind === "inverse"
               ? await readAppliedIntent(store, parsed.planId, intent.changeId)
@@ -971,56 +965,16 @@ export function createPlanChangeOperations(input: {
         nowMs: input.now(),
         todayDateKey: input.todayDateKey,
         mirrorJobId: input.identity.newUlid(),
-        materialize(snapshotJson, currentWorkouts, diffIds) {
-          const draft = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
-          const currentByDraftId = new Map(
-            currentWorkouts.map((workout) => [
-              DraftIdSchema.parse(JSON.parse(workout.structureJson)).id,
-              workout,
-            ]),
-          );
-          const insert: PlanWorkoutRecord[] = [];
-          const update: PlanWorkoutRecord[] = [];
-          const retained = new Set<string>();
-          for (const workout of draft.weeks.flatMap((week) => week.workouts)) {
-            if (workout.date === null || !diffIds.has(workout.id)) continue;
-            const current = currentByDraftId.get(workout.id);
-            const row: PlanWorkoutRecord = {
-              id: current?.id ?? input.identity.newUlid(),
-              planId: parsed.planId,
-              dateKey: dateKeyFromText(workout.date),
-              sport: "Ride",
-              name: workout.name,
-              durationS: Math.round(workout.minutes * 60),
-              structureJson: canonicalJson(workout),
-              origin: "coach",
-              deviceId: command.deviceId,
-              hlcPhysicalMs: command.hlcPhysicalMs,
-              hlcCounter: command.hlcCounter,
-            };
-            retained.add(row.id);
-            (current === undefined ? insert : update).push(row);
-          }
-          return {
-            insert,
-            update,
-            delete: currentWorkouts
-              .filter(
-                (workout) =>
-                  diffIds.has(DraftIdSchema.parse(JSON.parse(workout.structureJson)).id) &&
-                  !retained.has(workout.id),
-              )
-              .map((workout) => workout.id),
-          };
-        },
+        materialize: (snapshotJson, currentWorkouts, diffIds) =>
+          materializePlanChange({
+            snapshotJson,
+            currentWorkouts,
+            diffIds,
+            planId: parsed.planId,
+            command,
+            newId: () => input.identity.newUlid(),
+          }),
       });
-      if (result.status === "applied" && correctedWatts !== null) {
-        try {
-          await input.ftp.saveManual(correctedWatts);
-        } catch {
-          input.logger.warn("plan_change_manual_ftp_save_failed");
-        }
-      }
       return PlanChangeApplyResultSchema.parse(result);
     },
   };

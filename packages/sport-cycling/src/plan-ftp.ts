@@ -57,23 +57,20 @@ function resolveSources(input: {
   const intervalsFtp = validSource(input.intervalsFtp);
   const intervalsEftp = validSource(input.intervalsEftp);
   const selected: readonly [PlanFtpSource, PlanFtpSourceValue] | null =
-    manual !== null
-      ? ["manual", manual]
-      : intervalsFtp !== null
-        ? ["intervals-ftp", intervalsFtp]
-        : intervalsEftp !== null
-          ? ["intervals-eftp", intervalsEftp]
+    intervalsFtp !== null
+      ? ["intervals-ftp", intervalsFtp]
+      : intervalsEftp !== null
+        ? ["intervals-eftp", intervalsEftp]
+        : manual !== null
+          ? ["manual", manual]
           : null;
-  const values = [manual, intervalsFtp, intervalsEftp].filter(
-    (value): value is PlanFtpSourceValue => value !== null,
-  );
   return {
     manual,
     intervalsFtp,
     intervalsEftp,
     usedSource: selected?.[0] ?? null,
     usedWatts: selected?.[1].watts ?? null,
-    conflict: new Set(values.map((value) => value.watts)).size > 1,
+    conflict: false,
   };
 }
 

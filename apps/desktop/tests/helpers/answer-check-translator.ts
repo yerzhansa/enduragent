@@ -92,7 +92,11 @@ export class ScriptedAnswerChecker implements IntentTranslationPort {
     if (context.field === "change") {
       if (text === "wednesdays at most 30 minutes")
         result = understood({ kind: "weekday-duration", day: 3, minutes: 30 });
-      if (text === "my ftp is 220") result = understood({ kind: "ftp", watts: 220 });
+      if (text === "my ftp is 220")
+        result = ask(
+          "Set your FTP in intervals.icu",
+          "Your FTP lives in intervals.icu; the app reads it at the next sync.",
+        );
       if (text === "WHAT SHOULD I RIDE TODAY?!")
         result = understood({ kind: "choose-workout", workoutId: "candidate-1" });
       if (text === "wednesdays at most 30 minutes and my ftp is 220")

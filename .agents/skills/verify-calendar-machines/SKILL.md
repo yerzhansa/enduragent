@@ -44,6 +44,7 @@ Each rule is a TLA+ invariant with the same name. The test's walk checks it as a
 | `NeverOverwriteAnUnseenFtp` | The app writes over an FTP the confirm did not show. | `shows a number set in intervals.icu while the confirm is open before writing` |
 | `NoProposalFromOneRide` | One ride makes the coach propose a new FTP. | `keeps every rule on every path of up to nine steps` (ftp-proposal), `finds drift only after 14 days at least 3% away since the FTP was set`, `does not raise drift on the first check after the FTP changed`, `never raises drift on the first check, before it has seen an FTP` |
 | `PlannedTestIsAnswered` | A planned FTP test gets no answer inside the 4 weeks after Keep. | `answers a planned test within four weeks of Keep` |
+| `ShownProposalFollowsIcu` | A proposal card stays open after the athlete set a new FTP in intervals.icu, so it argues against a number intervals.icu no longer holds. | `retires a shown drift card when the athlete sets a new FTP in intervals.icu`, `asks again about an unanswered planned test against the FTP intervals.icu now holds` |
 | `AnsweredTestIsNotAskedAgain` (engine only) | The coach asks again about a planned test the athlete already answered, or an older one. | `does not ask again about a planned test the athlete already answered`, `ignores an older planned test once a later one was answered` |
 | `NothingWithoutConsent` | A week reaches intervals.icu without the athlete's Approve. | `sends nothing before the first Approve`, `waits for each later week's Approve when the setting asks` |
 | `ThisWeekAndNextAreThere` | This Training Week or next is missing from intervals.icu after a run. | `sends this week and next when the first Change Set is approved late`, `sends every due week after the app was closed for more than seven days` |
@@ -86,7 +87,7 @@ The icu model also has one variant per fix, with only that fix off, to show that
 | `icu/without-staleSet` | `KeptEditReplacedOnlyWhenFlagged` |
 | `outcome/before` | `MissedIsTrue`, `RideOnTheDayIsSuggested` |
 | `text/before` | `KeptTextIsHonest`, `OpenAfterModelFailureSpendsNothing` |
-| `ftp/before` | `NeverOverwriteAnUnseenFtp`, `PlannedTestIsAnswered` |
+| `ftp/before` | `NeverOverwriteAnUnseenFtp`, `PlannedTestIsAnswered`, `ShownProposalFollowsIcu` |
 | `weeks/before` | `ThisWeekAndNextAreThere` |
 | `plan/before` | `TodayIsKept`, `NeverTwoPlansOnIntervals`, `YourChangesAreNotDeletedByItself` |
 

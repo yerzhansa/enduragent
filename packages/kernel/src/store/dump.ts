@@ -72,6 +72,8 @@ export const DUMP_TABLES = [
   { table: "plan_week_delivery", orderBy: "plan_id" },
   { table: "plan_cleanup_hold", orderBy: "plan_id" },
   { table: "planning_calendar_setting", orderBy: "id" },
+  { table: "ftp_proposal_state", orderBy: "id" },
+  { table: "ftp_accepted", orderBy: "set_at_ms, id" },
   { table: "plan_source_request", orderBy: "conversation_id, created_at_ms, id" },
   { table: "plan_workout", orderBy: "plan_id, date_key, id" },
   { table: "plan_workout_drift", orderBy: "plan_id, detected_at_ms, id" },

@@ -237,9 +237,13 @@ export async function resolveIntervalsStoreOwnerFingerprint(
     if (typeof value !== "string" || value.length === 0) throw new TypeError();
     resolved.add(value);
   }
-  if (resolved.size !== 1) return null;
+  const [athleteId] = resolved;
+  return resolved.size === 1 && athleteId !== undefined ? storeOwnerFingerprint(athleteId) : null;
+}
+
+export function storeOwnerFingerprint(athleteId: string): string {
   return createHash("sha256")
-    .update(JSON.stringify(["store-owner-v1", [...resolved][0]]))
+    .update(JSON.stringify(["store-owner-v1", athleteId]))
     .digest("hex");
 }
 

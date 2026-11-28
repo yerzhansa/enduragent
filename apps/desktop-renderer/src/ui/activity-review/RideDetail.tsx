@@ -7,6 +7,7 @@ import type { RideReviewState } from "../../activity-review/review-controller";
 import { rideOutcome, type ActivityReviewRead } from "../../activity-review/rides";
 import type { ActivityReviewActions } from "../../state/activity-review-slice";
 import { CoachVerdict } from "./CoachVerdict";
+import { RideFtpLine } from "./FtpLine";
 import { useReviewText } from "./review-text";
 import { RideNote } from "./RideNote";
 
@@ -319,6 +320,7 @@ export function RideDetail(props: {
         actions={props.actions}
       />
       <Stats ride={props.ride} />
+      <RideFtpLine ride={props.ride} />
       <RideNote state={props.review} actions={props.actions} />
     </article>
   );

@@ -112,6 +112,10 @@ const RULES: Readonly<Record<keyof typeof MODELS, readonly (readonly [string, st
     ["NeverOverwriteAnUnseenFtp", "ftp-proposal: shows a number set in intervals.icu"],
     ["NoProposalFromOneRide", "ftp-proposal: keeps every rule on every path"],
     ["PlannedTestIsAnswered", "ftp-proposal: answers a planned test within four weeks"],
+    [
+      "ShownProposalFollowsIcu",
+      "ftp-proposal: retires a shown drift card when the athlete sets a new FTP",
+    ],
   ],
   weeks: [
     ["NothingWithoutConsent", "week-delivery: sends nothing before the first Approve"],
@@ -139,7 +143,7 @@ const BREAKS_BEFORE: Readonly<Record<string, readonly string[]>> = {
   "icu/without-staleSet": ["KeptEditReplacedOnlyWhenFlagged"],
   "outcome/before": ["MissedIsTrue", "RideOnTheDayIsSuggested"],
   "text/before": ["KeptTextIsHonest", "OpenAfterModelFailureSpendsNothing"],
-  "ftp/before": ["NeverOverwriteAnUnseenFtp", "PlannedTestIsAnswered"],
+  "ftp/before": ["NeverOverwriteAnUnseenFtp", "PlannedTestIsAnswered", "ShownProposalFollowsIcu"],
   "weeks/before": ["ThisWeekAndNextAreThere"],
   "plan/before": ["TodayIsKept", "NeverTwoPlansOnIntervals", "YourChangesAreNotDeletedByItself"],
 };
