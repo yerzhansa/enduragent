@@ -38,8 +38,10 @@ export interface ChatMessageView {
   readonly retry?: true;
   readonly error?: string;
   readonly errorMessage?: WireMessage;
-  readonly addCredits?: true;
+  readonly errorNotice?: FailedMessageNotice;
 }
+
+export type FailedMessageNotice = "message" | "add-credits";
 
 export interface ChatQueuedView {
   readonly id: string;
@@ -355,7 +357,7 @@ export function sameChatMessages(
       message.retry === other.retry &&
       message.error === other.error &&
       JSON.stringify(message.errorMessage) === JSON.stringify(other.errorMessage) &&
-      message.addCredits === other.addCredits &&
+      message.errorNotice === other.errorNotice &&
       sameAttachments(message.attachments, other.attachments)
     );
   });

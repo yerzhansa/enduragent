@@ -1,6 +1,7 @@
 import { APICallError } from "@ai-sdk/provider";
 import { isProviderAuthFailure } from "@enduragent/engine";
 import { readRefreshFailureReason } from "../auth/refresh-failure.js";
+import type { LlmProvider } from "../runtime-config.js";
 
 const OVERFLOW_MESSAGE_PATTERNS = [
   "context_length",
@@ -21,15 +22,37 @@ function matchesOverflowText(text: string): boolean {
   return OVERFLOW_MESSAGE_PATTERNS.some((p) => lower.includes(p));
 }
 
+interface ProviderErrorBody {
+  readonly code?: unknown;
+  readonly type?: unknown;
+  readonly message?: unknown;
+}
+
+function parseResponseBody(body: string | undefined): unknown {
+  if (body === undefined) return undefined;
+  try {
+    return JSON.parse(body) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) return undefined;
+    throw error;
+  }
+}
+
+function providerErrorBody(err: APICallError): ProviderErrorBody | undefined {
+  const parsed = (err.data ?? parseResponseBody(err.responseBody)) as
+    | { error?: unknown }
+    | null
+    | undefined;
+  const body = parsed?.error;
+  return typeof body === "object" && body !== null ? body : undefined;
+}
+
 function apiCallOverflowSignal(err: APICallError): boolean {
   if (err.statusCode !== 400) return false;
-  const data = err.data as { error?: { code?: unknown; message?: unknown } } | undefined;
-  const code = data?.error?.code;
-  if (typeof code === "string" && OVERFLOW_ERROR_CODES.has(code)) return true;
-  const bodyMessage = data?.error?.message;
-  if (typeof bodyMessage === "string" && matchesOverflowText(bodyMessage)) return true;
-  if (typeof err.responseBody === "string" && matchesOverflowText(err.responseBody)) return true;
-  return false;
+  const body = providerErrorBody(err);
+  if (typeof body?.code === "string" && OVERFLOW_ERROR_CODES.has(body.code)) return true;
+  if (typeof body?.message === "string" && matchesOverflowText(body.message)) return true;
+  return typeof err.responseBody === "string" && matchesOverflowText(err.responseBody);
 }
 
 export function isContextOverflowError(err: unknown): boolean {
@@ -69,6 +92,7 @@ export type FailureReason =
   | "auth"
   | "reauth"
   | "payment_required"
+  | "model_unavailable"
   | "invalid_request"
   | "unknown";
 
@@ -105,8 +129,24 @@ export function isAuthError(err: unknown): boolean {
 
 const PAYMENT_REQUIRED_STREAM_CODES: ReadonlySet<unknown> = new Set([402, "402"]);
 
-export function isPaymentRequiredError(err: unknown): boolean {
-  if (APICallError.isInstance(err)) return err.statusCode === 402;
+const OPENAI_BILLING_LIMIT_CODES: ReadonlySet<unknown> = new Set([
+  "insufficient_quota",
+  "credit_balance_exhausted",
+  "organization_spend_limit_exceeded",
+  "project_spend_limit_exceeded",
+  "organization_usage_limit_exceeded",
+]);
+
+function isOpenAiBillingLimit(err: APICallError): boolean {
+  if (err.statusCode !== 429) return false;
+  const body = providerErrorBody(err);
+  return body?.type === "insufficient_quota" || OPENAI_BILLING_LIMIT_CODES.has(body?.code);
+}
+
+export function isPaymentRequiredError(err: unknown, provider?: LlmProvider): boolean {
+  if (APICallError.isInstance(err)) {
+    return err.statusCode === 402 || (provider === "openai" && isOpenAiBillingLimit(err));
+  }
   return (
     typeof err === "object" &&
     err !== null &&
@@ -115,14 +155,22 @@ export function isPaymentRequiredError(err: unknown): boolean {
   );
 }
 
+export function isModelUnavailableError(err: unknown, provider?: LlmProvider): boolean {
+  if (!APICallError.isInstance(err)) return false;
+  const body = providerErrorBody(err);
+  if (body?.code === "model_not_found" || body?.type === "model_not_found") return true;
+  return provider === "anthropic" && body?.type === "not_found_error";
+}
+
 export function isInvalidRequestError(err: unknown): boolean {
   return APICallError.isInstance(err) && err.statusCode === 400;
 }
 
-export function classifyFailure(err: unknown): FailureReason {
+export function classifyFailure(err: unknown, provider?: LlmProvider): FailureReason {
   const refreshFailureReason = readRefreshFailureReason(err);
   if (refreshFailureReason !== null) return refreshFailureReason;
-  if (isPaymentRequiredError(err)) return "payment_required";
+  if (isPaymentRequiredError(err, provider)) return "payment_required";
+  if (isModelUnavailableError(err, provider)) return "model_unavailable";
   if (isContextOverflowError(err)) return "overflow";
   if (isTimeoutError(err)) return "timeout";
   if (isRateLimitError(err)) return "rate_limit";

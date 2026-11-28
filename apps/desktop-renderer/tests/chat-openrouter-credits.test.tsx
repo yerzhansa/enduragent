@@ -93,7 +93,7 @@ describe("OpenRouter credits error in Chat", () => {
     expect(actions.openOpenRouterCredits).toHaveBeenCalledWith();
     expect(actions.retry).not.toHaveBeenCalled();
     expect(useEnduragentStore.getState().chat.messages).toContainEqual(
-      expect.objectContaining({ id: "athlete-1", retry: true, addCredits: true }),
+      expect.objectContaining({ id: "athlete-1", retry: true, errorNotice: "add-credits" }),
     );
   });
 
@@ -124,7 +124,7 @@ describe("OpenRouter credits error in Chat", () => {
     const view = renderIn(<Transcript />);
     await act(async () => {});
     expect(screen.queryByRole("button", { name: "Add credits" })).toBeNull();
-    expect(view.container.querySelector(".chat-credits-notice")).toBeNull();
+    expect(view.container.querySelector(".chat-error-notice")).toBeNull();
     view.unmount();
 
     publish(failed("provider-down"));

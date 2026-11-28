@@ -184,13 +184,14 @@ export const FLAGS: readonly FlagFact[] = [
   },
   {
     name: "RendererHandlesRejectionAfterPush",
-    says: "renderer activate() handles checkForUpdates() rejection even after checking/downloading pushes bumped revision",
+    says: "renderer activate() handles checkForUpdates() rejection even after checking/downloading/preparing pushes bumped revision",
     read: (s) => {
       const activate = s.code(s.block(RENDERER_UPDATE, "const activate ="));
       return (
         !/revision\s*===\s*before\s*&&\s*!restarting/.test(activate) &&
         /phase\.state\.status\s*===\s*"checking"/.test(activate) &&
-        /phase\.state\.status\s*===\s*"downloading"/.test(activate)
+        /phase\.state\.status\s*===\s*"downloading"/.test(activate) &&
+        /phase\.state\.status\s*===\s*"preparing"/.test(activate)
       );
     },
   },
@@ -208,11 +209,14 @@ export const FLAGS: readonly FlagFact[] = [
   },
   {
     name: "RequireNativeReadinessOnMac",
-    says: "on darwin, downloaded is published only after preparing receives nativeUpdater update-downloaded",
+    says: "on darwin, enterPreparing publishes preparing and downloaded is published only after nativeUpdater update-downloaded",
     read: (s) => {
       const preparing = s.code(s.block(UPDATE_CONTROLLER, "const enterPreparing ="));
+      const project = s.code(s.block(UPDATE_STATE_MACHINE, "export function projectPhaseState("));
       return (
         /if\s*\(\s*!requiresNativePreparation\s*\)\s*\{\s*publishReady/.test(preparing) &&
+        /publish\(\s*currentState\(\)\s*\)/.test(preparing) &&
+        /case\s*"preparing"\s*:\s*return\s*\{\s*status:\s*"preparing"/.test(project) &&
         /preparing\.nativeDownloadedListener\s*=\s*\(\)\s*:\s*void\s*=>\s*\{[\s\S]*?publishReady/.test(
           preparing,
         )
@@ -610,6 +614,12 @@ export const COVERED: readonly Covered[] = [
     needle: "const enterPreparing =",
     kind: "block",
     models: "ZipUpdateDownloaded; ArmNativeListenersOnlyAfterZipReady; RequireNativeReadinessOnMac",
+  },
+  {
+    file: UPDATE_STATE_MACHINE,
+    needle: "export function projectPhaseState(",
+    kind: "block",
+    models: "Phase projection including preparing; RequireNativeReadinessOnMac",
   },
   {
     file: UPDATE_STATE_MACHINE,

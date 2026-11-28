@@ -346,6 +346,7 @@ export {
   resolveRuntimeConfig,
 } from "./runtime-config.js";
 export type {
+  BackgroundModelChoice,
   ClaudeCliBilling,
   ClaudeCliRuntimeConfigPatch,
   ClaudeCliRuntimeSettings,
@@ -354,12 +355,18 @@ export type {
   CodexAgentRuntimeSettings,
   EffectiveRuntimeConfig,
   KeylessLlmProvider,
+  LlmBackgroundModelChoices,
   LlmModelCatalogueEntry,
   LlmModelOption,
   LlmProvider,
   RuntimeConfigPatch,
   RuntimeConfigResolverOptions,
 } from "./runtime-config.js";
+export {
+  assignPersistedLlmBackgroundModels,
+  persistedLlmBackgroundModels,
+} from "./background-model-persistence.js";
+export type { PersistedLlmBackgroundModels } from "./background-model-persistence.js";
 export {
   CLAUDE_CLI_DISABLED_MESSAGE,
   CODEX_AGENT_DISABLED_MESSAGE,

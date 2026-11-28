@@ -62,6 +62,7 @@ import { createStartAtLoginBridge } from "./start-at-login-bridge.js";
 import { createUpdateBridge } from "./update-bridge.js";
 import { parseCredentialDeleteInput, parseDeleteResult } from "./credential-delete-result.js";
 import { exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
+import { parseUpdateState, type PreloadUpdateState } from "./update-state.js";
 
 const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status";
 const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry";
@@ -194,7 +195,6 @@ const ARCHIVED_TRANSCRIPT_CURSOR_VERSION = 2;
 const ARCHIVED_CONVERSATIONS_MAX_ENTRIES = 200;
 const BOUNDARY_REF_PATTERN = /^[a-f0-9]{64}$/;
 const BASE64URL_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-const STABLE_VERSION_RE = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const textEncoder = new TextEncoder();
 
 function isCivilDate(value: unknown): value is string {
@@ -587,41 +587,6 @@ function parseCredentialWriteInput(value: unknown): {
   const selection = parseLlmSelection(value.selection);
   if (selection.provider !== value.slot) throw new TypeError();
   return { slot: value.slot as string, value: value.value, selection };
-}
-
-type PreloadUpdateState =
-  | { readonly status: "disabled" | "idle" | "checking" | "current" }
-  | { readonly status: "downloading" | "downloaded" | "installing"; readonly version: string }
-  | { readonly status: "restart-required"; readonly stage: "check" | "download" }
-  | { readonly status: "failed"; readonly stage: "check" | "download" };
-
-function parseUpdateState(value: unknown): PreloadUpdateState {
-  if (!record(value) || typeof value.status !== "string") throw new TypeError();
-  if (["disabled", "idle", "checking", "current"].includes(value.status)) {
-    if (!exactKeys(value, ["status"])) throw new TypeError();
-    return { status: value.status as "disabled" | "idle" | "checking" | "current" };
-  }
-  if (["downloading", "downloaded", "installing"].includes(value.status)) {
-    if (
-      !exactKeys(value, ["status", "version"]) ||
-      !safeString(value.version, 64) ||
-      !STABLE_VERSION_RE.test(value.version)
-    ) {
-      throw new TypeError();
-    }
-    return {
-      status: value.status as "downloading" | "downloaded" | "installing",
-      version: value.version,
-    };
-  }
-  if (
-    (value.status !== "failed" && value.status !== "restart-required") ||
-    !exactKeys(value, ["status", "stage"]) ||
-    (value.stage !== "check" && value.stage !== "download")
-  ) {
-    throw new TypeError();
-  }
-  return { status: value.status, stage: value.stage };
 }
 
 function parseAthleteFeedbackResult(

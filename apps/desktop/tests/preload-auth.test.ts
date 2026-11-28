@@ -1856,6 +1856,78 @@ describe("desktop preload ChatGPT auth", () => {
       null,
       { status: "idle", extra: true },
       { status: "downloading", version: "2026.7.23-beta.1" },
+      { status: "downloading", version: "0.7.0", progress: undefined },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 101,
+          transferredBytes: 10,
+          totalBytes: 10,
+          bytesPerSecond: 1,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 50,
+          transferredBytes: 20,
+          totalBytes: 10,
+          bytesPerSecond: 1,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 0,
+          transferredBytes: 0,
+          totalBytes: 0,
+          bytesPerSecond: 0,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 42.5,
+          transferredBytes: 14,
+          totalBytes: 33,
+          bytesPerSecond: 10,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 42,
+          transferredBytes: 14,
+          totalBytes: 33,
+          bytesPerSecond: -1,
+        },
+      },
+      {
+        status: "downloading",
+        version: "0.7.0",
+        progress: {
+          percent: 42,
+          transferredBytes: 14,
+          totalBytes: 33,
+          bytesPerSecond: 10,
+          extra: true,
+        },
+      },
+      {
+        status: "preparing",
+        version: "0.7.0",
+        progress: {
+          percent: 100,
+          transferredBytes: 33,
+          totalBytes: 33,
+          bytesPerSecond: 10,
+        },
+      },
       { status: "downloaded", version: " 2026.7.23" },
       { status: "failed", stage: "install" },
       { status: "failed", stage: "check", error: "Authorization: secret" },
@@ -1865,6 +1937,45 @@ describe("desktop preload ChatGPT auth", () => {
       mocks.invoke.mockResolvedValueOnce(value);
       await expect(bridge.getUpdateState()).rejects.toBeInstanceOf(TypeError);
     }
+  });
+
+  it("deep-copies downloading progress and accepts preparing update states", async () => {
+    const progress = {
+      percent: 42,
+      transferredBytes: 14_000_000,
+      totalBytes: 33_000_000,
+      bytesPerSecond: 4_200_000,
+    };
+    const downloading = { status: "downloading", version: "0.7.0", progress };
+    mocks.invoke
+      .mockResolvedValueOnce(downloading)
+      .mockResolvedValueOnce({ status: "preparing", version: "0.7.0" });
+
+    const copiedDownloading = (await bridge.getUpdateState()) as {
+      readonly status: "downloading";
+      readonly version: string;
+      readonly progress?: typeof progress;
+    };
+    expect(copiedDownloading).toEqual(downloading);
+    expect(copiedDownloading).not.toBe(downloading);
+    expect(copiedDownloading.progress).not.toBe(progress);
+    await expect(bridge.getUpdateState()).resolves.toEqual({
+      status: "preparing",
+      version: "0.7.0",
+    });
+
+    const listener = vi.fn();
+    const dispose = bridge.onUpdateState(listener);
+    const onState = ipcListener("desktop:update:state");
+    onState(undefined, downloading);
+    onState(undefined, { status: "preparing", version: "0.7.0" });
+    dispose();
+
+    expect(listener).toHaveBeenNthCalledWith(1, downloading);
+    expect((listener.mock.calls[0]?.[0] as { progress?: unknown } | undefined)?.progress).not.toBe(
+      progress,
+    );
+    expect(listener).toHaveBeenNthCalledWith(2, { status: "preparing", version: "0.7.0" });
   });
 
   it("sends a nested trusted target-blank anchor activation over the private channel", () => {

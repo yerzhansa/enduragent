@@ -11,17 +11,21 @@ import {
 } from "./desktop-version.js";
 import { createSafeLog } from "./safe-log.js";
 import {
+  DESKTOP_UPDATE_PROGRESS_THROTTLE_MS,
   advanceDownloadTransfer,
   copyDesktopUpdateState,
   desktopUpdateAutoInstallOnAppQuit,
   isActiveOperation,
+  normalizeDownloadProgress,
   projectPhaseState,
+  shouldPublishProgress,
   type ActiveOperationPhase,
   type CheckingPhase,
   type ControllerPhase,
   type DesktopAutoUpdater,
   type DesktopNativeUpdateSource,
   type DesktopUpdateController,
+  type DesktopUpdateDownloadProgress,
   type DesktopUpdateState,
   type DownloadingPhase,
   type InstallHandoff,
@@ -33,11 +37,16 @@ import type {
   DesktopUpdateVersionFloorResult,
 } from "./update-version-floor.js";
 
-export { copyDesktopUpdateState, desktopUpdateAutoInstallOnAppQuit };
+export {
+  DESKTOP_UPDATE_PROGRESS_THROTTLE_MS,
+  copyDesktopUpdateState,
+  desktopUpdateAutoInstallOnAppQuit,
+};
 export type {
   DesktopAutoUpdater,
   DesktopNativeUpdateSource,
   DesktopUpdateController,
+  DesktopUpdateDownloadProgress,
   DesktopUpdateState,
 };
 
@@ -55,6 +64,7 @@ export function createDesktopUpdateController(input: {
   readonly requestQuit: () => void;
   readonly platform?: NodeJS.Platform;
   readonly log?: (message: string) => void;
+  readonly now?: () => number;
   readonly setInterval?: (callback: () => void, interval: number) => TimerHandle;
   readonly clearInterval?: (handle: TimerHandle) => void;
   readonly setTimeout?: (callback: () => void, timeout: number) => TimerHandle;
@@ -64,6 +74,7 @@ export function createDesktopUpdateController(input: {
   const platform = input.platform ?? process.platform;
   const nativeUpdater = input.nativeUpdater;
   const requiresNativePreparation = platform === "darwin";
+  const now = input.now ?? Date.now;
   const listeners = new Set<(state: DesktopUpdateState) => void>();
   const scheduleInterval =
     input.setInterval ??
@@ -332,6 +343,8 @@ export function createDesktopUpdateController(input: {
       errorListener: downloading.errorListener,
     };
     phase = preparing;
+    publish(currentState());
+    if (!isCurrent(expectedGeneration) || phase.kind !== "preparing") return;
     preparing.nativeDownloadedListener = (): void => {
       if (!isCurrent(expectedGeneration) || phase.kind !== "preparing") return;
       publishReady(expectedGeneration, phase.version);
@@ -397,7 +410,30 @@ export function createDesktopUpdateController(input: {
     downloading.errorListener = (): void => failOperation(expectedGeneration, "download");
     downloading.progressListener = (info): void => {
       if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") return;
-      if (advanceDownloadTransfer(downloading, info)) resetDownloadStallTimer(downloading);
+      const hadPublishedProgress = downloading.lastPublishedProgress !== undefined;
+      const advanced = advanceDownloadTransfer(downloading, info);
+      if (!advanced) {
+        if (hadPublishedProgress && downloading.lastPublishedProgress === undefined) {
+          publish(currentState());
+        }
+        return;
+      }
+      resetDownloadStallTimer(downloading);
+      const progress = normalizeDownloadProgress(
+        info,
+        downloading.lastPublishedProgress?.percent ?? 0,
+      );
+      if (progress === undefined) {
+        if (hadPublishedProgress && downloading.lastPublishedProgress === undefined) {
+          publish(currentState());
+        }
+        return;
+      }
+      const timestamp = now();
+      if (!shouldPublishProgress(downloading, progress, timestamp)) return;
+      downloading.lastProgressPublishedAt = timestamp;
+      downloading.lastPublishedProgress = progress;
+      publish(currentState());
     };
     downloading.downloadedListener = (event): void => {
       if (!isCurrent(expectedGeneration) || phase.kind !== "downloading") return;
