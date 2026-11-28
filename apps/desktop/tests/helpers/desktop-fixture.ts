@@ -24,7 +24,6 @@ import type {
   PlanningOperations,
   PlanningReadOperations,
   PlanningRequestOperations,
-  PlanProgressEvent,
   TelegramControlSnapshot,
 } from "@enduragent/coach-contract";
 import { acquireWriteLock } from "../../../../packages/kernel-node/src/lock/index.js";
@@ -652,11 +651,13 @@ export async function launchDesktopFixture(input: {
       >;
     },
     async executePlanTransition(request, onEvent) {
-      const frames = await invoke("executePlanTransition", request);
-      for (const event of eventFrames(frames)) onEvent?.(event as PlanProgressEvent);
-      return finalFrame(frames) as Awaited<
-        ReturnType<NonNullable<PlanningOperations["executePlanTransition"]>>
-      >;
+      return (await scriptedStream(
+        input.script,
+        "executePlanTransition",
+        request,
+        onEvent,
+        0,
+      )) as Awaited<ReturnType<NonNullable<PlanningOperations["executePlanTransition"]>>>;
     },
   };
   const spend: SpendOperations = {
