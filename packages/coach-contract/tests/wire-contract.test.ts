@@ -1927,7 +1927,7 @@ describe("coach request and event projection", () => {
 });
 
 describe("handshake", () => {
-  it("round trips a protocol-38 accepted frame with its authenticated home and renderer capability", () => {
+  it("round trips a protocol-39 accepted frame with its authenticated home and renderer capability", () => {
     const accepted = createAcceptedServerHandshakeFrame("service-managed", PROTOCOL_VERSION, {
       ...acceptedHandshakeBinding,
     });
@@ -1935,8 +1935,8 @@ describe("handshake", () => {
     expect(ServerHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(accepted)))).toEqual({
       type: "handshake",
       status: "accepted",
-      clientProtocolVersion: 38,
-      serverProtocolVersion: 38,
+      clientProtocolVersion: 39,
+      serverProtocolVersion: 39,
       owner: "service-managed",
       athleteHome: "/synthetic/athlete",
       rendererCapability: "A".repeat(43),
@@ -1945,7 +1945,7 @@ describe("handshake", () => {
 
   it("refuses a previous-protocol client with a version-mismatch frame instead of a parse error", () => {
     const previous = PROTOCOL_VERSION - 1;
-    expect(previous).toBe(37);
+    expect(previous).toBe(38);
     expect(() =>
       createAcceptedServerHandshakeFrame("service-managed", previous, {
         ...acceptedHandshakeBinding,
@@ -2018,9 +2018,9 @@ describe("handshake", () => {
     }
   });
 
-  it("accepts aligned protocol 38 peers and classifies mismatches in both directions", () => {
+  it("accepts aligned protocol 39 peers and classifies mismatches in both directions", () => {
     const client = createClientHandshakeFrame("synthetic-test-token");
-    expect(client.clientProtocolVersion).toBe(38);
+    expect(client.clientProtocolVersion).toBe(39);
     expect(ClientHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(client)))).toEqual(client);
     const accepted = createAcceptedServerHandshakeFrame(
       "service-managed",
@@ -2152,8 +2152,8 @@ describe("additive protocol signals", () => {
     expect(AgentErrorKindSchema.safeParse("aborted").success).toBe(false);
   });
 
-  it("uses protocol version 38", () => {
-    expect(PROTOCOL_VERSION).toBe(38);
+  it("uses protocol version 39", () => {
+    expect(PROTOCOL_VERSION).toBe(39);
   });
 });
 
