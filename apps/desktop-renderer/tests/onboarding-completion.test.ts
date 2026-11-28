@@ -539,7 +539,7 @@ describe("onboarding runtime completion gate", () => {
         fixedError: "configuration-unavailable",
       });
     });
-    expect(harness.surface().draft).toStrictEqual(draft);
+    expect(harness.surface().draft).toBe(draft);
     expect(bridge.credentialStatuses).toHaveBeenCalledOnce();
     expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
     expect(bridge.writeCredential).toHaveBeenCalledWith({
@@ -552,115 +552,6 @@ describe("onboarding runtime completion gate", () => {
         endpoint: { mode: "automatic" },
       },
     });
-    harness.controller.dispose();
-  });
-
-  it("retries a key save once on the model list main serves now, with the same key", async () => {
-    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
-    bridge.llmConfiguration
-      .mockResolvedValueOnce(KEYLESS_CONFIGURATION)
-      .mockResolvedValue(NEXT_CONFIGURATION);
-    bridge.writeCredential.mockImplementation(async (input) =>
-      input.selection === undefined || input.selection.catalogRevision === 7
-        ? {
-            slot: input.slot,
-            status: "stale-draft",
-            reason: "catalog-unavailable",
-            selection: input.selection!,
-          }
-        : { slot: input.slot, status: "configured", runtimeReady: false },
-    );
-    const credentialInput = { value: "obviously-fake-key", dataset: { slot: "anthropic" } };
-    const harness = onboardingHarness(bridge, {
-      harvest: () => [credentialInput],
-      clear: vi.fn(),
-    });
-    await harness.controller.open();
-
-    harness.controller.saveModelKey();
-    await vi.waitFor(() => expect(harness.controller.state().busy).toBe(false));
-
-    expect({
-      error: harness.controller.state().fixedError,
-      writes: bridge.writeCredential.mock.calls.map(([input]) => [
-        input.value,
-        input.selection?.catalogRevision,
-      ]),
-      applied: bridge.applyLlmSelection.mock.calls.map(([selection]) => selection.catalogRevision),
-      shownRevision: harness.surface().configuration?.catalogRevision,
-      draftRevision: harness.surface().draft?.catalogRevision,
-      keyField: credentialInput.value,
-    }).toEqual({
-      error: null,
-      writes: [
-        ["obviously-fake-key", 7],
-        ["obviously-fake-key", 8],
-      ],
-      applied: [8],
-      shownRevision: 8,
-      draftRevision: 8,
-      keyField: "",
-    });
-    harness.controller.dispose();
-  });
-
-  it("retries a Claude Code pick once on the model list main serves now", async () => {
-    const bridge = activationBridge(async (selection) =>
-      selection.catalogRevision === 7
-        ? { status: "stale-draft", reason: "catalog-unavailable", selection }
-        : { status: "configured", runtimeReady: true },
-    );
-    bridge.llmConfiguration
-      .mockResolvedValueOnce(KEYLESS_CONFIGURATION)
-      .mockResolvedValue(NEXT_CONFIGURATION);
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-
-    harness.controller.selectProvider("claude-cli");
-    await vi.waitFor(() => expect(bridge.applyLlmSelection).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() => expect(harness.controller.state().busy).toBe(false));
-
-    expect({
-      error: harness.controller.state().fixedError,
-      applied: bridge.applyLlmSelection.mock.calls.map(([selection]) => selection.catalogRevision),
-      active: harness.surface().configuration?.active,
-      ready: harness.surface().readiness.provider,
-    }).toEqual({
-      error: null,
-      applied: [7, 8],
-      active: { provider: "claude-cli", model: "sonnet" },
-      ready: true,
-    });
-    harness.controller.dispose();
-  });
-
-  it("retries a ChatGPT sign-in once and activates it on the model list main serves now", async () => {
-    const bridge = activationBridge(async (selection) =>
-      selection.catalogRevision === 8
-        ? { status: "configured", runtimeReady: true }
-        : { status: "stale-draft", reason: "catalog-unavailable", selection },
-    );
-    bridge.llmConfiguration
-      .mockResolvedValueOnce(KEYLESS_CONFIGURATION)
-      .mockResolvedValue(NEXT_CONFIGURATION);
-    bridge.chatGptLogin.mockImplementation(async ({ operationId, selection }) =>
-      selection.catalogRevision === 7
-        ? { status: "stale-draft", operationId, reason: "catalog-unavailable", selection }
-        : { status: "stored", operationId },
-    );
-    const harness = onboardingHarness(bridge);
-    await harness.controller.open();
-    harness.controller.selectProvider("openai-codex");
-
-    harness.controller.startChatGptLogin();
-    await vi.waitFor(() => expect(bridge.applyLlmSelection).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(harness.surface().actionStatus).toBe("ready"));
-
-    expect({
-      error: harness.controller.state().fixedError,
-      logins: bridge.chatGptLogin.mock.calls.map(([input]) => input.selection.catalogRevision),
-      applied: bridge.applyLlmSelection.mock.calls.map(([selection]) => selection.catalogRevision),
-    }).toEqual({ error: null, logins: [7, 8], applied: [8] });
     harness.controller.dispose();
   });
 
@@ -684,6 +575,7 @@ describe("onboarding runtime completion gate", () => {
 
     harness.controller.saveModelKey();
     await vi.waitFor(() => expect(harness.controller.state().busy).toBe(false));
+    await vi.waitFor(() => expect(harness.surface().configuration?.catalogRevision).toBe(8));
 
     expect({
       error: harness.controller.state().fixedError,

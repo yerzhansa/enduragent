@@ -16,6 +16,7 @@ import {
   DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
   registerOnboardingIpc,
 } from "../src/main/onboarding-ipc.js";
+import { DESKTOP_OPENROUTER_SIGN_IN_CHANNEL } from "../src/main/constants.js";
 import {
   DESKTOP_CREDENTIAL_SLOTS,
   type DesktopCredentialSlot,
@@ -32,17 +33,31 @@ import type { TransientPasswordInput } from "../../desktop-renderer/src/onboardi
 type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 
 const OPENROUTER_KEY = `sk-or-v1-${"0".repeat(64)}`;
+const ANTHROPIC_KEY = `sk-ant-${"0".repeat(64)}`;
 
-function catalogAt(revision: number): LocalModelCatalogSnapshot {
-  const accepted = acceptModelCatalogSnapshot({ ...BUNDLED_MODEL_CATALOG, revision });
+function catalogAt(
+  revision: number,
+  dropped: ReadonlyMap<string, string> = new Map(),
+): LocalModelCatalogSnapshot {
+  const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
+  snapshot.revision = revision;
+  for (const provider of snapshot.providers) {
+    provider.models = provider.models.filter(
+      (model) => dropped.get(provider.providerId) !== model.modelId,
+    );
+  }
+  const accepted = acceptModelCatalogSnapshot(snapshot);
   if (accepted === undefined) throw new TypeError("synthetic catalog is invalid");
   return { ...accepted, origin: "installation", revision };
 }
 
-function runtimeConfig(): RuntimeConfigSnapshot {
+function runtimeConfig(active: {
+  readonly provider: RuntimeConfigSnapshot["llm"]["provider"];
+  readonly model: string;
+}): RuntimeConfigSnapshot {
   return {
     schemaVersion: 3,
-    llm: { provider: "anthropic", model: "claude-sonnet-5", credential_configured: true },
+    llm: { ...active, credential_configured: true },
     intervals: {
       athlete_id: "0",
       credential_configured: true,
@@ -69,7 +84,7 @@ const unused = async (): Promise<never> => {
   throw new TypeError("not used in this test");
 };
 
-function openSetupOverMainIpc() {
+function openSetupOverMainIpc(keySlot: DesktopCredentialSlot = "openrouter") {
   const handlers = new Map<string, Handler>();
   const trustedEvent = {
     sender: {
@@ -89,8 +104,13 @@ function openSetupOverMainIpc() {
     );
   const keysSaved: { slot: string; value: string; catalogRevision: number | undefined }[] = [];
   const coachCatalogs: { provider: string; catalogRevision: number }[] = [];
-  const activated = (provider: string, snapshot: ModelCatalogSnapshot) => {
-    coachCatalogs.push({ provider, catalogRevision: snapshot.revision });
+  let active: Parameters<typeof runtimeConfig>[0] = {
+    provider: "anthropic",
+    model: "claude-sonnet-5",
+  };
+  const activated = (selection: OnboardingLlmSelection, snapshot: ModelCatalogSnapshot) => {
+    coachCatalogs.push({ provider: selection.provider, catalogRevision: snapshot.revision });
+    active = { provider: selection.provider, model: selection.model };
     return { status: "configured" as const, runtimeReady: true as const };
   };
   registerOnboardingIpc({
@@ -106,6 +126,7 @@ function openSetupOverMainIpc() {
       writeCredential: async (input: {
         slot: DesktopCredentialSlot;
         value: string;
+        selection?: OnboardingLlmSelection;
         catalogSnapshot?: ModelCatalogSnapshot;
       }) => {
         keysSaved.push({
@@ -114,12 +135,15 @@ function openSetupOverMainIpc() {
           catalogRevision: input.catalogSnapshot?.revision,
         });
         configured.add(input.slot);
+        if (input.selection !== undefined) {
+          active = { provider: input.selection.provider, model: input.selection.model };
+        }
         return { slot: input.slot, status: "configured", runtimeReady: true };
       },
       applyLlmSelection: async (
         selection: OnboardingLlmSelection,
         snapshot: ModelCatalogSnapshot,
-      ) => activated(selection.provider, snapshot),
+      ) => activated(selection, snapshot),
     } as never,
     chatGptAuth: {
       status: async () => ({ state: "absent", runtimeReady: false }),
@@ -127,16 +151,16 @@ function openSetupOverMainIpc() {
       cancelLogin: (operationId: string) => ({ status: "not-active", operationId }),
       hasStoredProfile: async () => true,
       activate: async (selection: OnboardingLlmSelection, snapshot: ModelCatalogSnapshot) =>
-        activated(selection.provider, snapshot),
+        activated(selection, snapshot),
     } as never,
     claudeCli: {
       invalidateProbeCache: vi.fn(),
       status: async () => ({ state: "ready" }),
       recheck: async () => ({ state: "ready" }),
       activate: async (selection: OnboardingLlmSelection, snapshot: ModelCatalogSnapshot) =>
-        activated(selection.provider, snapshot),
+        activated(selection, snapshot),
     } as never,
-    getRuntimeConfig: async () => runtimeConfig(),
+    getRuntimeConfig: async () => runtimeConfig(active),
     modelCatalog: { current: () => current },
     applyExistingLlmSelection: async () => false,
     isTrusted: (event) => event === trustedEvent,
@@ -170,7 +194,7 @@ function openSetupOverMainIpc() {
     chooseImportFiles: async () => [],
     onDroppedImportFiles: () => () => undefined,
     importFiles: unused,
-    openRouterSignIn: unused,
+    openRouterSignIn: (input) => invoke(DESKTOP_OPENROUTER_SIGN_IN_CHANNEL, input),
     startOpenRouterCodeSignIn: unused,
     useCopiedOpenRouterCode: unused,
     cancelOpenRouterSignIn: async () => false,
@@ -179,7 +203,7 @@ function openSetupOverMainIpc() {
     openOpenRouterPage: async () => false,
     onOpenRouterSignInProgress: () => () => undefined,
   };
-  const keyField: TransientPasswordInput = { value: "", dataset: { slot: "openrouter" } };
+  const keyField: TransientPasswordInput = { value: "", dataset: { slot: keySlot } };
   let surface: OnboardingSurfaceState | undefined;
   const controller = createOnboardingController({
     bridge,
@@ -195,8 +219,11 @@ function openSetupOverMainIpc() {
       return () => undefined;
     },
   });
-  const settingsOpenedUnderNewCatalog = async (revision: number): Promise<void> => {
-    current = catalogAt(revision);
+  const settingsOpenedUnderNewCatalog = async (
+    revision: number,
+    dropped?: ReadonlyMap<string, string>,
+  ): Promise<void> => {
+    current = catalogAt(revision, dropped);
     await invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL);
   };
   return {
@@ -221,13 +248,18 @@ describe("Setup after two model list updates in one open window", () => {
     setup.keyField.value = OPENROUTER_KEY;
     setup.controller.saveModelKey();
     await vi.waitFor(() => expect(setup.surface().wizard.busy).toBe(false));
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 2),
+    );
 
     expect({
       error: setup.surface().wizard.fixedError,
       keysSaved: setup.keysSaved,
+      shown: setup.surface().draft?.provider.provider,
     }).toEqual({
       error: null,
       keysSaved: [{ slot: "openrouter", value: OPENROUTER_KEY, catalogRevision: setup.base + 2 }],
+      shown: "openrouter",
     });
     setup.controller.dispose();
   });
@@ -245,13 +277,18 @@ describe("Setup after two model list updates in one open window", () => {
       ),
     );
     await vi.waitFor(() => expect(setup.surface().wizard.busy).toBe(false));
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 2),
+    );
 
     expect({
       error: setup.surface().wizard.fixedError,
       coachCatalogs: setup.coachCatalogs,
+      shown: setup.surface().draft?.provider.provider,
     }).toEqual({
       error: null,
       coachCatalogs: [{ provider: "claude-cli", catalogRevision: setup.base + 2 }],
+      shown: "claude-cli",
     });
     setup.controller.dispose();
   });
@@ -270,12 +307,117 @@ describe("Setup after two model list updates in one open window", () => {
       ),
     );
 
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 2),
+    );
+
     expect({
       error: setup.surface().wizard.fixedError,
       coachCatalogs: setup.coachCatalogs,
+      shown: setup.surface().draft?.provider.provider,
     }).toEqual({
       error: null,
       coachCatalogs: [{ provider: "openai-codex", catalogRevision: setup.base + 2 }],
+      shown: "openai-codex",
+    });
+    setup.controller.dispose();
+  });
+
+  it("shows the newest model list with the error when the chosen model is gone", async () => {
+    const setup = openSetupOverMainIpc();
+    await setup.controller.open();
+    setup.controller.selectProvider("openrouter");
+    setup.controller.selectModel("openai/gpt-6.2-sol");
+    await setup.settingsOpenedUnderNewCatalog(
+      setup.base + 1,
+      new Map([["openrouter", "openai/gpt-6.2-sol"]]),
+    );
+
+    setup.keyField.value = OPENROUTER_KEY;
+    setup.controller.saveModelKey();
+    await vi.waitFor(() => expect(setup.surface().wizard.busy).toBe(false));
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 1),
+    );
+
+    const openRouter = setup
+      .surface()
+      .configuration?.providers.find((entry) => entry.provider === "openrouter");
+    expect({
+      error: setup.surface().wizard.fixedError,
+      keysSaved: setup.keysSaved,
+      coachCatalogs: setup.coachCatalogs,
+      draft: {
+        provider: setup.surface().draft?.provider.provider,
+        modelChoice: setup.surface().draft?.modelChoice,
+      },
+      droppedModelShown: openRouter?.models.some((model) => model.value === "openai/gpt-6.2-sol"),
+    }).toEqual({
+      error: "configuration-unavailable",
+      keysSaved: [],
+      coachCatalogs: [],
+      draft: { provider: "openrouter", modelChoice: openRouter?.defaultModel },
+      droppedModelShown: false,
+    });
+    setup.controller.dispose();
+  });
+
+  it("shows the newest model list when OpenRouter sign-in names a dropped model", async () => {
+    const setup = openSetupOverMainIpc();
+    await setup.controller.open();
+    setup.controller.selectProvider("openrouter");
+    setup.controller.selectModel("openai/gpt-6.2-sol");
+    await setup.settingsOpenedUnderNewCatalog(
+      setup.base + 1,
+      new Map([["openrouter", "openai/gpt-6.2-sol"]]),
+    );
+
+    setup.controller.openRouter.start();
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 1),
+    );
+
+    expect({
+      error: setup.surface().wizard.fixedError,
+      keysSaved: setup.keysSaved,
+      draft: setup.surface().draft?.provider.provider,
+      modelChoice: setup.surface().draft?.modelChoice,
+    }).toEqual({
+      error: "configuration-unavailable",
+      keysSaved: [],
+      draft: "openrouter",
+      modelChoice: "deepseek/deepseek-v4.1-flash-1017",
+    });
+    setup.controller.dispose();
+  });
+
+  it("does not save the active coach's dropped model when its key is saved untouched", async () => {
+    const setup = openSetupOverMainIpc("anthropic");
+    await setup.controller.open();
+    expect(setup.surface().draft).toMatchObject({
+      provider: { provider: "anthropic" },
+      modelChoice: "claude-sonnet-5",
+    });
+    await setup.settingsOpenedUnderNewCatalog(
+      setup.base + 1,
+      new Map([["anthropic", "claude-sonnet-5"]]),
+    );
+
+    setup.keyField.value = ANTHROPIC_KEY;
+    setup.controller.saveModelKey();
+    await vi.waitFor(() => expect(setup.surface().wizard.busy).toBe(false));
+    await vi.waitFor(() =>
+      expect(setup.surface().configuration?.catalogRevision).toBe(setup.base + 1),
+    );
+
+    expect({
+      error: setup.surface().wizard.fixedError,
+      keysSaved: setup.keysSaved,
+      coachCatalogs: setup.coachCatalogs,
+    }).toEqual({
+      error: "configuration-unavailable",
+      keysSaved: [],
+      coachCatalogs: [],
     });
     setup.controller.dispose();
   });

@@ -85,24 +85,3 @@ export function createLlmChoice(): LlmChoice {
     },
   };
 }
-
-function sameChoice(left: OnboardingLlmSelection, right: OnboardingLlmSelection): boolean {
-  return (
-    left.provider === right.provider &&
-    left.model === right.model &&
-    JSON.stringify(left.endpoint) === JSON.stringify(right.endpoint)
-  );
-}
-
-export async function sendOnCurrentCatalog<Result extends { readonly status: string }>(
-  selection: OnboardingLlmSelection,
-  send: (selection: OnboardingLlmSelection) => Promise<Result>,
-  followCatalog: () => Promise<OnboardingLlmSelection | null>,
-): Promise<{ readonly result: Result; readonly selection: OnboardingLlmSelection }> {
-  const result = await send(selection);
-  if (result.status !== "stale-draft") return { result, selection };
-  const followed = await followCatalog();
-  return followed === null || !sameChoice(followed, selection)
-    ? { result, selection }
-    : { result: await send(followed), selection: followed };
-}

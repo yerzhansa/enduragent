@@ -361,20 +361,34 @@ async function llmConfiguration(
   return { schemaVersion: 1, catalogRevision: catalog.revision, providers, active };
 }
 
+function offeredModels(
+  catalog: LocalModelCatalogSnapshot,
+): ReadonlyMap<LlmProvider, ReadonlySet<string>> {
+  return new Map(
+    publicLlmProviderConfiguration(catalog).map((entry) => [
+      entry.provider,
+      new Set(entry.models.map((model) => model.value)),
+    ]),
+  );
+}
+
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {
   let disposed = false;
   const windowLogins = new Set<string>();
-  const servedProviders = new Map<number, ReadonlySet<LlmProvider>>();
+  const servedModels = new Map<number, ReadonlyMap<LlmProvider, ReadonlySet<string>>>();
   const catalogFor = (
     selection: OnboardingLlmSelection,
   ): ModelCatalogSnapshot | "stale-draft" | "invalid-input" => {
-    const served = servedProviders.get(selection.catalogRevision);
+    const served = servedModels.get(selection.catalogRevision);
     if (served === undefined) return "stale-draft";
-    if (!served.has(selection.provider)) return "invalid-input";
+    const servedForProvider = served.get(selection.provider);
+    if (servedForProvider === undefined) return "invalid-input";
     const current = options.modelCatalog.current();
-    return current.effective.providers.some((entry) => entry.provider === selection.provider)
-      ? current.snapshot
-      : "stale-draft";
+    const offered = offeredModels(current).get(selection.provider);
+    if (offered === undefined) return "stale-draft";
+    return servedForProvider.has(selection.model) && !offered.has(selection.model)
+      ? "stale-draft"
+      : current.snapshot;
   };
   const requireTrusted = (event: IpcMainInvokeEvent): void => {
     if (!options.isTrusted(event)) throw new TypeError();
@@ -540,10 +554,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     requireTrusted(event);
     if (args.length !== 0) throw new TypeError();
     const catalog = options.modelCatalog.current();
-    servedProviders.set(
-      catalog.revision,
-      new Set(catalog.effective.providers.map((entry) => entry.provider)),
-    );
+    servedModels.set(catalog.revision, offeredModels(catalog));
     return llmConfiguration(options.getRuntimeConfig, catalog);
   });
   options.ipcMain.handle(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, async (event, ...args) => {
@@ -690,7 +701,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     disposed = true;
     for (const operationId of windowLogins) options.chatGptAuth.cancelLogin(operationId);
     disposeOpenRouter();
-    servedProviders.clear();
+    servedModels.clear();
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_STATUS_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RETRY_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_WRITE_CHANNEL);

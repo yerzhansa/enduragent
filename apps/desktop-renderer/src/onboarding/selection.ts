@@ -115,12 +115,13 @@ export function draftOnConfiguration(
   const provider = configuration.providers.find(
     (entry) => entry.provider === draft.provider.provider,
   );
+  if (provider === undefined) return undefined;
   const modelOffered =
     draft.modelChoice === CUSTOM_MODEL_SELECTION ||
-    provider?.models.some((model) => model.value === draft.modelChoice) === true;
-  return provider === undefined || !modelOffered
-    ? undefined
-    : { ...draft, catalogRevision: configuration.catalogRevision, provider };
+    provider.models.some((model) => model.value === draft.modelChoice);
+  return modelOffered
+    ? { ...draft, catalogRevision: configuration.catalogRevision, provider }
+    : draftForProvider(provider, configuration.catalogRevision);
 }
 
 function hasControlCharacters(value: string): boolean {

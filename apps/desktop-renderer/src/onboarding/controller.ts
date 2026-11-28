@@ -24,7 +24,7 @@ import {
   type OpenRouterSignInView,
 } from "./openrouter-sign-in";
 import type { SetupCommit } from "./lanes";
-import { createLlmChoice, sendOnCurrentCatalog } from "./llm-choice";
+import { createLlmChoice } from "./llm-choice";
 import { setupOperationRunning, type SetupOperation } from "./setup-operation";
 import {
   chatGptOperationActive,
@@ -282,21 +282,21 @@ export function createOnboardingController(
     publish();
   };
 
-  const recordActiveSelection = (selection: OnboardingLlmSelection): void => {
-    if (choice.recordActive(selection)) options.onActiveSelectionChanged?.();
-  };
-
-  const followCatalog = async (
-    stillCurrent: () => boolean,
-  ): Promise<OnboardingLlmSelection | null> => {
+  const followCatalog = async (expectedVisit: number): Promise<void> => {
     const read = await settleWithin(
       options.bridge.llmConfiguration(),
       ONBOARDING_STATUS_REFRESH_TIMEOUT_MS,
     );
-    if (read.status !== "fulfilled" || !stillCurrent()) return null;
+    if (read.status !== "fulfilled" || disposed || visit !== expectedVisit || !presenting) return;
+    if (read.value.catalogRevision === choice.configuration()?.catalogRevision) return;
     choice.follow(read.value, credentialStatuses, chatGptStatusFor(state));
     publish();
-    return llmSelectionFromDraft(choice.draft()).selection;
+  };
+
+  const recordActiveSelection = (selection: OnboardingLlmSelection): void => {
+    if (!choice.recordActive(selection)) return;
+    options.onActiveSelectionChanged?.();
+    void followCatalog(visit);
   };
 
   const openRouter = createOpenRouterSignIn({
@@ -317,7 +317,10 @@ export function createOnboardingController(
       lastCommit = "provider";
       state = { ...state, fixedError: "credential-status-unavailable" };
     },
-    fail: setFixedError,
+    fail: (code) => {
+      setFixedError(code);
+      if (code === "configuration-unavailable") void followCatalog(visit);
+    },
   });
 
   const cancelActiveIntervalsSignIn = (): void => {
@@ -380,42 +383,30 @@ export function createOnboardingController(
   ): Promise<{
     readonly error: OnboardingErrorCode | null;
     readonly selectedApplied: boolean;
-    readonly selection: OnboardingLlmSelection;
   } | null> => {
-    const outcome: {
-      failure: OnboardingErrorCode | null;
-      selectedApplied: boolean;
-      selection: OnboardingLlmSelection;
-    } = { failure: null, selectedApplied: false, selection };
-    const settled = (error: OnboardingErrorCode | null) => ({
-      error,
-      selectedApplied: outcome.selectedApplied,
-      selection: outcome.selection,
-    });
-    if (slot === undefined) return settled(null);
+    if (slot === undefined) return { error: null, selectedApplied: false };
     const input = options.credentials
       .harvest([slot])
       .find((candidate) => candidate.dataset.slot === slot);
-    if (input === undefined) return settled(null);
+    if (input === undefined) {
+      return { error: null, selectedApplied: false };
+    }
     if (visit !== expectedVisit || !presenting) return null;
     if (input.value.trim().length === 0) {
       input.value = "";
-      return settled(null);
+      return { error: null, selectedApplied: false };
     }
-    const stillCurrent = (): boolean => !disposed && visit === expectedVisit && presenting;
+    const outcome: {
+      failure: OnboardingErrorCode | null;
+      selectedApplied: boolean;
+    } = { failure: null, selectedApplied: false };
     let staleDraft = false;
     try {
       await handoffCredential(
         input,
         async (value) => {
-          const sent = await sendOnCurrentCatalog(
-            selection,
-            (next) => options.bridge.writeCredential({ ...value, selection: next }),
-            () => followCatalog(stillCurrent),
-          );
-          const result = sent.result;
-          outcome.selection = sent.selection;
-          if (!stillCurrent()) return;
+          const result = await options.bridge.writeCredential(value);
+          if (disposed || visit !== expectedVisit || !presenting) return;
           if (result.status === "configured") {
             if (result.runtimeReady) outcome.selectedApplied = true;
           } else {
@@ -432,28 +423,37 @@ export function createOnboardingController(
       input.value = "";
     }
     if (disposed || visit !== expectedVisit || !presenting) return null;
-    if (staleDraft) return settled("configuration-unavailable");
+    if (staleDraft) {
+      void followCatalog(expectedVisit);
+      return { error: "configuration-unavailable", selectedApplied: false };
+    }
     const refreshed = await refreshStatuses(expectedVisit);
     if (disposed || visit !== expectedVisit || !presenting) return null;
     if (!refreshed) {
       invalidateCredentialRuntimeStatus(slot);
-      return settled(
-        outcome.failure === null || outcome.failure === "runtime-unavailable"
-          ? "credential-status-unavailable"
-          : outcome.failure,
-      );
+      return {
+        error:
+          outcome.failure === null || outcome.failure === "runtime-unavailable"
+            ? "credential-status-unavailable"
+            : outcome.failure,
+        selectedApplied: outcome.selectedApplied,
+      };
     }
-    if (outcome.failure !== "runtime-unavailable") return settled(outcome.failure);
+    if (outcome.failure !== "runtime-unavailable") {
+      return { error: outcome.failure, selectedApplied: outcome.selectedApplied };
+    }
     const refreshedRuntimeStatus = credentialStatuses.find((entry) => entry.slot === slot);
     if (
       refreshedRuntimeStatus === undefined ||
       refreshedRuntimeStatus.state === "missing" ||
       refreshedRuntimeStatus.state === "re-prompt"
     ) {
-      return settled("credential-reenter-required");
+      return { error: "credential-reenter-required", selectedApplied: outcome.selectedApplied };
     }
-    if (refreshedRuntimeStatus.runtimeState === "failed") return settled("runtime-unavailable");
-    return settled(null);
+    if (refreshedRuntimeStatus.runtimeState === "failed") {
+      return { error: "runtime-unavailable", selectedApplied: outcome.selectedApplied };
+    }
+    return { error: null, selectedApplied: outcome.selectedApplied };
   };
 
   const saveModelKey = async (): Promise<void> => {
@@ -477,17 +477,14 @@ export function createOnboardingController(
     let saveError = saved.error;
     if (saveError === "runtime-unavailable") saveError = "model-runtime-unavailable";
     if (saved.selectedApplied) {
-      recordActiveSelection(saved.selection);
+      recordActiveSelection(parsedSelection.selection);
     } else if (saveError === null) {
       try {
-        const { result: applied, selection } = await sendOnCurrentCatalog(
-          saved.selection,
-          (next) => options.bridge.applyLlmSelection(next),
-          () => followCatalog(() => visit === submitVisit && presenting),
-        );
+        const applied = await options.bridge.applyLlmSelection(parsedSelection.selection);
         if (visit !== submitVisit || !presenting) return;
         if (applied.status === "stale-draft") {
           saveError = "configuration-unavailable";
+          void followCatalog(submitVisit);
         } else if (applied.status === "refused") {
           saveError =
             applied.reason === "credential-required"
@@ -497,7 +494,7 @@ export function createOnboardingController(
                 : "invalid-input";
         } else {
           if (!(await refreshStatuses(submitVisit))) saveError = "credential-status-unavailable";
-          recordActiveSelection(selection);
+          recordActiveSelection(parsedSelection.selection);
         }
       } catch {
         if (visit !== submitVisit || !presenting) return;
@@ -625,31 +622,29 @@ export function createOnboardingController(
     state = withChatGptActivationPending(state);
     actionStatus = "activating-coach";
     publish();
-    const activating = (): boolean =>
-      !disposed &&
-      visit === expectedVisit &&
-      presenting &&
-      activationGeneration === authGeneration &&
-      state.chatGptRuntimeState === "activating";
     void settleWithin(
-      sendOnCurrentCatalog(
-        selection,
-        (next) => options.bridge.applyLlmSelection(next),
-        () => followCatalog(activating),
-      ),
+      options.bridge.applyLlmSelection(selection),
       CHATGPT_ACTIVATION_TRANSPORT_TIMEOUT_MS,
-    ).then((sent) => {
-      if (!activating()) return;
+    ).then((result) => {
+      if (
+        disposed ||
+        visit !== expectedVisit ||
+        !presenting ||
+        activationGeneration !== authGeneration ||
+        state.chatGptRuntimeState !== "activating"
+      ) {
+        return;
+      }
       authGeneration += 1;
-      const outcome = sent.status === "fulfilled" ? sent.value : null;
-      const ready = outcome?.result.status === "configured";
+      const ready = result.status === "fulfilled" && result.value.status === "configured";
       state = withChatGptActivationResult(state, ready);
-      if (ready && outcome !== null) {
-        recordActiveSelection(outcome.selection);
+      if (ready) {
+        recordActiveSelection(selection);
         actionStatus = "ready";
       } else {
-        if (outcome?.result.status === "stale-draft") {
+        if (result.status === "fulfilled" && result.value.status === "stale-draft") {
           state = { ...state, fixedError: "configuration-unavailable" };
+          void followCatalog(expectedVisit);
         }
         actionStatus = null;
       }
@@ -922,15 +917,17 @@ export function createOnboardingController(
         publish();
       }, CHATGPT_PROGRESS_DETAIL_DELAY_MS);
       publish();
-      const signingIn = (): boolean =>
-        !disposed && visit === loginVisit && presenting && state.chatGptOperationId === operationId;
-      void sendOnCurrentCatalog(
-        parsedSelection.selection,
-        (selection) => options.bridge.chatGptLogin({ operationId, selection }),
-        () => followCatalog(signingIn),
-      ).then(
-        ({ result, selection }) => {
-          if (!signingIn() || result.operationId !== operationId) return;
+      void options.bridge.chatGptLogin({ operationId, selection: parsedSelection.selection }).then(
+        (result) => {
+          if (
+            disposed ||
+            visit !== loginVisit ||
+            !presenting ||
+            state.chatGptOperationId !== operationId ||
+            result.operationId !== operationId
+          ) {
+            return;
+          }
           clearProgressDetailTimer();
           authGeneration += 1;
           state = withChatGptLoginResult(state, result);
@@ -941,10 +938,20 @@ export function createOnboardingController(
           }
           focusTitle();
           publish();
-          if (result.status === "stored") scheduleChatGptActivation(selection, loginVisit);
+          if (result.status === "stale-draft") void followCatalog(loginVisit);
+          if (result.status === "stored") {
+            scheduleChatGptActivation(parsedSelection.selection, loginVisit);
+          }
         },
         () => {
-          if (!signingIn()) return;
+          if (
+            disposed ||
+            visit !== loginVisit ||
+            !presenting ||
+            state.chatGptOperationId !== operationId
+          ) {
+            return;
+          }
           clearProgressDetailTimer();
           authGeneration += 1;
           state = withChatGptLoginResult(state, {

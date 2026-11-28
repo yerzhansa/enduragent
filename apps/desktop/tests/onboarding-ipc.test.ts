@@ -1031,6 +1031,102 @@ describe("desktop onboarding IPC", () => {
     expect(subject.vault.writeCredential).not.toHaveBeenCalled();
   });
 
+  it("returns a stale draft when the newest catalog drops the catalog model a draft names", async () => {
+    const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    const next = structuredClone(BUNDLED_MODEL_CATALOG);
+    next.revision = CATALOG_REVISION + 1;
+    const dropped = new Map([
+      ["anthropic", "claude-opus-5-5"],
+      ["openai-codex", "gpt-5.6-luna"],
+      ["openrouter", "openai/gpt-6.2-sol"],
+    ]);
+    for (const provider of next.providers) {
+      provider.models = provider.models.filter(
+        (model) => dropped.get(provider.providerId) !== model.modelId,
+      );
+    }
+    const accepted = acceptModelCatalogSnapshot(next);
+    if (accepted === undefined) throw new TypeError("catalog is invalid");
+    subject.modelCatalog.current.mockReturnValue({
+      ...accepted,
+      origin: "installation",
+      revision: next.revision,
+    });
+    subject.applyExistingLlmSelection.mockResolvedValue(true);
+    const selection = (provider: string, model: string) => ({
+      catalogRevision: CATALOG_REVISION,
+      provider,
+      model,
+      endpoint: { mode: provider === "openrouter" ? "default" : "automatic" },
+    });
+    const stale = { status: "stale-draft", reason: "catalog-unavailable" };
+
+    expect({
+      apply: await subject.invoke(
+        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+        subject.trustedEvent,
+        selection("anthropic", "claude-opus-5-5"),
+      ),
+      keyWrite: await subject.invoke(DESKTOP_CREDENTIAL_WRITE_CHANNEL, subject.trustedEvent, {
+        slot: "anthropic",
+        value: "synthetic",
+        selection: selection("anthropic", "claude-opus-5-5"),
+      }),
+      chatGptLogin: await subject.invoke(DESKTOP_CHATGPT_LOGIN_CHANNEL, subject.trustedEvent, {
+        operationId: "login-dropped",
+        selection: selection("openai-codex", "gpt-5.6-luna"),
+      }),
+      chatGptActivation: await subject.invoke(
+        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+        subject.trustedEvent,
+        selection("openai-codex", "gpt-5.6-luna"),
+      ),
+      openRouterSignIn: await subject.invoke(
+        DESKTOP_OPENROUTER_SIGN_IN_CHANNEL,
+        subject.trustedEvent,
+        { operationId: "or-dropped", selection: selection("openrouter", "openai/gpt-6.2-sol") },
+      ),
+    }).toEqual({
+      apply: { ...stale, selection: selection("anthropic", "claude-opus-5-5") },
+      keyWrite: {
+        ...stale,
+        slot: "anthropic",
+        selection: selection("anthropic", "claude-opus-5-5"),
+      },
+      chatGptLogin: {
+        ...stale,
+        operationId: "login-dropped",
+        selection: selection("openai-codex", "gpt-5.6-luna"),
+      },
+      chatGptActivation: { ...stale, selection: selection("openai-codex", "gpt-5.6-luna") },
+      openRouterSignIn: { status: "refused", operationId: "or-dropped", reason: "invalid-input" },
+    });
+    expect(subject.applyExistingLlmSelection).not.toHaveBeenCalled();
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
+    expect(subject.chatGptAuth.login).not.toHaveBeenCalled();
+    expect(subject.openRouter.ports.signIn).not.toHaveBeenCalled();
+
+    for (const model of ["claude-sonnet-5-5", "athlete-selected-model"]) {
+      await expect(
+        subject.invoke(
+          DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+          subject.trustedEvent,
+          selection("anthropic", model),
+        ),
+      ).resolves.toEqual({ status: "configured", runtimeReady: true });
+    }
+    expect(
+      subject.applyExistingLlmSelection.mock.calls.map(([applied, snapshot]) => [
+        applied.model,
+        snapshot.revision,
+      ]),
+    ).toEqual([
+      ["claude-sonnet-5-5", CATALOG_REVISION + 1],
+      ["athlete-selected-model", CATALOG_REVISION + 1],
+    ]);
+  });
+
   it("returns a recoverable stale draft when its revision was not pinned", async () => {
     const subject = harness();
     const selection = {
