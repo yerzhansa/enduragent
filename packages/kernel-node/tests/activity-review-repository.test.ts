@@ -214,7 +214,7 @@ describe("activity review repository", () => {
       {
         sink: createSqliteImportSink(destination),
         presence: { hasArtifact: async () => true },
-        targetUserVersion: 37,
+        targetUserVersion: 38,
         ...webCryptoExportEnv,
       },
       { container: built.container },
