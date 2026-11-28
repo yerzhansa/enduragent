@@ -1,9 +1,9 @@
 CoachChange TypeOK holds
-CoachChange StopNeverGivesUpDuringAReply breaks
-CoachChange StopReachesReplyBeforeItEnds breaks
-CoachChange ReadsNotBlockedPastDeadline breaks
-CoachChange FailedChangeLeavesCoachUnchanged breaks
-CoachChange FailedChangeLeavesWindowUnchanged breaks
+CoachChange StopNeverGivesUpDuringAReply holds
+CoachChange StopReachesReplyBeforeItEnds holds
+CoachChange ReadsNotBlockedPastDeadline holds
+CoachChange FailedChangeLeavesCoachUnchanged holds
+CoachChange FailedChangeLeavesWindowUnchanged holds
 CoachChange NoSwapUnderARunningReply holds
 CoachChange NoDeadlock holds
 SummaryModel SummaryModelIsChosen openai breaks

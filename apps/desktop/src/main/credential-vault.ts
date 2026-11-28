@@ -324,23 +324,14 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     ((root: string) => syncDirectoryAt(root, options.openCredentialDirectory ?? open));
   const rawSyncCredentialParentDirectory =
     options.syncCredentialParentDirectory ?? ((root: string) => syncDirectoryAt(root, open));
+  const directorySyncUnavailable = (): boolean =>
+    platform === "win32" &&
+    classifyWindowsPrivatePathDurability("directory-sync").kind === "unavailable";
   const syncCredentialDirectory = async (root: string): Promise<void> => {
-    if (
-      platform === "win32" &&
-      classifyWindowsPrivatePathDurability("directory-sync").kind === "unavailable"
-    ) {
-      return;
-    }
-    await rawSyncCredentialDirectory(root);
+    if (!directorySyncUnavailable()) await rawSyncCredentialDirectory(root);
   };
   const syncCredentialParentDirectory = async (root: string): Promise<void> => {
-    if (
-      platform === "win32" &&
-      classifyWindowsPrivatePathDurability("directory-sync").kind === "unavailable"
-    ) {
-      return;
-    }
-    await rawSyncCredentialParentDirectory(root);
+    if (!directorySyncUnavailable()) await rawSyncCredentialParentDirectory(root);
   };
   const renameCredentialFile = options.renameCredentialFile ?? rename;
   const removeCredentialFile = options.removeCredentialFile ?? rm;
@@ -867,8 +858,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             if (canPublish !== undefined && !canPublish()) throw new TypeError();
             setRuntimeState(slot, "active");
             return { status: "configured", runtimeReady: true };
-          } catch {
-            setRuntimeState(slot, "failed");
+          } catch (error) {
+            if (!(error instanceof CredentialRuntimeRefusal && error.reason === "busy-replying"))
+              setRuntimeState(slot, "failed");
             return { status: "refused", reason: "runtime-unavailable" };
           }
         }),
@@ -966,7 +958,10 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
               }
               if (cleared !== "cleared" && cleared !== "not-active") throw new TypeError();
               runtimeCleared = cleared === "cleared";
-            } catch {
+            } catch (error) {
+              if (error instanceof CredentialRuntimeRefusal && error.reason === "busy-replying") {
+                return { slot, status: "refused", reason: "runtime-unavailable" };
+              }
               setRuntimeState(slot, "failed");
               return { slot, status: "refused", reason: "runtime-state-diverged" };
             }

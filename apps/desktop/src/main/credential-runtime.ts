@@ -206,7 +206,7 @@ export function createConnectionRuntimeAuthority(
       if ("status" in result && result.status === "refused") {
         if (result.reason === "managed-by-environment") return "managed-by-environment";
         if (result.reason === "credential-required") return "not-active";
-        throw new TypeError();
+        throw new CredentialRuntimeRefusal(result.reason);
       }
       if (
         !("status" in result) ||
@@ -250,10 +250,7 @@ export function createCredentialRuntimeApplication(
 
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = pending.then(operation);
-    pending = result.then(
-      () => undefined,
-      () => undefined,
-    );
+    pending = Promise.allSettled([result]).then(() => undefined);
     return result;
   };
 

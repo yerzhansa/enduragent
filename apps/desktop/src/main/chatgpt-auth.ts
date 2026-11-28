@@ -21,6 +21,7 @@ import {
   type OnboardingLlmSelectionResult,
 } from "./llm-selection.js";
 import type { SerializeCredentialMutation } from "./credential-envelope-lock.js";
+import { CredentialRuntimeRefusal } from "./credential-vault.js";
 
 export const CHATGPT_PROFILE_NAME = "openai-codex" as const;
 export const CHATGPT_ACTIVATION_TIMEOUT_MS = 10_000;
@@ -383,8 +384,13 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
             } else if (cleared !== "cleared") {
               throw new TypeError();
             }
-          } catch {
-            return { status: "refused", reason: "runtime-state-diverged" };
+          } catch (error) {
+            const busy =
+              error instanceof CredentialRuntimeRefusal && error.reason === "busy-replying";
+            return {
+              status: "refused",
+              reason: busy ? "runtime-unavailable" : "runtime-state-diverged",
+            };
           }
         } else {
           try {

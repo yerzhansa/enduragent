@@ -332,7 +332,8 @@ PinnedBeforeReplace == ChangesModel /\ ~PinMovedIntoPrepare
 
 ChangeStarts ==
     /\ change = "queued"
-    /\ IF RefuseWhileReplying /\ ActiveCalls > 0
+    \* runtime-bundle.ts runTurn counts a turn from its call, before admission.
+    /\ IF RefuseWhileReplying /\ reply \in {"admitting", "streaming", "stopping"}
          THEN /\ change' = "refused"
               /\ DesktopSeesRefusal
               /\ catalogSession' = IF PinnedBeforeReplace THEN "new" ELSE catalogSession

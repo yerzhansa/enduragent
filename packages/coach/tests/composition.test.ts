@@ -2498,13 +2498,13 @@ describe("local coach composition", () => {
 
   it("reuses queued credential approval when explicit startup reaches the refresh window", async () => {
     const home = await freshHome();
-    let releaseTurn!: () => void;
-    const turnGate = new Promise<void>((resolve) => {
-      releaseTurn = resolve;
+    let releaseCall!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCall = resolve;
     });
-    let markTurnEntered!: () => void;
-    const turnEntered = new Promise<void>((resolve) => {
-      markTurnEntered = resolve;
+    let markCallEntered!: () => void;
+    const callEntered = new Promise<void>((resolve) => {
+      markCallEntered = resolve;
     });
     const windows: Config["intervals"][] = [];
     const trace: string[] = [];
@@ -2530,7 +2530,7 @@ describe("local coach composition", () => {
         };
       }),
     );
-    let holdTurn = true;
+    let holdCall = true;
     const lifecycle = await compose(
       home,
       {
@@ -2541,13 +2541,13 @@ describe("local coach composition", () => {
         },
         createBackend: () =>
           backend({
-            chat: async () => {
-              if (holdTurn) {
-                holdTurn = false;
-                markTurnEntered();
-                await turnGate;
+            hasSession: async () => {
+              if (holdCall) {
+                holdCall = false;
+                markCallEntered();
+                await callGate;
               }
-              return { text: "ok" };
+              return { hasSession: true };
             },
           }),
         createRepository: () => ({
@@ -2572,8 +2572,8 @@ describe("local coach composition", () => {
       true,
     );
 
-    const activeTurn = lifecycle.engine.chat({ chatId: "race", message: "hold" });
-    await turnEntered;
+    const activeCall = lifecycle.engine.hasSession({ chatId: "race" });
+    await callEntered;
     const replacement = lifecycle.operations.configureRuntime({
       intervals: { api_key: "new-key", athlete_id: "new-athlete" },
     });
@@ -2581,8 +2581,8 @@ describe("local coach composition", () => {
     await Promise.resolve();
     const initialization = lifecycle.startInitialRefresh();
 
-    releaseTurn();
-    await activeTurn;
+    releaseCall();
+    await expect(activeCall).resolves.toEqual({ hasSession: true });
     await expect(replacement).resolves.toMatchObject({ status: "applied" });
     await expect(initialization).resolves.toBeUndefined();
     await vi.waitFor(() => expect(windows).toHaveLength(1));
@@ -4059,12 +4059,13 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
           received.push(input);
           const models = input.ports.config.models;
           return backend({
-            chat: async () => {
+            chat: async () => ({ text: String(models.catalogRevision) }),
+            hasSession: async () => {
               if (models.catalogRevision === 17) {
                 enterOld();
                 await oldRelease;
               }
-              return { text: String(models.catalogRevision) };
+              return { hasSession: models.catalogRevision === 17 };
             },
           });
         },
@@ -4080,7 +4081,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     );
 
     expect(received[0]?.ports.config.models.catalogRevision).toBe(17);
-    const pending = lifecycle.engine.chat({ chatId: "catalog", message: "hold revision 17" });
+    const pending = lifecycle.engine.hasSession({ chatId: "catalog" });
     await oldEntered;
     await writeAcceptedModelCatalog(home, 18, 410_000, 18);
     let configurationSettled = false;
@@ -4132,7 +4133,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     expect(configurationSettled).toBe(false);
 
     releaseOld();
-    await expect(pending).resolves.toEqual({ text: "17" });
+    await expect(pending).resolves.toEqual({ hasSession: true });
     await expect(configuration).resolves.toMatchObject({ status: "applied" });
     await expect(
       lifecycle.engine.chat({ chatId: "catalog", message: "use revision 18" }),
@@ -4196,6 +4197,86 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await lifecycle.close();
   });
 
+  it("keeps the old model and the live catalog when a model change is refused during a reply", async () => {
+    const home = await freshHome();
+    const pinnedSnapshot = await writeAcceptedModelCatalog(home, 17, 310_000, 17);
+    const catalogConfig = {
+      ...config(home),
+      llm: {
+        provider: "anthropic" as const,
+        model: "claude-sonnet-5-5",
+        compactModel: "claude-haiku-5-5",
+        flushModel: "claude-opus-5-5",
+        apiKey: "synthetic",
+      },
+    };
+    const received: CreateCoachEngineInput[] = [];
+    let enterOld!: () => void;
+    let releaseOld!: () => void;
+    const oldEntered = new Promise<void>((resolve) => {
+      enterOld = resolve;
+    });
+    const oldRelease = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: (input) => {
+          received.push(input);
+          const generation = received.length;
+          return backend({
+            chat: async () => {
+              if (generation === 1) {
+                enterOld();
+                await oldRelease;
+              }
+              return { text: input.ports.config.models.chat.model };
+            },
+          });
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+      },
+      fakeContext(home),
+      undefined,
+      catalogConfig,
+    );
+
+    await writeAcceptedModelCatalog(home, 18, 410_000, 18);
+    const oldTurn = lifecycle.engine.chat({ chatId: "catalog", message: "hold" });
+    await oldEntered;
+    await expect(
+      lifecycle.operations.configureRuntime({
+        llm: { model: "claude-opus-5-5", catalog_snapshot: pinnedSnapshot },
+      }),
+    ).resolves.toEqual({ schemaVersion: 3, status: "refused", reason: "busy-replying" });
+    expect(received).toHaveLength(1);
+    await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+      llm: { provider: "anthropic", model: "claude-sonnet-5-5", credential_configured: true },
+    });
+
+    releaseOld();
+    await expect(oldTurn).resolves.toEqual({ text: "claude-sonnet-5-5" });
+    await expect(
+      lifecycle.operations.configureRuntime({ session: { timezone: "Europe/Berlin" } }),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(received).toHaveLength(2);
+    expect(received[1]?.ports.config.models).toMatchObject({
+      catalogRevision: 18,
+      chat: { model: "claude-sonnet-5-5", contextWindowTokens: 410_000 },
+    });
+    await expect(lifecycle.engine.chat({ chatId: "catalog", message: "after" })).resolves.toEqual({
+      text: "claude-sonnet-5-5",
+    });
+    await lifecycle.close();
+  });
+
   it("publishes engine, memory, session archive, and spend timezone as one drained bundle", async () => {
     const home = await freshHome();
     const received: CreateCoachEngineInput[] = [];
@@ -4216,12 +4297,13 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         received.push(input);
         const generation = received.length;
         return backend({
-          chat: async () => {
+          chat: async () => ({ text: input.ports.config.session.timezone }),
+          hasSession: async () => {
             if (generation === 1) {
               enterOld();
               await oldRelease;
             }
-            return { text: input.ports.config.session.timezone };
+            return { hasSession: input.ports.config.session.timezone === "UTC" };
           },
         });
       },
@@ -4232,7 +4314,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       createResolver: () => missingResolver(),
     });
 
-    const oldTurn = lifecycle.engine.chat({ chatId: "bundle", message: "hold old bundle" });
+    const oldCall = lifecycle.engine.hasSession({ chatId: "bundle" });
     await oldEntered;
     let configurationSettled = false;
     const configuration = lifecycle.operations
@@ -4265,7 +4347,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     expect(runWindowAfter).not.toHaveBeenCalled();
 
     releaseOld();
-    await expect(oldTurn).resolves.toEqual({ text: "UTC" });
+    await expect(oldCall).resolves.toEqual({ hasSession: true });
     await expect(configuration).resolves.toEqual({
       schemaVersion: 3,
       status: "applied",
@@ -4310,7 +4392,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await lifecycle.close();
   });
 
-  it("drains the active turn before clearing an LLM credential and reports truthful readiness", async () => {
+  it("refuses to clear an LLM credential while a turn runs, then clears it with truthful readiness", async () => {
     const home = await freshHome();
     let buildCount = 0;
     const readiness: boolean[] = [];
@@ -4358,32 +4440,109 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
 
     const oldTurn = lifecycle.engine.chat({ chatId: "credential", message: "hold" });
     await oldEntered;
-    let deletionSettled = false;
-    const deletion = lifecycle.operations
-      .configureRuntime({ llm: { provider: "anthropic", clear_credential: true } })
-      .then((result) => {
-        deletionSettled = true;
-        return result;
-      });
-    for (let attempt = 0; attempt < 20 && buildCount < 2; attempt += 1) {
-      await Promise.resolve();
-    }
-    expect(readiness).toEqual([true, false]);
-    await Promise.resolve();
-    expect(deletionSettled).toBe(false);
+    await expect(
+      lifecycle.operations.configureRuntime({
+        llm: { provider: "anthropic", clear_credential: true },
+      }),
+    ).resolves.toEqual({ schemaVersion: 3, status: "refused", reason: "busy-replying" });
+    expect(readiness).toEqual([true]);
+    await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+      llm: { credential_configured: true },
+    });
 
     releaseOld();
     await expect(oldTurn).resolves.toEqual({ text: "true" });
-    await expect(deletion).resolves.toMatchObject({
+    await expect(
+      lifecycle.operations.configureRuntime({
+        llm: { provider: "anthropic", clear_credential: true },
+      }),
+    ).resolves.toMatchObject({
       status: "applied",
       applied: { llm: true, intervals: false },
     });
+    expect(readiness).toEqual([true, false]);
     await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
       llm: { credential_configured: false },
     });
     await expect(
       lifecycle.engine.chat({ chatId: "credential", message: "after" }),
     ).resolves.toEqual({ text: "false" });
+    await lifecycle.close();
+  });
+
+  it.each([
+    { name: "a bare route", llm: { provider: "anthropic" as const, model: "synthetic" } },
+    {
+      name: "a catalog route",
+      llm: {
+        provider: "anthropic" as const,
+        model: "claude-sonnet-5",
+        compactModel: "claude-haiku-4-5-20251001",
+        flushModel: "claude-opus-5-5",
+      },
+    },
+  ])("waits for the turn when the stored key is re-applied unchanged on $name", async ({ llm }) => {
+    const home = await freshHome();
+    let enterOld!: () => void;
+    let releaseOld!: () => void;
+    const oldEntered = new Promise<void>((resolve) => {
+      enterOld = resolve;
+    });
+    const oldRelease = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    let builds = 0;
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: () => {
+          builds += 1;
+          const generation = builds;
+          return backend({
+            chat: async () => {
+              if (generation === 1) {
+                enterOld();
+                await oldRelease;
+              }
+              return { text: String(generation) };
+            },
+          });
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+      },
+      fakeContext(home),
+      undefined,
+      { ...config(home), llm: { ...llm, apiKey: "synthetic" } },
+    );
+
+    const oldTurn = lifecycle.engine.chat({ chatId: "reapply", message: "hold" });
+    await oldEntered;
+    let reapplySettled = false;
+    const reapply = lifecycle.operations
+      .configureRuntime({ llm: { provider: "anthropic", api_key: "synthetic" } })
+      .then((result) => {
+        reapplySettled = true;
+        return result;
+      });
+    await vi.waitFor(() => expect(builds).toBe(2));
+    expect(reapplySettled).toBe(false);
+
+    releaseOld();
+    await expect(oldTurn).resolves.toEqual({ text: "1" });
+    await expect(reapply).resolves.toEqual({
+      schemaVersion: 3,
+      status: "applied",
+      applied: { llm: true, intervals: false, session: false },
+    });
+    await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+      llm: { provider: "anthropic", model: llm.model, credential_configured: true },
+    });
     await lifecycle.close();
   });
 
@@ -4898,12 +5057,13 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         builds += 1;
         const generation = builds;
         return backend({
-          chat: async () => {
+          chat: async () => ({ text: input.ports.config.session.timezone }),
+          hasSession: async () => {
             if (generation === 1) {
               enterOld();
               await oldRelease;
             }
-            return { text: input.ports.config.session.timezone };
+            return { hasSession: input.ports.config.session.timezone === "UTC" };
           },
         });
       },
@@ -4915,7 +5075,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       operationsDependencies: { runtimeConfigurationDeadlineMs: 5 },
     });
 
-    const oldTurn = lifecycle.engine.chat({ chatId: "timeout", message: "hold" });
+    const oldCall = lifecycle.engine.hasSession({ chatId: "timeout" });
     await oldEntered;
     const expired = lifecycle.operations.configureRuntime({
       session: { timezone: "Europe/Berlin" },
@@ -4923,7 +5083,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await new Promise((resolve) => setTimeout(resolve, 20));
     releaseOld();
 
-    await expect(oldTurn).resolves.toEqual({ text: "UTC" });
+    await expect(oldCall).resolves.toEqual({ hasSession: true });
     await expect(expired).rejects.toThrow();
     await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
       session: { timezone: "UTC" },

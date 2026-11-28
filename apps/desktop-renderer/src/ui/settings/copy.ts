@@ -43,6 +43,7 @@ export const ATHLETE_SAVE_ERROR_COPY: Readonly<Record<AthleteSettingsSaveError, 
   "request-failed": msg("settings.athlete.error.requestFailed"),
   "not-applied": msg("settings.athlete.error.notApplied"),
   "runtime-unavailable": msg("settings.athlete.error.runtimeUnavailable"),
+  "busy-replying": msg("settings.athlete.error.requestFailed"),
 };
 
 export const MANAGED_BY_ENVIRONMENT_COPY = msg("settings.managedByEnvironment", {

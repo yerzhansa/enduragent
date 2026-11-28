@@ -116,6 +116,7 @@ import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
 import { createReconfigurableRuntimeBundle, type RuntimeBundle } from "./runtime-bundle.js";
 import { modelWriters } from "./model-writers.js";
+import { runtimeConfigUnchanged } from "./runtime-config-unchanged.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -377,6 +378,14 @@ function mergedRuntimeConfig(config: Config, request: ConfigureRuntimeRpcParams)
   return { ...config, ...resolveRuntimeConfig(runtimePatch(request, config), config) };
 }
 
+const SESSION_FIELDS = [
+  "historyTokenBudgetRatio",
+  "idleMinutes",
+  "dailyResetHour",
+  "resetArchiveRetentionDays",
+  "timezone",
+] as const;
+
 const LLM_CREDENTIAL_ENVIRONMENT_KEYS = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -520,13 +529,7 @@ function persistRuntimeConfig(
     const session: Record<string, unknown> = {
       ...(isRecord(parsed.session) ? parsed.session : {}),
     };
-    for (const field of [
-      "historyTokenBudgetRatio",
-      "idleMinutes",
-      "dailyResetHour",
-      "resetArchiveRetentionDays",
-      "timezone",
-    ] as const) {
+    for (const field of SESSION_FIELDS) {
       if (request.session[field] !== undefined) {
         session[field] = candidate.session[field];
       }
@@ -1440,32 +1443,18 @@ export async function createLocalCoachComposition(
         return "credential-required";
       }
       if (
-        request.llm?.clear_credential === true &&
-        llmCredentialManagedByEnvironment(input.env, unapprovedConfig.llm.provider)
-      ) {
-        return "managed-by-environment";
-      }
-      if (
-        request.intervals?.clear_credential === true &&
-        nonemptyEnvironmentValue(input.env, "INTERVALS_API_KEY")
-      ) {
-        return "managed-by-environment";
-      }
-      if (
-        request.intervals?.athlete_id !== undefined &&
-        input.env.INTERVALS_ATHLETE_ID !== undefined
+        (request.llm?.clear_credential === true &&
+          llmCredentialManagedByEnvironment(input.env, unapprovedConfig.llm.provider)) ||
+        (request.intervals?.clear_credential === true &&
+          nonemptyEnvironmentValue(input.env, "INTERVALS_API_KEY")) ||
+        (request.intervals?.athlete_id !== undefined &&
+          input.env.INTERVALS_ATHLETE_ID !== undefined)
       ) {
         return "managed-by-environment";
       }
       if (request.session !== undefined) {
         const ownership = sessionConfigEnvironmentOwnership(input.env);
-        for (const field of [
-          "historyTokenBudgetRatio",
-          "idleMinutes",
-          "dailyResetHour",
-          "resetArchiveRetentionDays",
-          "timezone",
-        ] as const) {
+        for (const field of SESSION_FIELDS) {
           if (request.session[field] !== undefined && ownership[field]) {
             throw new Error(`runtime session ${field} is controlled by the daemon environment`);
           }
@@ -1478,9 +1467,6 @@ export async function createLocalCoachComposition(
           : acceptModelCatalogSnapshot(request.llm.catalog_snapshot);
       if (request.llm?.catalog_snapshot !== undefined && pinnedCatalog === undefined) {
         throw new TypeError("runtime model catalog snapshot is not compatible");
-      }
-      if (pinnedCatalog !== undefined) {
-        catalogSession = CatalogSession.pin(pinnedCatalog);
       }
       let verificationEvidence: IntervalsCredentialVerificationEvidence | undefined;
       if (request.intervals?.verification_approval !== undefined) {
@@ -1584,10 +1570,18 @@ export async function createLocalCoachComposition(
       }
       const chatGptProfileClear =
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
+      const changesNothing =
+        pinnedCatalog === undefined &&
+        pendingOwnerClaim === undefined &&
+        !chatGptProfileClear &&
+        runtimeConfigUnchanged(unapprovedConfig, candidate);
       signal.throwIfAborted();
-      await reconfigurable.replace(
+      const replacement = await reconfigurable.replace(
         async () => {
           signal.throwIfAborted();
+          if (pinnedCatalog !== undefined) {
+            catalogSession = CatalogSession.pin(pinnedCatalog);
+          }
           const latestCandidate = mergedRuntimeConfig(unapprovedConfig, effectiveRequest);
           if (
             intervalsOwnerApproved &&
@@ -1648,7 +1642,9 @@ export async function createLocalCoachComposition(
           activeTimezone = replacement.timezone;
           return replacement;
         },
+        changesNothing ? "wait" : "refuse",
       );
+      if (replacement === "busy-replying") return "busy-replying";
       if (request.intervals !== undefined && candidate.intervals.apiKey.length > 0) {
         if (initialRefreshStarted && initialRefreshConfigCaptured && intervalsOwnerReady) {
           ensureSchedulerStarted();
@@ -2297,10 +2293,8 @@ export async function createLocalCoachComposition(
       close() {
         closePromise ??= (async () => {
           closing = true;
-          if (initialRefreshRetryTimer !== undefined) {
-            clearTimeout(initialRefreshRetryTimer);
-            initialRefreshRetryTimer = undefined;
-          }
+          clearTimeout(initialRefreshRetryTimer);
+          initialRefreshRetryTimer = undefined;
           initialRefreshController.abort(new Error("Coach lifecycle closed."));
           let failure: { readonly error: unknown } | undefined;
           const attempt = async (operation: () => void | Promise<void>): Promise<void> => {

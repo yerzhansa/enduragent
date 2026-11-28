@@ -850,6 +850,84 @@ describe("desktop credential vault", () => {
     });
   });
 
+  it("keeps an active key stored and active when the coach is busy replying", async () => {
+    const root = await temporaryRoot();
+    const value = randomUUID();
+    const clearCredential = vi.fn(async (): Promise<"cleared"> => "cleared");
+    clearCredential.mockRejectedValueOnce(new CredentialRuntimeRefusal("busy-replying"));
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      clearCredential,
+    });
+    await vault.writeCredential({ slot: "anthropic", value });
+
+    await expect(vault.deleteCredential("anthropic")).resolves.toEqual({
+      slot: "anthropic",
+      status: "refused",
+      reason: "runtime-unavailable",
+    });
+
+    expect(clearCredential).toHaveBeenCalledOnce();
+    expect((await lstat(join(root, "anthropic.bin"))).isFile()).toBe(true);
+    await expect(vault.credentialStatuses()).resolves.toContainEqual(
+      expect.objectContaining({ slot: "anthropic", state: "configured", runtimeState: "active" }),
+    );
+    expect(encryption().decryptString(await readFile(join(root, "anthropic.bin")))).toBe(value);
+
+    await expect(vault.deleteCredential("anthropic")).resolves.toEqual({
+      slot: "anthropic",
+      status: "deleted",
+      cleanupPending: false,
+    });
+    expect(clearCredential).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves stored provider runtime state when switching providers while the coach is busy replying", async () => {
+    const root = await temporaryRoot();
+    const applyCredential = vi.fn(async () => {});
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential,
+      clearCredential: vi.fn(async (): Promise<"cleared"> => "cleared"),
+    });
+    await vault.writeCredential({ slot: "anthropic", value: randomUUID() });
+    await vault.writeCredential({ slot: "openai", value: randomUUID() }, { activate: false });
+    applyCredential.mockRejectedValueOnce(new CredentialRuntimeRefusal("busy-replying"));
+
+    await expect(
+      vault.applyLlmSelection(
+        {
+          catalogRevision: 1,
+          provider: "openai",
+          model: "gpt-6.2-sol",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
+    ).resolves.toEqual({
+      status: "refused",
+      reason: "runtime-unavailable",
+    });
+
+    await expect(vault.credentialStatuses()).resolves.toContainEqual(
+      expect.objectContaining({
+        slot: "openai",
+        state: "configured",
+        runtimeState: "stored-inactive",
+      }),
+    );
+    await expect(vault.credentialStatuses()).resolves.toContainEqual(
+      expect.objectContaining({
+        slot: "anthropic",
+        state: "configured",
+        runtimeState: "active",
+      }),
+    );
+  });
+
   it("retains a configured envelope when removal key revalidation fails", async () => {
     const root = await temporaryRoot();
     const encryptionPort = keychainEncryption();

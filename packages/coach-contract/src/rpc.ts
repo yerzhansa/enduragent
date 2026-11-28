@@ -1038,6 +1038,7 @@ export const ConfigureRuntimeRpcRefusalReasonSchema = z.enum([
   "ownership-unavailable",
   "training-account-mismatch",
   "managed-by-environment",
+  "busy-replying",
 ]);
 export type ConfigureRuntimeRpcRefusalReason = z.infer<
   typeof ConfigureRuntimeRpcRefusalReasonSchema
@@ -1085,7 +1086,6 @@ export const IntervalsCredentialApprovalSchema = z
   .string()
   .length(64)
   .regex(/^[0-9a-f]{64}$/);
-export type IntervalsCredentialApproval = z.infer<typeof IntervalsCredentialApprovalSchema>;
 
 export const VerifyIntervalsCredentialRpcParamsSchema = z
   .object({

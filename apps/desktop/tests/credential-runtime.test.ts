@@ -287,6 +287,35 @@ describe("desktop credential runtime precedence", () => {
     });
   });
 
+  it("passes a busy coach refusal of a credential clear to the caller", async () => {
+    const call = vi.fn(async () => ({
+      schemaVersion: 3 as const,
+      status: "refused" as const,
+      reason: "busy-replying" as const,
+    }));
+    const connect = vi.fn(async () => ({
+      handshake: {} as never,
+      call,
+      close: vi.fn(async () => {}),
+    }));
+    const authority = createConnectionRuntimeAuthority(
+      {
+        url: "ws://127.0.0.1:45006/rpc",
+        token: "x".repeat(43),
+        athleteHome: "/synthetic/athlete",
+      },
+      connect as never,
+    );
+
+    const failure = await authority.clearCredential("anthropic").catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(CredentialRuntimeRefusal);
+    expect((failure as CredentialRuntimeRefusal).reason).toBe("busy-replying");
+    expect(call).toHaveBeenCalledWith("configureRuntime", {
+      llm: { provider: "anthropic", clear_credential: true },
+    });
+  });
+
   it("forwards the activation deadline through connection, RPC, and serialization", async () => {
     const request = {
       llm: { model: "gpt-5.5" },
