@@ -11,7 +11,7 @@ export type TurnStatus =
   | { readonly ok: true }
   | { readonly ok: false; readonly error_class: TurnErrorClass | "interrupted" };
 
-export type TurnUsageTotal = Pick<
+type TurnUsageTotal = Pick<
   UsageLedgerLine,
   | "steps"
   | "inputTokens"
@@ -94,19 +94,31 @@ function latestCatalogRevision(lines: readonly UsageLedgerLine[]): number | unde
   return revision;
 }
 
+const KNOWN_ZERO_USAGE = {
+  inputTokens: 0,
+  outputTokens: 0,
+  totalTokens: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+} as const satisfies TurnUsageTotal;
+
 export function sumTurnUsage(lines: readonly UsageLedgerLine[]): TurnUsageTotal {
   const reporting = lines.filter((line) => !isFailedCallWithoutKnownUsage(line));
+  const steps = lines.reduce((sum, line) => sum + (line.steps ?? 0), 0);
+  const catalogRevision = latestCatalogRevision(lines);
+  if (reporting.length === 0) return { steps, catalogRevision, ...KNOWN_ZERO_USAGE };
   return {
-    steps: lines.reduce((sum, line) => sum + (line.steps ?? 0), 0),
-    inputTokens: sumKnown(lines.map((line) => line.inputTokens)),
-    outputTokens: sumKnown(lines.map((line) => line.outputTokens)),
-    totalTokens: sumKnown(lines.map((line) => line.totalTokens)),
-    cacheReadTokens: sumKnown(lines.map((line) => line.cacheReadTokens)),
-    cacheWriteTokens: sumKnown(lines.map((line) => line.cacheWriteTokens)),
+    steps,
+    inputTokens: sumKnown(reporting.map((line) => line.inputTokens)),
+    outputTokens: sumKnown(reporting.map((line) => line.outputTokens)),
+    totalTokens: sumKnown(reporting.map((line) => line.totalTokens)),
+    cacheReadTokens: sumKnown(reporting.map((line) => line.cacheReadTokens)),
+    cacheWriteTokens: sumKnown(reporting.map((line) => line.cacheWriteTokens)),
     providerReportedCostUsd: sumWhenEveryCallReports(
       reporting.map((line) => line.providerReportedCostUsd),
     ),
-    catalogRevision: latestCatalogRevision(lines),
+    catalogRevision,
     cacheReadSavingsUsd: sumWhenEveryCallReports(reporting.map((line) => line.cacheReadSavingsUsd)),
     costBasis: sharedCostBasis(reporting.map((line) => line.costBasis)),
     cost: sumCosts(reporting.map((line) => line.cost)),

@@ -1118,12 +1118,8 @@ export class CoachAgent {
         let serverErrorAttempts = 0;
         let classifiedTerminalFailure: ClassifiedTurnFailure | undefined;
         let streamedText = "";
-        const finishTurn = (
-          status: TurnStatus,
-          templateHash = this.templateHashForChat(chatId, turnTools),
-        ): void => {
-          const durationMs = this.ports.now() - turnStart;
-          this.turnUsage.end(turnId, status, { ts: this.ports.now(), durationMs, templateHash });
+        const finishTurn = (status: TurnStatus, templateHash?: string): void => {
+          const ts = this.ports.now();
           this.emitTurnOutcome({
             turnId,
             chatId,
@@ -1131,8 +1127,13 @@ export class CoachAgent {
             overflowAttempts,
             timeoutAttempts,
             rateLimitAttempts,
-            duration_ms: this.ports.now() - turnStart,
+            duration_ms: ts - turnStart,
             compactions,
+          });
+          this.turnUsage.end(turnId, status, {
+            ts,
+            durationMs: ts - turnStart,
+            templateHash: templateHash ?? this.templateHashForChat(chatId, turnTools),
           });
         };
 

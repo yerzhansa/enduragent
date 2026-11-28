@@ -89,13 +89,22 @@ describe("sumTurnUsage", () => {
     expect(sumTurnUsage([call(), call({ costBasis: "notional" })]).costBasis).toBeUndefined();
   });
 
-  it("reports no usage for a turn whose only call failed before reporting any", () => {
-    expect(sumTurnUsage([failedWithoutUsage])).toMatchObject({
+  it("reports a known zero for a turn whose calls all failed before reporting usage", () => {
+    const total = sumTurnUsage([failedWithoutUsage, failedWithoutUsage]);
+
+    expect(total).toMatchObject({
       steps: 0,
-      inputTokens: undefined,
-      cost: undefined,
-      providerReportedCostUsd: undefined,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      catalogRevision: 3,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     });
+    expect(total.providerReportedCostUsd).toBeUndefined();
+  });
+
+  it("reports a known zero for a turn that made no model call", () => {
+    expect(sumTurnUsage([])).toMatchObject({ steps: 0, inputTokens: 0, cost: { total: 0 } });
   });
 });
 

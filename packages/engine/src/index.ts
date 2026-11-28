@@ -105,6 +105,8 @@ export type {
   UsagePort,
 } from "./host-ports.js";
 
+export { isFailedCallWithoutKnownUsage } from "./agent/turn-usage.js";
+
 export interface CreateCoachEngineInput {
   readonly sport: Sport;
   readonly ports: EngineHostPorts;

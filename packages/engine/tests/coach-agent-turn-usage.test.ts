@@ -9,6 +9,7 @@ import { CoachAgent } from "../src/agent/coach-agent.js";
 import { createCoachEngine } from "../src/index.js";
 import { readUsageLedger } from "../../core/src/usage-ledger.js";
 import { COACH_DECISION_TOOL_NAME } from "../src/agent/coach-decision-tool.js";
+import { TURN_WALL_CLOCK_MS } from "../src/agent/turn-budget.js";
 import type {
   EngineConfig,
   EngineHostPorts,
@@ -89,6 +90,7 @@ function pricedModels(): EngineConfig["models"] {
 function harness(
   respond: ((options: GenerateOptions) => Promise<GenerateResult>) | undefined,
   Agent: typeof CoachAgent = CoachAgent,
+  overrides: Partial<EngineHostPorts> = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), "turn-usage-"));
   roots.push(root);
@@ -115,6 +117,7 @@ function harness(
             generate: async (request) => respond(request.options),
           }),
         }),
+    ...overrides,
   };
   const agent = new Agent(sport, ports);
   const chat = (chatId: string, text: string, turnId: string) =>
@@ -311,7 +314,35 @@ describe("every exit of a turn writes one cost row", () => {
     ]);
   });
 
-  it("writes an error row with no usage when the turn finally fails", async () => {
+  it("writes a budget row when the turn runs out of time between attempts", async () => {
+    let clock = 1_000;
+    const turn = harness(
+      async (options) => {
+        clock += TURN_WALL_CLOCK_MS + 1;
+        options.onStepUsage?.({ usage: usage(9, 3) });
+        throw new Error("Request timeout while waiting for the model");
+      },
+      CoachAgent,
+      { now: () => clock },
+    );
+
+    await expect(turn.chat("chat-budget", "Plan my week.", "turn-budget")).rejects.toThrow();
+
+    expect(turn.turnRows()).toEqual([
+      expect.objectContaining({
+        turnId: "turn-budget",
+        outcome: "error",
+        errorClass: "budget",
+        inputTokens: 9,
+        outputTokens: 3,
+      }),
+    ]);
+    expect(turn.outcomes).toEqual([
+      expect.objectContaining({ turnId: "turn-budget", ok: false, error_class: "budget" }),
+    ]);
+  });
+
+  it("writes a known-zero error row when the turn finally fails before any usage", async () => {
     const turn = harness(async () => {
       throw new Error("Provider returned an unexpected payload");
     });
@@ -328,8 +359,9 @@ describe("every exit of a turn writes one cost row", () => {
       errorClass: "unknown",
       steps: 0,
     });
-    expect(row?.inputTokens).toBeUndefined();
-    expect(row?.cost).toBeUndefined();
+    expect(row?.inputTokens).toBe(0);
+    expect(row?.cost?.total).toBe(0);
+    expect(row?.providerReportedCostUsd).toBeUndefined();
     expect(turn.outcomes).toEqual([
       expect.objectContaining({ turnId: "turn-fail", ok: false, error_class: "unknown" }),
     ]);
