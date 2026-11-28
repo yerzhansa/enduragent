@@ -4204,9 +4204,9 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       ...config(home),
       llm: {
         provider: "anthropic" as const,
-        model: "claude-sonnet-5",
-        compactModel: "claude-haiku-4-5-20251001",
-        flushModel: "claude-opus-5",
+        model: "claude-sonnet-5-5",
+        compactModel: "claude-haiku-5-5",
+        flushModel: "claude-opus-5-5",
         apiKey: "synthetic",
       },
     };
@@ -4253,26 +4253,26 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await oldEntered;
     await expect(
       lifecycle.operations.configureRuntime({
-        llm: { model: "claude-opus-5", catalog_snapshot: pinnedSnapshot },
+        llm: { model: "claude-opus-5-5", catalog_snapshot: pinnedSnapshot },
       }),
     ).resolves.toEqual({ schemaVersion: 3, status: "refused", reason: "busy-replying" });
     expect(received).toHaveLength(1);
     await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
-      llm: { provider: "anthropic", model: "claude-sonnet-5", credential_configured: true },
+      llm: { provider: "anthropic", model: "claude-sonnet-5-5", credential_configured: true },
     });
 
     releaseOld();
-    await expect(oldTurn).resolves.toEqual({ text: "claude-sonnet-5" });
+    await expect(oldTurn).resolves.toEqual({ text: "claude-sonnet-5-5" });
     await expect(
       lifecycle.operations.configureRuntime({ session: { timezone: "Europe/Berlin" } }),
     ).resolves.toMatchObject({ status: "applied" });
     expect(received).toHaveLength(2);
     expect(received[1]?.ports.config.models).toMatchObject({
       catalogRevision: 18,
-      chat: { model: "claude-sonnet-5", contextWindowTokens: 410_000 },
+      chat: { model: "claude-sonnet-5-5", contextWindowTokens: 410_000 },
     });
     await expect(lifecycle.engine.chat({ chatId: "catalog", message: "after" })).resolves.toEqual({
-      text: "claude-sonnet-5",
+      text: "claude-sonnet-5-5",
     });
     await lifecycle.close();
   });

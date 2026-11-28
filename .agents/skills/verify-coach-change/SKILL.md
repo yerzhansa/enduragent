@@ -62,10 +62,10 @@ Coverage. Each row was confirmed against the code at the sync commit.
 | `composition.ts` `runtimePatch`, `persistConfig` summary fields; `config.ts` `loadConfig` llm patch | Mirrored in `summary-model-check.ts` `runtimePatch` and the restart step |
 | `engine-host-adapter.ts` `compactModel ?? model`, `flushModel ?? model` | `usedCompact`, `usedFlush` in `summary-model-check.ts` |
 
-Sync commit: `ff26de1a9e1ba352648e5be2dbc541b3fb72251c` (2026-11-27, the issue 403 fix). List what changed since then:
+Sync commit: `878cf624` (2026-11-28, the issue 403 fix rebased on `b4c2cc23`). List what changed since then:
 
 ```sh
-git diff --stat 78ecb9c4 -- packages/coach/src/runtime-bundle.ts packages/coach/src/operations.ts packages/coach/src/composition.ts packages/core/src/runtime-config.ts packages/core/src/config.ts packages/core/src/agent/engine-host-adapter.ts packages/coach-client/src/call-timeouts.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/chatgpt-auth.ts
+git diff --stat 878cf624 -- packages/coach/src/runtime-bundle.ts packages/coach/src/operations.ts packages/coach/src/composition.ts packages/core/src/runtime-config.ts packages/core/src/config.ts packages/core/src/agent/engine-host-adapter.ts packages/coach-client/src/call-timeouts.ts apps/desktop/src/main/credential-vault.ts apps/desktop/src/main/credential-runtime.ts apps/desktop/src/main/chatgpt-auth.ts
 ```
 
 If a covered function changed:

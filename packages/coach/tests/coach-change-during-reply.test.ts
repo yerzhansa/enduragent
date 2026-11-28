@@ -144,6 +144,7 @@ function storeRuntime(): LocalStoreRuntime {
     async runActivityWrite(work) {
       return { value: await runExclusive(work), activityReadAvailable: true };
     },
+    abortActiveWindow: () => () => {},
     startScheduler() {},
     async close() {},
   } as LocalStoreRuntime;

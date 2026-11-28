@@ -20,6 +20,7 @@ function fakeBundle(name: string, hold: Promise<void>): RuntimeBundle {
   const page = { schemaVersion: 1, status: "page", turns: [], nextCursor: null, from: name };
   return {
     intentTranslator: { translateIntent: () => held(name) },
+    coachText: { writeCoachText: () => held(name) },
     engine: {
       chat: () => held({ text: name }),
       stopChat: async () => ({ stopped: true, from: name }),
@@ -49,6 +50,10 @@ const TURNS: readonly [string, (runtime: Runtime) => Promise<unknown>][] = [
   [
     "translateIntent",
     (runtime) => runtime.intentTranslator.translateIntent("move my ride", z.string(), {} as never),
+  ],
+  [
+    "writeCoachText",
+    (runtime) => runtime.coachText.writeCoachText({} as never, new AbortController().signal),
   ],
 ];
 
