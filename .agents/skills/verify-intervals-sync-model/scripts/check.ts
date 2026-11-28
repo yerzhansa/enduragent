@@ -7,7 +7,7 @@
 //
 // Exit 0: every rule is where the code's facts say it should be.
 // Exit 1: a rule broke that should hold, a fixed rule still breaks, a witness
-//         or mutant did not fail, or TLC reported a modeling error.
+//         or a break-flag set did not fail, or TLC reported a modeling error.
 // Exit 2: the tools are missing.
 // Exit 3: covered code changed since the sync commit (see SKILL.md).
 import { createHash } from "node:crypto";
@@ -431,8 +431,10 @@ for (const rule of rules) {
   if (runTlc(java, jar, flags, [rule.witness]).violated === undefined) {
     problems.push(`${rule.witness} never fails, so ${rule.name} is about a state the model never reaches.`);
   }
-  if (runTlc(java, jar, { ...flags, ...rule.breakWith }, [rule.name]).violated === undefined) {
-    problems.push(`${rule.name} does not break with ${JSON.stringify(rule.breakWith)}, so it cannot fail.`);
+  for (const breakFlags of rule.breakWith) {
+    if (runTlc(java, jar, { ...flags, ...breakFlags }, [rule.name]).violated === undefined) {
+      problems.push(`${rule.name} does not break with ${JSON.stringify(breakFlags)}, so it cannot fail.`);
+    }
   }
 }
 

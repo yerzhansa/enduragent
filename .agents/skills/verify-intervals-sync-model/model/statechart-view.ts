@@ -25,9 +25,11 @@ const DISCONNECT: Record<string, string> = {
   applying: "Clearing",
   "answered-applied": "Clearing",
   "answered-error": "Clearing",
+  "answered-busy": "Clearing",
   revoked: "Revoked",
   "removed-unrevoked": "Removed here, not revoked (offline)",
   diverged: "Could not be reconciled",
+  "refused-busy": "Not deleted: the coach is replying",
 };
 
 export const title = "Window, coach connection and intervals.icu sign-in";
@@ -45,8 +47,9 @@ const STEP: Record<string, string> = {
   AthleteRetriesSavedKeys: "you press Retry saved keys",
   NetworkChanges: "the network changes",
   AthletePressesSync: "you press Sync now",
+  AthleteConfirmsFtp: "you confirm an FTP on Activity review",
   WindowRereadsSyncState: "the window asks the coach again by itself",
-  WindowSettlesRejectedSync: "the window gives up on the sync",
+  WindowSettlesRejectedSync: "the window gives up on the sync (a quiet one goes back to what the sidebar showed)",
   WindowStartsRefresh: "the window refreshes Training",
   TrainingRefreshLands: "Training refreshes",
   WindowPublishesSyncResult: "the window shows the sync result",

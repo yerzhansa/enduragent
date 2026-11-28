@@ -29,7 +29,10 @@ CONSTANTS
     \* the athlete has a saved sign-in.
     SkippedIsFailure,
     \* coach: a credential clear cancels the sync window that holds the lane.
-    ClearCancelsWindow
+    ClearCancelsWindow,
+    \* training-sync.ts: a quiet sync that a dropped connection cut off, and
+    \* that the sidebar hid, is asked again quietly once a new connection opens.
+    QuietRereads
 
 \* Bounds. Each actor acts at most this often in one behavior.
 MaxPresses == 2      \* Sync now / Try again
@@ -37,6 +40,7 @@ MaxLoads == 1        \* ride analysis opens
 MaxDrops == 2        \* socket closes or chat protocol faults
 MaxFlips == 2        \* network changes
 MaxScheduled == 1    \* scheduled or initial coach windows
+MaxQuiet == 1        \* FTP confirms on Activity review (a quiet sync each)
 
 Calls == {"sync", "analysis", "chat", "refresh"}
 
@@ -54,6 +58,10 @@ VARIABLES
     presses,       \* Sync now presses left
     refresh,       \* Training and Plan refresh: "none" | "pending" | "done" | "failed"
     refreshFailed, \* Training shows its refresh-unavailable state
+    quietRun,      \* "none" when the last sync started loud; else what the sidebar
+                   \* showed when the quiet one started (training-sync.ts quietRun.before)
+    quietLost,     \* that quiet sync was cut off and the sidebar went back to quietRun
+    quiet,         \* quiet syncs left
     \* The coach (packages/coach/src/store-runtime.ts, operations.ts).
     lane,          \* who holds the window lane: "free" | "window" | "clear"
     laneQueue,     \* lane.waiting in order: "call" | "orphan" | "scheduler" | "clear"
@@ -79,11 +87,13 @@ VARIABLES
     retry,         \* "none" | "scheduled"
     \* Disconnect in Settings.
     disc,          \* "idle" | "waiting" | "applying" | "answered-applied"
-                   \* | "answered-error" | "revoked" | "removed-unrevoked" | "diverged"
+                   \* | "answered-error" | "answered-busy" | "revoked"
+                   \* | "removed-unrevoked" | "diverged" | "refused-busy"
     deadline       \* "none" | "coach-passed" | "client-timed-out"
 
 connVars == <<conn, lostBy, reopened, failedBy>>
-syncVars == <<syncCall, answer, win, rereadDue, presses, refresh, refreshFailed>>
+quietVars == <<quietRun, quietLost, quiet>>
+syncVars == <<syncCall, answer, win, rereadDue, presses, refresh, refreshFailed, quietVars>>
 coachVars == <<lane, laneQueue, windowFor, windowKey, served, orphanServed, contextStale,
                scheduled, coachKey>>
 callVars == <<analysis, stale, loads, chat, drops>>
@@ -96,6 +106,11 @@ vars == <<connVars, syncVars, coachVars, callVars, signInVars, discVars>>
 
 Launched == slot # "stored"
 SavedSignIn == slot # "missing"
+
+\* The coach is running a reply. The window's streaming reply stands in for
+\* the coach's running turns (runtime-bundle.ts runningTurns); a reply the
+\* window was cut off from is assumed to end on the coach soon after.
+ReplyRuns == chat = "streaming"
 
 \* training-sync.ts begin(): what the coordinator publishes for a SyncRpcResult
 \* and what the athlete then sees (training-context/manual-sync.ts). The app
@@ -110,6 +125,10 @@ Shown(result) ==
       [] result = "skipped" ->
             IF SkippedIsFailure /\ SavedSignIn THEN "not-in-use" ELSE "local-only"
       [] result = "cancelled" -> "failed"
+
+\* Results the coordinator publishes as status "failed" (not a protocol
+\* fault). For a quiet sync, publish() shows quietRun.before instead.
+FailureShown == {"failed", "not-in-use"}
 
 \* What a call that latchTerminal rejects was failed by.
 Classify(c, cause) ==
@@ -177,9 +196,13 @@ CancelAnalysis ==
 \* index.ts reapplyCredential -> credential-runtime.ts reapplyStoredCredential
 \* -> configureRuntime -> coach composition.ts applyRuntimeConfig ->
 \* account-identity.ts owner check, which needs the network. Offline it is
-\* refused as "ownership-unavailable" and the vault marks the slot failed.
+\* refused as "ownership-unavailable"; while a reply runs the coach refuses
+\* the change as "busy-replying" (runtime-bundle.ts replace, PR 1230). The
+\* vault marks the slot failed either way, and intervals-sign-in-retry.ts
+\* observe() schedules a retry for both: the model's "failed-network" is a
+\* refusal for a reason that passes.
 ApplyStoredSignIn ==
-    IF network = "up"
+    IF network = "up" /\ ~ReplyRuns
     THEN /\ slot' = "active"
          /\ coachKey' = TRUE
          /\ retry' = "none"
@@ -198,15 +221,16 @@ LaunchReappliesSignIn ==
                    orphanServed, contextStale, scheduled, callVars, network, flips, discVars>>
 
 \* The 410 fix: main retries a network refusal once the network is back. A
-\* retry that fires offline is rescheduled into the same state, so the model
-\* leaves it out; a fix must keep retrying, which the rule's second half
-\* checks. The re-apply waits for the window lane like any intervals.icu
+\* retry that fires offline, or while a reply runs, is rescheduled into the
+\* same state, so the model leaves it out; a fix must keep retrying, which
+\* the rule's second half checks. The re-apply waits for the window lane like any intervals.icu
 \* change and for a Disconnect in progress (the vault serializes them), so
 \* the model runs it only when the lane is free and no Disconnect is open.
-DisconnectSettled == disc \in {"idle", "revoked", "removed-unrevoked", "diverged"}
+DisconnectSettled ==
+    disc \in {"idle", "revoked", "removed-unrevoked", "diverged", "refused-busy"}
 
 RetryFires ==
-    /\ retry = "scheduled" /\ slot = "failed-network" /\ network = "up"
+    /\ retry = "scheduled" /\ slot = "failed-network" /\ network = "up" /\ ~ReplyRuns
     /\ lane = "free" /\ DisconnectSettled
     /\ ApplyStoredSignIn
     /\ UNCHANGED <<connVars, syncVars, lane, laneQueue, windowFor, windowKey, served,
@@ -239,41 +263,70 @@ AthletePressesSync ==
     /\ syncCall' = "waiting"
     /\ win' = "running"
     /\ rereadDue' = FALSE
+    /\ quietRun' = "none"
+    /\ quietLost' = FALSE
     /\ laneQueue' = Append(laneQueue, "call")
     /\ conn' = "open"
     /\ reopened' = (reopened \/ conn = "lost")
-    /\ UNCHANGED <<lostBy, failedBy, answer, refresh, refreshFailed, lane, windowFor,
+    /\ UNCHANGED <<lostBy, failedBy, answer, refresh, refreshFailed, quiet, lane, windowFor,
+                   windowKey, served, orphanServed, contextStale, scheduled, coachKey,
+                   callVars, signInVars, discVars>>
+
+\* Activity review: the athlete confirms an FTP and the coach writes it to
+\* intervals.icu (activity-review/wiring.ts written) -> boot.ts refreshQuietly
+\* -> training-sync.ts request({ quiet: true }) -> begin(). begin() still
+\* publishes queued and running. quietRun keeps what the sidebar showed, and
+\* publish() puts it back for any failure but a protocol fault (PR 1268).
+AthleteConfirmsFtp ==
+    /\ Launched /\ coachKey /\ quiet > 0
+    /\ syncCall = "none" /\ answer = "none" /\ win # "running" /\ refresh = "none"
+    /\ quiet' = quiet - 1
+    /\ quietRun' = win
+    /\ quietLost' = FALSE
+    /\ syncCall' = "waiting"
+    /\ win' = "running"
+    /\ rereadDue' = FALSE
+    /\ laneQueue' = Append(laneQueue, "call")
+    /\ conn' = "open"
+    /\ reopened' = (reopened \/ conn = "lost")
+    /\ UNCHANGED <<lostBy, failedBy, answer, presses, refresh, refreshFailed, lane, windowFor,
                    windowKey, served, orphanServed, contextStale, scheduled, coachKey,
                    callVars, signInVars, discVars>>
 
 \* The 413 fix: once a new connection is open, the coordinator asks the coach
 \* again for an interrupted sync, as Try again does, or refreshes Training if
-\* its last refresh failed.
+\* its last refresh failed. The 426 fix asks again, quietly, for a quiet
+\* sync the sidebar hid; begin() takes what the sidebar shows as quietRun.
 WindowRereadsSyncState ==
     /\ rereadDue /\ conn = "open" /\ syncCall = "none" /\ answer = "none"
     /\ refresh = "none"
     /\ rereadDue' = FALSE
-    /\ IF win = "interrupted"
+    /\ IF win = "interrupted" \/ (QuietRereads /\ quietLost)
        THEN /\ syncCall' = "waiting"
             /\ win' = "running"
+            /\ quietRun' = IF QuietRereads /\ quietLost THEN win ELSE "none"
+            /\ quietLost' = FALSE
             /\ laneQueue' = Append(laneQueue, "call")
             /\ UNCHANGED refresh
        ELSE /\ refresh' = IF refreshFailed THEN "pending" ELSE "none"
-            /\ UNCHANGED <<syncCall, win, laneQueue>>
-    /\ UNCHANGED <<connVars, answer, presses, refreshFailed, lane, windowFor, windowKey,
-                   served, orphanServed, contextStale, scheduled, coachKey, callVars,
-                   signInVars, discVars>>
+            /\ UNCHANGED <<syncCall, win, quietRun, quietLost, laneQueue>>
+    /\ UNCHANGED <<connVars, answer, presses, refreshFailed, quiet, lane, windowFor,
+                   windowKey, served, orphanServed, contextStale, scheduled, coachKey,
+                   callVars, signInVars, discVars>>
 
 \* training-sync.ts begin() catch: a rejected, admitted sync with an
 \* indeterminate error (disconnected, aborted, timed out) publishes
 \* failed/indeterminate: "Connection interrupted. ... won't retry it
 \* automatically." The coordinator sets needsReconnect and nothing else.
+\* For a quiet sync publish() shows quietRun.before instead, so
+\* interrupted() is false and the 413 re-ask does not see it.
 WindowSettlesRejectedSync ==
     /\ syncCall = "rejected"
     /\ syncCall' = "none"
-    /\ win' = "interrupted"
-    /\ UNCHANGED <<connVars, answer, rereadDue, presses, refresh, refreshFailed, coachVars,
-                   callVars, signInVars, discVars>>
+    /\ win' = IF quietRun # "none" THEN quietRun ELSE "interrupted"
+    /\ quietLost' = (quietRun # "none")
+    /\ UNCHANGED <<connVars, answer, rereadDue, presses, refresh, refreshFailed, quietRun,
+                   quiet, coachVars, callVars, signInVars, discVars>>
 
 \* training-sync.ts begin() after a terminal reply runs refreshTrainingContext:
 \* boot.ts calls rideAnalysisController.invalidate(), which aborts a loading
@@ -303,7 +356,8 @@ WindowStartsRefresh ==
           /\ stale' = IF latching THEN "none" ELSE StaleAfterCancel
           /\ analysis' = IF reload THEN "loading" ELSE "none"
     /\ refresh' = "pending"
-    /\ UNCHANGED <<answer, win, rereadDue, presses, refreshFailed, lane, windowKey, served,
+    /\ UNCHANGED <<answer, win, rereadDue, presses, refreshFailed, quietVars, lane, windowKey,
+                   served,
                    orphanServed, contextStale, scheduled, coachKey, loads, drops,
                    signInVars, discVars>>
 
@@ -313,19 +367,20 @@ TrainingRefreshLands ==
     /\ refresh' = IF answer = "none" THEN "none" ELSE "done"
     /\ refreshFailed' = FALSE
     /\ contextStale' = FALSE
-    /\ UNCHANGED <<connVars, syncCall, answer, win, rereadDue, presses, lane, laneQueue,
-                   windowFor, windowKey, served, orphanServed, scheduled, coachKey,
+    /\ UNCHANGED <<connVars, syncCall, answer, win, rereadDue, presses, quietVars, lane,
+                   laneQueue, windowFor, windowKey, served, orphanServed, scheduled, coachKey,
                    callVars, signInVars, discVars>>
 
 \* training-sync.ts begin(): refreshTrainingContext swallows its errors, then
-\* the coordinator publishes the sync result.
+\* the coordinator publishes the sync result. A quiet sync's failure shows
+\* what the sidebar showed before it (publish(), PR 1268).
 WindowPublishesSyncResult ==
     /\ answer # "none" /\ refresh \in {"done", "failed"}
-    /\ win' = answer
+    /\ win' = IF quietRun # "none" /\ answer \in FailureShown THEN quietRun ELSE answer
     /\ answer' = "none"
     /\ refresh' = "none"
-    /\ UNCHANGED <<connVars, syncCall, rereadDue, presses, refreshFailed, coachVars,
-                   callVars, signInVars, discVars>>
+    /\ UNCHANGED <<connVars, syncCall, rereadDue, presses, refreshFailed, quietVars,
+                   coachVars, callVars, signInVars, discVars>>
 
 \* A later window call after a loss opens a fresh connection
 \* (coach-client.ts getClient -> connectFresh). intervals-sign-in-health.ts
@@ -337,9 +392,10 @@ ProviderReconnects ==
     /\ conn = "lost" /\ syncCall # "rejected"
     /\ conn' = "open"
     /\ reopened' = TRUE
-    /\ rereadDue' = (RereadOnOpen /\ (win = "interrupted" \/ refreshFailed))
+    /\ rereadDue' = (RereadOnOpen /\ (win = "interrupted" \/ refreshFailed
+                                       \/ (QuietRereads /\ quietLost)))
     /\ UNCHANGED <<lostBy, failedBy, syncCall, answer, win, presses, refresh,
-                   refreshFailed, coachVars, callVars, signInVars, discVars>>
+                   refreshFailed, quietVars, coachVars, callVars, signInVars, discVars>>
 
 -----------------------------------------------------------------------------
 (* The coach's window lane *)
@@ -385,8 +441,8 @@ CoachFinishesWindow ==
     /\ lane' = "free"
     /\ windowFor' = "none"
     /\ windowKey' = FALSE
-    /\ UNCHANGED <<connVars, win, rereadDue, presses, refresh, refreshFailed, laneQueue,
-                   scheduled, coachKey, callVars, signInVars, discVars>>
+    /\ UNCHANGED <<connVars, win, rereadDue, presses, refresh, refreshFailed, quietVars,
+                   laneQueue, scheduled, coachKey, callVars, signInVars, discVars>>
 
 \* The 412 fix: a waiting credential clear cancels the window that holds the
 \* lane; the window's call gets a remote error.
@@ -400,8 +456,8 @@ CoachCancelsWindowForClear ==
     /\ lane' = "free"
     /\ windowFor' = "none"
     /\ windowKey' = FALSE
-    /\ UNCHANGED <<connVars, win, rereadDue, presses, refresh, refreshFailed, laneQueue,
-                   contextStale, scheduled, coachKey, callVars, signInVars, discVars>>
+    /\ UNCHANGED <<connVars, win, rereadDue, presses, refresh, refreshFailed, quietVars,
+                   laneQueue, contextStale, scheduled, coachKey, callVars, signInVars, discVars>>
 
 -----------------------------------------------------------------------------
 (* Disconnect *)
@@ -423,14 +479,21 @@ AthleteDisconnects ==
 \* applyRuntimeConfig clears the key. After the coach's deadline the apply
 \* throws, so the clear never lands. With no key the coach refuses
 \* "credential-required", which main treats as "not-active": same outcome.
+\* While a reply runs, clearing a key is a change, so composition.ts asks
+\* replace() to refuse and the coach answers "busy-replying" (PR 1230). A
+\* clear with no key changes nothing and waits instead.
 CoachAppliesClear ==
     /\ lane = "clear"
     /\ lane' = "free"
-    /\ IF deadline = "none"
-       THEN /\ coachKey' = FALSE
-            /\ disc' = IF disc = "applying" THEN "answered-applied" ELSE disc
-       ELSE /\ UNCHANGED coachKey
+    /\ CASE deadline # "none" ->
+            /\ UNCHANGED coachKey
             /\ disc' = IF disc = "applying" THEN "answered-error" ELSE disc
+      [] ReplyRuns /\ coachKey ->
+            /\ UNCHANGED coachKey
+            /\ disc' = IF disc = "applying" THEN "answered-busy" ELSE disc
+      [] OTHER ->
+            /\ coachKey' = FALSE
+            /\ disc' = IF disc = "applying" THEN "answered-applied" ELSE disc
     /\ UNCHANGED <<connVars, syncVars, laneQueue, windowFor, windowKey, served,
                    orphanServed, contextStale, scheduled, callVars, signInVars, deadline>>
 
@@ -461,14 +524,22 @@ MainClientTimesOut ==
 \* revokeIntervalsAccess, which needs the network), then
 \* removeStoredCredential. Offline the window says plainly that the token was
 \* removed here but not revoked (credential-delete-copy.ts revokeFailed). An
-\* error answer lands in the same catch as a timeout.
+\* error answer lands in the same catch as a timeout. A "busy-replying"
+\* refusal (credential-runtime.ts clearCredential throws
+\* CredentialRuntimeRefusal) returns refused "runtime-unavailable" with the
+\* slot and the token untouched: "The coach could not stop using this
+\* credential safely. It was not deleted." (credential-delete-copy.ts).
 MainFinishesDisconnect ==
-    /\ disc \in {"answered-applied", "answered-error"}
-    /\ IF disc = "answered-applied"
-       THEN /\ disc' = IF network = "up" THEN "revoked" ELSE "removed-unrevoked"
+    /\ disc \in {"answered-applied", "answered-error", "answered-busy"}
+    /\ CASE disc = "answered-applied" ->
+            /\ disc' = IF network = "up" THEN "revoked" ELSE "removed-unrevoked"
             /\ slot' = "missing"
             /\ retry' = "none"
-       ELSE /\ disc' = "diverged" /\ slot' = "failed" /\ retry' = "none"
+      [] disc = "answered-busy" ->
+            /\ disc' = "refused-busy"
+            /\ UNCHANGED <<slot, retry>>
+      [] OTHER ->
+            /\ disc' = "diverged" /\ slot' = "failed" /\ retry' = "none"
     /\ UNCHANGED <<connVars, syncVars, coachVars, callVars, network, flips, deadline>>
 
 -----------------------------------------------------------------------------
@@ -487,8 +558,8 @@ AthleteOpensAnalysis ==
 AthleteChangesRide ==
     /\ analysis \in {"loading", "shown"}
     /\ CancelAnalysis
-    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, lane, served, orphanServed,
-                   windowKey, contextStale, scheduled, coachKey, loads, drops,
+    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, quietVars, lane, served,
+                   orphanServed, windowKey, contextStale, scheduled, coachKey, loads, drops,
                    signInVars, discVars>>
 
 CoachAnswersAnalysis ==
@@ -507,8 +578,8 @@ CoachAnswersStaleAnalysis ==
        ELSE /\ stale' = "none"
             /\ UNCHANGED <<conn, lostBy, failedBy, syncCall, windowFor, laneQueue, analysis,
                            chat, refresh, refreshFailed>>
-    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, lane, served, orphanServed,
-                   windowKey, contextStale, scheduled, coachKey, loads, drops,
+    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, quietVars, lane, served,
+                   orphanServed, windowKey, contextStale, scheduled, coachKey, loads, drops,
                    signInVars, discVars>>
 
 \* call-timeouts.ts getActivityAnalysis: 120 s -> client.ts timer.
@@ -520,8 +591,8 @@ AnalysisTimesOut ==
             /\ failedBy' = [failedBy EXCEPT !["analysis"] = "own"]
             /\ UNCHANGED <<conn, lostBy, syncCall, windowFor, laneQueue, stale, chat,
                            refresh, refreshFailed>>
-    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, lane, served, orphanServed,
-                   windowKey, contextStale, scheduled, coachKey, loads, drops,
+    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, quietVars, lane, served,
+                   orphanServed, windowKey, contextStale, scheduled, coachKey, loads, drops,
                    signInVars, discVars>>
 
 \* chat/controller.ts send -> call("chat", ...) streaming coach.turnEvent.
@@ -549,8 +620,9 @@ ChatDetectsProtocolFault ==
             /\ failedBy' = [failedBy EXCEPT !["chat"] = "own"]
             /\ UNCHANGED <<conn, lostBy, syncCall, windowFor, laneQueue, analysis, stale,
                            refresh, refreshFailed>>
-    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, lane, served, orphanServed,
-                   windowKey, contextStale, scheduled, coachKey, loads, signInVars, discVars>>
+    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, quietVars, lane, served,
+                   orphanServed, windowKey, contextStale, scheduled, coachKey, loads,
+                   signInVars, discVars>>
 
 \* client.ts onSocketClose / onSocketError: the socket goes away, as when a
 \* coach the app did not start drops. A connection-level loss.
@@ -558,8 +630,9 @@ SocketCloses ==
     /\ conn = "open" /\ drops > 0
     /\ drops' = drops - 1
     /\ Latch("socket")
-    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, lane, served, orphanServed,
-                   windowKey, contextStale, scheduled, coachKey, loads, signInVars, discVars>>
+    /\ UNCHANGED <<reopened, answer, win, rereadDue, presses, quietVars, lane, served,
+                   orphanServed, windowKey, contextStale, scheduled, coachKey, loads,
+                   signInVars, discVars>>
 
 -----------------------------------------------------------------------------
 
@@ -576,7 +649,7 @@ Automatic ==
 
 \* Steps the athlete or the outside world takes.
 Outside ==
-    \/ AthletePressesSync \/ AthleteOpensAnalysis \/ AthleteChangesRide
+    \/ AthletePressesSync \/ AthleteConfirmsFtp \/ AthleteOpensAnalysis \/ AthleteChangesRide
     \/ AthleteSendsChat \/ AthleteDisconnects \/ AthleteRetriesSavedKeys
     \/ SocketCloses \/ ChatDetectsProtocolFault
     \/ SchedulerStartsWindow \/ NetworkChanges
@@ -591,6 +664,7 @@ Init ==
     /\ failedBy = [c \in Calls |-> "none"]
     /\ syncCall = "none" /\ answer = "none" /\ win = "idle" /\ rereadDue = FALSE
     /\ presses = MaxPresses /\ refresh = "none" /\ refreshFailed = FALSE
+    /\ quietRun = "none" /\ quietLost = FALSE /\ quiet = MaxQuiet
     /\ lane = "free" /\ laneQueue = <<>> /\ windowFor = "none" /\ windowKey = FALSE
     /\ served = "none" /\ orphanServed = FALSE /\ contextStale = FALSE
     /\ scheduled = MaxScheduled /\ coachKey = FALSE
@@ -613,12 +687,21 @@ Quiescent == ~ENABLED Automatic
 OneCallsCancelNeverFailsAnother ==
     \A c \in Calls : failedBy[c] # "another-call"
 
-\* 413: once nothing is left to run by itself, the sidebar shows what the
-\* coach's last sync for the window found, and Training is not older than it.
-\* (A lost connection reconnects by itself, so this covers every reconnect.)
+\* What the sidebar shows for the coach's last sync for the window. A quiet
+\* sync's failure leaves the sidebar as it was (PR 1268, training-sync.test.ts
+\* "keeps a quiet sync's failure out of view"). At quiescence the lane is
+\* empty, so `served` answers the last sync the window started, the one
+\* quietRun describes.
+ExpectedSidebar ==
+    IF quietRun # "none" /\ served \in FailureShown THEN quietRun ELSE served
+
+\* 413 and 426: once nothing is left to run by itself, the sidebar shows what
+\* the coach's last sync for the window found, and Training is not older
+\* than it. (A lost connection reconnects by itself, so this covers every
+\* reconnect.)
 WindowCatchesUpAfterReconnect ==
     (Quiescent /\ conn = "open" /\ served # "none")
-        => (win = served /\ ~contextStale)
+        => (win = ExpectedSidebar /\ ~contextStale)
 
 \* 410: a stored sign-in refused for a network reason has a retry scheduled,
 \* and once nothing is left to run with the network up, it is not still refused.
@@ -633,8 +716,9 @@ EmptySyncNeverShownAsSuccess ==
     win = "local-only" => ~SavedSignIn
 
 \* 412: Disconnect ends with the sign-in removed (revoked, or a plain message
-\* that it could not be revoked offline) or a clear refusal, inside its
-\* deadline: never "could not be reconciled" with the token kept.
+\* that it could not be revoked offline) or a clear refusal, such as
+\* "refused-busy" while a reply runs, inside its deadline: never "could not
+\* be reconciled" with the token kept.
 DisconnectRevokesOrRefusesClearly ==
     /\ disc # "diverged"
     /\ disc \in {"revoked", "removed-unrevoked"} => (~coachKey /\ slot = "missing")
@@ -663,11 +747,13 @@ TypeOK ==
     /\ syncCall \in {"none", "waiting", "rejected"}
     /\ refresh \in {"none", "pending", "done", "failed"}
     /\ win \in {"idle", "running", "synced", "local-only", "not-in-use", "failed", "interrupted"}
+    /\ quietRun \in {"none", "idle", "synced", "local-only", "not-in-use", "failed", "interrupted"}
+    /\ quietLost \in BOOLEAN
     /\ lane \in {"free", "window", "clear"}
     /\ \A i \in 1..Len(laneQueue) : laneQueue[i] \in {"call", "orphan", "scheduler", "clear"}
     /\ analysis \in {"none", "loading", "shown"}
     /\ stale \in {"none", "ignored", "aborted"}
     /\ slot \in {"stored", "active", "failed-network", "failed", "missing"}
     /\ disc \in {"idle", "waiting", "applying", "answered-applied", "answered-error",
-                 "revoked", "removed-unrevoked", "diverged"}
+                 "answered-busy", "revoked", "removed-unrevoked", "diverged", "refused-busy"}
 =============================================================================
