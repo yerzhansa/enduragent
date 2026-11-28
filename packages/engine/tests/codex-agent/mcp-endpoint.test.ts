@@ -95,7 +95,7 @@ function makeSport(log: ToolCallLog): Sport {
 
 function wrappedTools(dataDir: string, log: ToolCallLog): ToolSet {
   const agent = new CoachAgent(makeSport(log), baseAgentConfig(dataDir));
-  return (agent as unknown as { tools: ToolSet }).tools;
+  return (agent as unknown as { toolSets: { chat: ToolSet } }).toolSets.chat;
 }
 
 async function connectClient(endpoint: CoachMcpEndpoint, bearer: string): Promise<Client> {

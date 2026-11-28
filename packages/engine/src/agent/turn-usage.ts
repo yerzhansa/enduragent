@@ -6,6 +6,7 @@ import type {
   UsageLedgerLine,
   UsagePort,
 } from "../host-ports.js";
+import { beginTurnSpan, endTurnSpan } from "./turn-trace.js";
 
 export type TurnStatus =
   | { readonly ok: true }
@@ -157,10 +158,13 @@ export class TurnUsageLedger {
   }
 
   begin(turnId: string, resumed: boolean): void {
-    this.openTurns.set(turnId, resumed ? this.earlierRuns(turnId) : []);
+    const earlier = resumed ? this.earlierRuns(turnId) : [];
+    this.openTurns.set(turnId, earlier);
+    beginTurnSpan(turnId, earlier.filter((line) => line.outcome === "error").length);
   }
 
   end(turnId: string, status: TurnStatus, timing: TurnRowTiming): void {
+    endTurnSpan(turnId, turnEnding(status));
     const lines = this.openTurns.get(turnId);
     if (lines === undefined) return;
     this.openTurns.delete(turnId);
@@ -184,6 +188,7 @@ export class TurnUsageLedger {
 
   discard(turnId: string): void {
     this.openTurns.delete(turnId);
+    endTurnSpan(turnId, { outcome: "error" });
   }
 
   private earlierRuns(turnId: string): UsageLedgerLine[] {
