@@ -55,6 +55,8 @@ import {
   FEEDBACK_USAGE_COPY,
   idleBootProbes,
   liftedSpendRefusal,
+  savedChoicePending,
+  stillRefusedChoice,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
   NEW_CONVERSATION_NOT_STARTED_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
@@ -249,9 +251,7 @@ export function createChatController(input: {
     state.session.resetPhase === "resetting" ||
     (state.session.resetPhase === "uncertain" && newConversationCheck !== undefined);
   const decisionBlocksWork = (): boolean =>
-    !decisionLoaded ||
-    decision?.status === "unanswered" ||
-    (decision?.status === "answered" && decision.continuation.status === "pending");
+    !decisionLoaded || decision?.status === "unanswered" || savedChoicePending(decision);
   const commitmentQuestionAllowsChat = (): boolean =>
     planCreation !== null &&
     (planCreation.pendingCommitment !== null ||
@@ -269,9 +269,7 @@ export function createChatController(input: {
       planCreation !== null &&
       !commitmentQuestionAllowsChat() &&
       (planCreationEditingKey !== null || planCreation.openQuestion !== null));
-  const decisionBlocksReset = (): boolean =>
-    !decisionLoaded ||
-    (decision?.status === "answered" && decision.continuation.status === "pending");
+  const decisionBlocksReset = (): boolean => !decisionLoaded || savedChoicePending(decision);
   const chatWorkInFlight = (): boolean =>
     state.status === "streaming" ||
     activeTask !== undefined ||
@@ -982,10 +980,7 @@ export function createChatController(input: {
     const result = await activeClient.call("getCoachDecision", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return null;
     decision = result.decision;
-    decisionPhase =
-      decision?.status === "answered" && decision.continuation.status === "pending"
-        ? "recovering"
-        : "idle";
+    decisionPhase = savedChoicePending(decision) ? "recovering" : "idle";
     if (decision?.status !== "answered") decisionAnswerLabel = null;
     decisionError = null;
     decisionLoaded = true;
@@ -1740,11 +1735,7 @@ export function createChatController(input: {
       const loadTask = (async () => {
         try {
           const loaded = await refreshDecision();
-          if (
-            loaded?.status === "answered" &&
-            loaded.continuation.status === "pending" &&
-            decisionActionTask === undefined
-          ) {
+          if (savedChoicePending(loaded) && decisionActionTask === undefined) {
             await continueDecision("resumeCoachDecision", loaded, undefined);
           }
         } catch {
@@ -2234,15 +2225,18 @@ export function createChatController(input: {
     },
     resume() {
       stalledDrainHeadId = null;
-      const lift = liftedSpendRefusal(decision, decisionError);
-      decisionError = lift.error;
-      const resumeDecision = () =>
-        lift.resume === null
-          ? render()
-          : continueDecision("resumeCoachDecision", lift.resume, undefined);
-      return start()
-        .then(() => drain())
-        .then(resumeDecision);
+      return start().then(() => drain());
+    },
+    capLifted() {
+      const lifted = liftedSpendRefusal(decision, decisionError);
+      decisionError = lifted.error;
+      render();
+      return controller.resume().finally(() => {
+        const choice = stillRefusedChoice(lifted.resume, decision, decisionError);
+        return choice === null || !canChat()
+          ? undefined
+          : continueDecision("resumeCoachDecision", choice, undefined);
+      });
     },
     async refreshAttachments() {
       if (disposed || resetBlocksWork()) return;
@@ -3170,11 +3164,7 @@ export function createChatController(input: {
             recoveryTasks.push(runPlanningRecovery(client));
           }
           if (recoveryTasks.length > 0) await Promise.allSettled(recoveryTasks);
-          if (
-            loaded?.status === "answered" &&
-            loaded.continuation.status === "pending" &&
-            decisionActionTask === undefined
-          ) {
+          if (savedChoicePending(loaded) && decisionActionTask === undefined) {
             await continueDecision("resumeCoachDecision", loaded, undefined);
           }
         } catch {

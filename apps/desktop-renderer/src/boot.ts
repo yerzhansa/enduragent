@@ -234,7 +234,7 @@ export function bootRenderer(): Disposer {
   const disposeSetupReadiness = store.subscribe((state, previousState) => {
     if (!setupReady(previousState) && setupReady(state)) void chatController.resume();
   });
-  const disposeSpendCapResume = resumeChatWhenCapLifts(store, () => chatController.resume());
+  const disposeSpendCapResume = resumeChatWhenCapLifts(store, () => chatController.capLifted());
   function openPlanChangeInChat(): void {
     chatController.requestPlanLibraryFocus("change");
     chatController.pausePlanCreation();

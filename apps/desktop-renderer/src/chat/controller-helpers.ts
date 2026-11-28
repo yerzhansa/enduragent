@@ -128,13 +128,28 @@ export function spendCapRefusalCopy(refusal: TurnRefusal): string {
   return `${SPEND_CAP_REFUSAL_PREFIX}$${cap} daily cap, so the coach didn’t answer. To keep going today, raise the cap or switch it to Warn in Settings › Spending.`;
 }
 
+export function savedChoicePending(
+  decision: CoachDecisionReadModel | null | undefined,
+): decision is Extract<CoachDecisionReadModel, { status: "answered" }> {
+  return decision?.status === "answered" && decision.continuation.status === "pending";
+}
+
 export function liftedSpendRefusal(
   decision: CoachDecisionReadModel | null,
   error: string | null,
 ): { readonly error: string | null; readonly resume: CoachDecisionReadModel | null } {
   if (error === null || !error.startsWith(SPEND_CAP_REFUSAL_PREFIX)) return { error, resume: null };
-  const saved = decision?.status === "answered" && decision.continuation.status === "pending";
+  const saved = savedChoicePending(decision);
   return { error: saved ? error : null, resume: saved ? decision : null };
+}
+
+export function stillRefusedChoice(
+  lifted: CoachDecisionReadModel | null,
+  decision: CoachDecisionReadModel | null,
+  error: string | null,
+): CoachDecisionReadModel | null {
+  const current = liftedSpendRefusal(decision, error).resume;
+  return lifted !== null && current?.decisionId === lifted.decisionId ? current : null;
 }
 
 export function idleBootProbes(): Record<
@@ -264,6 +279,7 @@ export interface ChatController {
   applyPlanChange(decision: "apply" | "cancel"): Promise<void>;
   start(): Promise<void>;
   resume(): Promise<void>;
+  capLifted(): Promise<void>;
   refreshAttachments(): Promise<void>;
   beginDroppedAttachmentAdmission(operationId: string): boolean;
   settleDroppedAttachmentAdmission(

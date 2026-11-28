@@ -88,6 +88,7 @@ function subject(
   decisionRead?:
     | Promise<CoachDecisionReadModel | null>
     | (() => Promise<CoachDecisionReadModel | null>),
+  canChat?: () => boolean,
 ) {
   const states: ChatState[] = [];
   const controls: ChatViewControls[] = [];
@@ -196,6 +197,7 @@ function subject(
     refreshTrainingContext: async () => {},
     refreshSpend: async () => {},
     initialQueueSnapshot: { schemaVersion: 1, revision: 0, items: [] },
+    ...(canChat === undefined ? {} : { canChat }),
   });
   const submittedController = {
     ...controller,
@@ -289,6 +291,9 @@ describe("Coach decision controller", () => {
     expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
 
     await controller.resume();
+    expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+
+    await controller.capLifted();
 
     expect(controls.at(-1)?.decision).toMatchObject({
       value: { status: "unanswered", decisionId: "decision-1" },
@@ -307,12 +312,18 @@ describe("Coach decision controller", () => {
       continuation: { continuationId: "continuation-1", status: "pending" },
     };
     const resumes: string[] = [];
-    const { controller, controls } = subject(pending, async (method, options) => {
-      resumes.push(method);
-      const result = { decision: pending, resumed: false, refusal };
-      options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result });
-      return result;
-    });
+    let chatReady = true;
+    const { controller, controls } = subject(
+      pending,
+      async (method, options) => {
+        resumes.push(method);
+        const result = { decision: pending, resumed: false, refusal };
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 2, result });
+        return result;
+      },
+      undefined,
+      () => chatReady,
+    );
     await controller.start();
     await vi.waitFor(() => {
       expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
@@ -320,6 +331,15 @@ describe("Coach decision controller", () => {
     expect(resumes).toEqual(["resumeCoachDecision"]);
 
     await controller.resume();
+    expect(resumes).toEqual(["resumeCoachDecision"]);
+
+    chatReady = false;
+    await controller.capLifted();
+    expect(resumes).toEqual(["resumeCoachDecision"]);
+    expect(controls.at(-1)?.decision?.error).toContain("didn’t answer");
+
+    chatReady = true;
+    await controller.capLifted();
 
     expect(resumes).toEqual(["resumeCoachDecision", "resumeCoachDecision"]);
   });
