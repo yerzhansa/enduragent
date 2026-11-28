@@ -219,7 +219,9 @@
   },
   "language": {
     "chooseTitle": "言語を選んでください",
-    "continue": "続ける"
+    "continue": "続ける",
+    "retry": "再試行",
+    "saveFailed": "言語を保存できませんでした。もう一度お試しください。"
   },
   "settings": {
     "appearance": {

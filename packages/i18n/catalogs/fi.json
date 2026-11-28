@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Valitse kielesi",
-    "continue": "Jatka"
+    "continue": "Jatka",
+    "retry": "Yritä uudelleen",
+    "saveFailed": "Kieltäsi ei voitu tallentaa. Yritä uudelleen."
   },
   "settings": {
     "appearance": {

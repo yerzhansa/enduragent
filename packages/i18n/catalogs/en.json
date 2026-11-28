@@ -1162,7 +1162,9 @@
   },
   "language": {
     "chooseTitle": "Choose your language",
-    "continue": "Continue"
+    "continue": "Continue",
+    "retry": "Retry",
+    "saveFailed": "Your language couldn’t be saved. Try again."
   },
   "plan": {
     "calendar": {

@@ -222,7 +222,9 @@
   },
   "language": {
     "chooseTitle": "Vælg dit sprog",
-    "continue": "Fortsæt"
+    "continue": "Fortsæt",
+    "retry": "Prøv igen",
+    "saveFailed": "Dit sprog kunne ikke gemmes. Prøv igen."
   },
   "settings": {
     "appearance": {

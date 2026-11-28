@@ -28,6 +28,14 @@
       "sourceHash": "31fbef162594de01bab0cd525c51f74de7bcb15063029fa1a54b2cf5944c80d8",
       "translatedBy": "model"
     },
+    "language.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
+      "translatedBy": "model"
+    },
+    "language.saveFailed": {
+      "sourceHash": "98a0ea6a36c9bfb2d244592f4b4c6e7183116595fdf4b5496ac377b9ebe22007",
+      "translatedBy": "model"
+    },
     "settings.appearance.dark": {
       "sourceHash": "60acc53f13a5d1bf115878c4a785e9a43e8286c4139a8402a6ac7d23966f9153",
       "translatedBy": "model"

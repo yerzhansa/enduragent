@@ -219,7 +219,9 @@
   },
   "language": {
     "chooseTitle": "選擇語言",
-    "continue": "繼續"
+    "continue": "繼續",
+    "retry": "重試",
+    "saveFailed": "無法儲存語言。請重試。"
   },
   "settings": {
     "appearance": {
