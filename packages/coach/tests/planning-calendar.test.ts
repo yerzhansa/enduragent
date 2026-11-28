@@ -12,6 +12,7 @@ import { runMigrations, type SqlStore } from "@enduragent/kernel/store";
 import { serializeIntervalsWorkout } from "@enduragent/sport-cycling";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
+import { landIcuRideSettings } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
 import { createPlanCalendarDrain } from "../src/plan-calendar-drain.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
@@ -19,6 +20,9 @@ import {
   createCalendarMirrorAdapter,
   createPlanMirrorCalendarAdapter,
 } from "../src/planning-calendar.js";
+import { planWorkoutDescriber } from "../src/plan-workout-description.js";
+
+const ATHLETE = "i1998";
 
 async function activateSyntheticPlan() {
   const store = openSqliteStorage(":memory:");
@@ -147,14 +151,15 @@ function describedSeconds(description: string): number {
   return total;
 }
 
-function intervalsCalendarAsMeasured() {
+function intervalsCalendarAsMeasured(recountSkewS = 0) {
   const client = new IntervalsClient({ apiKey: "test-key", athleteId: "0" });
   const events: Event[] = [];
   const stored = (body: EventInput, current?: Event): Event => {
     const merged = { ...current, ...body };
     if (typeof merged.startDateLocal !== "string") throw new Error("Expected dated event");
     const description = merged.description ?? null;
-    const parsesDescription = body.workoutDoc === undefined && description !== null;
+    const parsesDescription =
+      body.workoutDoc === undefined && description !== null && description.trim() !== "";
     return {
       ...merged,
       id: current?.id ?? events.length + 1,
@@ -163,7 +168,9 @@ function intervalsCalendarAsMeasured() {
       uid: current?.uid ?? crypto.randomUUID(),
       externalId: current?.externalId ?? body.externalId ?? null,
       description,
-      movingTime: parsesDescription ? describedSeconds(description) : (merged.movingTime ?? null),
+      movingTime: parsesDescription
+        ? describedSeconds(description) + recountSkewS
+        : (merged.movingTime ?? null),
       workoutDoc: parsesDescription
         ? { duration: describedSeconds(description), steps: [{ duration: 600, warmup: true }] }
         : (body.workoutDoc ?? current?.workoutDoc ?? null),
@@ -205,9 +212,12 @@ function intervalsCalendarAsMeasured() {
   return { client, events, create, update };
 }
 
-async function drainTwoWeeks(activated: Awaited<ReturnType<typeof activateSyntheticPlan>>) {
+async function calendarMirror(
+  activated: Awaited<ReturnType<typeof activateSyntheticPlan>>,
+  options: { readonly recountSkewS?: number } = {},
+) {
   const { store, plan, newId, now } = activated;
-  const intervals = intervalsCalendarAsMeasured();
+  const intervals = intervalsCalendarAsMeasured(options.recountSkewS);
   let today = 19980902;
   const drain = createPlanCalendarDrain({
     store,
@@ -217,6 +227,7 @@ async function drainTwoWeeks(activated: Awaited<ReturnType<typeof activateSynthe
     todayDateKey: () => today,
     now,
     logger: { warn: vi.fn() },
+    ftp: { athleteId: () => ATHLETE },
   });
   await createPlanCalendarOperations({
     store,
@@ -240,17 +251,50 @@ async function drainTwoWeeks(activated: Awaited<ReturnType<typeof activateSynthe
     scope: { kind: "first-weeks" },
   });
 
-  const appStart = () => drain.kick();
-  const scheduledRefresh = () => drain.kick();
-  const planList = () => drain.kick();
+  return {
+    intervals,
+    run: async (dateKey = today) => {
+      today = dateKey;
+      await drain.kick();
+    },
+  };
+}
+
+async function drainTwoWeeks(activated: Awaited<ReturnType<typeof activateSyntheticPlan>>) {
+  const mirror = await calendarMirror(activated);
+  const appStart = () => mirror.run();
+  const scheduledRefresh = () => mirror.run();
+  const planList = () => mirror.run();
   await appStart();
   await scheduledRefresh();
   await planList();
-  today = 19980903;
-  await scheduledRefresh();
-
-  return intervals;
+  await mirror.run(19980903);
+  return mirror.intervals;
 }
+
+async function setFtp(store: SqlStore, ftp: number | null, updated: string) {
+  await landIcuRideSettings(store, { id: 77, ftp, indoorFtp: null, updated });
+}
+
+async function workoutsInTheTwoWeeks(activated: Awaited<ReturnType<typeof activateSyntheticPlan>>) {
+  const rows = await activated.store.all(
+    "SELECT id, duration_s, structure_json FROM plan_workout WHERE plan_id=? AND origin='coach' AND date_key BETWEEN 19980902 AND ? ORDER BY id",
+    [activated.plan.id, trainingWeek(activated.plan, 2).endDateKey],
+  );
+  expect(rows.length).toBeGreaterThan(0);
+  return new Map(
+    rows.map((row) => [
+      String(row.id),
+      { durationS: Number(row.duration_s), structureJson: String(row.structure_json) },
+    ]),
+  );
+}
+
+function workoutIdOf(externalId: unknown): string {
+  return String(externalId).split(":").at(-1) ?? "";
+}
+
+const stepsOf = planWorkoutDescriber({ ftpKnown: true });
 
 describe("Plan Intervals calendar adapter", () => {
   it("uses provider external IDs as durable Plan workout identities", async () => {
@@ -401,7 +445,7 @@ describe("Plan Intervals calendar adapter", () => {
     }
   });
 
-  it("sends a Plan whose workouts carry content exactly as it sends the same Plan without it", async () => {
+  it("sends a Plan whose workouts carry content exactly as before while intervals.icu has no FTP", async () => {
     const withContent = await activateSyntheticPlan();
     const rows = await withContent.store.all(
       "SELECT id, structure_json FROM plan_workout WHERE plan_id=?",
@@ -431,6 +475,79 @@ describe("Plan Intervals calendar adapter", () => {
     expect(sent.create.mock.calls).toEqual(sentBefore.create.mock.calls);
     expect(sent.update.mock.calls).toEqual([]);
     for (const [body] of sent.create.mock.calls) expect(body).not.toHaveProperty("description");
+  });
+
+  it("sends each workout's steps while intervals.icu has an FTP, and leaves them alone after intervals.icu recounts the length", async () => {
+    const activated = await activateSyntheticPlan();
+    await setFtp(activated.store, 250, "1998-08-30T08:00:00.000+00:00");
+    const workouts = await workoutsInTheTwoWeeks(activated);
+    const mirror = await calendarMirror(activated, { recountSkewS: 1 });
+    await mirror.run();
+    await mirror.run();
+    await mirror.run(19980903);
+    const { create, update, events } = mirror.intervals;
+    expect(create.mock.calls).toHaveLength(workouts.size);
+    for (const [body] of create.mock.calls) {
+      const workout = workouts.get(workoutIdOf("externalId" in body ? body.externalId : null));
+      if (workout === undefined) throw new Error("Expected a Plan workout");
+      expect(body.description).toBe(stepsOf(workout.structureJson));
+      expect(body.description).toMatch(/^- \d+m \d+-\d+%$/mu);
+      expect(describedSeconds(String(body.description))).toBe(workout.durationS);
+      expect(body).toMatchObject({ movingTime: workout.durationS });
+      expect(body).not.toHaveProperty("workoutDoc");
+    }
+    for (const event of events) {
+      expect(event.movingTime).toBe(
+        (workouts.get(workoutIdOf(event.externalId))?.durationS ?? 0) + 1,
+      );
+    }
+    expect(update.mock.calls).toEqual([]);
+  });
+
+  it("adds the steps to every workout in the two weeks once when an FTP appears, then leaves them alone", async () => {
+    const activated = await activateSyntheticPlan();
+    const workouts = await workoutsInTheTwoWeeks(activated);
+    const mirror = await calendarMirror(activated, { recountSkewS: 1 });
+    await mirror.run();
+    const { create, update, events } = mirror.intervals;
+    expect(create.mock.calls).toHaveLength(workouts.size);
+    for (const [body] of create.mock.calls) expect(body).not.toHaveProperty("description");
+    expect(update.mock.calls).toEqual([]);
+    await setFtp(activated.store, 250, "1998-08-30T08:00:00.000+00:00");
+    await mirror.run();
+    expect(update.mock.calls).toHaveLength(workouts.size);
+    for (const [eventId, body] of update.mock.calls) {
+      const event = events.find((entry) => entry.id === eventId);
+      const workout = workouts.get(workoutIdOf(event?.externalId));
+      if (workout === undefined) throw new Error("Expected a Plan workout");
+      expect(body.description).toBe(stepsOf(workout.structureJson));
+      expect(body.description).toMatch(/^- \d+m \d+-\d+%$/mu);
+    }
+    await mirror.run();
+    await mirror.run();
+    expect(update.mock.calls).toHaveLength(workouts.size);
+    expect(create.mock.calls).toHaveLength(workouts.size);
+  });
+
+  it("takes the steps off every workout in the two weeks once when the FTP is removed, then leaves them alone", async () => {
+    const activated = await activateSyntheticPlan();
+    await setFtp(activated.store, 250, "1998-08-30T08:00:00.000+00:00");
+    const workouts = await workoutsInTheTwoWeeks(activated);
+    const mirror = await calendarMirror(activated, { recountSkewS: 1 });
+    await mirror.run();
+    const { create, update, events } = mirror.intervals;
+    expect(create.mock.calls).toHaveLength(workouts.size);
+    await setFtp(activated.store, null, "1998-08-31T08:00:00.000+00:00");
+    await mirror.run();
+    expect(update.mock.calls).toHaveLength(workouts.size);
+    for (const [, body] of update.mock.calls) expect(body.description).toBe("");
+    for (const event of events) {
+      expect(event.movingTime).toBe(workouts.get(workoutIdOf(event.externalId))?.durationS);
+    }
+    await mirror.run();
+    await mirror.run();
+    expect(update.mock.calls).toHaveLength(workouts.size);
+    expect(create.mock.calls).toHaveLength(workouts.size);
   });
 
   it("sends and reads the Plan identity as intervals.icu's external_id on the wire", async () => {

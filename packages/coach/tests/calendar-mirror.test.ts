@@ -16,17 +16,20 @@ import {
   icuEventFingerprint,
   icuEventType,
   mirrorPlanCalendar,
+  planWorkoutFingerprint,
   readIcuCopies,
   saveWeekDelivery,
   storedIcuCopy,
+  type CalendarEventCreate,
+  type CalendarEventUpdate,
   type CalendarMirrorPort,
 } from "@enduragent/engine/calendar";
-import {
-  planMirrorExternalId,
-  type PlanMirrorCreateInput,
-  type PlanMirrorEvent,
-  type PlanMirrorUpdateInput,
-} from "@enduragent/engine";
+import { planMirrorExternalId, type PlanMirrorEvent } from "@enduragent/engine";
+import { workoutContent } from "@enduragent/sport-cycling";
+import { PLAN_WORKOUT_DESCRIBERS, planWorkoutDescriber } from "../src/plan-workout-description.js";
+
+const withoutFtp = planWorkoutDescriber({ ftpKnown: false });
+const NONE_MATCHED: ReadonlySet<string> = new Set();
 
 const PLAN_ID = "0".repeat(25) + "1";
 const PLAN_KIND = "full_plan" as const;
@@ -86,16 +89,13 @@ function intervalsAsMeasured() {
   const writes: string[] = [];
   let failedUpdates = 0;
   const stamp = () => `1998-01-01T00:00:00.${String(++version).padStart(3, "0")}+00:00`;
-  const content = (input: { durationS: number | null; structureJson: string }) => {
-    const description = JSON.parse(input.structureJson).description ?? null;
-    return {
-      description,
-      durationS:
-        description === null || input.durationS === null || !/^\s*-\s/m.test(description)
-          ? input.durationS
-          : input.durationS + 1,
-    };
-  };
+  const content = ({ description, durationS }: CalendarEventCreate | CalendarEventUpdate) => ({
+    description,
+    durationS:
+      description === null || durationS === null || !/^\s*-\s/m.test(description)
+        ? durationS
+        : durationS + 1,
+  });
   const port: CalendarMirrorPort = {
     async listEvents(range) {
       return events.filter(
@@ -105,7 +105,7 @@ function intervalsAsMeasured() {
     async readEvent({ eventId }) {
       return events.find((event) => event.id === eventId) ?? null;
     },
-    async createEvent(input: PlanMirrorCreateInput) {
+    async createEvent(input: CalendarEventCreate) {
       writes.push(`create ${input.dateKey}`);
       const event: PlanMirrorEvent = {
         id: next++,
@@ -119,7 +119,7 @@ function intervalsAsMeasured() {
       events.push(event);
       return event;
     },
-    async updateEvent(input: PlanMirrorUpdateInput) {
+    async updateEvent(input: CalendarEventUpdate) {
       if (failedUpdates > 0) {
         failedUpdates -= 1;
         throw new Error("provider unavailable");
@@ -132,7 +132,7 @@ function intervalsAsMeasured() {
         ...current,
         dateKey: input.dateKey,
         name: input.name,
-        ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
+        type: icuEventType(input.sport),
         ...content(input),
         updated: stamp(),
       };
@@ -177,7 +177,13 @@ async function setup() {
   await createPlanRepository(store).replace(plan(), []);
   const mirror = createPlanCalendarMirrorRepository(store);
   const intervals = intervalsAsMeasured();
-  const deps = { calendar: intervals.port, mirror, now: () => NOW };
+  const deps = {
+    calendar: intervals.port,
+    mirror,
+    describe: withoutFtp,
+    describers: PLAN_WORKOUT_DESCRIBERS,
+    now: () => NOW,
+  };
   return { store, mirror, intervals, deps };
 }
 
@@ -194,7 +200,7 @@ describe("the calendar mirror", () => {
       name: described.name,
       sport: "cycling",
       durationS: described.durationS,
-      structureJson: described.structureJson,
+      description: withoutFtp(described.structureJson),
     });
     const two = await intervals.port.createEvent({
       planId: PLAN_ID,
@@ -204,20 +210,48 @@ describe("the calendar mirror", () => {
       name: plain.name,
       sport: "cycling",
       durationS: plain.durationS,
-      structureJson: plain.structureJson,
+      description: withoutFtp(plain.structureJson),
     });
     expect(one.durationS).toBe(3_601);
-    expect(icuEventFingerprint(one)).toBe(expectedIcuFingerprint(described));
-    expect(icuEventFingerprint(two)).toBe(expectedIcuFingerprint(plain));
+    expect(icuEventFingerprint(one)).toBe(expectedIcuFingerprint(described, withoutFtp));
+    expect(icuEventFingerprint(two)).toBe(expectedIcuFingerprint(plain, withoutFtp));
     expect(icuEventFingerprint({ ...two, durationS: 3_000 })).not.toBe(
-      expectedIcuFingerprint(plain),
+      expectedIcuFingerprint(plain, withoutFtp),
     );
+  });
+
+  it("keeps the fingerprints it stored before for workouts whose text does not change", () => {
+    const withFtp = planWorkoutDescriber({ ftpKnown: true });
+    const before = (row: PlanWorkoutRecord, description: string | null) =>
+      JSON.stringify([row.dateKey, row.name, row.sport, row.durationS, description]);
+    const legacy = workout(1, MONDAY);
+    const emptyText = workout(2, MONDAY, { structureJson: JSON.stringify({ description: "" }) });
+    const chatWithoutContent = workout(3, MONDAY, {
+      structureJson: JSON.stringify({ id: "draft-3", kind: "endurance", minutes: 60 }),
+    });
+    const chatWithContent = workout(4, MONDAY, {
+      structureJson: JSON.stringify({ id: "draft-4", kind: "endurance", content: { version: 1 } }),
+    });
+    for (const describer of [withFtp, withoutFtp]) {
+      expect(planWorkoutFingerprint(legacy, describer)).toBe(before(legacy, "- 60m 56-75%"));
+      expect(planWorkoutFingerprint(emptyText, describer)).toBe(before(emptyText, ""));
+      expect(planWorkoutFingerprint(chatWithoutContent, describer)).toBe(
+        before(chatWithoutContent, null),
+      );
+    }
+    expect(planWorkoutFingerprint(chatWithContent, withoutFtp)).toBe(before(chatWithContent, null));
   });
 
   it("sends this week and next once approved, and nothing on a second run", async () => {
     const { mirror, intervals, deps } = await setup();
     const workouts = [workout(1, MONDAY + 1), workout(2, MONDAY + 8), workout(3, MONDAY + 15)];
-    const input = { plan: plan(), workouts, todayDateKey: MONDAY, firstEligibleDateKey: MONDAY };
+    const input = {
+      plan: plan(),
+      workouts,
+      todayDateKey: MONDAY,
+      firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
+    };
     expect(await mirrorPlanCalendar(input, deps)).toEqual({ kind: "waiting-for-first-approve" });
     await saveWeekDelivery(
       mirror,
@@ -238,7 +272,13 @@ describe("the calendar mirror", () => {
   it("opens the card for a workout the athlete moved out of the window, instead of calling it deleted", async () => {
     const { mirror, intervals, deps } = await setup();
     const workouts = [workout(1, MONDAY + 1)];
-    const input = { plan: plan(), workouts, todayDateKey: MONDAY, firstEligibleDateKey: MONDAY };
+    const input = {
+      plan: plan(),
+      workouts,
+      todayDateKey: MONDAY,
+      firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
+    };
     await saveWeekDelivery(
       mirror,
       PLAN_ID,
@@ -269,6 +309,7 @@ describe("the calendar mirror", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await saveWeekDelivery(
       mirror,
@@ -310,6 +351,7 @@ describe("the calendar mirror", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await saveWeekDelivery(
       mirror,
@@ -349,6 +391,7 @@ describe("what the mirror counts and sends", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await approveFirstWeeks(mirror);
     await mirrorPlanCalendar(input, deps);
@@ -383,6 +426,7 @@ describe("what the mirror counts and sends", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await approveFirstWeeks(mirror);
     await mirrorPlanCalendar(input, deps);
@@ -411,6 +455,7 @@ describe("what the mirror counts and sends", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await approveFirstWeeks(mirror);
     await mirrorPlanCalendar(input, deps);
@@ -430,6 +475,7 @@ describe("a fingerprint saved in an older format", () => {
       workouts: [first],
       todayDateKey: MONDAY,
       firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
     };
     await approveFirstWeeks(mirror);
     await mirrorPlanCalendar(input, deps);
@@ -466,7 +512,13 @@ describe("pairing rides with mirrored workouts", () => {
       NOW,
     );
     await mirrorPlanCalendar(
-      { plan: plan(), workouts, todayDateKey: MONDAY, firstEligibleDateKey: MONDAY },
+      {
+        plan: plan(),
+        workouts,
+        todayDateKey: MONDAY,
+        firstEligibleDateKey: MONDAY,
+        matchedWorkoutIds: NONE_MATCHED,
+      },
       deps,
     );
     const identities =
@@ -486,7 +538,13 @@ describe("the End and Replace cleanup", () => {
   it("removes the Plan's own later workouts, keeps today's and the athlete's changes", async () => {
     const { store, mirror, intervals, deps } = await setup();
     const workouts = [workout(1, MONDAY), workout(2, MONDAY + 1), workout(3, MONDAY + 2)];
-    const input = { plan: plan(), workouts, todayDateKey: MONDAY, firstEligibleDateKey: MONDAY };
+    const input = {
+      plan: plan(),
+      workouts,
+      todayDateKey: MONDAY,
+      firstEligibleDateKey: MONDAY,
+      matchedWorkoutIds: NONE_MATCHED,
+    };
     await saveWeekDelivery(
       mirror,
       PLAN_ID,
@@ -527,7 +585,13 @@ describe("the End and Replace cleanup", () => {
     const timedOut = workout(1, MONDAY + 1);
     const legacy = workout(2, MONDAY + 2);
     await mirrorPlanCalendar(
-      { plan: plan(), workouts: [timedOut], todayDateKey: MONDAY, firstEligibleDateKey: MONDAY },
+      {
+        plan: plan(),
+        workouts: [timedOut],
+        todayDateKey: MONDAY,
+        firstEligibleDateKey: MONDAY,
+        matchedWorkoutIds: NONE_MATCHED,
+      },
       {
         ...deps,
         calendar: {
@@ -583,13 +647,66 @@ describe("the End and Replace cleanup", () => {
     expect(await reconciliation.readJob(job.id)).toMatchObject({ status: "verified" });
   });
 
+  it("removes the Plan's own leftovers whether they were sent with an FTP or without one", async () => {
+    const { store, intervals, deps } = await setup();
+    const withFtp = planWorkoutDescriber({ ftpKnown: true });
+    const contentRow = (index: number) =>
+      workout(index, MONDAY + index, {
+        structureJson: JSON.stringify({
+          id: `draft-${index}`,
+          kind: "endurance",
+          minutes: 60,
+          content: workoutContent("endurance", 60),
+        }),
+      });
+    const sentWithFtp = contentRow(1);
+    const sentWithout = contentRow(2);
+    const leftover = (row: PlanWorkoutRecord, description: string | null): PlanMirrorEvent => ({
+      id: 900 + Number(row.id.slice(-2)),
+      dateKey: row.dateKey,
+      externalId: planMirrorExternalId(PLAN_ID, row.id),
+      name: row.name,
+      type: "Ride",
+      description,
+      durationS: description === null ? 3_600 : 3_601,
+      updated: "1998-01-01T00:00:00.900+00:00",
+    });
+    intervals.events.push(
+      leftover(sentWithFtp, withFtp(sentWithFtp.structureJson)),
+      leftover(sentWithout, null),
+    );
+    const reconciliation = createPlanReconciliationRepository(store);
+    const job = await reconciliation.createOrGetJob({
+      id: "1".repeat(26),
+      planId: PLAN_ID,
+      kind: "cleanup",
+      windowStartDateKey: MONDAY + 1,
+      windowEndDateKey: MONDAY + 27,
+      createdAtMs: NOW,
+    });
+    expect(
+      await cleanupPlanCalendar(job, {
+        ...deps,
+        reconciliation,
+        workouts: async () => [sentWithFtp, sentWithout],
+      }),
+    ).toEqual({ kind: "verified", removed: 2, kept: 0 });
+    expect(intervals.events).toEqual([]);
+  });
+
   it("keeps a copy of a Plan workout that does not hold what the app sent", async () => {
     const { store, mirror, intervals, deps } = await setup();
     await approveFirstWeeks(mirror);
     const first = workout(1, MONDAY + 1);
     const second = workout(2, MONDAY + 2);
     await mirrorPlanCalendar(
-      { plan: plan(), workouts: [first], todayDateKey: MONDAY, firstEligibleDateKey: MONDAY },
+      {
+        plan: plan(),
+        workouts: [first],
+        todayDateKey: MONDAY,
+        firstEligibleDateKey: MONDAY,
+        matchedWorkoutIds: NONE_MATCHED,
+      },
       deps,
     );
     const sent = intervals.events[0];

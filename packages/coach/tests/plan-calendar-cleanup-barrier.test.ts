@@ -68,6 +68,7 @@ async function harness(start = closedOn, afterDrainRead?: (sql: string) => Promi
     store: afterDrainRead === undefined ? store : pausingReads(store, afterDrainRead),
     calendar,
     logger: { warn: vi.fn() },
+    ftp: { athleteId: () => "i1998" },
   });
   const calendarOperations = createPlanCalendarOperations({
     store,

@@ -67,6 +67,7 @@ async function launch(
     readonly calendarConnected?: boolean;
     readonly waitForApprove?: boolean;
     readonly seedGoal?: "fitness" | "event";
+    readonly ftp?: number;
   } = {},
 ): Promise<Scenario> {
   const scratch = await mkdtemp(join(tmpdir(), "plan-calendar-"));
@@ -81,6 +82,15 @@ async function launch(
   try {
     backend.setCivilDate(today);
     await backend.open();
+    if (options.ftp !== undefined) {
+      backend.icuFtp.settings = {
+        id: 77,
+        ftp: options.ftp,
+        indoorFtp: null,
+        updated: "1998-01-02T08:00:00.000+00:00",
+      };
+      await backend.syncFtp();
+    }
     const seed = await backend.seedActiveTraining({ goal: options.seedGoal ?? "fitness" });
     if (calendar.delayMs === 0) await backend.calendarIdle();
     fixture = await launchDesktopFixture({
@@ -413,6 +423,52 @@ test("shows calendar progress and the verified two-week window", async ({ playwr
   }
 });
 
+test("sends each Workout's steps to intervals.icu while it has the athlete's FTP", async ({
+  playwright,
+}) => {
+  test.setTimeout(120_000);
+  const scenario = await launch(playwright, { ftp: 250 });
+  try {
+    await navigate(scenario, "Plan");
+    await expect(active(scenario).getByText(windowLabel, { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    const workouts = (await scenario.backend.physicalWorkouts(scenario.seed.planId)).filter(
+      (workout) =>
+        workout.dateKey !== null && workout.dateKey >= 19980103 && workout.dateKey <= windowEnd,
+    );
+    expect(workouts.length).toBeGreaterThan(3);
+    expect(scenario.calendar.creates.map((event) => event.planWorkoutId).sort()).toEqual(
+      workouts.map((workout) => workout.id).sort(),
+    );
+    for (const create of scenario.calendar.creates) {
+      expect(create.description).toMatch(/^- \d+m \d+-\d+%$/mu);
+      for (const line of (create.description ?? "").split("\n")) {
+        expect(line, line).toMatch(/^(?:- \d+m \d+(?:-\d+)?%|\d+x|Warmup|Cooldown|)$/u);
+      }
+      const event = scenario.calendar.events.find(
+        (entry) => entry.externalId === create.externalId,
+      );
+      expect(event).toMatchObject({
+        description: create.description,
+        durationS: (create.durationS ?? 0) + 1,
+      });
+    }
+    expect(
+      scenario.calendar.creates.some((create) => create.description?.startsWith("Warmup\n")),
+    ).toBe(true);
+    expect(
+      scenario.calendar.creates.some((create) => create.description?.includes("\n\nCooldown\n")),
+    ).toBe(true);
+    await scenario.backend.calendarRun();
+    await scenario.backend.calendarRun();
+    expect(scenario.calendar.updates).toEqual([]);
+    expect(scenario.calendar.creates).toHaveLength(workouts.length);
+  } finally {
+    await close(scenario);
+  }
+});
+
 test("retries a failed calendar mirror from the library", async ({ playwright }) => {
   test.setTimeout(120_000);
   const scenario = await launch(playwright);
@@ -587,13 +643,14 @@ test("never mirrors undated Workouts", async ({ playwright }) => {
         .map((event) => event.externalId)
         .sort(),
     ).toEqual(expected.map((workout) => planMirrorExternalId(currentPlanId, workout.id)).sort());
-    expect(
-      scenario.calendar.creates.filter(
-        (event) =>
-          event.externalId.startsWith(planMirrorExternalIdPrefix(currentPlanId)) &&
-          undatedIds.has(draftWorkoutId(event.structureJson)),
-      ),
-    ).toEqual([]);
+    const draftIds = new Map(
+      physical.map((workout) => [workout.id, draftWorkoutId(workout.structureJson)]),
+    );
+    const sentDraftIds = scenario.calendar.creates
+      .filter((event) => event.externalId.startsWith(planMirrorExternalIdPrefix(currentPlanId)))
+      .map((event) => draftIds.get(event.planWorkoutId));
+    expect(sentDraftIds).not.toContain(undefined);
+    expect(sentDraftIds.filter((id) => id !== undefined && undatedIds.has(id))).toEqual([]);
   } finally {
     await close(scenario);
   }

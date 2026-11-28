@@ -25,11 +25,7 @@ export interface IcuBaseline {
 export type IcuCopy =
   | { readonly kind: "not-sent"; readonly owner: IcuCopyOwner }
   | { readonly kind: "on-icu"; readonly baseline: IcuBaseline }
-  | {
-      readonly kind: "moving-by-you";
-      readonly baseline: IcuBaseline;
-      readonly planFingerprint: string;
-    }
+  | { readonly kind: "moving-by-you"; readonly baseline: IcuBaseline }
   | {
       readonly kind: "changed-in-icu";
       readonly baseline: IcuBaseline;
@@ -133,9 +129,6 @@ function decideMove(
     return decision({ kind: "kept-as-yours", eventId: copy.baseline.eventId });
   }
   if (plan.kind === "withdraw") return decision(copy, { kind: "delete", ...expected });
-  if (plan.planFingerprint !== copy.planFingerprint) {
-    return decideInSync(copy.baseline, plan);
-  }
   return decision(copy, { kind: "update", ...expected });
 }
 
@@ -344,14 +337,10 @@ function dragAllowed(
   return copy.kind === "not-sent" || copy.kind === "on-icu" || copy.kind === "moving-by-you";
 }
 
-export function icuCopyDrag(copy: IcuCopy, draggedPlanFingerprint: string): IcuCopy | null {
+export function icuCopyDrag(copy: IcuCopy): IcuCopy | null {
   if (!dragAllowed(copy)) return null;
   if (copy.kind === "not-sent") return copy;
-  return {
-    kind: "moving-by-you",
-    baseline: copy.baseline,
-    planFingerprint: draggedPlanFingerprint,
-  };
+  return { kind: "moving-by-you", baseline: copy.baseline };
 }
 
 export function icuCopyChangeApproved(copy: IcuCopy, mark: ChangeSetMark): IcuCopy {
@@ -394,7 +383,6 @@ function basis(copy: IcuCopy, planFingerprint: string): string {
     case "kept-as-yours":
       return `${copy.kind}|${copy.eventId}|${planFingerprint}`;
     case "moving-by-you":
-      return `${copy.kind}|${planFingerprint}|${copy.planFingerprint}|${copy.baseline.owner}|${copy.baseline.eventId}@${copy.baseline.dateKey}:${copy.baseline.readBack.fingerprint}`;
     case "on-icu":
       return `${copy.kind}|${planFingerprint}|${copy.baseline.owner}|${copy.baseline.eventId}@${copy.baseline.dateKey}:${copy.baseline.readBack.fingerprint}`;
     case "changed-in-icu":

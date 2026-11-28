@@ -541,6 +541,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
         now: () => this.instant,
         logger: { warn: () => {} },
+        ftp: { athleteId: () => "i1998" },
       });
       this.calendarDrain = drain;
       const host = this.host;

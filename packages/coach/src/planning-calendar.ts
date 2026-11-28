@@ -1,11 +1,15 @@
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type {
   PlanMirrorCalendarPort,
-  PlanMirrorCreateInput,
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
-import { icuEventType, type CalendarMirrorPort } from "@enduragent/engine/calendar";
+import {
+  icuEventType,
+  type CalendarEventCreate,
+  type CalendarEventUpdate,
+  type CalendarMirrorPort,
+} from "@enduragent/engine/calendar";
 
 function clientValue<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error("Intervals calendar request failed.", { cause: result.error });
@@ -23,12 +27,12 @@ function dateKey(value: string): number {
   return parsed;
 }
 
-function eventContent(structureJson: string): Pick<EventInput, "description"> {
+function storedDescription(structureJson: string): string | null {
   try {
     const value = JSON.parse(structureJson) as Record<string, unknown>;
-    return typeof value.description === "string" ? { description: value.description } : {};
+    return typeof value.description === "string" ? value.description : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -65,33 +69,41 @@ function mappedEvent(event: {
   };
 }
 
-function updateBody(input: PlanMirrorUpdateInput): EventInput {
+function eventBody(input: {
+  readonly dateKey: number;
+  readonly name: string;
+  readonly durationS: number | null;
+}): EventInput {
   return {
     startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
     category: "WORKOUT",
     name: input.name,
     ...(input.durationS === null ? {} : { movingTime: input.durationS }),
-    ...eventContent(input.structureJson),
   };
 }
 
-function mirrorUpdateBody(input: PlanMirrorUpdateInput): EventInput {
+function described(description: string | null): Pick<EventInput, "description"> {
+  return description === null ? {} : { description };
+}
+
+function updateBody(input: PlanMirrorUpdateInput): EventInput {
+  return { ...eventBody(input), ...described(storedDescription(input.structureJson)) };
+}
+
+function mirrorUpdateBody(input: CalendarEventUpdate): EventInput {
   return {
-    ...updateBody(input),
-    ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
-    description: eventContent(input.structureJson).description ?? "",
+    ...eventBody(input),
+    type: icuEventType(input.sport),
+    description: input.description ?? "",
   };
 }
 
-function createBody(input: PlanMirrorCreateInput): EventInput {
+function createBody(input: CalendarEventCreate): EventInput {
   return {
-    startDateLocal: `${dateText(input.dateKey)}T00:00:00`,
-    category: "WORKOUT",
-    name: input.name,
+    ...eventBody(input),
     type: icuEventType(input.sport),
     externalId: input.externalId,
-    ...(input.durationS === null ? {} : { movingTime: input.durationS }),
-    ...eventContent(input.structureJson),
+    ...described(input.description),
   };
 }
 
@@ -168,7 +180,11 @@ export function createPlanMirrorCalendarAdapter(
       return events.map((event) => mappedEvent(event));
     },
     async createEvent(input) {
-      return clientValue(await requiredClient().events.create(createBody(input)));
+      return clientValue(
+        await requiredClient().events.create(
+          createBody({ ...input, description: storedDescription(input.structureJson) }),
+        ),
+      );
     },
     async deleteEvent(input) {
       return clientValue(await requiredClient().events.delete(input.eventId));

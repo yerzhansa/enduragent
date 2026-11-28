@@ -280,7 +280,7 @@ function dragTargets(world: World): readonly number[] {
 function athleteDrags(world: World, day: number): World {
   if (world.plan.kind !== "workout") return world;
   const plan: PlanWorkout = { ...world.plan, day };
-  const moved = icuCopyDrag(world.copy, planFingerprint(plan));
+  const moved = icuCopyDrag(world.copy);
   if (moved === null) return world;
   const ownedEdit =
     (world.copy.kind === "on-icu" || world.copy.kind === "moving-by-you") &&
@@ -390,6 +390,12 @@ function key(world: World): string {
 }
 
 const P_THURSDAY: Icu = { kind: "there", content: "Pn", day: THURSDAY };
+
+function copyOwner(copy: IcuCopy): string | null {
+  return copy.kind === "on-icu" || copy.kind === "moving-by-you" || copy.kind === "changed-in-icu"
+    ? copy.baseline.owner
+    : null;
+}
 
 describe("a Plan Workout's copy on intervals.icu", () => {
   it("keeps every rule on every path of up to nine steps", () => {
@@ -570,6 +576,25 @@ describe("a Plan Workout's copy on intervals.icu", () => {
     expect(coachProposes(sent, { kind: "change-to-q" }).proposal).toMatchObject({
       view: { mark: "replaces-your-edit" },
     });
+  });
+
+  it("sends a drag though the Plan's text for the workout changed before the run", () => {
+    const kept = keep(
+      appRuns(athleteChanges(start(), { kind: "there", content: "E", day: THURSDAY })),
+    );
+    const runs = [start(), kept].map((world) => {
+      const dragged = athleteDrags(world, SATURDAY);
+      const decided = icuCopyOnRun(
+        dragged.copy,
+        { kind: "send", planFingerprint: `${planFingerprint(dragged.plan)} with steps` },
+        sighting(dragged.icu, dragged.version),
+      );
+      return [copyOwner(decided.copy), decided.effect.kind, decided.copy.kind];
+    });
+    expect(runs).toEqual([
+      ["plan", "update", "moving-by-you"],
+      ["athlete-edit", "update", "moving-by-you"],
+    ]);
   });
 
   it("takes a dragged workout off intervals.icu until its new week is due", () => {

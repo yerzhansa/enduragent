@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { PlanCreationDraftSchema, type PlanCreationAnswerInput } from "@enduragent/coach-contract";
 import { planMirrorExternalId } from "@enduragent/engine";
-import { trainingWeek } from "@enduragent/engine/calendar";
+import { trainingWeek, UNKNOWN_PLAN_FINGERPRINT } from "@enduragent/engine/calendar";
 import {
   addCivilDays,
   createPlanCreationRepository,
@@ -15,16 +15,21 @@ import {
   createPlanCalendarMirrorRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
+  createPlanWorkoutMatchRepository,
 } from "@enduragent/kernel/planning";
 import { runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { landIcuRideSettings } from "../../../apps/desktop/tests/helpers/icu-ftp-fake.js";
 import { createMemoryPlanCalendar } from "../../../apps/desktop/tests/helpers/plan-calendar-fake.js";
 import { createPlanCalendarDrain } from "../src/plan-calendar-drain.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanCalendarOperations } from "../src/plan-calendar-operations.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
+import { FtpUnreadableError, planWorkoutDescriber } from "../src/plan-workout-description.js";
+
+const stepsOf = planWorkoutDescriber({ ftpKnown: true });
 
 async function harness() {
   const store = openSqliteStorage(":memory:");
@@ -35,6 +40,22 @@ async function harness() {
   let nowMs = 904_694_400_000;
   const calendar = createMemoryPlanCalendar();
   const logger = { warn: vi.fn() };
+  let ftpReadsFail = false;
+  const failing = (sql: string) => ftpReadsFail && sql.includes("ftp_accepted");
+  const ftpReading: typeof store = new Proxy(store, {
+    get(target, key) {
+      if (key === "all") {
+        return (sql: string, params?: Parameters<typeof target.all>[1]) =>
+          failing(sql) ? Promise.reject(new Error("disk I/O error")) : target.all(sql, params);
+      }
+      if (key === "get") {
+        return (sql: string, params?: Parameters<typeof target.get>[1]) =>
+          failing(sql) ? Promise.reject(new Error("disk I/O error")) : target.get(sql, params);
+      }
+      const value: unknown = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
   const identity = {
     deviceId: async () => "calendar-drain-test-device",
     newUlid: () => String(++sequence).padStart(26, "0"),
@@ -68,7 +89,13 @@ async function harness() {
     ...dependencies,
     calendarConnected: async () => connected,
   });
-  const drain = createPlanCalendarDrain({ ...dependencies, calendar, logger });
+  const drain = createPlanCalendarDrain({
+    ...dependencies,
+    store: ftpReading,
+    calendar,
+    logger,
+    ftp: { athleteId: () => "i1998" },
+  });
   onTestFinished(async () => {
     await drain.idle();
     await store.close();
@@ -77,7 +104,7 @@ async function harness() {
   const plans = createPlanRepository(store);
   const changed = vi.fn(async (): Promise<void> => undefined);
   const calendarOperations = createPlanCalendarOperations({
-    store,
+    store: ftpReading,
     calendar,
     identity,
     applyChange: (request) => changes["plan_change.apply"](request),
@@ -261,6 +288,11 @@ async function harness() {
     onIcu,
     activate,
     previewWorkoutChange,
+    setFtp: (ftp: number | null, updated: string) =>
+      landIcuRideSettings(store, { id: 77, ftp, indoorFtp: null, updated }),
+    failFtpReads: (fail: boolean) => {
+      ftpReadsFail = fail;
+    },
     today: () => today,
     advanceDay: () => {
       today = addCivilDays(today, 1);
@@ -325,11 +357,8 @@ describe("Plan calendar drain", () => {
 
   it("leaves a mirrored week alone on later runs, though intervals.icu recounts its length", async () => {
     const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
     const { planId } = await test.activate();
-    await test.store.run(
-      "UPDATE plan_workout SET structure_json=json_set(structure_json,'$.description',?) WHERE plan_id=?",
-      ["- 10m 45-65%", planId],
-    );
     await test.approve(planId);
     await test.drain.kick();
     const creates = test.calendar.creates.length;
@@ -915,6 +944,50 @@ describe("Plan calendar drain", () => {
     });
   });
 
+  it("sends a drag once, with the steps, when an FTP lands before the run", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    const event = test.calendar.events.find((entry) => entry.externalId?.endsWith(first.id));
+    if (event === undefined) throw new Error("Expected the workout on intervals.icu");
+    expect(event.description).toBeNull();
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const before = test.calendar.updates.length;
+    await test.drain.kick();
+    const movedRow = (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id);
+    if (movedRow === undefined) throw new Error("Expected the moved workout");
+    expect(
+      test.calendar.updates.slice(before).filter((update) => update.eventId === event.id),
+    ).toHaveLength(1);
+    expect(test.calendar.events.find((entry) => entry.id === event.id)).toMatchObject({
+      dateKey: free,
+      description: stepsOf(movedRow.structureJson),
+    });
+    const writes = test.calendar.updates.length;
+    await test.drain.kick();
+    expect(test.calendar.updates).toHaveLength(writes);
+  });
+
+  it("sends a drag the previous version stored with its dragged fingerprint", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    await test.store.run(
+      "UPDATE plan_icu_copy SET state_json=json_set(state_json,'$.planFingerprint',?) WHERE plan_workout_id=?",
+      [JSON.stringify([free, first.name, first.sport, first.durationS, null]), first.id],
+    );
+    await test.drain.kick();
+    expect(
+      test.calendar.events.find((entry) => entry.externalId?.endsWith(first.id))?.dateKey,
+    ).toBe(free);
+  });
+
   it("keeps a drag not yet sent as a drag while the Plan is held behind a Replace", async () => {
     const test = await harness();
     const { planId } = await test.activate();
@@ -1354,5 +1427,444 @@ describe("Plan calendar drain", () => {
     await running;
     expect(test.calendar.lists).toHaveLength(2);
     expect(test.onIcu(planId)).toEqual(await test.expectedOnIcu(planId, [1, 2]));
+  });
+
+  it("leaves an athlete's edit alone when an FTP appears, and puts the steps back only on Put back", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    const workout = (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId);
+    if (workout === undefined) throw new Error("Expected the Plan workout");
+    expect(event.description).toBeNull();
+    test.calendar.editByAthlete(event.id, { name: "Mine now" });
+    await test.drain.kick();
+    const updatesBefore = test.calendar.updates.length;
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    await test.drain.kick();
+    const sent = test.calendar.updates.slice(updatesBefore);
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.map((update) => update.eventId)).not.toContain(event.id);
+    for (const update of sent) expect(update.description).toMatch(/^- \d+m /mu);
+    expect(test.calendar.events.find((entry) => entry.id === event.id)).toMatchObject({
+      name: "Mine now",
+      description: null,
+    });
+    expect(
+      await test.store.get("SELECT state_kind FROM plan_icu_copy WHERE plan_workout_id=?", [
+        planWorkoutId,
+      ]),
+    ).toEqual({ state_kind: "changed-in-icu" });
+    expect(await choose(test, "put-back", { planId, planWorkoutId })).toEqual({
+      status: "change-resolved",
+      outcome: "put-back",
+    });
+    expect(test.calendar.events.find((entry) => entry.id === event.id)).toMatchObject({
+      name: workout.name,
+      description: stepsOf(workout.structureJson),
+    });
+    const writes = test.calendar.updates.length;
+    await test.drain.kick();
+    expect(test.calendar.updates).toHaveLength(writes);
+  });
+
+  it("sends a content workout's new steps once after a Plan Change shortens it", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    expect(test.calendar.creates.length).toBeGreaterThan(0);
+    for (const create of test.calendar.creates) expect(create.description).toMatch(/^- \d+m /mu);
+    const before = new Map(
+      (await test.plans.readWorkouts(planId)).map((row) => [row.id, row.structureJson]),
+    );
+    const preview = await test.changes["plan_change.preview"]({
+      commandId: "shorten-preview",
+      planId,
+      expectedVersion: 1,
+      intent: { kind: "longest-workout", minutes: 30 },
+    });
+    if (preview.status !== "previewed") throw new Error("Expected a Change");
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "shorten-apply",
+        planId,
+        changeId: preview.change.changeId,
+        expectedVersion: 1,
+        decision: "apply",
+      }),
+    ).toMatchObject({ status: "applied" });
+    const sentIds = new Set(
+      test.calendar.events.map((entry) => entry.externalId?.split(":").at(-1)),
+    );
+    const shortened = (await test.plans.readWorkouts(planId)).filter(
+      (row) => sentIds.has(row.id) && before.get(row.id) !== row.structureJson,
+    );
+    expect(shortened.length).toBeGreaterThan(0);
+    await test.drain.kick();
+    expect(test.calendar.updates).toHaveLength(shortened.length);
+    for (const row of shortened) {
+      const event = test.calendar.events.find((entry) => entry.externalId?.endsWith(row.id));
+      expect(event).toMatchObject({ description: stepsOf(row.structureJson) });
+      expect(stepsOf(row.structureJson)).not.toBe(stepsOf(before.get(row.id) ?? "{}"));
+    }
+    await test.drain.kick();
+    await test.drain.kick();
+    expect(test.calendar.updates).toHaveLength(shortened.length);
+  });
+
+  it("writes nothing when it cannot read the FTP, and runs again later", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    expect(test.calendar.creates.length).toBeGreaterThan(0);
+    const writes = () => ({
+      creates: test.calendar.creates.length,
+      updates: test.calendar.updates.length,
+      deletes: test.calendar.deletes.length,
+    });
+    const before = writes();
+    test.failFtpReads(true);
+    test.advanceMs(1_000);
+    await test.drain.kick();
+    expect(writes()).toEqual(before);
+    expect(await test.reconciliation.readLatestJob(planId, "mirror")).toMatchObject({
+      failureCount: 1,
+    });
+    expect(test.logger.warn).toHaveBeenCalledWith(
+      "plan_calendar_ftp_unreadable",
+      expect.objectContaining({ planId, kind: "mirror" }),
+    );
+    expect(test.logger.warn).not.toHaveBeenCalledWith(
+      "plan_calendar_drain_failed",
+      expect.anything(),
+    );
+    for (const event of test.calendar.events) expect(event.description).toMatch(/^- \d+m /mu);
+    test.failFtpReads(false);
+    test.advanceMs(1_000);
+    await test.drain.kick();
+    expect(writes()).toEqual(before);
+    expect(await test.reconciliation.readLatestJob(planId, "mirror")).toMatchObject({
+      status: "verified",
+    });
+  });
+
+  it("refuses a card's detail, Keep and Put back without a change when it cannot read the FTP", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { name: "Mine now" });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    const shown = test.calendar.events.find((entry) => entry.id === event.id);
+    const copy = () =>
+      test.store.get("SELECT state_json FROM plan_icu_copy WHERE plan_workout_id=?", [
+        planWorkoutId,
+      ]);
+    const storedCopy = await copy();
+    const workouts = await test.plans.readWorkouts(planId);
+    test.failFtpReads(true);
+    for (const action of ["change-detail", "keep-change", "put-back"] as const) {
+      await expect(
+        test.calendarOperations["plan.calendar"](
+          action === "change-detail"
+            ? { action, planId, planWorkoutId }
+            : { action, planId, planWorkoutId, basis: detail.basis },
+        ),
+        action,
+      ).rejects.toBeInstanceOf(FtpUnreadableError);
+    }
+    expect(test.calendar.events.find((entry) => entry.id === event.id)).toEqual(shown);
+    expect(await copy()).toEqual(storedCopy);
+    expect(await test.plans.readWorkouts(planId)).toEqual(workouts);
+  });
+
+  it("adds no steps to a past workout or one matched to a ride when an FTP appears", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const eventOf = (workoutId: string) =>
+      test.calendar.events.find((entry) => entry.externalId?.endsWith(workoutId));
+    const [past, done, maybe] = (await test.plans.readWorkouts(planId))
+      .filter((row) => eventOf(row.id) !== undefined)
+      .sort((left, right) => left.dateKey - right.dateKey);
+    if (past === undefined || done === undefined || maybe === undefined) {
+      throw new Error("Expected three workouts on intervals.icu");
+    }
+    const matches = createPlanWorkoutMatchRepository(test.store);
+    for (const [index, workout, decision] of [
+      [1, done, "confirmed"],
+      [2, maybe, "suggested"],
+    ] as const) {
+      await matches.observe({
+        id: `${"0".repeat(24)}M${index}`,
+        planId,
+        planWorkoutId: workout.id,
+        activityId: String(index).repeat(64),
+        providerActivityId: null,
+        providerEventId: null,
+        source: "heuristic",
+        decision,
+        activityDateKey: workout.dateKey,
+        activitySport: "cycling",
+        activityDurationS: workout.durationS,
+        observedAtMs: 1,
+        decidedAtMs: decision === "confirmed" ? 1 : null,
+        deviceId: "calendar-drain-test-device",
+        hlcPhysicalMs: 1,
+        hlcCounter: 0,
+      });
+    }
+    while (test.today() <= past.dateKey) test.advanceDay();
+    await test.drain.kick();
+    const settled = [past, done, maybe].map((workout) => eventOf(workout.id));
+    const before = test.calendar.updates.length;
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    await test.drain.kick();
+    const sent = test.calendar.updates.slice(before);
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.filter((update) => settled.some((event) => event?.id === update.eventId))).toEqual(
+      [],
+    );
+    expect([past, done, maybe].map((workout) => eventOf(workout.id))).toEqual(settled);
+  });
+
+  it("still sends a drag made before a ride was matched to the workout", async () => {
+    const test = await harness();
+    const { planId } = await test.activate();
+    const { first, free } = await movable(test, planId);
+    expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
+      status: "moved",
+    });
+    await createPlanWorkoutMatchRepository(test.store).observe({
+      id: `${"0".repeat(24)}M1`,
+      planId,
+      planWorkoutId: first.id,
+      activityId: "1".repeat(64),
+      providerActivityId: null,
+      providerEventId: null,
+      source: "heuristic",
+      decision: "suggested",
+      activityDateKey: free,
+      activitySport: "cycling",
+      activityDurationS: first.durationS,
+      observedAtMs: 1,
+      decidedAtMs: null,
+      deviceId: "calendar-drain-test-device",
+      hlcPhysicalMs: 1,
+      hlcCounter: 0,
+    });
+    await test.drain.kick();
+    expect(
+      test.calendar.events.find((entry) => entry.externalId?.endsWith(first.id))?.dateKey,
+    ).toBe(free);
+  });
+
+  const eventOf = (test: Awaited<ReturnType<typeof harness>>, workoutId: string) =>
+    test.calendar.events.find((entry) => entry.externalId?.endsWith(workoutId));
+
+  async function todaysWorkout(test: Awaited<ReturnType<typeof harness>>, planId: string) {
+    await test.approve(planId);
+    await test.drain.kick();
+    const [workout] = (await test.plans.readWorkouts(planId))
+      .filter((row) => (row.durationS ?? 0) > 2700 && eventOf(test, row.id) !== undefined)
+      .sort((left, right) => left.dateKey - right.dateKey);
+    if (workout === undefined)
+      throw new Error("Expected a workout over 45 minutes on intervals.icu");
+    while (test.today() < workout.dateKey) test.advanceDay();
+    await test.drain.kick();
+    return workout;
+  }
+
+  const matchRide = (
+    test: Awaited<ReturnType<typeof harness>>,
+    workout: { readonly planId: string; readonly id: string; readonly durationS: number | null },
+    decision: "suggested" | "confirmed",
+  ) =>
+    createPlanWorkoutMatchRepository(test.store).observe({
+      id: `${"0".repeat(24)}M9`,
+      planId: workout.planId,
+      planWorkoutId: workout.id,
+      activityId: "9".repeat(64),
+      providerActivityId: null,
+      providerEventId: null,
+      source: "heuristic",
+      decision,
+      activityDateKey: test.today(),
+      activitySport: "cycling",
+      activityDurationS: workout.durationS,
+      observedAtMs: 1,
+      decidedAtMs: decision === "confirmed" ? 1 : null,
+      deviceId: "calendar-drain-test-device",
+      hlcPhysicalMs: 1,
+      hlcCounter: 0,
+    });
+
+  async function capLongestWorkout(test: Awaited<ReturnType<typeof harness>>, planId: string) {
+    const plan = (await test.plans.listPlans()).find((row) => row.planId === planId);
+    if (plan === undefined) throw new Error("Expected the Plan");
+    const preview = await test.changes["plan_change.preview"]({
+      commandId: "cap-preview",
+      planId,
+      expectedVersion: plan.version,
+      intent: { kind: "longest-workout", minutes: 45 },
+    });
+    if (preview.status !== "previewed") throw new Error("Expected a Change");
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "cap-apply",
+        planId,
+        changeId: preview.change.changeId,
+        expectedVersion: plan.version,
+        decision: "apply",
+      }),
+    ).toMatchObject({ status: "applied" });
+  }
+
+  it("sends a coach change to today's workout while it asks Is this it?, with its new steps", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    const workout = await todaysWorkout(test, planId);
+    await matchRide(test, workout, "suggested");
+    await test.drain.kick();
+    const event = eventOf(test, workout.id);
+    if (event === undefined) throw new Error("Expected today's workout on intervals.icu");
+    const before = test.calendar.updates.length;
+    await capLongestWorkout(test, planId);
+    await test.drain.kick();
+    await test.drain.kick();
+    const capped = (await test.plans.readWorkouts(planId)).find((row) => row.id === workout.id);
+    if (capped === undefined) throw new Error("Expected today's workout in the Plan");
+    expect(capped.durationS).toBe(2700);
+    expect(stepsOf(capped.structureJson)).not.toBe(stepsOf(workout.structureJson));
+    expect(
+      test.calendar.updates.slice(before).filter((update) => update.eventId === event.id),
+    ).toEqual([
+      expect.objectContaining({ durationS: 2700, description: stepsOf(capped.structureJson) }),
+    ]);
+    expect(eventOf(test, workout.id)?.description).toBe(stepsOf(capped.structureJson));
+  });
+
+  it.each(["suggested", "confirmed"] as const)(
+    "adds no steps to today's workout with a %s ride when an FTP appears",
+    async (decision) => {
+      const test = await harness();
+      const { planId } = await test.activate();
+      const workout = await todaysWorkout(test, planId);
+      await matchRide(test, workout, decision);
+      await test.drain.kick();
+      const event = eventOf(test, workout.id);
+      if (event === undefined) throw new Error("Expected today's workout on intervals.icu");
+      const before = test.calendar.updates.length;
+      await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+      await test.drain.kick();
+      const sent = test.calendar.updates.slice(before);
+      expect(sent.length).toBeGreaterThan(0);
+      expect(sent.map((update) => update.eventId)).not.toContain(event.id);
+      expect(eventOf(test, workout.id)).toEqual(event);
+    },
+  );
+
+  const storeSentVersion = (
+    test: Awaited<ReturnType<typeof harness>>,
+    workoutId: string,
+    planFingerprint: string,
+  ) =>
+    test.store.run(
+      "UPDATE plan_icu_copy SET state_json=json_set(state_json,'$.baseline.planFingerprint',?) WHERE plan_workout_id=?",
+      [planFingerprint, workoutId],
+    );
+
+  it.each([UNKNOWN_PLAN_FINGERPRINT, "", "[19980902]"])(
+    "takes a matched workout's sent version %j from intervals.icu without a write, then adds no steps when an FTP appears",
+    async (planFingerprint) => {
+      const test = await harness();
+      const { planId } = await test.activate();
+      const workout = await todaysWorkout(test, planId);
+      await matchRide(test, workout, "suggested");
+      const event = eventOf(test, workout.id);
+      if (event === undefined) throw new Error("Expected today's workout on intervals.icu");
+      await storeSentVersion(test, workout.id, planFingerprint);
+      const before = test.calendar.updates.length;
+      await test.drain.kick();
+      expect(test.calendar.updates).toHaveLength(before);
+      await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+      await test.drain.kick();
+      const sent = test.calendar.updates.slice(before);
+      expect(sent.length).toBeGreaterThan(0);
+      expect(sent.map((update) => update.eventId)).not.toContain(event.id);
+      expect(eventOf(test, workout.id)).toEqual(event);
+    },
+  );
+
+  it("sends a coach change to a workout asking Is this it? whose sent version was unknown, and keeps it after Confirm", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    const workout = await todaysWorkout(test, planId);
+    await matchRide(test, workout, "suggested");
+    const event = eventOf(test, workout.id);
+    if (event === undefined) throw new Error("Expected today's workout on intervals.icu");
+    await storeSentVersion(test, workout.id, UNKNOWN_PLAN_FINGERPRINT);
+    await test.drain.kick();
+    await capLongestWorkout(test, planId);
+    await test.drain.kick();
+    const capped = (await test.plans.readWorkouts(planId)).find((row) => row.id === workout.id);
+    if (capped === undefined) throw new Error("Expected today's workout in the Plan");
+    const updatesOf = () => test.calendar.updates.filter((update) => update.eventId === event.id);
+    expect(updatesOf()).toEqual([
+      expect.objectContaining({ durationS: 2700, description: stepsOf(capped.structureJson) }),
+    ]);
+    await createPlanWorkoutMatchRepository(test.store).decide({
+      id: `${"0".repeat(24)}M9`,
+      decision: "confirmed",
+      decidedAtMs: 2,
+      deviceId: "calendar-drain-test-device",
+      hlcPhysicalMs: 2,
+      hlcCounter: 1,
+    });
+    await test.drain.kick();
+    expect(updatesOf()).toHaveLength(1);
+    expect(eventOf(test, workout.id)?.description).toBe(stepsOf(capped.structureJson));
+  });
+
+  it("compares the Changed in intervals.icu card with the steps it sent, so they are not shown as changed", async () => {
+    const test = await harness();
+    await test.setFtp(250, "1998-09-01T08:00:00.000+00:00");
+    const { planId } = await test.activate();
+    await test.approve(planId);
+    await test.drain.kick();
+    const event = test.calendar.events.find((entry) => entry.dateKey > test.today());
+    if (event === undefined) throw new Error("Expected a later event");
+    const planWorkoutId = event.externalId?.split(":").at(-1) ?? "";
+    test.calendar.editByAthlete(event.id, { name: "Mine now" });
+    await test.drain.kick();
+    const detail = await test.calendarOperations["plan.calendar"]({
+      action: "change-detail",
+      planId,
+      planWorkoutId,
+    });
+    if (detail.status !== "change-detail") throw new Error("Expected the card");
+    expect(detail.plan.description).toMatch(/^- \d+m /mu);
+    expect(detail.intervals?.description).toBe(detail.plan.description);
+    expect(detail.intervals?.name).toBe("Mine now");
   });
 });

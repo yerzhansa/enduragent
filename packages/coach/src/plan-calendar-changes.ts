@@ -11,6 +11,7 @@ import {
   saveIcuCopy,
   storedIcuCopy,
   type CalendarMirrorPort,
+  type DescribeWorkout,
   type IcuCopy,
   type IcuSighting,
 } from "@enduragent/engine/calendar";
@@ -27,6 +28,7 @@ import { applyWorkoutEdits, type PlanCalendarEditDeps } from "./plan-calendar-ed
 export interface PlanCalendarChangeDeps extends PlanCalendarEditDeps {
   readonly store: SqlStore & Pick<MigratorStore, "transaction">;
   readonly mirror: CalendarMirrorPort;
+  readonly describe: DescribeWorkout;
   readonly now: () => number;
   readonly changed: () => Promise<void>;
 }
@@ -42,8 +44,8 @@ export async function sightingBasis(sighting: IcuSighting): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function sendPlan(workout: PlanWorkoutRecord) {
-  return { kind: "send" as const, planFingerprint: planWorkoutFingerprint(workout) };
+function sendPlan(workout: PlanWorkoutRecord, describe: DescribeWorkout) {
+  return { kind: "send" as const, planFingerprint: planWorkoutFingerprint(workout, describe) };
 }
 
 interface CardContext {
@@ -54,24 +56,19 @@ interface CardContext {
 
 const UNAVAILABLE: PlanCalendarRpcResult = { status: "refused", reason: "intervals-unavailable" };
 
-function descriptionOf(structureJson: string): string | null {
-  try {
-    const value: unknown = JSON.parse(structureJson);
-    if (value === null || typeof value !== "object" || !("description" in value)) return null;
-    return typeof value.description === "string" && value.description.trim().length > 0
-      ? value.description
-      : null;
-  } catch {
-    return null;
-  }
+function shownText(text: string | null | undefined): string | null {
+  return typeof text === "string" && text.trim().length > 0 ? text : null;
 }
 
-function planVersion(workout: PlanWorkoutRecord): PlanCalendarWorkoutVersion {
+function planVersion(
+  workout: PlanWorkoutRecord,
+  describe: DescribeWorkout,
+): PlanCalendarWorkoutVersion {
   return {
     dateKey: workout.dateKey,
     name: workout.name,
     durationS: workout.durationS,
-    description: descriptionOf(workout.structureJson),
+    description: shownText(describe(workout.structureJson)),
   };
 }
 
@@ -81,10 +78,7 @@ function intervalsVersion(event: PlanMirrorEvent, workout: PlanWorkoutRecord) {
     dateKey: event.dateKey,
     name: name === undefined || name.length === 0 ? workout.name : name,
     durationS: event.durationS ?? null,
-    description:
-      typeof event.description === "string" && event.description.trim().length > 0
-        ? event.description
-        : null,
+    description: shownText(event.description),
   };
 }
 
@@ -144,7 +138,11 @@ export async function changeDetail(
   if (found === null) return { status: "change-resolved", outcome: "no-card" };
   const current = await readCurrent(deps, found.card);
   if (current === null) return UNAVAILABLE;
-  const observed = icuCopyOnRun(found.card, sendPlan(found.workout), current.sighting).copy;
+  const observed = icuCopyOnRun(
+    found.card,
+    sendPlan(found.workout, deps.describe),
+    current.sighting,
+  ).copy;
   if (observed.kind !== "changed-in-icu") {
     await save(deps, request.planId, found, observed);
     void deps.changed();
@@ -164,7 +162,7 @@ export async function changeDetail(
         : intervals.dateKey === found.card.baseline.dateKey
           ? "edited"
           : "moved",
-    plan: planVersion(found.workout),
+    plan: planVersion(found.workout, deps.describe),
     intervals,
     editedAt: current.event?.updated ?? null,
   };
@@ -177,7 +175,7 @@ async function unseen(
   sighting: IcuSighting,
 ): Promise<PlanCalendarRpcResult | null> {
   if ((await sightingBasis(sighting)) === request.basis) return null;
-  const observed = icuCopyOnRun(found.card, sendPlan(found.workout), sighting).copy;
+  const observed = icuCopyOnRun(found.card, sendPlan(found.workout, deps.describe), sighting).copy;
   if (observed.kind !== "changed-in-icu") {
     await save(deps, request.planId, found, observed);
     void deps.changed();
@@ -197,7 +195,7 @@ export async function putBackChange(
   if (current === null) return UNAVAILABLE;
   const changedSince = await unseen(deps, request, found, current.sighting);
   if (changedSince !== null) return changedSince;
-  const plan = sendPlan(found.workout);
+  const plan = sendPlan(found.workout, deps.describe);
   const decided = icuCopyPutBack(found.card, current.sighting, plan);
   if (decided.kind !== "done") {
     await save(deps, request.planId, found, decided.copy);
@@ -207,6 +205,7 @@ export async function putBackChange(
     {
       calendar: deps.mirror,
       mirror: createPlanCalendarMirrorRepository(deps.store),
+      describe: deps.describe,
       now: deps.now,
     },
     request.planId,
@@ -239,7 +238,7 @@ export async function keepChange(
   if (current === null) return UNAVAILABLE;
   const changedSince = await unseen(deps, request, found, current.sighting);
   if (changedSince !== null) return changedSince;
-  const plan = sendPlan(found.workout);
+  const plan = sendPlan(found.workout, deps.describe);
   const probe = icuCopyKeep(found.card, current.sighting, plan, plan.planFingerprint);
   if (probe.kind !== "done") {
     await save(deps, request.planId, found, probe.copy);
@@ -276,12 +275,8 @@ export async function keepChange(
     (row) => row.id === found.workout.id,
   );
   if (updated === undefined) return { status: "refused", reason: "plan-change-refused" };
-  const kept = icuCopyKeep(
-    found.card,
-    current.sighting,
-    { kind: "send", planFingerprint: planWorkoutFingerprint(updated) },
-    planWorkoutFingerprint(updated),
-  );
+  const keptPlan = sendPlan(updated, deps.describe);
+  const kept = icuCopyKeep(found.card, current.sighting, keptPlan, keptPlan.planFingerprint);
   await save(deps, request.planId, found, kept.copy);
   void deps.changed();
   return { status: "change-resolved", outcome: "kept" };

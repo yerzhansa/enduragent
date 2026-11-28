@@ -53,6 +53,7 @@ import {
 import { createMemoryPlanCalendar } from "../../../apps/desktop/tests/helpers/plan-calendar-fake.js";
 import { createPlanningOperations, type PlanDraftBuilder } from "../src/planning-operations.js";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
+import { planWorkoutDescriber } from "../src/plan-workout-description.js";
 import type { PlanRaceCourseAdapter } from "../src/planning-race-course.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
 
@@ -4617,8 +4618,19 @@ describe("Plan operations", () => {
       },
       10,
     );
-    const input = { plan: activePlan, workouts, todayDateKey: today, firstEligibleDateKey: today };
-    const mirrorDeps = { calendar: calendar.mirror, mirror, now: () => 10 };
+    const input = {
+      plan: activePlan,
+      workouts,
+      todayDateKey: today,
+      firstEligibleDateKey: today,
+      matchedWorkoutIds: new Set<string>(),
+    };
+    const mirrorDeps = {
+      calendar: calendar.mirror,
+      mirror,
+      describe: planWorkoutDescriber({ ftpKnown: false }),
+      now: () => 10,
+    };
     await mirrorPlanCalendar(input, mirrorDeps);
     const edited = calendar.events.find((event) => event.dateKey === 20260828);
     if (edited === undefined) throw new Error("Expected an event");

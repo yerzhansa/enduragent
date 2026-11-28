@@ -6,7 +6,6 @@ import {
   icuCopyAllowsMove,
   icuCopyDrag,
   icuCopyIsAthleteChange,
-  planWorkoutFingerprint,
   readIcuCopies,
   saveIcuCopy,
   storedIcuCopy,
@@ -16,6 +15,7 @@ import {
   addCivilDays,
   createPlanCalendarMirrorRepository,
   createPlanWorkoutMatchRepository,
+  type PlanWorkoutMatchRecord,
   type PlanWorkoutRecord,
 } from "@enduragent/kernel/planning";
 import type { SqlStore } from "@enduragent/kernel/store";
@@ -44,6 +44,10 @@ function pinned(workout: PlanWorkoutRecord): boolean {
   } catch {
     return false;
   }
+}
+
+export function matchedToRide(match: Pick<PlanWorkoutMatchRecord, "decision">): boolean {
+  return match.decision === "confirmed" || match.decision === "suggested";
 }
 
 function showsOnItsDay(copy: IcuCopy): boolean {
@@ -143,9 +147,7 @@ export async function moveWorkout(
   for (const workout of [moved, ...others]) {
     const copy = copyOf(workout);
     if (copy.kind === "changed-in-icu") return refused("change-card-open");
-    const decided = (await matches.readForWorkout(workout.id)).some(
-      (match) => match.decision === "confirmed" || match.decision === "suggested",
-    );
+    const decided = (await matches.readForWorkout(workout.id)).some(matchedToRide);
     if (!workoutMovable({ workout, copy, planned: !decided, todayDateKey: today })) {
       return refused("workout-not-movable");
     }
@@ -171,7 +173,7 @@ export async function moveWorkout(
     const stored = fresh.get(move.planWorkoutId);
     const workout = updated.find((entry) => entry.id === move.planWorkoutId);
     if (stored === undefined || workout === undefined) continue;
-    const dragged = icuCopyDrag(storedIcuCopy(stored), planWorkoutFingerprint(workout));
+    const dragged = icuCopyDrag(storedIcuCopy(stored));
     if (dragged === null) continue;
     await saveIcuCopy(
       { mirror, now: deps.now },

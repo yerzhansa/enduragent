@@ -29,6 +29,7 @@ import { answerFtp } from "./one-ftp-answer.js";
 import { createRideFtpReader } from "./one-ftp-rides.js";
 import type { IcuSportSettingsPort } from "./one-ftp-icu.js";
 import { createStoredFtpTestResults, type FtpTestResultSource } from "./one-ftp-tests.js";
+import { readPlanWorkoutDescriber } from "./plan-workout-description.js";
 
 const SEND_AGAIN_WAIT_MS = 20_000;
 
@@ -94,6 +95,8 @@ export function createPlanCalendarOperations(
     athleteId: ftp.athleteId,
     dateKeyOfMs: deps.dateKeyOfMs,
   });
+  const describer = () =>
+    readPlanWorkoutDescriber({ store: deps.store, athleteId: ftp.athleteId() });
   return {
     async "plan.calendar"(raw) {
       const request = PlanCalendarRpcParamsSchema.parse(raw);
@@ -154,7 +157,11 @@ export function createPlanCalendarOperations(
         case "change-detail":
         case "keep-change":
         case "put-back": {
-          const changeDeps = { ...deps, mirror: deps.calendar.mirror };
+          const changeDeps = {
+            ...deps,
+            mirror: deps.calendar.mirror,
+            describe: await describer(),
+          };
           if (request.action === "change-detail") return changeDetail(changeDeps, request);
           if (request.action === "keep-change") return keepChange(changeDeps, request);
           return putBackChange(changeDeps, request);

@@ -8,12 +8,14 @@ import {
   readWeekDelivery,
   saveWeekDelivery,
   type CalendarMirrorPort,
+  type DescribeWorkout,
 } from "@enduragent/engine/calendar";
 import {
   addCivilDays,
   createPlanCalendarMirrorRepository,
   createPlanCleanupHoldRepository,
   createPlanReconciliationRepository,
+  createPlanWorkoutMatchRepository,
   type PlanIcuWriteErrorCode,
   type PlanReconciliationErrorCode,
   type PlanReconciliationJobRecord,
@@ -21,6 +23,12 @@ import {
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { matchedToRide } from "./plan-calendar-move.js";
+import {
+  FtpUnreadableError,
+  PLAN_WORKOUT_DESCRIBERS,
+  readPlanWorkoutDescriber,
+} from "./plan-workout-description.js";
 
 export interface PlanCalendarDrain {
   kick(options?: { reclaimRunning?: boolean }): Promise<void>;
@@ -30,6 +38,12 @@ export interface PlanCalendarDrain {
 const MIRROR_FAILURE_BUDGET = 5;
 const CLEANUP_RETRY_MS = 900_000;
 const HELD_OBSERVE_MS = 300_000;
+
+function failureEvent(error: unknown): string {
+  return error instanceof FtpUnreadableError
+    ? "plan_calendar_ftp_unreadable"
+    : "plan_calendar_drain_failed";
+}
 
 function jobErrorCode(failure: PlanIcuWriteErrorCode | undefined): PlanReconciliationErrorCode {
   if (failure === "calendar-create-failed" || failure === "calendar-delete-failed") return failure;
@@ -88,6 +102,7 @@ export function createPlanCalendarDrain(deps: {
   todayDateKey: () => number;
   now: () => number;
   logger: { warn(event: string, fields?: Record<string, unknown>): void };
+  ftp: { readonly athleteId: () => string | null };
 }): PlanCalendarDrain {
   let active: Promise<void> | undefined;
   const observedAt = new Map<string, number>();
@@ -125,8 +140,17 @@ export function createPlanCalendarDrain(deps: {
       workouts: (planId: string) => plans.readWorkouts(planId),
       mirror: createPlanCalendarMirrorRepository(store),
       reconciliation: repository,
+      describers: PLAN_WORKOUT_DESCRIBERS,
       now: deps.now,
     };
+    let described: Promise<DescribeWorkout> | undefined;
+    const withDescriber = async () => ({
+      ...mirrorDeps,
+      describe: await (described ??= readPlanWorkoutDescriber({
+        store,
+        athleteId: deps.ftp.athleteId(),
+      })),
+    });
     for (const planId of await createPlanCleanupHoldRepository(store).readHeldPlanIds()) {
       const seenAt = observedAt.get(planId);
       if (seenAt !== undefined && deps.now() - seenAt < HELD_OBSERVE_MS) continue;
@@ -141,9 +165,9 @@ export function createPlanCalendarDrain(deps: {
       };
       if (window.startDateKey > window.endDateKey) continue;
       try {
-        await observeIcuCopies(window, mirrorDeps);
+        await observeIcuCopies(window, await withDescriber());
       } catch (error) {
-        deps.logger.warn("plan_calendar_drain_failed", { planId, kind: "held", error });
+        deps.logger.warn(failureEvent(error), { planId, kind: "held", error });
       }
     }
     for (const job of jobs) {
@@ -211,6 +235,11 @@ export function createPlanCalendarDrain(deps: {
         workouts: await plans.readWorkouts(plan.id),
         todayDateKey: today,
         firstEligibleDateKey: Math.max(today, barrier?.windowStartDateKey ?? today),
+        matchedWorkoutIds: new Set(
+          (await createPlanWorkoutMatchRepository(store).readForPlan(plan.id))
+            .filter(matchedToRide)
+            .map((match) => match.planWorkoutId),
+        ),
       };
       const window = dueWindow(input);
       return window === null ? null : { version: activePlan.version, plan, input, window };
@@ -228,7 +257,7 @@ export function createPlanCalendarDrain(deps: {
     if (job.status === "verified") await repository.reopenJob(job.id, deps.now());
     await repository.beginAttempt(job.id, deps.now());
     try {
-      const result = await mirrorPlanCalendar(input, mirrorDeps);
+      const result = await mirrorPlanCalendar(input, await withDescriber());
       if (result.kind === "list-failed") {
         await repository.failJob(job.id, "calendar-list-failed", deps.now());
       } else if (result.kind === "ran" && result.failures.length > 0) {
@@ -237,7 +266,7 @@ export function createPlanCalendarDrain(deps: {
         await repository.verifyJob(job.id, deps.now());
       }
     } catch (error) {
-      deps.logger.warn("plan_calendar_drain_failed", { planId: plan.id, kind: "mirror", error });
+      deps.logger.warn(failureEvent(error), { planId: plan.id, kind: "mirror", error });
       await repository.failJob(job.id, "calendar-verification-failed", deps.now());
     }
     const current = await store.get("SELECT version FROM planning_plan WHERE plan_id=?", [plan.id]);

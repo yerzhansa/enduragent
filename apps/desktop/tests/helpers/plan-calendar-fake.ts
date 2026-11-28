@@ -4,31 +4,26 @@ import type {
   PlanMirrorEvent,
   PlanMirrorUpdateInput,
 } from "@enduragent/engine";
-import { icuEventType, type CalendarMirrorPort } from "@enduragent/engine/calendar";
+import {
+  icuEventType,
+  type CalendarEventCreate,
+  type CalendarEventUpdate,
+  type CalendarMirrorPort,
+} from "@enduragent/engine/calendar";
 
-const eventContent = (structureJson: string) => {
+const storedDescription = (structureJson: string) => {
   const content: unknown = JSON.parse(structureJson);
   if (content === null || typeof content !== "object" || Array.isArray(content))
     throw new TypeError("Calendar Workout structure must be an object");
-  return {
-    description:
-      "description" in content && typeof content.description === "string"
-        ? content.description
-        : null,
-    workoutDoc:
-      "workoutDoc" in content &&
-      content.workoutDoc !== null &&
-      typeof content.workoutDoc === "object" &&
-      !Array.isArray(content.workoutDoc)
-        ? Object.fromEntries(Object.entries(content.workoutDoc))
-        : null,
-  };
+  return "description" in content && typeof content.description === "string"
+    ? content.description
+    : null;
 };
 
 class MemoryPlanCalendar implements PlanMirrorCalendarPort {
   readonly events: PlanMirrorEvent[] = [];
-  readonly creates: PlanMirrorCreateInput[] = [];
-  readonly updates: PlanMirrorUpdateInput[] = [];
+  readonly creates: CalendarEventCreate[] = [];
+  readonly updates: (Omit<CalendarEventUpdate, "sport"> & { readonly sport?: string })[] = [];
   readonly deletes: number[] = [];
   readonly lists: Array<{ readonly startDateKey: number; readonly endDateKey: number }> = [];
   failNextList = false;
@@ -46,13 +41,13 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
       return this.events.find((event) => event.id === eventId) ?? null;
     },
     createEvent: async (input) => {
-      await this.createEvent(input);
+      await this.create(input);
       const created = this.events.at(-1);
       if (created === undefined) throw new Error("missing");
       return created;
     },
     updateEvent: async (input) => {
-      await this.updateEvent(input);
+      await this.update(input);
       const updated = this.events.find((event) => event.id === input.eventId);
       if (updated === undefined) throw new Error("missing");
       return updated;
@@ -102,6 +97,14 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
   }
 
   async createEvent(input: PlanMirrorCreateInput) {
+    await this.create({ ...input, description: storedDescription(input.structureJson) });
+  }
+
+  async updateEvent(input: PlanMirrorUpdateInput) {
+    await this.update({ ...input, description: storedDescription(input.structureJson) });
+  }
+
+  private async create(input: CalendarEventCreate) {
     this.creates.push(input);
     await this.delay();
     if (this.failNextCreate) {
@@ -109,20 +112,19 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
       throw new Error("unavailable");
     }
     this.beforeWrite?.();
-    const content = eventContent(input.structureJson);
     this.events.push({
       id: this.nextEventId++,
       dateKey: input.dateKey,
       externalId: input.externalId,
       name: input.name,
       type: icuEventType(input.sport),
-      ...content,
-      durationS: this.stored(input.durationS, content.description),
+      description: input.description,
+      durationS: this.stored(input.durationS, input.description),
       updated: this.stamp(),
     });
   }
 
-  async updateEvent(input: PlanMirrorUpdateInput) {
+  private async update(input: Omit<CalendarEventUpdate, "sport"> & { readonly sport?: string }) {
     this.updates.push(input);
     await this.delay();
     this.beforeWrite?.();
@@ -133,14 +135,13 @@ class MemoryPlanCalendar implements PlanMirrorCalendarPort {
     const index = this.events.findIndex((event) => event.id === input.eventId);
     const event = this.events[index];
     if (event === undefined) throw new Error("missing");
-    const content = eventContent(input.structureJson);
     this.events[index] = {
       ...event,
       dateKey: input.dateKey,
       name: input.name,
       ...(input.sport === undefined ? {} : { type: icuEventType(input.sport) }),
-      ...content,
-      durationS: this.stored(input.durationS, content.description),
+      description: input.description,
+      durationS: this.stored(input.durationS, input.description),
       updated: this.stamp(),
     };
   }
