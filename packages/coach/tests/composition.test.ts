@@ -7036,6 +7036,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         base_url: "https://invalid.example.test/v1",
         flush_model: "previous-flush-model",
         compact_model: "previous-compact-model",
+        explicit_background_models: ["compact", "flush"],
         retained_llm_field: true,
       },
       intervals: {

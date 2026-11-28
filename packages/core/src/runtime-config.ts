@@ -410,7 +410,7 @@ function optionalBeforeAstraModel(
 }
 
 export function inferBackgroundModelChoices(
-  llm: EffectiveRuntimeConfig["llm"],
+  llm: Pick<EffectiveRuntimeConfig["llm"], "provider" | "model" | "compactModel" | "flushModel">,
 ): LlmBackgroundModelChoices {
   const providerDefault = compactModelDefault(llm.provider);
   const compact: BackgroundModelChoice =

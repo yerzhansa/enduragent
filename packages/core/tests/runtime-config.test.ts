@@ -373,6 +373,7 @@ describe("background summary and memory model choices", () => {
       flushModel: "gpt-6-luna",
       compactModel: "gpt-6-luna",
       beforeAstraModel: undefined,
+      explicitBackgroundModels: ["compact", "flush"],
     });
     const next = resolveRuntimeConfig({ llm: { model: "gpt-6.2-sol" } }, initial);
     expect(next.llm.compactModel).toBe("gpt-6-luna");

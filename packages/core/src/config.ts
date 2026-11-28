@@ -4,6 +4,7 @@ import { parse as parseYaml } from "yaml";
 import { getCoachHome } from "./coach-home.js";
 import { SecretRef, isSecretRef, SecretResolutionError } from "./secrets/types.js";
 import { resolveSecretRef } from "./secrets/resolve.js";
+import { readPersistedLlmBackgroundModels } from "./background-model-persistence.js";
 import {
   isKeylessProvider,
   resolveLlmProvider,
@@ -290,14 +291,15 @@ export function loadConfigFromYaml(
   );
 
   const contextWindowTokens = parseInt(env("CONTEXT_WINDOW_TOKENS") ?? "", 10);
+  const savedBackgroundModels = readPersistedLlmBackgroundModels(llmYaml, provider);
   const runtime = resolveRuntimeConfig(
     {
       llm: {
         provider,
         model: env("LLM_MODEL") ?? (llmYaml.model as string | undefined),
         ...(keyless ? {} : { apiKey }),
-        flushModel: env("LLM_FLUSH_MODEL") ?? (llmYaml.flush_model as string | undefined),
-        compactModel: env("LLM_COMPACT_MODEL") ?? (llmYaml.compact_model as string | undefined),
+        flushModel: env("LLM_FLUSH_MODEL") ?? savedBackgroundModels.flushModel,
+        compactModel: env("LLM_COMPACT_MODEL") ?? savedBackgroundModels.compactModel,
         baseUrl: env("LLM_BASE_URL") ?? (llmYaml.base_url as string | undefined),
         ...(provider === "claude-cli"
           ? { claudeCli: claudeCliPatchFrom(llmYaml.claude_cli, process.env) }
@@ -332,9 +334,9 @@ export function loadConfigFromYaml(
       ...(provider === "openai-codex" && typeof llmYaml.auth_profile === "string"
         ? { authProfile: llmYaml.auth_profile }
         : {}),
-      ...(typeof llmYaml.before_astra_model === "string"
-        ? { beforeAstraModel: llmYaml.before_astra_model }
-        : {}),
+      ...(savedBackgroundModels.beforeAstraModel === undefined
+        ? {}
+        : { beforeAstraModel: savedBackgroundModels.beforeAstraModel }),
     },
   );
 

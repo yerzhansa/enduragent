@@ -5,7 +5,9 @@
 // The steps are the requests the desktop and the loader really send. A
 // breadth-first search runs every step from every reachable state until no new
 // state appears, so it covers every sequence of steps of any length over the
-// alphabet below, and each counterexample is a shortest one.
+// alphabet below, and each counterexample is a shortest one. It starts from a
+// fresh install and from every config.yaml that main wrote after a Setup save,
+// so an install that upgrades is checked too.
 //
 // Run: pnpm exec tsx .agents/skills/verify-coach-change/scripts/summary-model-check.ts
 
@@ -17,10 +19,17 @@ import {
   type LlmProvider,
   type RuntimeConfigPatch,
 } from "../../../../packages/core/src/runtime-config.ts";
-import { persistedLlmBackgroundModels } from "../../../../packages/core/src/background-model-persistence.ts";
+import { assignPersistedLlmBackgroundModels } from "../../../../packages/core/src/background-model-persistence.ts";
+import { loadConfigFromYaml } from "../../../../packages/core/src/config.ts";
 import { GENERATED_MODEL_CATALOG_SEED } from "../../../../packages/core/src/model-catalog-seed.generated.ts";
 
 const ASTRA = "gpt-6-astra"; // runtime-config.ts isModelEnabledForProvider
+
+// loadConfigFromYaml reads these before config.yaml; the check reads only the file.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("LLM_") || key === "CONTEXT_WINDOW_TOKENS") delete process.env[key];
+}
+
 const PROVIDERS = ["openai", "openrouter", "anthropic"] as const satisfies readonly LlmProvider[];
 type Provider = (typeof PROVIDERS)[number];
 
@@ -165,36 +174,29 @@ steps.push({
   words: `the athlete clears the memory model: configureRuntime {"llm":{"flush_model":null}}`,
   next: (state) => apply(state, { flush_model: null }, { ...state.ghost, explicitFlush: null }),
 });
-// Restart: composition.ts persistRuntimeConfig writes only explicit flush_model
-// and compact_model plus before_astra_model via assignPersistedLlmBackgroundModels,
-// and config.ts loadConfigFromYaml reads them back with no current config.
+// Restart: composition.ts persistRuntimeConfig writes the llm block of
+// config.yaml with assignPersistedLlmBackgroundModels, and config.ts
+// loadConfigFromYaml reads it back with no current config.
+type LlmYaml = Record<string, unknown>;
+function load(llm: LlmYaml, ghost: Ghost): State | "refused" {
+  try {
+    return { config: loadConfigFromYaml({ llm }), ghost };
+  } catch {
+    return "refused";
+  }
+}
 steps.push({
   kind: "restart",
   words: "the app restarts and reloads config.yaml",
   next: (state) => {
-    const llm = state.config.llm;
-    const persisted = persistedLlmBackgroundModels(state.config);
-    try {
-      const config = resolveRuntimeConfig(
-        {
-          llm: {
-            provider: llm.provider,
-            model: llm.model,
-            apiKey: llm.apiKey,
-            flushModel: persisted.flushModel,
-            compactModel: persisted.compactModel,
-            baseUrl: llm.baseUrl,
-          },
-        },
-        undefined,
-        persisted.beforeAstraModel === undefined
-          ? {}
-          : { beforeAstraModel: persisted.beforeAstraModel },
-      );
-      return { config, ghost: state.ghost };
-    } catch {
-      return "refused";
-    }
+    const llm: LlmYaml = {
+      provider: state.config.llm.provider,
+      model: state.config.llm.model,
+      api_key: state.config.llm.apiKey,
+      ...(state.config.llm.baseUrl === undefined ? {} : { base_url: state.config.llm.baseUrl }),
+    };
+    assignPersistedLlmBackgroundModels(llm, state.config);
+    return load(llm, state.ghost);
   },
 });
 
@@ -278,29 +280,65 @@ function keyOf(state: State): string {
   return JSON.stringify([llm, state.config.llmBackgroundModels, state.ghost]);
 }
 
-// A fresh install: config.ts loads an empty config.yaml.
-const initial: State = {
-  config: resolveRuntimeConfig({ llm: {} }),
-  ghost: { explicitCompact: null, explicitFlush: null, beforeAstra: null },
-};
+// Start states. A fresh install: config.ts loads an empty config.yaml. And an
+// install that upgrades from main, where persistRuntimeConfig wrote
+// compact_model and flush_model as resolved: after a Setup save, compact_model
+// is the provider's summary default, else the chat model, and flush_model is
+// absent; on GPT-6 Astra both are the model the athlete used before Astra
+// (gpt-6.2-sol from a fresh install or another provider).
+const NO_CHOICE: Ghost = { explicitCompact: null, explicitFlush: null, beforeAstra: null };
+const starts: { readonly words: string | null; readonly state: State }[] = [
+  { words: null, state: { config: resolveRuntimeConfig({ llm: {} }), ghost: NO_CHOICE } },
+];
+function startFromMain(llm: LlmYaml, ghost: Ghost): void {
+  const state = load(llm, ghost);
+  if (state === "refused") throw new Error(`main's config.yaml refused: ${JSON.stringify(llm)}`);
+  const { api_key: _key, ...shown } = llm;
+  starts.push({ words: `upgrade from main with config.yaml llm ${JSON.stringify(shown)}`, state });
+}
+for (const provider of PROVIDERS) {
+  const compactDefault = (COMPACT_MODEL_DEFAULTS as Partial<Record<string, string>>)[provider];
+  for (const model of MODELS[provider]) {
+    if (model === ASTRA) continue;
+    startFromMain(
+      { provider, model, api_key: KEY, compact_model: compactDefault ?? model },
+      NO_CHOICE,
+    );
+    if (provider !== "openai") continue;
+    const astra = {
+      provider,
+      model: ASTRA,
+      api_key: KEY,
+      compact_model: model,
+      flush_model: model,
+    };
+    startFromMain(astra, { ...NO_CHOICE, beforeAstra: model });
+    if (model === DEFAULT_MODELS.openai) startFromMain(astra, NO_CHOICE);
+  }
+}
 
 interface Node {
   readonly state: State;
   readonly parent: string | null;
-  readonly via: Step | null;
+  readonly words: string | null;
 }
 const seen = new Map<string, Node>();
 const queue: string[] = [];
-const initialKey = keyOf(initial);
-seen.set(initialKey, { state: initial, parent: null, via: null });
-queue.push(initialKey);
+const startKeys: string[] = [];
+for (const start of starts) {
+  const key = keyOf(start.state);
+  startKeys.push(key);
+  if (seen.has(key)) continue;
+  seen.set(key, { state: start.state, parent: null, words: start.words });
+  queue.push(key);
+}
 
 function pathTo(key: string): string[] {
   const lines: string[] = [];
   let cursor: string | null = key;
   while (cursor !== null) {
     const node: Node = seen.get(cursor)!;
-    if (node.via !== null) lines.unshift(node.via.words);
+    if (node.words !== null) lines.unshift(node.words);
     cursor = node.parent;
   }
   return lines;
@@ -324,7 +362,7 @@ function check(state: State, path: () => string[], viaProviderSwitch: boolean): 
     if (!result.ok) violations.set(slot, { path: path(), state, detail: result.detail });
   }
 }
-check(initial, () => [], false);
+for (const key of startKeys) check(seen.get(key)!.state, () => pathTo(key), false);
 
 while (queue.length > 0) {
   const key = queue.shift()!;
@@ -339,14 +377,14 @@ while (queue.length > 0) {
     // A provider switch is checked on every edge, even into a state seen before.
     check(next, () => [...pathTo(key), step.words], switched);
     if (seen.has(nextKey)) continue;
-    seen.set(nextKey, { state: next, parent: key, via: step });
+    seen.set(nextKey, { state: next, parent: key, words: step.words });
     queue.push(nextKey);
   }
 }
 
 console.log(`# Summary and memory model choice`);
 console.log(
-  `Checked ${seen.size} reachable states and ${transitions} steps from a fresh install, over providers ${PROVIDERS.join(", ")} and their listed models.`,
+  `Checked ${seen.size} reachable states and ${transitions} steps from a fresh install and ${starts.length - 1} config.yaml files saved by main, over providers ${PROVIDERS.join(", ")} and their listed models.`,
 );
 for (const rule of rules) {
   console.log(`\n## ${rule.name}\n${rule.sentence}`);
