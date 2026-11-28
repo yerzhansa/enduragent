@@ -6,6 +6,10 @@ Sport-agnostic CLI infrastructure for AI coaching agents, including setup, memor
 
 ## Language
 
+**Athlete**:
+The person the coach trains, in every Sport and on every Channel.
+_Avoid_: Rider, user, customer (marketing copy for cycling may say rider)
+
 **Sport**:
 A pluggable coaching domain (cycling, running, duathlon) that conforms to Engine's `Sport` interface — pure domain knowledge, no deployment concerns.
 _Avoid_: Discipline, modality, mode
@@ -59,9 +63,49 @@ One user's chat state with one Binary, persisted to disk and locked in-process p
 **Channel**:
 A delivery surface (currently only Telegram); sport-agnostic.
 
+**Conversation**:
+The one ongoing chat between the athlete and the coach. It continues until the athlete starts a New conversation; nothing resets it on a schedule. Its persisted state is a Session.
+_Avoid_: Chat, thread, daily chat
+
+**New conversation**:
+The athlete's action that archives the current Conversation, saves memory, and starts a fresh one.
+_Avoid_: Reset, daily reset, clear chat
+
+**Access method**:
+How the coach reaches and pays for a model: an OpenRouter account, an API key, a ChatGPT subscription, or a Local CLI. The desktop offers no Credits.
+_Avoid_: Free mode, paid mode, lane, billing mode, provider
+
+**OpenRouter account**:
+The athlete's own OpenRouter account, connected by signing in through the browser or by pasting its key. Either way it is one Access method.
+_Avoid_: Own key, BYOK, OpenRouter key
+
+**API key**:
+A key from one of the direct Providers (Anthropic, OpenAI, Google, DeepSeek, Qwen, MiniMax, Kimi, Z.ai) that the athlete pastes and pays for at that Provider.
+_Avoid_: BYOK, own key, token
+
+**ChatGPT subscription**:
+The athlete's ChatGPT plan, connected by signing in, which pays for the model.
+_Avoid_: Codex login, OpenAI sign-in
+
+**Local CLI**:
+A coding CLI on the athlete's computer (Claude Code or Codex) that the coach drives on the athlete's own plan.
+_Avoid_: Subscription login, agent provider
+
+**Provider**:
+The company that hosts a model, such as OpenRouter or Anthropic.
+_Avoid_: Vendor, backend, Access method
+
 **Workout Change Set**:
 One or more proposed workout additions, edits, or deletions presented together for one athlete approval. It covers the exact changes shown, independently of a training Plan or a seven-day period.
 _Avoid_: Weekly Plan, batch Plan
+
+**Activity**:
+A finished workout as recorded by the athlete's device and read from intervals.icu, such as a ride.
+_Avoid_: Session, ride (in code), completed workout
+
+**Activity review**:
+The coach's verdict on one Activity, set against its Plan Workout when one exists.
+_Avoid_: Ride review (in code), workout review, training review
 
 **Language**:
 The athlete's chosen interface and coach-reply language: one of the supported catalogs, or Automatic when none is saved. One value per install, shared by every Channel and the desktop. Avoid: Locale, region, country.
@@ -158,3 +202,7 @@ Golden fixtures (sanitized real intervals.icu responses) live at
 ## Flagged ambiguities
 
 - Distinguish **Sport** for coaching domain, **Binary** for deployment shell, and `@enduragent/coach` for the Node composition package.
+- The iPhone app's **Workout review** is the same concept as **Workout Change Set**. An **Activity review** is a different thing: it judges a finished Activity and changes no workout.
+- A "change card" in chat, where the coach's advice offers to change the calendar, is a **Workout Change Set**. Advice never changes a workout without one.
+- "Free mode" and "paid mode" were used for how a model is paid for. Resolved: say **Access method** and name it.
+- "Session" was used for a planned workout and for a finished one. Resolved: a planned one is a **Plan Workout**, a finished one is an **Activity**, and **Session** means only the persisted chat state.
