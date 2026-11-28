@@ -28,7 +28,7 @@ export const LLM_PROVIDERS = [
 
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
-const ASTRA_MODEL_ID = "gpt-6-astra";
+export const ASTRA_MODEL_ID = "gpt-6-astra";
 
 export function isModelEnabledForProvider(provider: LlmProvider, model: string): boolean {
   return model !== ASTRA_MODEL_ID || (provider !== "openai-codex" && provider !== "codex-agent");
@@ -203,12 +203,6 @@ export interface LlmBackgroundModelChoices {
   readonly compact: BackgroundModelChoice;
   readonly flush: BackgroundModelChoice;
   readonly beforeAstra?: string;
-}
-
-export interface PersistedLlmBackgroundModels {
-  readonly flushModel?: string;
-  readonly compactModel?: string;
-  readonly beforeAstraModel?: string;
 }
 
 export interface EffectiveRuntimeConfig {
@@ -415,7 +409,7 @@ function optionalBeforeAstraModel(
   return normalized === ASTRA_MODEL_ID ? undefined : normalized;
 }
 
-function inferBackgroundModelChoices(
+export function inferBackgroundModelChoices(
   llm: EffectiveRuntimeConfig["llm"],
 ): LlmBackgroundModelChoices {
   const providerDefault = compactModelDefault(llm.provider);
@@ -436,40 +430,6 @@ function inferBackgroundModelChoices(
       ? { kind: "follow-chat" }
       : { kind: "explicit", model: llm.flushModel };
   return { compact, flush };
-}
-
-export function persistedLlmBackgroundModels(
-  config: Pick<EffectiveRuntimeConfig, "llm" | "llmBackgroundModels">,
-): PersistedLlmBackgroundModels {
-  const choices = config.llmBackgroundModels ?? inferBackgroundModelChoices(config.llm);
-  return {
-    flushModel: choices.flush.kind === "explicit" ? choices.flush.model : undefined,
-    compactModel:
-      choices.compact.kind === "explicit"
-        ? choices.compact.model
-        : choices.compact.kind === "provider-default"
-          ? config.llm.compactModel
-          : undefined,
-    beforeAstraModel:
-      config.llm.provider === "openai" && config.llm.model === ASTRA_MODEL_ID
-        ? choices.beforeAstra
-        : undefined,
-  };
-}
-
-export function assignPersistedLlmBackgroundModels(
-  target: Record<string, unknown>,
-  config: Pick<EffectiveRuntimeConfig, "llm" | "llmBackgroundModels">,
-): void {
-  const persisted = persistedLlmBackgroundModels(config);
-  for (const [field, value] of [
-    ["flush_model", persisted.flushModel],
-    ["compact_model", persisted.compactModel],
-    ["before_astra_model", persisted.beforeAstraModel],
-  ] as const) {
-    if (value === undefined) delete target[field];
-    else target[field] = value;
-  }
 }
 
 function optionalModel(

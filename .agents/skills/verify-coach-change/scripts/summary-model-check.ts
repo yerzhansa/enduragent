@@ -12,12 +12,12 @@
 import {
   COMPACT_MODEL_DEFAULTS,
   DEFAULT_MODELS,
-  persistedLlmBackgroundModels,
   resolveRuntimeConfig,
   type EffectiveRuntimeConfig,
   type LlmProvider,
   type RuntimeConfigPatch,
 } from "../../../../packages/core/src/runtime-config.ts";
+import { persistedLlmBackgroundModels } from "../../../../packages/core/src/background-model-persistence.ts";
 import { GENERATED_MODEL_CATALOG_SEED } from "../../../../packages/core/src/model-catalog-seed.generated.ts";
 
 const ASTRA = "gpt-6-astra"; // runtime-config.ts isModelEnabledForProvider

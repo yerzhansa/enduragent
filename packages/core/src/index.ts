@@ -335,10 +335,8 @@ export {
   LLM_MODEL_CATALOGUE,
   LLM_PROVIDERS,
   PROVIDER_BASE_URLS,
-  assignPersistedLlmBackgroundModels,
   contextWindowForModel,
   isKeylessProvider,
-  persistedLlmBackgroundModels,
   resolveLlmProvider,
   resolveRuntimeConfig,
 } from "./runtime-config.js";
@@ -356,10 +354,14 @@ export type {
   LlmModelCatalogueEntry,
   LlmModelOption,
   LlmProvider,
-  PersistedLlmBackgroundModels,
   RuntimeConfigPatch,
   RuntimeConfigResolverOptions,
 } from "./runtime-config.js";
+export {
+  assignPersistedLlmBackgroundModels,
+  persistedLlmBackgroundModels,
+} from "./background-model-persistence.js";
+export type { PersistedLlmBackgroundModels } from "./background-model-persistence.js";
 export {
   CLAUDE_CLI_DISABLED_MESSAGE,
   CODEX_AGENT_DISABLED_MESSAGE,

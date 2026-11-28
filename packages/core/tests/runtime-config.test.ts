@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  currentModelId,
-  persistedLlmBackgroundModels,
-  resolveRuntimeConfig,
-  type LlmProvider,
-} from "../src/runtime-config.js";
+import { persistedLlmBackgroundModels } from "../src/background-model-persistence.js";
+import { currentModelId, resolveRuntimeConfig, type LlmProvider } from "../src/runtime-config.js";
 
 describe("runtime configuration authority", () => {
   it("preserves same-provider custom fields for a credential-only patch", () => {
