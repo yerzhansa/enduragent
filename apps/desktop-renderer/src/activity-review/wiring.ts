@@ -71,8 +71,7 @@ export function startActivityReview(
     answer: (answer) => void ftp.answer(answer),
     planTest: (request) => {
       ftp.close();
-      store.getState().chatActions?.saveAttachmentDraftText(request);
-      store.getState().setActiveView("chat");
+      askCoach(store, request);
     },
   });
   const decide = (decision: PlanCalendarRideDecision): void => {

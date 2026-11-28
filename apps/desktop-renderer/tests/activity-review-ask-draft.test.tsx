@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACTIVITY_REVIEW_START } from "../src/activity-review/controller";
+import { FTP_PANEL_START } from "../src/activity-review/ftp-controller";
 import { RIDE_REVIEW_NONE } from "../src/activity-review/review-controller";
 import { startCalendarPages } from "../src/page-wiring";
 import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
@@ -134,6 +135,7 @@ afterEach(() => {
     activeView: "chat",
     activityReview: ACTIVITY_REVIEW_START,
     rideReview: RIDE_REVIEW_NONE,
+    ftpPanel: FTP_PANEL_START,
   });
 });
 
@@ -316,6 +318,51 @@ describe("both Ask the coach buttons with a draft already typed", () => {
         ),
       SETTLED,
     );
+    expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
+    test.dispose();
+  });
+});
+
+describe("Plan a 20-minute test with Chat already mounted", () => {
+  const TEST_REQUEST = "Please add a 20-minute FTP test to my Plan.";
+
+  it("keeps an existing Chat draft and adds the test request after it, sending nothing", async () => {
+    const test = started();
+    render(<ChatView />);
+    const user = userEvent.setup();
+    await user.type(composer(), "Keep my question");
+    await vi.waitFor(
+      () => expect(store.getState().chat.attachments?.draft?.text).toBe("Keep my question"),
+      SETTLED,
+    );
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().ftpActions?.open());
+    act(() => store.getState().ftpActions?.planTest(TEST_REQUEST));
+    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
+    expect(store.getState().ftpPanel.open).toBe(false);
+    expect(store.getState().chat.attachments?.draft?.text).toBe(
+      `Keep my question\n\n${TEST_REQUEST}`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(composer()).toHaveValue(`Keep my question\n\n${TEST_REQUEST}`);
+    expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
+    test.dispose();
+  });
+
+  it("fills the test request alone when the composer is empty and deduplicates repeat clicks", async () => {
+    const test = started();
+    render(<ChatView />);
+    act(() => store.getState().setActiveView("activity-review"));
+    await vi.waitFor(() => expect(store.getState().activityReview.kind).toBe("ready"), SETTLED);
+    act(() => store.getState().ftpActions?.planTest(TEST_REQUEST));
+    await vi.waitFor(() => expect(store.getState().activeView).toBe("chat"), SETTLED);
+    await waitFor(() => expect(composer()).toHaveValue(TEST_REQUEST), SETTLED);
+    act(() => store.getState().setActiveView("activity-review"));
+    act(() => store.getState().ftpActions?.planTest(TEST_REQUEST));
+    expect(store.getState().activeView).toBe("chat");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(composer()).toHaveValue(TEST_REQUEST);
     expect(store.getState().chatActions?.submit).not.toHaveBeenCalled();
     test.dispose();
   });

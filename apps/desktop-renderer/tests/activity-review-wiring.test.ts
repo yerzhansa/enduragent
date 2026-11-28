@@ -122,23 +122,20 @@ describe("the Activity review wiring", () => {
     },
   );
 
-  it("routes Plan a 20-minute test to Chat with the request filled in and sends nothing", async () => {
+  it("routes Plan a 20-minute test to Chat through the composer prefill and sends nothing", async () => {
     const test = started();
-    const saveAttachmentDraftText = vi.fn();
-    store.setState({
-      chatActions: { saveAttachmentDraftText } as unknown as NonNullable<
-        ReturnType<typeof store.getState>["chatActions"]
-      >,
-    });
+    store.setState({ composerPrefill: null });
     store.getState().setActiveView("activity-review");
+    store.getState().ftpActions?.open();
     store.getState().ftpActions?.planTest("Please add a 20-minute FTP test to my Plan.");
-    expect(saveAttachmentDraftText).toHaveBeenCalledExactlyOnceWith(
+    expect(store.getState().ftpPanel.open).toBe(false);
+    expect(store.getState().composerPrefill?.text).toBe(
       "Please add a 20-minute FTP test to my Plan.",
     );
     expect(store.getState().activeView).toBe("chat");
     expect(test.actions().filter((action) => !action.startsWith("plan.calendar:"))).toEqual([]);
     test.dispose();
-    store.setState({ chatActions: null });
+    store.setState({ composerPrefill: null });
   });
 
   it("opens the Calendar on the ride's week from Show in calendar", async () => {

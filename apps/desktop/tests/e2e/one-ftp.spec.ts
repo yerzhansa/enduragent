@@ -144,4 +144,71 @@ test.describe("One FTP", () => {
       await close(scenario);
     }
   });
+
+  test("Plan a 20-minute test keeps an existing Chat draft and adds the request after it", async ({
+    playwright,
+  }) => {
+    const scenario = await launch(
+      playwright,
+      async (backend) => {
+        const seed = await backend.seedActiveTraining();
+        if (seed.planId === null) throw new TypeError("Training Plan was not activated");
+        await backend.calendarIdle();
+        const today = 19980301;
+        backend.setCivilDate(isoDay(today));
+        await backend.seedCalendarRide({
+          key: rideKey(1),
+          dateKey: addCivilDays(today, -1),
+          name: "Synthetic road ride",
+          movingS: 3_600,
+          distanceM: 28_000,
+        });
+        backend.icuFtp.settings = {
+          id: 77,
+          ftp: 268,
+          indoorFtp: null,
+          updated: `${isoDay(addCivilDays(today, -60))}T08:00:00.120+00:00`,
+        };
+        await backend.syncFtp();
+        await backend.landIcuEstimates(
+          Array.from({ length: 14 }, (_, offset) => addCivilDays(today, -offset)),
+          291,
+        );
+        backend.icuFtp.settings = {
+          id: 77,
+          ftp: 282,
+          indoorFtp: null,
+          updated: `${isoDay(addCivilDays(today, -20))}T18:02:00.345+00:00`,
+        };
+        await backend.syncFtp();
+        return isoDay(today);
+      },
+      "light",
+      { keepsDraftText: true },
+    );
+    try {
+      const page = scenario.page;
+      const composer = page.locator("textarea#message");
+      await expect(composer).toBeVisible();
+      await composer.fill("Keep my existing draft");
+      await page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("button", { name: "Activity review", exact: true })
+        .click();
+      await expect(page.locator('[data-activity-review-state="ready"]')).toBeVisible();
+      await page.locator("[data-ride-ftp]").getByRole("button", { name: "FTP history" }).click();
+      const card = page
+        .getByRole("complementary", { name: "FTP" })
+        .getByRole("region", { name: "The coach’s FTP proposal" });
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: "Plan a 20-minute test" }).click();
+      await expect(composer).toHaveValue(
+        "Keep my existing draft\n\nPlease add a 20-minute FTP test to my Plan.",
+      );
+      await snap(scenario, "one-ftp-plan-test-draft");
+      expect(scenario.backend.icuFtp.writes).toEqual([]);
+    } finally {
+      await close(scenario);
+    }
+  });
 });
