@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   readiness: vi.fn(),
   composition: vi.fn(),
   openModelCatalog: vi.fn(),
+  startTracing: vi.fn(),
 }));
 
 vi.mock("@enduragent/core", async (importOriginal) => ({
@@ -31,6 +32,10 @@ vi.mock("../src/runtime.js", async (importOriginal) => ({
 vi.mock("../src/readiness.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/readiness.js")>()),
   checkHomeReadiness: mocks.readiness,
+}));
+vi.mock("../src/tracing.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/tracing.js")>()),
+  startCoachTracing: mocks.startTracing,
 }));
 vi.mock("../src/composition.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/composition.js")>()),
@@ -249,6 +254,10 @@ beforeEach(async () => {
   mocks.readiness.mockReset();
   mocks.composition.mockReset();
   mocks.openModelCatalog.mockReset();
+  mocks.startTracing.mockReset();
+  mocks.startTracing.mockImplementation(async () => ({
+    shutdown: async () => ({ kind: "off" }),
+  }));
   mocks.openModelCatalog.mockImplementation(() => ({
     current: () => acceptedCatalog,
     start: async () => {
@@ -490,6 +499,38 @@ describe("local coach runner", () => {
       "catalog-close",
     ]);
   });
+
+  it.each([
+    ["completes", async () => "done"],
+    [
+      "fails",
+      async () => {
+        throw new Error("operation failed");
+      },
+    ],
+  ])(
+    "starts tracing from its environment and flushes it last when the operation %s",
+    async (_label, operation) => {
+      mocks.startTracing.mockImplementation(async () => {
+        trace.push("tracing-start");
+        return {
+          shutdown: async () => {
+            trace.push("tracing-flush");
+            return { kind: "flushed" };
+          },
+        };
+      });
+      await withLocalCoach(
+        input(async () => {
+          trace.push("operation");
+          return operation();
+        }),
+      ).catch(() => undefined);
+      expect(mocks.startTracing).toHaveBeenCalledExactlyOnceWith({ SYNTHETIC: "1" });
+      expect(trace[0]).toBe("tracing-start");
+      expect(trace.slice(-3)).toEqual(["writer-release", "catalog-close", "tracing-flush"]);
+    },
+  );
 
   it("gives operation failure precedence over close failures and otherwise propagates cleanup failure", async () => {
     const operationFailure = { kind: "operation" };

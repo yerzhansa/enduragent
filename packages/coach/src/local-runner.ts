@@ -15,6 +15,7 @@ import { createLocalCoachComposition, type LocalCoachComposition } from "./compo
 import type { SpendMeterService } from "./spend-meter.js";
 import { checkHomeReadiness, type ReadinessFailure } from "./readiness.js";
 import { withCoachStoreWriter } from "./runtime.js";
+import { startCoachTracing } from "./tracing.js";
 
 export interface LocalCoachLifecycle {
   readonly language: CoachLanguage;
@@ -73,6 +74,7 @@ export async function withLocalCoach<T>(
   let operationOutcome: Extract<WriterValue<T>, { kind: "rejected" }> | undefined;
   let writerValue: WriterValue<T> | undefined;
   let runnerFailure: { readonly error: unknown } | undefined;
+  const tracing = await startCoachTracing(input.env);
   try {
     await modelCatalog.start();
     writerValue = await withCoachStoreWriter(writerEnv, {
@@ -101,7 +103,7 @@ export async function withLocalCoach<T>(
         let lifecycleCloseOutcome: { kind: "succeeded" } | { kind: "failed"; error: unknown } = {
           kind: "succeeded",
         };
-        let outcome: WriterValue<T>;
+        let outcome: WriterValue<T> | undefined;
         try {
           lifecycle = await createLocalCoachComposition({
             env: writerEnv,
@@ -149,7 +151,8 @@ export async function withLocalCoach<T>(
         if (lifecycleCloseOutcome.kind === "failed" && operationOutcome === undefined) {
           throw lifecycleCloseOutcome.error;
         }
-        return outcome!;
+        if (outcome === undefined) throw new TypeError("local coach operation produced no result");
+        return outcome;
       },
     });
   } catch (error) {
@@ -160,6 +163,7 @@ export async function withLocalCoach<T>(
     } catch (error) {
       runnerFailure ??= { error: operationOutcome?.error ?? error };
     }
+    await tracing.shutdown();
   }
   if (runnerFailure !== undefined) throw runnerFailure.error;
   if (writerValue === undefined) throw new TypeError("local coach produced no result");
