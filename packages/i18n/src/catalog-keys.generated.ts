@@ -2365,6 +2365,7 @@ export type CatalogKey =
   | "setup.checking.rowSubtitle"
   | "setup.checking.status"
   | "setup.checking.subtitle"
+  | "setup.error.claudeCliCheckFailed"
   | "setup.error.configurationUnavailable"
   | "setup.error.credentialReenterRequired"
   | "setup.error.credentialRequired"

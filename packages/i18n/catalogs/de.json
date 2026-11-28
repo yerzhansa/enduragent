@@ -929,6 +929,7 @@
       "subtitle": "Die auf diesem Computer bereits gespeicherten Verbindungen werden gelesen. Direkt nach dem Start kann das einen Moment dauern."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} konnte die Prüfung von {{claudeCode}} auf {{computer}} nicht abschließen.",
       "configurationUnavailable": "Die Coach-Auswahl ist gerade nicht verfügbar. Prüfe den Einrichtungsbereich erneut.",
       "credentialReenterRequired": "Dieser gespeicherte Schlüssel konnte nicht verwendet werden. Gib ihn erneut ein, um fortzufahren.",
       "credentialRequired": "Melde dich mit {{chatgpt}} an oder füge mindestens einen Modellschlüssel hinzu, um fortzufahren.",

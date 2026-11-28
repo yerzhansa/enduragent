@@ -929,6 +929,7 @@
       "subtitle": "Læser de forbindelser, der allerede er gemt på denne computer. Det kan tage et øjeblik lige efter start."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} kunne ikke gøre kontrollen af {{claudeCode}} på {{computer}} færdig.",
       "configurationUnavailable": "Trænervalg er utilgængelige lige nu. Kontrollér opsætningsområdet igen.",
       "credentialReenterRequired": "Den gemte nøgle kunne ikke bruges. Indtast den igen for at fortsætte.",
       "credentialRequired": "Log ind med {{chatgpt}}, eller tilføj mindst én modelnøgle for at fortsætte.",

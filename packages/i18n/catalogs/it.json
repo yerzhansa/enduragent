@@ -929,6 +929,7 @@
       "subtitle": "Lettura delle connessioni già salvate su questo computer. Subito dopo l’avvio può richiedere qualche istante."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} non è riuscito a completare il controllo di {{claudeCode}} su {{computer}}.",
       "configurationUnavailable": "Le opzioni del coach non sono disponibili al momento. Controlla di nuovo l’area di configurazione.",
       "credentialReenterRequired": "Impossibile usare la chiave salvata. Inseriscila di nuovo per continuare.",
       "credentialRequired": "Accedi con {{chatgpt}} o aggiungi almeno una chiave per un modello per continuare.",

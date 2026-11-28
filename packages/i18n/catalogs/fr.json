@@ -929,6 +929,7 @@
       "subtitle": "Lecture des connexions déjà enregistrées sur cet ordinateur. Cela peut prendre un moment juste après le démarrage."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} n’a pas pu terminer la vérification de {{claudeCode}} sur {{computer}}.",
       "configurationUnavailable": "Les choix du coach sont indisponibles pour le moment. Vérifie à nouveau la zone de configuration.",
       "credentialReenterRequired": "Cette clé enregistrée n’a pas pu être utilisée. Saisis-la à nouveau pour continuer.",
       "credentialRequired": "Connecte-toi avec {{chatgpt}} ou ajoute au moins une clé de modèle pour continuer.",

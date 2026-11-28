@@ -929,6 +929,7 @@
       "subtitle": "De verbindingen lezen die al op deze computer zijn opgeslagen. Dit kan vlak na het opstarten even duren."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} kon de controle van {{claudeCode}} op {{computer}} niet afronden.",
       "configurationUnavailable": "Coachopties zijn nu niet beschikbaar. Controleer het configuratiegedeelte opnieuw.",
       "credentialReenterRequired": "Die opgeslagen sleutel kon niet worden gebruikt. Voer deze opnieuw in om door te gaan.",
       "credentialRequired": "Meld je aan met {{chatgpt}} of voeg minstens één modelsleutel toe om door te gaan.",

@@ -929,6 +929,7 @@
       "subtitle": "Läser anslutningarna som redan är sparade på den här datorn. Det kan ta en stund direkt efter start."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} kunde inte slutföra kontrollen av {{claudeCode}} på {{computer}}.",
       "configurationUnavailable": "Tränaralternativen är inte tillgängliga just nu. Kontrollera konfigurationen igen.",
       "credentialReenterRequired": "Den sparade nyckeln kunde inte användas. Ange den igen för att fortsätta.",
       "credentialRequired": "Logga in med {{chatgpt}} eller lägg till minst en modellnyckel för att fortsätta.",

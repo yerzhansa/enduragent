@@ -12015,6 +12015,10 @@
     "coach.error.modelUnavailable": {
       "sourceHash": "6889bfaa2f4fcf84cc73f189d1af6fde0124666505b1b02ec08284383118ea3a",
       "translatedBy": "model"
+    },
+    "setup.error.claudeCliCheckFailed": {
+      "sourceHash": "6d86fff9f58df7e1878bbd321b98883379cf5a154edfce78edc00f1dbe8d3afa",
+      "translatedBy": "model"
     }
   }
 }

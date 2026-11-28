@@ -534,7 +534,7 @@ export function createOnboardingController(
       },
       () => {
         if (disposed || visit !== expectedVisit || !presenting) return;
-        state = withBusy(state, false);
+        state = withError(state, "claude-cli-check-failed");
         publish();
       },
     );

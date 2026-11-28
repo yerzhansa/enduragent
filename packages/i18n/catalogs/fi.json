@@ -929,6 +929,7 @@
       "subtitle": "Luetaan tälle tietokoneelle jo tallennettuja yhteyksiä. Tämä voi kestää hetken heti käynnistyksen jälkeen."
     },
     "error": {
+      "claudeCliCheckFailed": "{{product}} ei saanut {{claudeCode}}-tarkistusta valmiiksi tietokoneella {{computer}}.",
       "configurationUnavailable": "Valmentajan valinnat eivät ole juuri nyt käytettävissä. Tarkista käyttöönotto-osio uudelleen.",
       "credentialReenterRequired": "Tallennettua avainta ei voitu käyttää. Anna se uudelleen jatkaaksesi.",
       "credentialRequired": "Kirjaudu palvelulla {{chatgpt}} tai lisää vähintään yksi mallin avain jatkaaksesi.",
