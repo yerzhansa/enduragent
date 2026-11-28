@@ -3359,8 +3359,10 @@
     "error": {
       "intervalsCredentials": "{{service}} heeft het verzoek geweigerd. Controleer je verbinding met {{service}} of je API-sleutel.",
       "intervalsTransient": "Ik kon {{service}} nu niet bereiken. Probeer het zo opnieuw.",
+      "modelUnavailable": "{{provider}} biedt dit model niet meer aan. Kies een ander model bij Instellingen, Coach en stuur je bericht daarna opnieuw.",
       "openRouterCredits": "Je {{openrouter}}-account heeft niet genoeg tegoed. Voeg tegoed toe bij {{openrouter}} en stuur je bericht daarna opnieuw.",
       "providerCredentials": "De modelaanbieder heeft de API-sleutel geweigerd. Controleer je toegangsgegevens voor de aanbieder.",
+      "providerCredits": "Je {{provider}}-account heeft niet genoeg tegoed. Voeg tegoed toe bij {{provider}} en stuur je bericht daarna opnieuw.",
       "providerDown": "Er zijn problemen bij de modelaanbieder. Probeer het over een paar minuten opnieuw.",
       "rateLimit": "De aanvraaglimiet is bereikt. Probeer het zo opnieuw.",
       "rateLimitDefault": "De aanvraaglimiet is bereikt. Probeer het over ongeveer een minuut opnieuw.",

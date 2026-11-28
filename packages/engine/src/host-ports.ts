@@ -473,6 +473,7 @@ export type FailureReason =
   | "auth"
   | "reauth"
   | "payment_required"
+  | "model_unavailable"
   | "invalid_request"
   | "unknown";
 
@@ -541,7 +542,7 @@ export interface EngineHostPorts {
     signal?: AbortSignal,
     rejectedAccessToken?: string,
   ) => Promise<string>;
-  readonly classifyFailure: (error: unknown) => FailureReason;
+  readonly classifyFailure: (error: unknown, provider?: EngineLlmProvider) => FailureReason;
   readonly extractRetryAfterMs: (error: unknown) => number | null;
   readonly now: () => number;
   readonly randomId: () => string;

@@ -3202,8 +3202,10 @@
     "error": {
       "intervalsCredentials": "{{service}} rejeitou a solicitação. Verifique sua conexão com {{service}} ou a chave de API.",
       "intervalsTransient": "Não consegui acessar {{service}} agora. Tente novamente daqui a pouco.",
+      "modelUnavailable": "{{provider}} não oferece mais este modelo. Escolha outro modelo em Configurações, Treinador, e envie sua mensagem de novo.",
       "openRouterCredits": "Sua conta de {{openrouter}} não tem créditos suficientes. Adicione créditos em {{openrouter}} e envie sua mensagem de novo.",
       "providerCredentials": "O provedor do modelo rejeitou a chave de API. Verifique suas credenciais do provedor.",
+      "providerCredits": "Sua conta de {{provider}} não tem créditos suficientes. Adicione créditos em {{provider}} e envie sua mensagem de novo.",
       "providerDown": "O provedor do modelo está com dificuldades. Tente novamente daqui a alguns minutos.",
       "rateLimit": "Limite de solicitações atingido. Tente novamente daqui a pouco.",
       "rateLimitDefault": "Limite de solicitações atingido. Tente novamente em cerca de um minuto.",

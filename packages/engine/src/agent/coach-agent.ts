@@ -6,7 +6,7 @@ import { stepCountIs } from "ai";
 import type { ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
-import { msg, type LanguageResolution } from "@enduragent/i18n";
+import type { LanguageResolution } from "@enduragent/i18n";
 import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import type {
   AnswerCoachDecisionRpcParams,
@@ -111,6 +111,8 @@ import {
   STEP_LIMIT_TRUNCATION_MESSAGE,
   coachReplyMessage,
   DISK_FULL_NOTE,
+  presentTurnFailure,
+  type TurnFailure,
 } from "./coach-agent-copy.js";
 import {
   COACH_DECISION_TOOL_NAME,
@@ -219,16 +221,6 @@ interface TurnOutcome {
   rateLimitAttempts: number;
   duration_ms: number;
   compactions: number;
-}
-
-type ClassifiedTurnFailure = ReturnType<EngineHostPorts["classifyFailure"]> | "budget";
-
-function classifyError(
-  err: unknown,
-  classifyFailure: EngineHostPorts["classifyFailure"],
-): ClassifiedTurnFailure {
-  if (err instanceof Error && err.name === "TurnBudgetExceededError") return "budget";
-  return classifyFailure(err);
 }
 
 function transcriptWriteFailureReason(
@@ -1116,7 +1108,7 @@ export class CoachAgent {
         let plainTimeoutAttempts = 0;
         let rateLimitAttempts = 0;
         let serverErrorAttempts = 0;
-        let classifiedTerminalFailure: ClassifiedTurnFailure | undefined;
+        let classifiedTerminalFailure: TurnFailure | undefined;
         let streamedText = "";
         const finishTurn = (status: TurnStatus, templateHash?: string): void => {
           const ts = this.ports.now();
@@ -1415,7 +1407,7 @@ export class CoachAgent {
               if (err instanceof TurnBudgetExceededError) throw err;
               const committedWrites = ctx.turnWrites;
               if (committedWrites.writesCommitted > 0) {
-                const failure = classifyError(err, this.ports.classifyFailure);
+                const failure = this.classifyTurnFailure(err);
                 console.warn(
                   JSON.stringify({
                     event: "turn_failed_after_write",
@@ -1454,7 +1446,7 @@ export class CoachAgent {
                 return book.say(TAINTED_BY_WRITES_MESSAGE);
               }
               if (attemptObservedText && !isWindowExceededFinishOverflow(err)) throw err;
-              const failure = this.ports.classifyFailure(err);
+              const failure = this.classifyTurnFailure(err);
               if (failure === "overflow" && overflowAttempts < MAX_OVERFLOW_ATTEMPTS) {
                 overflowAttempts++;
                 try {
@@ -1599,8 +1591,7 @@ export class CoachAgent {
             emitEvent({ type: "interrupted", turnId, chatId, text: streamedText });
             return streamedText;
           }
-          const failure =
-            classifiedTerminalFailure ?? classifyError(terminalErr, this.ports.classifyFailure);
+          const failure = classifiedTerminalFailure ?? this.classifyTurnFailure(terminalErr);
           finishTurn({ ok: false, error_class: failure });
           emitEvent(
             await this.createErrorEvent({
@@ -1680,8 +1671,13 @@ export class CoachAgent {
     return true;
   }
 
+  private classifyTurnFailure(err: unknown): TurnFailure {
+    if (err instanceof Error && err.name === "TurnBudgetExceededError") return "budget";
+    return this.ports.classifyFailure(err, this.config.models.chat.provider);
+  }
+
   private async createErrorEvent(input: {
-    failure: ClassifiedTurnFailure;
+    failure: TurnFailure;
     turnId: string;
     chatId: string;
     overflowAttempts: number;
@@ -1698,36 +1694,10 @@ export class CoachAgent {
       failure === "rate_limit"
         ? failure
         : "unknown";
-    const presentation =
-      failure === "rate_limit"
-        ? {
-            kind: "rate_limit" as const,
-            message: msg("coach.error.rateLimit"),
-          }
-        : failure === "reauth"
-          ? {
-              kind: "provider-auth" as const,
-              message: msg("coach.error.reauthSetup", { provider: "ChatGPT" }),
-            }
-          : failure === "auth"
-            ? {
-                kind: "provider-auth" as const,
-                message: msg("coach.error.providerCredentials"),
-              }
-            : failure === "server_error" || failure === "network" || failure === "timeout"
-              ? {
-                  kind: "provider-down" as const,
-                  message: msg("coach.error.providerDown"),
-                }
-              : failure === "payment_required" && this.config.models.chat.provider === "openrouter"
-                ? {
-                    kind: "openrouter-credits" as const,
-                    message: msg("coach.error.openRouterCredits", { openrouter: "OpenRouter" }),
-                  }
-                : {
-                    kind: "unknown" as const,
-                    message: msg("coach.error.unknown"),
-                  };
+    const presentation = presentTurnFailure(failure, {
+      provider: this.config.models.chat.provider,
+      claudeCliBilling: this.config.llm.claudeCli?.billing,
+    });
     return {
       type: "error",
       turnId: input.turnId,

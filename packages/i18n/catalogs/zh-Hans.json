@@ -3140,8 +3140,10 @@
     "error": {
       "intervalsCredentials": "{{service}} 拒绝了请求。请检查 {{service}} 连接或 API 密钥。",
       "intervalsTransient": "暂时无法连接 {{service}}，请稍后重试。",
+      "modelUnavailable": "{{provider}} 已不再提供此模型。请在“设置”中的“教练”里选择其他模型，然后重新发送消息。",
       "openRouterCredits": "{{openrouter}} 账号额度不足。请在 {{openrouter}} 添加额度，然后重新发送消息。",
       "providerCredentials": "模型服务商拒绝了 API 密钥，请检查服务商凭据。",
+      "providerCredits": "{{provider}} 账号额度不足。请在 {{provider}} 添加额度，然后重新发送消息。",
       "providerDown": "模型服务商遇到了问题，请过几分钟再试。",
       "rateLimit": "请求过于频繁，请稍后重试。",
       "rateLimitDefault": "请求过于频繁，请约一分钟后重试。",

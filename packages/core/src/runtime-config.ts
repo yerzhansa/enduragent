@@ -28,8 +28,10 @@ export const LLM_PROVIDERS = [
 
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
+export const ASTRA_MODEL_ID = "gpt-6-astra";
+
 export function isModelEnabledForProvider(provider: LlmProvider, model: string): boolean {
-  return model !== "gpt-6-astra" || (provider !== "openai-codex" && provider !== "codex-agent");
+  return model !== ASTRA_MODEL_ID || (provider !== "openai-codex" && provider !== "codex-agent");
 }
 
 export const RETIRED_MODEL_REPLACEMENTS = {
@@ -191,6 +193,18 @@ export interface CodexAgentRuntimeSettings {
 
 export { CODEX_AGENT_DISABLED_MESSAGE, CODEX_AGENT_WINDOWS_MESSAGE };
 
+export type BackgroundModelChoice =
+  | { readonly kind: "provider-default" }
+  | { readonly kind: "follow-chat" }
+  | { readonly kind: "astra-fallback"; readonly model: string }
+  | { readonly kind: "explicit"; readonly model: string };
+
+export interface LlmBackgroundModelChoices {
+  readonly compact: BackgroundModelChoice;
+  readonly flush: BackgroundModelChoice;
+  readonly beforeAstra?: string;
+}
+
 export interface EffectiveRuntimeConfig {
   llm: {
     provider: LlmProvider;
@@ -203,6 +217,7 @@ export interface EffectiveRuntimeConfig {
     claudeCli?: ClaudeCliRuntimeSettings;
     codexAgent?: CodexAgentRuntimeSettings;
   };
+  llmBackgroundModels?: LlmBackgroundModelChoices;
   intervals: {
     apiKey: string;
     athleteId: string;
@@ -252,6 +267,7 @@ export interface RuntimeConfigPatch {
 export interface RuntimeConfigResolverOptions {
   readonly contextWindowTokens?: number;
   readonly authProfile?: string;
+  readonly beforeAstraModel?: string;
 }
 
 const ROOT_FIELDS = new Set(["llm", "intervals", "session"]);
@@ -381,6 +397,39 @@ function providerBaseUrl(provider: LlmProvider): string | undefined {
 
 function compactModelDefault(provider: LlmProvider): string | undefined {
   return COMPACT_MODEL_DEFAULTS[provider as keyof typeof COMPACT_MODEL_DEFAULTS];
+}
+
+function optionalBeforeAstraModel(
+  value: unknown,
+  provider: LlmProvider,
+  baseUrl: string | undefined,
+): string | undefined {
+  if (typeof value !== "string" || value.length === 0 || value === ASTRA_MODEL_ID) return undefined;
+  const normalized = currentModelId(provider, value, baseUrl);
+  return normalized === ASTRA_MODEL_ID ? undefined : normalized;
+}
+
+export function inferBackgroundModelChoices(
+  llm: Pick<EffectiveRuntimeConfig["llm"], "provider" | "model" | "compactModel" | "flushModel">,
+): LlmBackgroundModelChoices {
+  const providerDefault = compactModelDefault(llm.provider);
+  const compact: BackgroundModelChoice =
+    llm.provider === "openai-codex"
+      ? { kind: "follow-chat" }
+      : llm.compactModel === undefined
+        ? providerDefault !== undefined
+          ? { kind: "provider-default" }
+          : { kind: "follow-chat" }
+        : providerDefault !== undefined && llm.compactModel === providerDefault
+          ? { kind: "provider-default" }
+          : providerDefault === undefined && llm.compactModel === llm.model
+            ? { kind: "follow-chat" }
+            : { kind: "explicit", model: llm.compactModel };
+  const flush: BackgroundModelChoice =
+    llm.flushModel === undefined
+      ? { kind: "follow-chat" }
+      : { kind: "explicit", model: llm.flushModel };
+  return { compact, flush };
 }
 
 function optionalModel(
@@ -567,32 +616,73 @@ export function resolveRuntimeConfig(
         )
       : undefined;
 
-  const astra = provider === "openai" && model === "gpt-6-astra";
-  const backgroundModel = astra
-    ? current !== undefined && !providerChanged && current.llm.model !== "gpt-6-astra"
-      ? current.llm.model
-      : DEFAULT_MODELS.openai
-    : model;
+  const astra = provider === "openai" && model === ASTRA_MODEL_ID;
+  const previousBackground =
+    current !== undefined && !providerChanged
+      ? (current.llmBackgroundModels ?? inferBackgroundModelChoices(current.llm))
+      : undefined;
+  const beforeAstra = !astra
+    ? undefined
+    : current === undefined
+      ? optionalBeforeAstraModel(options.beforeAstraModel, provider, baseUrl)
+      : providerChanged
+        ? undefined
+        : current.llm.model === ASTRA_MODEL_ID
+          ? previousBackground?.beforeAstra
+          : current.llm.model;
+  const astraFallback = beforeAstra ?? DEFAULT_MODELS.openai;
+
   const requestedFlushModel = optionalModel(llmPatch, "flushModel", provider, baseUrl);
-  const flushModel =
+  const explicitFlushModel =
     requestedFlushModel === null
       ? undefined
       : (requestedFlushModel ??
-        (current !== undefined && !providerChanged ? current.llm.flushModel : undefined) ??
-        (astra ? backgroundModel : undefined));
+        (previousBackground?.flush.kind === "explicit"
+          ? previousBackground.flush.model
+          : undefined));
+  const flushChoice: BackgroundModelChoice =
+    explicitFlushModel !== undefined
+      ? { kind: "explicit", model: explicitFlushModel }
+      : astra
+        ? { kind: "astra-fallback", model: astraFallback }
+        : { kind: "follow-chat" };
+  const flushModel =
+    flushChoice.kind === "explicit" || flushChoice.kind === "astra-fallback"
+      ? flushChoice.model
+      : undefined;
 
   const requestedCompactModel = optionalModel(llmPatch, "compactModel", provider, baseUrl);
-  const compactModel =
+  const explicitCompactModel =
     provider === "openai-codex"
-      ? model
+      ? undefined
       : requestedCompactModel === null
-        ? (compactModelDefault(provider) ?? backgroundModel)
+        ? undefined
         : (requestedCompactModel ??
-          (current !== undefined && !providerChanged
-            ? model !== current.llm.model && current.llm.compactModel === current.llm.model
-              ? backgroundModel
-              : current.llm.compactModel
-            : (compactModelDefault(provider) ?? backgroundModel)));
+          (previousBackground?.compact.kind === "explicit"
+            ? previousBackground.compact.model
+            : undefined));
+  const providerCompactDefault = compactModelDefault(provider);
+  const compactChoice: BackgroundModelChoice =
+    provider === "openai-codex"
+      ? { kind: "follow-chat" }
+      : explicitCompactModel !== undefined
+        ? { kind: "explicit", model: explicitCompactModel }
+        : astra
+          ? { kind: "astra-fallback", model: astraFallback }
+          : providerCompactDefault !== undefined
+            ? { kind: "provider-default" }
+            : { kind: "follow-chat" };
+  const compactModel =
+    compactChoice.kind === "explicit" || compactChoice.kind === "astra-fallback"
+      ? compactChoice.model
+      : compactChoice.kind === "provider-default"
+        ? (providerCompactDefault ?? model)
+        : model;
+  const llmBackgroundModels: LlmBackgroundModelChoices = {
+    compact: compactChoice,
+    flush: flushChoice,
+    ...(beforeAstra === undefined ? {} : { beforeAstra }),
+  };
 
   const intervalsApiKeySpecified = isSpecified(intervalsPatch, "apiKey");
   const intervalsApiKey = intervalsApiKeySpecified
@@ -666,6 +756,7 @@ export function resolveRuntimeConfig(
       ...(claudeCli === undefined ? {} : { claudeCli }),
       ...(codexAgent === undefined ? {} : { codexAgent }),
     },
+    llmBackgroundModels,
     intervals,
     session,
     contextWindowTokens,

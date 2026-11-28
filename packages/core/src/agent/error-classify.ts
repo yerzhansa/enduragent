@@ -143,6 +143,7 @@ export function classifyAgentError(
         athleteMessage: PROVIDER_DOWN_MESSAGE,
       };
     case "payment_required":
+    case "model_unavailable":
     case "overflow":
     case "invalid_request":
     case "unknown":
