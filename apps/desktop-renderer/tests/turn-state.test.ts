@@ -789,6 +789,50 @@ describe("desktop turn state", () => {
     });
   });
 
+  it("settles an uncertain reset from what the engine reports", () => {
+    const local = reduceChatState(started(), {
+      type: "interrupt",
+      requestKey: 1,
+      copy: "Interrupted",
+    });
+    let uncertain = reduceChatState(local, { type: "open-new-conversation" });
+    uncertain = reduceChatState(uncertain, { type: "begin-reset" });
+    uncertain = reduceChatState(uncertain, { type: "reset-failed", announcement: "Uncertain" });
+
+    const unchanged = reduceChatState(uncertain, {
+      type: "reset-checked",
+      outcome: "not-started",
+      announcement: "Not started",
+    });
+    expect(unchanged.messages).toBe(local.messages);
+    expect(unchanged.activeTurn).toBe(local.activeTurn);
+    expect(unchanged.session).toEqual({
+      ...uncertain.session,
+      resetPhase: "idle",
+      announcement: "Not started",
+    });
+
+    const landed = reduceChatState(uncertain, {
+      type: "reset-checked",
+      outcome: "landed",
+      announcement: "Started",
+    });
+    expect(landed).toMatchObject({ status: "idle", messages: [], activeTurn: null, queued: [] });
+    expect(landed.session).toEqual({
+      presence: "absent",
+      resetPhase: "idle",
+      resetCount: uncertain.session.resetCount + 1,
+      announcement: "Started",
+    });
+  });
+
+  it("ignores a reset check outside an uncertain reset", () => {
+    const idle = started();
+    expect(
+      reduceChatState(idle, { type: "reset-checked", outcome: "landed", announcement: "Started" }),
+    ).toBe(idle);
+  });
+
   it("clears a reset announcement only when the next submit is accepted", () => {
     const announced = {
       ...EMPTY_CHAT_STATE,

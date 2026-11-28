@@ -75,8 +75,7 @@ const historyAthleteText = "How should I pace the recovery block?";
 const historyCoachText = "Keep the opening rides conversational and controlled.";
 const interruptedAthleteText = "Compare the last two recovery rides.";
 const interruptedCoachText = "The first ride stayed controlled, while the second";
-const resetUncertaintyCopy =
-  "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
+const resetNotStartedCopy = "The new conversation didn’t start. Your conversation is unchanged.";
 const fixtures: RunningDesktopFixture[] = [];
 const backends: RecoveryBackend[] = [];
 const scratchPaths: string[] = [];
@@ -950,7 +949,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
 
       reset.fail(new Error("private ambiguous reset detail"));
       await fixture.evaluate<void>(`
-        const expected = ${JSON.stringify(resetUncertaintyCopy)};
+        const expected = ${JSON.stringify(resetNotStartedCopy)};
         const deadline = Date.now() + 5000;
         while (
           (document.querySelector(".new-conversation-status")?.textContent?.trim() !== expected ||
@@ -960,7 +959,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
         if (document.querySelector(".new-conversation-status")?.textContent?.trim() !== expected) {
-          throw new Error("Reset uncertainty did not render");
+          throw new Error("The reset that never started was not reported");
         }
         if (document.querySelector(".new-conversation-dialog[data-open]") !== null) {
           throw new Error("Reset confirmation did not close");
@@ -981,14 +980,14 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         dialogOpen: false,
         dialogBusy: false,
         newChatDisabled: false,
-        newChatAriaDisabled: true,
-        announcement: resetUncertaintyCopy,
+        newChatAriaDisabled: false,
+        announcement: resetNotStartedCopy,
       });
       expect(await backend.snapshot()).toEqual(storedBefore);
       if (evidenceDirectory !== undefined) {
-        await fixture.screenshot(join(evidenceDirectory, "nav-03-reset-uncertain.png"));
+        await fixture.screenshot(join(evidenceDirectory, "nav-03-reset-not-started.png"));
       }
-      await visibleQaCheckpoint("nav-03-reset-uncertain");
+      await visibleQaCheckpoint("nav-03-reset-not-started");
 
       expect(
         await fixture.evaluate(`
@@ -996,7 +995,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           if (!(opener instanceof HTMLButtonElement)) throw new Error("New chat action missing");
           opener.click();
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          return document.querySelector(".new-conversation-dialog[data-open]") === null;
+          return document.querySelector(".new-conversation-dialog[data-open]") !== null;
         `),
       ).toBe(true);
       expect(backend.calls.filter((call) => call.method === "resetSession")).toHaveLength(1);

@@ -159,6 +159,7 @@ describe("chat view adapter", () => {
       composerPlaceholder: "Message your coach",
       composerStatus: null,
       newConversationUnavailable: false,
+      newConversationCheck: "hidden",
       resetPhase: "idle",
       resetCount: 0,
       announcement: null,

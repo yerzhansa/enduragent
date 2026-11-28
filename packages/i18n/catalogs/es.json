@@ -1310,6 +1310,8 @@
       "newConversationMemoryWarning": "Se ha iniciado una nueva conversación. Puede que algunos detalles recientes no se hayan guardado en la memoria del entrenador.",
       "newConversationSuccess": "Se ha iniciado una nueva conversación.",
       "newConversationUncertain": "No se pudo confirmar si se inició la nueva conversación. Se conserva la conversación visible.",
+      "newConversationNotStarted": "La nueva conversación no se inició. La conversación no ha cambiado.",
+      "checkNewConversation": "Comprobar de nuevo",
       "planningRequestFailure": "Plan no pudo recibir esta solicitud. Se conserva tu solicitud y no ha cambiado nada en Plan.",
       "planningRequestLoadFailure": "No se pudieron comprobar las solicitudes de plan guardadas. Vuelve a conectar e inténtalo de nuevo.",
       "protocolFailure": "No se pudo verificar la respuesta del entrenador. Inténtalo de nuevo.",

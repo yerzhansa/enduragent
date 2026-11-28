@@ -1310,6 +1310,8 @@
       "newConversationMemoryWarning": "Nieuw gesprek gestart. Sommige recente details zijn mogelijk niet opgeslagen in het coachgeheugen.",
       "newConversationSuccess": "Nieuw gesprek gestart.",
       "newConversationUncertain": "Er kon niet worden bevestigd of het nieuwe gesprek is gestart. Je zichtbare gesprek blijft bewaard.",
+      "newConversationNotStarted": "Het nieuwe gesprek is niet gestart. Je gesprek is ongewijzigd.",
+      "checkNewConversation": "Opnieuw controleren",
       "planningRequestFailure": "Plan kon dit verzoek niet ontvangen. Je verzoek blijft bewaard en er is niets gewijzigd in Plan.",
       "planningRequestLoadFailure": "Opgeslagen verzoeken voor Plan konden niet worden gecontroleerd. Maak opnieuw verbinding en probeer het opnieuw.",
       "protocolFailure": "Het antwoord van de coach kon niet worden geverifieerd. Probeer het opnieuw.",

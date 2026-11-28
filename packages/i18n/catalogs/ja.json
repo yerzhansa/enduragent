@@ -1299,6 +1299,8 @@
       "newConversationMemoryWarning": "新しい会話を開始しました。最近の詳細の一部がコーチの記憶に保存されていない可能性があります。",
       "newConversationSuccess": "新しい会話を開始しました。",
       "newConversationUncertain": "新しい会話が開始されたか確認できませんでした。表示中の会話は残っています。",
+      "newConversationNotStarted": "新しい会話は開始されませんでした。会話は変更されていません。",
+      "checkNewConversation": "再確認",
       "planningRequestFailure": "プランがこのリクエストを受け取れませんでした。リクエストは残っており、プランは変更されていません。",
       "planningRequestLoadFailure": "保存済みのプランへのリクエストを確認できませんでした。再接続して、もう一度お試しください。",
       "protocolFailure": "コーチの回答を検証できませんでした。もう一度お試しください。",

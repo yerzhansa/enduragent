@@ -81,6 +81,7 @@ function stubActions(): ChatActions {
     openNewConversation: vi.fn(),
     cancelNewConversation: vi.fn(),
     confirmNewConversation: vi.fn(),
+    checkNewConversation: vi.fn(),
     retryFirstSync: vi.fn(),
     openOpenRouterCredits: vi.fn(),
     answerDecision: vi.fn(),
@@ -2743,6 +2744,36 @@ describe("chat surface", () => {
       await waitFor(() => {
         expect(document.activeElement).toBe(screen.getByRole("button", { name: "New chat" }));
       });
+    });
+
+    it("offers Check again only while the reset outcome is uncertain", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      const status = (): Element | null => document.querySelector(".new-conversation-status");
+      const uncertainCopy =
+        "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
+
+      setChat({ resetPhase: "uncertain", announcement: uncertainCopy });
+      expect(status()).toHaveTextContent(uncertainCopy);
+      expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+
+      setChat({ newConversationCheck: "ready", announcement: null });
+      expect(status()).toHaveTextContent(uncertainCopy);
+      await user.click(screen.getByRole("button", { name: "Check again" }));
+      expect(actions.checkNewConversation).toHaveBeenCalledTimes(1);
+
+      setChat({ newConversationCheck: "busy" });
+      expect(screen.getByRole("button", { name: "Check again" })).toBeDisabled();
+
+      setChat({
+        resetPhase: "idle",
+        newConversationCheck: "hidden",
+        announcement: "The new conversation didn’t start. Your conversation is unchanged.",
+      });
+      expect(status()).toHaveTextContent(
+        "The new conversation didn’t start. Your conversation is unchanged.",
+      );
+      expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
     });
 
     it("names the restored history in the confirmation copy", () => {

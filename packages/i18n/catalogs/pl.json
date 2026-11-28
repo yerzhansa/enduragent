@@ -1332,6 +1332,8 @@
       "newConversationMemoryWarning": "Rozpoczęto nową rozmowę. Niektóre ostatnie szczegóły mogły nie zostać zapisane w pamięci trenera.",
       "newConversationSuccess": "Rozpoczęto nową rozmowę.",
       "newConversationUncertain": "Nie udało się potwierdzić rozpoczęcia nowej rozmowy. Widoczna rozmowa została zachowana.",
+      "newConversationNotStarted": "Nowa rozmowa nie została rozpoczęta. Twoja rozmowa się nie zmieniła.",
+      "checkNewConversation": "Sprawdź ponownie",
       "planningRequestFailure": "Plan nie mógł odebrać tej prośby. Twoja prośba została zachowana, a plan pozostał bez zmian.",
       "planningRequestLoadFailure": "Nie udało się sprawdzić zapisanych próśb dotyczących planu. Połącz ponownie i spróbuj jeszcze raz.",
       "protocolFailure": "Nie udało się zweryfikować odpowiedzi trenera. Spróbuj ponownie.",

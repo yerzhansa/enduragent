@@ -54,7 +54,7 @@ export interface TranscriptHydrator {
   loadEarlier(): Promise<void>;
   retry(): Promise<void>;
   beginReset(): void;
-  resetSucceeded(): void;
+  resetSucceeded(page?: Extract<TranscriptPage, { readonly status: "page" }>): void;
   resetFailed(): void;
   dispose(): void;
 }
@@ -101,6 +101,16 @@ function uniqueEntries(
     seen.add(key);
     return true;
   });
+}
+
+export function transcriptTurnIds(source: {
+  readonly turns: readonly TranscriptTurn[];
+  readonly entries?: readonly TranscriptPageEntry[];
+}): readonly string[] {
+  return [
+    ...source.turns.map((turn) => turn.turnId),
+    ...(source.entries ?? []).flatMap((entry) => ("turnId" in entry ? [entry.turnId] : [])),
+  ];
 }
 
 export function mergeHydratedMessages(
@@ -328,7 +338,7 @@ export function createTranscriptHydrator(input: {
         });
       }
     },
-    resetSucceeded() {
+    resetSucceeded(page) {
       if (disposed) return;
       resetPending = false;
       epoch += 1;
@@ -343,6 +353,7 @@ export function createTranscriptHydrator(input: {
         revision: snapshot.revision + 1,
         change: "clear",
       });
+      if (page !== undefined) applyPage(page, "initial");
     },
     resetFailed() {
       if (disposed) return;

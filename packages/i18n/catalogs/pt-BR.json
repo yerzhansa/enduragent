@@ -1310,6 +1310,8 @@
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido salvos na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",
       "newConversationUncertain": "Não foi possível confirmar se a nova conversa foi iniciada. A conversa visível foi preservada.",
+      "newConversationNotStarted": "A nova conversa não foi iniciada. Sua conversa não mudou.",
+      "checkNewConversation": "Verificar novamente",
       "planningRequestFailure": "O Plano não conseguiu receber esta solicitação. Sua solicitação foi preservada e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar as solicitações salvas do Plano. Reconecte e tente novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tente novamente.",

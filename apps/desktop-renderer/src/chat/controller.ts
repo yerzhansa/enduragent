@@ -57,10 +57,12 @@ import {
   FEEDBACK_TOO_LONG_COPY,
   FEEDBACK_USAGE_COPY,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
+  NEW_CONVERSATION_NOT_STARTED_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
   NEW_CONVERSATION_UNCERTAIN_COPY,
   PLAN_CHANGE_TEXT_LENGTH_COPY,
   clearPlanCreationPause,
+  newConversationOutcome,
   planChangeApplyRejectionCopy,
   planChangeParameterCopy,
   planCreationBuildRejectionCopy,
@@ -75,6 +77,7 @@ import {
   type ChatController,
   type ChatView,
   type ChatViewControls,
+  type NewConversationEvidence,
   type PlanCreationDiscardEvent,
 } from "./controller-helpers";
 import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
@@ -91,12 +94,15 @@ import {
   hasClearableConversation,
   nextDrainGroup,
   type ChatSentAttachment,
+  type NewConversationCheck,
 } from "../turn-state";
 import { reduceChatState } from "./message-state";
 import {
+  TRANSCRIPT_HYDRATION_PAGE_LIMIT,
   createTranscriptHydrator,
   emptyTranscriptHydration,
   mergeHydratedMessages,
+  transcriptTurnIds,
   type TranscriptPage,
 } from "./hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "./limits";
@@ -128,6 +134,7 @@ export {
   FEEDBACK_TOO_LONG_COPY,
   FEEDBACK_USAGE_COPY,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
+  NEW_CONVERSATION_NOT_STARTED_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
   NEW_CONVERSATION_UNCERTAIN_COPY,
   type ActivePlanKnowledge,
@@ -227,6 +234,10 @@ export function createChatController(input: {
   let retryClient: DesktopCoachClient | undefined;
   let probeTask: Promise<void> | undefined;
   let resetTask: Promise<void> | undefined;
+  let resetEvidence: NewConversationEvidence | null = null;
+  let newConversationCheck:
+    | { readonly trigger: "automatic" | "athlete"; readonly task: Promise<void> }
+    | undefined;
   let activeStopRequest: ActiveStopRequest | undefined;
   let retryReconnect = true;
   let decision: CoachDecisionReadModel | null = null;
@@ -322,7 +333,9 @@ export function createChatController(input: {
     );
   const now = input.now ?? Date.now;
   const resetBlocksWork = (): boolean =>
-    state.session.resetPhase === "confirming" || state.session.resetPhase === "resetting";
+    state.session.resetPhase === "confirming" ||
+    state.session.resetPhase === "resetting" ||
+    newConversationCheck !== undefined;
   const decisionBlocksWork = (): boolean =>
     !decisionLoaded ||
     decision?.status === "unanswered" ||
@@ -347,6 +360,14 @@ export function createChatController(input: {
   const decisionBlocksReset = (): boolean =>
     !decisionLoaded ||
     (decision?.status === "answered" && decision.continuation.status === "pending");
+  const chatWorkInFlight = (): boolean =>
+    state.status === "streaming" ||
+    activeTask !== undefined ||
+    decisionActionTask !== undefined ||
+    outstandingChatTasks.size > 0 ||
+    attachmentWriteTokens.size > 0 ||
+    queueMutationCount > 0 ||
+    queuedRetry !== undefined;
   const canOpenNewConversation = (): boolean =>
     canChat() &&
     queueLoaded &&
@@ -356,16 +377,18 @@ export function createChatController(input: {
       hydration.entries.length > 0 ||
       attachmentSurface?.draft != null) &&
     state.session.resetPhase === "idle" &&
-    state.status !== "streaming" &&
+    !chatWorkInFlight() &&
     !decisionBlocksReset() &&
-    activeTask === undefined &&
-    decisionActionTask === undefined &&
-    outstandingChatTasks.size === 0 &&
-    attachmentWriteTokens.size === 0 &&
     state.retryRequired == null &&
-    queueMutationCount === 0 &&
-    queuedRetry === undefined &&
     resetTask === undefined;
+  const newConversationCheckControl = (): NewConversationCheck => {
+    if (state.session.resetPhase !== "uncertain" || newConversationCheck?.trigger === "automatic") {
+      return "hidden";
+    }
+    return canChat() && newConversationCheck === undefined && !chatWorkInFlight()
+      ? "ready"
+      : "busy";
+  };
   const render = (appendDelta?: ChatAppendDelta): void => {
     if (disposed) return;
     reportBestEffortSync("desktop-chat-view-render-failed", () => {
@@ -378,6 +401,7 @@ export function createChatController(input: {
             },
         {
           newConversationDisabled: !canOpenNewConversation(),
+          newConversationCheck: newConversationCheckControl(),
           workBlocked: resetBlocksWork() || !queueLoaded,
           decisionLoading: !decisionLoaded,
           decisionLoadError,
@@ -487,15 +511,16 @@ export function createChatController(input: {
     }
     render();
   };
+  const readTranscriptPage =
+    input.readTranscriptPage ??
+    (async (): Promise<TranscriptPage> => ({
+      schemaVersion: 1,
+      status: "page",
+      turns: [],
+      nextCursor: null,
+    }));
   const hydrator = createTranscriptHydrator({
-    readPage:
-      input.readTranscriptPage ??
-      (async () => ({
-        schemaVersion: 1,
-        status: "page",
-        turns: [],
-        nextCursor: null,
-      })),
+    readPage: readTranscriptPage,
     onChange(next) {
       hydration = next;
       if (!hydrationRenderSuppressed) render();
@@ -513,6 +538,91 @@ export function createChatController(input: {
       hydrationRenderSuppressed = false;
     }
     render();
+  };
+  const finishNewConversation = (
+    clearedAttachmentSurface: ChatAttachmentComposerReadModel,
+    action: Extract<
+      Parameters<typeof reduceChatState>[1],
+      { readonly type: "reset-succeeded" | "reset-checked" }
+    >,
+    page?: Extract<TranscriptPage, { readonly status: "page" }>,
+  ): void => {
+    resetEvidence = null;
+    attachmentSurface = clearedAttachmentSurface;
+    attachmentAdmissions = [];
+    clearDroppedAttachmentAdmissions();
+    draftError = null;
+    attachmentError = null;
+    stalledDrainHeadId = null;
+    sequence += 1;
+    retryClient = undefined;
+    queuedRetry = undefined;
+    interruptedQueueOrigin = undefined;
+    decision = null;
+    decisionLoaded = true;
+    decisionLoadError = null;
+    decisionPhase = "idle";
+    decisionAnswerLabel = null;
+    decisionError = null;
+    attachmentSummaries.clear();
+    planCreationDiscardEvents = [];
+    implicitPlanChangeRouting = false;
+    input.publishPlanChange?.(EMPTY_PLAN_CHANGE_SURFACE);
+    updateReset(() => hydrator.resetSucceeded(page), action);
+  };
+  const settleNewConversation = async (
+    before: NewConversationEvidence,
+    current: () => boolean,
+  ): Promise<void> => {
+    const client = await input.clients.getClient();
+    await client.call("hasSession", { chatId: DESKTOP_CHAT_ID });
+    const page = await readTranscriptPage({
+      cursor: null,
+      limit: TRANSCRIPT_HYDRATION_PAGE_LIMIT,
+    });
+    const queue = await client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID });
+    const outcome = newConversationOutcome(before, page, queue);
+    if (!current() || outcome === "unknown" || page.status !== "page") return;
+    if (outcome === "not-started") {
+      resetEvidence = null;
+      reduce({ type: "reset-checked", outcome, announcement: NEW_CONVERSATION_NOT_STARTED_COPY });
+      return;
+    }
+    await attachmentTextSaveTask;
+    if (!current()) return;
+    const clearedAttachmentSurface = await client.call("clearChatAttachmentDraft", {
+      chatId: DESKTOP_CHAT_ID,
+    });
+    if (!current()) return;
+    finishNewConversation(
+      clearedAttachmentSurface,
+      { type: "reset-checked", outcome, announcement: NEW_CONVERSATION_MEMORY_WARNING_COPY },
+      page,
+    );
+    applyQueueSnapshot(queue);
+  };
+  const runNewConversationCheck = (trigger: "automatic" | "athlete"): Promise<void> => {
+    if (newConversationCheck !== undefined) return newConversationCheck.task;
+    const before = resetEvidence;
+    if (disposed || before === null || state.session.resetPhase !== "uncertain") {
+      return Promise.resolve();
+    }
+    const checkAttachmentGeneration = ++attachmentGeneration;
+    claimAttachmentSurface();
+    const task: Promise<void> = settleNewConversation(
+      before,
+      () =>
+        attachmentGenerationIsCurrent(checkAttachmentGeneration) &&
+        state.session.resetPhase === "uncertain",
+    )
+      .catch(() => undefined)
+      .finally(() => {
+        if (newConversationCheck?.task === task) newConversationCheck = undefined;
+        render();
+      });
+    newConversationCheck = { trigger, task };
+    render();
+    return task;
   };
 
   const run = (
@@ -3194,6 +3304,15 @@ export function createChatController(input: {
       if (!canChat() || disposed || state.session.resetPhase !== "confirming") {
         return Promise.resolve();
       }
+      resetEvidence = {
+        turnIds: new Set([
+          ...transcriptTurnIds(hydration),
+          ...state.messages.flatMap((message) =>
+            message.turnId === undefined ? [] : [message.turnId],
+          ),
+        ]),
+        queuedIds: new Set(state.queued.map((message) => message.id)),
+      };
       updateReset(() => hydrator.beginReset(), { type: "begin-reset" });
       const resetEpoch = ++epoch;
       const resetAttachmentGeneration = ++attachmentGeneration;
@@ -3235,27 +3354,7 @@ export function createChatController(input: {
           ) {
             return;
           }
-          attachmentSurface = clearedAttachmentSurface;
-          attachmentAdmissions = [];
-          clearDroppedAttachmentAdmissions();
-          draftError = null;
-          attachmentError = null;
-          stalledDrainHeadId = null;
-          sequence += 1;
-          retryClient = undefined;
-          queuedRetry = undefined;
-          interruptedQueueOrigin = undefined;
-          decision = null;
-          decisionLoaded = true;
-          decisionLoadError = null;
-          decisionPhase = "idle";
-          decisionAnswerLabel = null;
-          decisionError = null;
-          attachmentSummaries.clear();
-          planCreationDiscardEvents = [];
-          implicitPlanChangeRouting = false;
-          input.publishPlanChange?.(EMPTY_PLAN_CHANGE_SURFACE);
-          updateReset(() => hydrator.resetSucceeded(), {
+          finishNewConversation(clearedAttachmentSurface, {
             type: "reset-succeeded",
             announcement: result.memoryFlushed
               ? NEW_CONVERSATION_SUCCESS_COPY
@@ -3273,6 +3372,7 @@ export function createChatController(input: {
             type: "reset-failed",
             announcement: NEW_CONVERSATION_UNCERTAIN_COPY,
           });
+          await runNewConversationCheck("automatic");
         } finally {
           if (!disposed && epoch === resetEpoch) {
             void reportBestEffortAsync("desktop-chat-refresh-spend-failed", () =>
@@ -3289,6 +3389,11 @@ export function createChatController(input: {
         }
       });
       return task;
+    },
+    checkNewConversation() {
+      return newConversationCheckControl() === "ready"
+        ? runNewConversationCheck("athlete")
+        : (newConversationCheck?.task ?? Promise.resolve());
     },
     answerDecision(decisionId, answer) {
       if (

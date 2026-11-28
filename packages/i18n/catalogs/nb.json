@@ -1310,6 +1310,8 @@
       "newConversationMemoryWarning": "Ny samtale startet. Enkelte nylige detaljer er kanskje ikke lagret i trenerens hukommelse.",
       "newConversationSuccess": "Ny samtale startet.",
       "newConversationUncertain": "Vi kunne ikke bekrefte om den nye samtalen startet. Den synlige samtalen er bevart.",
+      "newConversationNotStarted": "Den nye samtalen startet ikke. Samtalen din er uendret.",
+      "checkNewConversation": "Sjekk igjen",
       "planningRequestFailure": "Plan kunne ikke motta denne forespørselen. Forespørselen er bevart, og ingenting ble endret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke sjekke lagrede planforespørsler. Koble til på nytt og prøv igjen.",
       "protocolFailure": "Trenerens svar kunne ikke bekreftes. Prøv igjen.",
