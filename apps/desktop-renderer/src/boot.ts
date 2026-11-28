@@ -57,6 +57,7 @@ import {
   credentialChangesBlocked,
   createCredentialSettingsController,
 } from "./settings/credential-controller";
+import { credentialSettingsBridge } from "./settings/credential-bridge";
 import { createRideImportController, subscribeToDroppedRideImports } from "./ride-import";
 import { createTrainingExportController } from "./training-export/controller";
 import { settleInitialSetupStatus } from "./initial-setup-status";
@@ -630,14 +631,7 @@ export function bootRenderer(): Disposer {
   };
   const credentialSettingsController = createCredentialSettingsController({
     clients,
-    loadStatuses: () => window.enduragentAuth.credentialStatuses(),
-    loadChatGptStatus: () => window.enduragentAuth.chatgptStatus(),
-    loadRecoveryStatus: () => window.enduragentAuth.credentialRecoveryStatus(),
-    retryCredentialRecovery: () => window.enduragentAuth.retryCredentialRecovery(),
-    retryFailedCredentials: () => window.enduragentAuth.retryFailedCredentials(),
-    resetAllCredentials: () => window.enduragentAuth.resetAllCredentials(),
-    loadClaudeCliStatus: () => window.enduragentAuth.claudeCliStatus(),
-    deleteCredential: (value) => window.enduragentAuth.deleteCredential(value),
+    ...credentialSettingsBridge(window.enduragentAuth),
     openSetup: openSetupFromSettings,
     onDeleted: refreshOnboardingCredentials,
     onReconciled: refreshOnboardingCredentials,
