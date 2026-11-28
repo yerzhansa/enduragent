@@ -269,7 +269,7 @@ export function SpendSection(): ReactElement {
           </div>
         ) : null}
         <div
-          className={`${styles.row} ${styles.rowStacked}`}
+          className={`${styles.row} ${styles.rowStacked} border-t`}
           data-spend-cap-mode={summary?.capMode}
         >
           <div className={styles.bareRow}>
@@ -308,7 +308,7 @@ export function SpendSection(): ReactElement {
               ))}
             </div>
           </div>
-          <p className={styles.note}>{say("settings.spend.mode.overshoot")}</p>
+          <p className={styles.help}>{say("settings.spend.mode.overshoot")}</p>
         </div>
       </section>
     </>
