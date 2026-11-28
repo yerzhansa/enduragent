@@ -1,24 +1,13 @@
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { createPlanCreationChecks } from "./plan-creation-checks.js";
 import { projectCreationCard } from "./plan-creation-card.js";
-import { dateText, planCalendarStatus, plansWaitingForApprove } from "./plan-calendar-status.js";
-import { closedPlanCalendar } from "./plan-calendar-status.js";
+import {
+  createPlanLibraryOperations,
+  type PlanLibraryOperations,
+} from "./plan-library-operations.js";
 import { z } from "zod";
 import {
-  PlanCloseRpcParamsSchema,
-  PlanCloseResultSchema,
-  PlanHistoryParamsSchema,
-  PlanHistoryResultSchema,
-  type PlanCalendarStatus,
   type PlanChangeEventSource,
-  type PlanCloseRpcParams,
-  type PlanCloseResult,
-  type PlanHistoryParams,
-  type PlanHistoryResult,
-  ListPlansParamsSchema,
-  ListPlansResultSchema,
-  type ListPlansParams,
-  type ListPlansResult,
   type LegacyPlanSummary,
   PlanCreationActivateRpcParamsSchema,
   PlanCreationActivateRpcResultSchema,
@@ -37,12 +26,6 @@ import {
 import { buildCreationDraft } from "@enduragent/sport-cycling";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
-  addCivilDays,
-  createPlanChangeRepository,
-  createPlanWorkoutMatchRepository,
-  createPlanLifecycleRepository,
-  createPlanReconciliationRepository,
-  createPlanRepository,
   dateKeyFromText,
   inclusiveCivilDays,
   MIN_FULL_PLAN_DAYS,
@@ -50,32 +33,24 @@ import {
   PlanCreationStoreError,
   type PlanCreationRepository,
   type PlanCreationSnapshot,
-  type PlanSummaryRecord,
-  type PlanReconciliationJobRecord,
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
-  encodePlanCreationAnswer,
   isPlanCreationDraftCurrent,
   pendingPlanCreationCommitment,
   pendingPlanCreationCheck,
   resolvePlanCreationAnswer,
   projectPlanCreationAnswerSummaries,
-  resolvePlanCreationAnswerFlow,
   resolvePlanCreationDraftAnswers,
   validPlanCreationAnswer,
-  type PlanCreationAnswerKey,
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
-
 import {
-  projectPlanChanges,
-  projectPendingChangeCheck,
-  readPlanChangesPaused,
-  projectTodayChoice,
-  readClosedPlanOccupiesToday,
-} from "./plan-change-operations.js";
+  encodePlanCreationAnswer,
+  resolvePlanCreationAnswerFlow,
+  type PlanCreationAnswerKey,
+} from "./plan-creation-answer-flow.js";
 
 export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
@@ -93,10 +68,7 @@ export function expectedPlanCreationAnswerKind(
   return resolvePlanCreationAnswerFlow(snapshot).next;
 }
 
-export interface PlanCreationHost extends PlanCreationOperations {
-  "plan.list"(request: ListPlansParams): Promise<ListPlansResult>;
-  "plan.close"(request: PlanCloseRpcParams): Promise<PlanCloseResult>;
-  "plan.history"(request: PlanHistoryParams): Promise<PlanHistoryResult>;
+export interface PlanCreationHost extends PlanCreationOperations, PlanLibraryOperations {
   readCard(): Promise<PlanCreationCardModel | null>;
   ready(): Promise<void>;
 }
@@ -132,10 +104,6 @@ export function createPlanCreationOperations(input: {
   timezone?: () => string;
   now?: () => number;
 }): PlanCreationHost {
-  const plans = createPlanRepository(input.store);
-  const lifecycle = createPlanLifecycleRepository(input.store, {
-    newId: () => input.identity.newUlid(),
-  });
   const baselineEvidence = input.baselineEvidence ?? defaultBaselineEvidence;
   const today = input.today ?? (() => new Date().toISOString().slice(0, 10));
   const todayDateKey = input.todayDateKey ?? (() => dateKeyFromText(today()));
@@ -278,213 +246,24 @@ export function createPlanCreationOperations(input: {
     const snapshot = await input.repository.readUnfinished();
     return snapshot === undefined ? null : project(snapshot);
   };
-  const timestampDate = (value: number | null): string | null =>
-    value === null ? null : new Date(value).toISOString().slice(0, 10);
-  const summarizeCalendar = (
-    job: PlanReconciliationJobRecord | undefined,
-    waitingForApprove = false,
-  ): PlanCalendarStatus =>
-    planCalendarStatus({ job, connected: calendarConnected(), waitingForApprove });
-  const summarizePlan = (plan: PlanSummaryRecord) => ({
-    planId: plan.planId,
-    version: plan.version,
-    name: plan.name,
-    start: dateText(plan.startDateKey),
-    end: dateText(addCivilDays(plan.startDateKey, plan.totalWeeks * 7 - 1)),
-    weeks: plan.totalWeeks,
-    status: plan.status,
-    closeReason: plan.closeReason,
-    closedAt: timestampDate(plan.closedAtMs),
-    activatedAt: timestampDate(plan.activatedAtMs),
-    creationId: plan.creationId,
-  });
-  const supportingEventCandidates = async (planId: string, sources: PlanChangeEventSource[]) => {
-    if (sources.length === 0) return [];
-    const revision = await input.store.get(
-      "SELECT snapshot_json FROM plan_revision WHERE plan_id=? ORDER BY revision_number DESC LIMIT 1",
-      [planId],
-    );
-    const accepted = new Set(
-      revision === undefined
-        ? []
-        : PlanCreationDraftSchema.parse(
-            JSON.parse(z.string().parse(revision.snapshot_json)),
-          ).supportingEvents.flatMap((event) =>
-            event.source.kind === "synced" ? [event.source.providerId] : [],
-          ),
-    );
-    return sources
-      .filter((source) => !accepted.has(source.providerId))
-      .map(({ providerId, name, date, category }) => ({
-        providerId,
-        name,
-        date,
-        category,
-        sourceLabel: "Intervals.icu event",
-      }));
-  };
   return {
-    async "plan.list"(request) {
-      const { retryCalendar } = ListPlansParamsSchema.parse(request);
-      await checks.ready();
-      const legacy = await legacyPlan();
-      const sources = intervalsConfigured() ? await input.eventSources.read() : [];
-      return input.store.transaction(async () => {
-        const transactionStore = {
-          exec: (sql: string) => input.store.exec(sql),
-          get: input.store.get.bind(input.store),
-          all: input.store.all.bind(input.store),
-          run: input.store.run.bind(input.store),
-          close: () => input.store.close(),
-          transaction: async <T>(run: () => Promise<T>): Promise<T> => run(),
-        };
-        await createPlanLifecycleRepository(transactionStore, {
-          newId: () => input.identity.newUlid(),
-        }).completeExpired({ todayDateKey: todayDateKey(), nowMs: now() });
-        const planChanges = createPlanChangeRepository(transactionStore, {
-          newId: () => input.identity.newUlid(),
-          sha256: async (text) => {
-            const digest = await input.crypto.subtle.digest(
-              "SHA-256",
-              new TextEncoder().encode(text),
-            );
-            return [...new Uint8Array(digest)]
-              .map((byte) => byte.toString(16).padStart(2, "0"))
-              .join("");
-          },
-        });
-        const creation = await input.repository.readUnfinished();
-        const records = await plans.listPlans();
-        const reconciliation = createPlanReconciliationRepository(transactionStore);
-        if (retryCalendar === true) await reconciliation.reopenFailedCleanups(now());
-        const jobs = new Map(
-          (await reconciliation.readLatestJobsForLibrary()).map((job) => [
-            `${job.planId}:${job.kind}`,
-            job,
-          ]),
-        );
-        const barrier = await reconciliation.readCleanupBarrier();
-        const holding = barrier?.status !== "verified" ? barrier : undefined;
-        const waiting = await plansWaitingForApprove(transactionStore);
-        const summaries = records.map((plan) => ({
-          ...summarizePlan(plan),
-          calendar: summarizeCalendar(
-            (plan.status === "active" ? holding : undefined) ??
-              jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
-            waiting.has(plan.planId),
-          ),
-        }));
-        const active = summaries.find((plan) => plan.status === "active") ?? null;
-        const choiceDateKey = todayDateKey();
-        const activeRevision =
-          active === null
-            ? undefined
-            : await transactionStore.get(
-                `SELECT revision.snapshot_json FROM planning_plan plan
-          JOIN plan_revision revision ON revision.plan_id=plan.plan_id AND revision.revision_number=plan.current_revision_number
-          WHERE plan.plan_id=?`,
-                [active.planId],
-              );
-        const activeDraft =
-          activeRevision === undefined
-            ? null
-            : PlanCreationDraftSchema.safeParse(
-                JSON.parse(z.string().parse(activeRevision.snapshot_json)),
-              );
-        const todayChoice = !activeDraft?.success
-          ? null
-          : projectTodayChoice(
-              activeDraft.data,
-              choiceDateKey,
-              await readClosedPlanOccupiesToday(transactionStore, choiceDateKey),
-              new Set(),
-              timezone(),
-            );
-        return ListPlansResultSchema.parse({
-          calendarConnected: calendarConnected(),
-          legacy,
-          creation: creation === undefined ? null : await project(creation),
-          active:
-            active === null
-              ? null
-              : {
-                  ...active,
-                  todayChoice,
-                  supportingEventCandidates: await supportingEventCandidates(
-                    active.planId,
-                    sources,
-                  ),
-                },
-          changesPaused:
-            active === null
-              ? null
-              : await readPlanChangesPaused({
-                  calendarConnected: async () => intervalsConfigured(),
-                  syncStatus: () =>
-                    createPlanWorkoutMatchRepository(transactionStore).readSyncStatus(),
-                  now,
-                }),
-          pendingChangeCheck:
-            active === null
-              ? null
-              : await projectPendingChangeCheck(transactionStore, active.planId),
-          changes:
-            active === null
-              ? []
-              : await projectPlanChanges({
-                  repository: planChanges,
-                  store: transactionStore,
-                  planId: active.planId,
-                  todayDateKey: todayDateKey(),
-                }),
-          closed: summaries.filter((plan) => plan.status === "closed"),
-        });
-      });
-    },
-    async "plan.close"(request) {
-      const parsed = PlanCloseRpcParamsSchema.parse(request);
-      const command = await stamp(parsed.commandId, await requestDigest(input.crypto, parsed));
-      return PlanCloseResultSchema.parse(
-        await lifecycle.close({
-          command,
-          planId: parsed.planId,
-          expectedVersion: parsed.expectedVersion,
-          closedAtMs: now(),
-          todayDateKey: todayDateKey(),
-          cleanupJobId: input.identity.newUlid(),
-        }),
-      );
-    },
-    async "plan.history"(request) {
-      const parsed = PlanHistoryParamsSchema.parse(request);
-      return input.store.transaction(async () => {
-        const transactionStore = {
-          exec: (sql: string) => input.store.exec(sql),
-          get: input.store.get.bind(input.store),
-          all: input.store.all.bind(input.store),
-          run: input.store.run.bind(input.store),
-          close: () => input.store.close(),
-          transaction: async <T>(run: () => Promise<T>): Promise<T> => run(),
-        };
-        const detail = await createPlanLifecycleRepository(transactionStore, {
-          newId: () => input.identity.newUlid(),
-        }).readClosedDetail(parsed.planId);
-        return PlanHistoryResultSchema.parse(
-          detail === null
-            ? null
-            : {
-                ...detail,
-                plan: {
-                  ...summarizePlan(detail.plan),
-                  calendar: await closedPlanCalendar(transactionStore, {
-                    planId: detail.plan.planId,
-                    connected: calendarConnected(),
-                  }),
-                },
-              },
-        );
-      });
-    },
+    ...createPlanLibraryOperations({
+      store: input.store,
+      repository: input.repository,
+      identity: input.identity,
+      crypto: input.crypto,
+      eventSources: input.eventSources,
+      calendarConnected,
+      intervalsConfigured,
+      legacyPlan,
+      todayDateKey,
+      timezone,
+      now,
+      stamp,
+      digest: (value) => requestDigest(input.crypto, value),
+      project,
+      ready: checks.ready,
+    }),
     async "plan_creation.start"(request) {
       const parsed = PlanCreationStartRpcParamsSchema.parse(request);
       const digest = await requestDigest(input.crypto, parsed);

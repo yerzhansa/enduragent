@@ -1,10 +1,9 @@
-import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
 import { refreshOpenCalendarPage, startCalendarPages } from "./page-wiring";
 import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
-import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
+import { createDesktopCoachClientProvider } from "./coach-client";
 import { createFirstSyncController } from "./first-sync";
 import { createIntervalsSignInHealth } from "./intervals-sign-in-health";
 import { readPlanReturnOnLaunch, writePlanReturnOnLaunch } from "./plan-return-storage";
@@ -34,8 +33,7 @@ import {
   setupReady,
   setupSurfaceOnScreen,
 } from "./state/onboarding-slice";
-import { validateImportPaths, type OnboardingBridge } from "./onboarding/bridge";
-import { openRouterSignInBridge } from "./onboarding/openrouter-sign-in";
+import { createClientOnboardingBridge } from "./onboarding/client-bridge";
 import { createOnboardingCompletionController } from "./onboarding/completion";
 import {
   createOnboardingController,
@@ -515,58 +513,7 @@ export function bootRenderer(): Disposer {
     skipDecision: (decisionId) => void chatController.skipDecision(decisionId),
   });
 
-  let onboardingNeedsReconnect = false;
-  let onboardingFailedClient: DesktopCoachClient | undefined;
-  const onboardingClient = async () => {
-    const client = onboardingNeedsReconnect
-      ? await clients.reconnect(onboardingFailedClient)
-      : await clients.getClient();
-    onboardingNeedsReconnect = false;
-    onboardingFailedClient = undefined;
-    return client;
-  };
-  const onboardingBridge: OnboardingBridge = {
-    async getSetupStatus() {
-      const client = await onboardingClient();
-      return client.call("getSetupStatus", {});
-    },
-    credentialStatuses: () => window.enduragentAuth.credentialStatuses(),
-    retryFailedCredentials: () => window.enduragentAuth.retryFailedCredentials(),
-    writeCredential: (value) => window.enduragentAuth.writeCredential(value),
-    signInWithIntervals: () => signInHealth.signedIn(window.enduragentAuth.signInWithIntervals()),
-    cancelIntervalsSignIn: () => window.enduragentAuth.cancelIntervalsSignIn(),
-    reopenIntervalsSignIn: () => window.enduragentAuth.reopenIntervalsSignIn(),
-    onIntervalsSignInProgress: (listener) =>
-      window.enduragentAuth.onIntervalsSignInProgress(listener),
-    ...openRouterSignInBridge(window.enduragentAuth),
-    llmConfiguration: () => window.enduragentAuth.llmConfiguration(),
-    applyLlmSelection: (value) => window.enduragentAuth.applyLlmSelection(value),
-    chatGptStatus: () => window.enduragentAuth.chatgptStatus(),
-    chatGptLogin: (value) => window.enduragentAuth.chatgptLogin(value),
-    cancelChatGptLogin: (operationId) => window.enduragentAuth.cancelChatgptLogin(operationId),
-    onChatGptLoginProgress: (listener) => window.enduragentAuth.onChatgptLoginProgress(listener),
-    claudeCliStatus: () => window.enduragentAuth.claudeCliStatus(),
-    claudeCliRecheck: () => window.enduragentAuth.claudeCliRecheck(),
-    chooseImportFiles: () => window.enduragentAuth.chooseImportFiles(),
-    onDroppedImportFiles: (listener) => window.enduragentAuth.onDroppedImportFiles(listener),
-    async importFiles(paths, onProgress) {
-      let client: DesktopCoachClient | undefined;
-      try {
-        client = await onboardingClient();
-        return await client.call(
-          "importFiles",
-          { paths: [...validateImportPaths(paths)] },
-          { onNotificationEnvelope: onProgress },
-        );
-      } catch (error) {
-        if (error instanceof CoachClientDisconnectedError) {
-          onboardingNeedsReconnect = true;
-          onboardingFailedClient = client;
-        }
-        throw error;
-      }
-    },
-  };
+  const onboardingBridge = createClientOnboardingBridge(clients, signInHealth);
 
   const rideImports = createRideImportController(onboardingBridge);
   const rideImportAdapter = createRideImportAdapter({
