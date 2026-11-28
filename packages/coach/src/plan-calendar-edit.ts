@@ -74,12 +74,14 @@ function edited(
     const date = civilDate(edit.dateKey);
     const into = after.weeks.find((week) => date >= week.start && date <= week.end);
     if (from === undefined || before === undefined || into === undefined) return null;
+    const minutes =
+      edit.minutes === undefined ? before.minutes : Math.max(1, Math.min(1440, edit.minutes));
+    const { content: _steps, ...withoutSteps } = before;
     const changed = {
-      ...before,
+      ...(minutes === before.minutes ? before : withoutSteps),
       date,
       name: edit.name ?? before.name,
-      minutes:
-        edit.minutes === undefined ? before.minutes : Math.max(1, Math.min(1440, edit.minutes)),
+      minutes,
     };
     from.workouts = from.workouts.filter((workout) => workout.id !== draftId);
     into.workouts = [...into.workouts, changed].sort((left, right) =>

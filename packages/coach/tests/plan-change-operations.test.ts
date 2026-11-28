@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { z } from "zod";
-import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
+import { createCyclingPlanFtpAdapter, workoutContent } from "@enduragent/sport-cycling";
 import type { IntentTranslationPort } from "@enduragent/engine";
 import type { PlanFtpSourceValue } from "@enduragent/engine/sport";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -3105,4 +3105,31 @@ it("does not publish an older translated request after a newer preview is cancel
   const list = await test.creation["plan.list"]({});
   expect(list.changes).toHaveLength(1);
   expect(list.changes[0]?.status).toBe("cancelled");
+});
+
+describe("workout content on an activated Chat Plan", () => {
+  it("rewrites each changed row with recomputed content, then accepts the next Change", async () => {
+    const test = await activatedPlan();
+    const first = await test.preview({ kind: "longest-workout", minutes: 20 });
+    expect(first.change.diff.length).toBeGreaterThan(0);
+    await applyChange(test, first.change.changeId, 1, "apply-longest");
+    const snapshot = await revisionSnapshot(test, 2);
+    const byDraftId = new Map(
+      snapshot.weeks.flatMap((week) => week.workouts).map((workout) => [workout.id, workout]),
+    );
+    const rows = await test.workouts();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const stored = JSON.parse(String(row.structure_json));
+      expect(stored.content).toEqual(workoutContent(stored.kind, stored.minutes));
+      expect(String(row.structure_json)).toBe(canonicalJson(byDraftId.get(stored.id)));
+    }
+    const second = await test.preview({ kind: "hard-weekday", day: 4 }, "second-preview", 2);
+    expect(second.change.diff.length).toBeGreaterThan(0);
+    await applyChange(test, second.change.changeId, 2, "apply-second");
+    for (const row of await test.workouts()) {
+      const stored = JSON.parse(String(row.structure_json));
+      expect(stored.content).toEqual(workoutContent(stored.kind, stored.minutes));
+    }
+  });
 });

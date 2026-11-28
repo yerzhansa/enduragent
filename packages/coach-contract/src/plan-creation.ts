@@ -695,6 +695,7 @@ export const PlanCreationCardModelSchema = z
     readiness: z.enum(["incomplete", "ready"]),
     answeredSummaries: z.array(PlanCreationAnswerSummarySchema).max(16),
     openQuestion: PlanCreationOpenQuestionSchema.nullable(),
+    ftpWatts: z.number().int().min(1).max(9_999).nullable().optional(),
   })
   .strict()
   .superRefine((card, context) => {

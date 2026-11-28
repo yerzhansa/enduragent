@@ -637,6 +637,8 @@ describe("Plan calendar drain", () => {
     });
     const after = (await test.plans.readWorkouts(planId)).find((row) => row.id === planWorkoutId);
     expect(after).toMatchObject({ dateKey: moved, durationS: 1_800 });
+    expect(JSON.parse(before.structureJson)).toHaveProperty("content");
+    expect(JSON.parse(after?.structureJson ?? "{}")).not.toHaveProperty("content");
     const writes = test.calendar.updates.length + test.calendar.creates.length;
     await test.drain.kick();
     expect(test.calendar.updates.length + test.calendar.creates.length).toBe(writes);
@@ -889,9 +891,12 @@ describe("Plan calendar drain", () => {
     expect(await move(test, { planId, planWorkoutId: first.id, toDateKey: free })).toEqual({
       status: "moved",
     });
-    expect(
-      (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id),
-    ).toMatchObject({ dateKey: free, durationS: first.durationS, name: first.name });
+    const movedRow = (await test.plans.readWorkouts(planId)).find((row) => row.id === first.id);
+    expect(movedRow).toMatchObject({ dateKey: free, durationS: first.durationS, name: first.name });
+    expect(JSON.parse(movedRow?.structureJson ?? "{}").content).toEqual(
+      JSON.parse(first.structureJson).content,
+    );
+    expect(JSON.parse(first.structureJson)).toHaveProperty("content");
     await test.drain.kick();
     expect(test.calendar.events.find((entry) => entry.id === event.id)?.dateKey).toBe(free);
     expect(

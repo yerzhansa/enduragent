@@ -652,8 +652,8 @@ export async function createLocalCoachComposition(
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [] },
     eventSources,
-    baselineEvidence: { read: async () => undefined },
     calendarConnected,
+    ftp: { athleteId: () => approvedConfig().intervals.athleteId },
     intervalsConfigured,
     legacyPlan: () =>
       readLegacyCurrentPlanSummary({
