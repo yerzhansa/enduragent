@@ -1,3 +1,4 @@
+import { normalizeLocaleHint } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { Suspense, useEffect, type ReactElement } from "react";
 import { setupDisposition } from "../state/onboarding-slice";
@@ -15,6 +16,14 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
   const activeView = useEnduragentStore((state) => state.activeView);
   const disposition = useEnduragentStore(setupDisposition);
   const needsLanguage = useEnduragentStore(languageRequired);
+  const languageCheckPending = useEnduragentStore(
+    (state) =>
+      setupDisposition(state) === "required" &&
+      state.settings.language.status === "loading" &&
+      state.settings.language.value === null &&
+      normalizeLocaleHint(navigator.languages) === undefined,
+  );
+  const effectiveDisposition = languageCheckPending ? "unknown" : disposition;
   const onboardingStartupSettled = useEnduragentStore((state) => state.onboardingStartupSettled);
   const onReady = props.onReady;
   const onboardingState = onboardingStartupSettled ? "settled" : "pending";
@@ -30,7 +39,7 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
   return (
     <div
       className={`fixed inset-0 grid bg-bg font-sans text-sm text-ink ${
-        disposition === "satisfied"
+        effectiveDisposition === "satisfied"
           ? "grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-[208px_minmax(0,1fr)] max-[860px]:grid-cols-[184px_minmax(0,1fr)]"
           : "grid-cols-[minmax(0,1fr)]"
       }`}
@@ -39,14 +48,14 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
       data-shell={
         needsLanguage
           ? "language"
-          : disposition === "unknown"
+          : effectiveDisposition === "unknown"
             ? "unknown"
-            : disposition === "required"
+            : effectiveDisposition === "required"
               ? "gate"
               : "app"
       }
     >
-      {disposition === "unknown" ? (
+      {effectiveDisposition === "unknown" ? (
         <div
           className="col-span-full flex items-center justify-center text-sm text-ink-2"
           role="status"
@@ -56,7 +65,7 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
         >
           {say("shell.checkingSetup")}
         </div>
-      ) : disposition === "required" ? (
+      ) : effectiveDisposition === "required" ? (
         needsLanguage ? (
           <LanguageGate />
         ) : (
