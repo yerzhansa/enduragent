@@ -1,5 +1,5 @@
 {
-  "syncCommit": "9c2a7a96",
+  "syncCommit": "99a8d1c6",
   "fingerprints": {
     "apps/desktop/src/main/update-controller.ts :: const canCheck =": "d35b14ac61fd",
     "apps/desktop/src/main/update-controller.ts :: const isCurrent =": "2fab6590ccf5",
@@ -10,8 +10,9 @@
     "apps/desktop/src/main/update-controller.ts :: const armReadinessWatch =": "6d17c94bd7cb",
     "apps/desktop/src/main/update-controller.ts :: const publishReady =": "4f384ead4395",
     "apps/desktop/src/main/update-controller.ts :: const enterPreparing =": "be5a2cd44270",
-    "apps/desktop/src/main/update-state-machine.ts :: export function advanceDownloadTransfer(": "b1f425f1f82f",
-    "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "26900387d736",
+    "apps/desktop/src/main/update-state-machine.ts :: export function projectPhaseState(": "1e5bd68e6b57",
+    "apps/desktop/src/main/update-state-machine.ts :: export function advanceDownloadTransfer(": "a504fc2e85ed",
+    "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "6fb6d5cb9632",
     "apps/desktop/src/main/update-controller.ts :: const runCheck =": "a76435e02ca7",
     "apps/desktop/src/main/update-controller.ts :: const initializeUpdater =": "0438b43b039c",
     "apps/desktop/src/main/update-controller.ts :: const check =": "c164e1357464",
