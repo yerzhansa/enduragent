@@ -292,7 +292,7 @@ test.describe("The workout card", () => {
       await expectWorkoutContent(
         card,
         /^\d+mWarm-up\d+–\d+%$/u,
-        "Targets by feel until an FTP is set",
+        "Targets by feel until an FTP is set.",
       );
       await snap(scenario, "workout-card-light");
       await card.getByRole("button", { name: "Move…", exact: true }).click();

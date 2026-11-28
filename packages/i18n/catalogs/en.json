@@ -1454,9 +1454,10 @@
       "workout": {
         "ask": "Ask the coach to change it",
         "askDraft": "Please change “{{name}}” on {{day}}:",
-        "byFeel": "Targets by feel until an FTP is set",
+        "byFeel": "Targets by feel until an FTP is set.",
         "close": "Close",
         "export": "Export this day’s workouts",
+        "ftpLine": "Targets use FTP {{watts}} W from intervals.icu.",
         "load": "Load ≈ {{load}}",
         "move": "Move…",
         "moving": "Moving on intervals.icu",

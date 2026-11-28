@@ -211,7 +211,7 @@ describe("the workout card's content", () => {
     ]);
     expect(plain(card)).not.toMatch(/\d W/u);
     expect(plain(card.querySelector("[data-workout-ftp]"))).toBe(
-      "Targets by feel until an FTP is set",
+      "Targets by feel until an FTP is set.",
     );
   });
 

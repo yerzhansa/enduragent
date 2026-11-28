@@ -1309,6 +1309,7 @@ export type CatalogKey =
   | "plan.calendar.workout.byFeel"
   | "plan.calendar.workout.close"
   | "plan.calendar.workout.export"
+  | "plan.calendar.workout.ftpLine"
   | "plan.calendar.workout.load"
   | "plan.calendar.workout.move"
   | "plan.calendar.workout.moving"

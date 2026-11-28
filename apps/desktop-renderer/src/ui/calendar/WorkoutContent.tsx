@@ -166,7 +166,7 @@ export function WorkoutContentDetail(props: {
       >
         {props.ftp === null
           ? say("plan.calendar.workout.byFeel")
-          : say("activity.review.ftp.lineTargetsFrom", {
+          : say("plan.calendar.workout.ftpLine", {
               watts: whole(phrasebook, props.ftp.watts),
             })}
       </p>
