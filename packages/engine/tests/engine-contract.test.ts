@@ -70,6 +70,7 @@ describe("createCoachEngine", () => {
       "answerCoachDecision",
       "chat",
       "commitPlanChatTurn",
+      "discardQueuedTurn",
       "enqueueChatMessage",
       "getAthleteState",
       "getChatQueue",

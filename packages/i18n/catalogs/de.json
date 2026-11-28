@@ -1329,7 +1329,9 @@
       "feedbackSent": "Danke — wir haben deine Notiz erhalten.",
       "feedbackTooLong": "Halte deine Notiz auf 4000 Zeichen oder weniger. Es wurde nichts gesendet.",
       "feedbackUsage": "Schick /feedback gefolgt von deiner Notiz.",
-      "addCredits": "Guthaben aufladen"
+      "addCredits": "Guthaben aufladen",
+      "discardMessage": "Verwerfen",
+      "discardMessageLabel": "Nachricht verwerfen"
     },
     "planChange": {
       "activePlan": "Aktiver Plan",
@@ -1654,7 +1656,8 @@
       "removeLabel": "Vorgemerkte Nachricht {{number}} entfernen",
       "retry": "Unterbrochene Nachricht erneut senden",
       "run": "Befehl ausführen",
-      "title": "Vorgemerkte Nachrichten"
+      "title": "Vorgemerkte Nachrichten",
+      "waitingForRetry": "Wird gesendet, sobald du die vorherige Nachricht erneut sendest oder verwirfst."
     },
     "slashPopup": {
       "choose": "auswählen",

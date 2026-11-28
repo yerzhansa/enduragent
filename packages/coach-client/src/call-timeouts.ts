@@ -20,6 +20,7 @@ export const COACH_RPC_CALL_TIMEOUT_MS: Record<CoachRpcMethodName, number> = {
   resumeChatQueue: 11 * 60_000,
   runQueuedCommand: 11 * 60_000,
   retryQueuedTurn: 11 * 60_000,
+  discardQueuedTurn: 30_000,
   getCoachDecision: 30_000,
   answerCoachDecision: 11 * 60_000,
   skipCoachDecision: 30_000,

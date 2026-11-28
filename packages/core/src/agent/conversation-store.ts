@@ -49,6 +49,7 @@ export interface ConversationStorePort extends ChatStorePort, TranscriptWriterPo
   completeChatQueueClaim(chatId: string, claimId: string): ChatQueueSnapshot;
   requireChatQueueRetry(chatId: string, claimId: string): ChatQueueSnapshot;
   retryChatQueueClaim(chatId: string, claimId: string, turnId: string): ChatQueueSnapshot;
+  discardChatQueueClaim(chatId: string, claimId: string): ChatQueueSnapshot;
   clearChatQueue(chatId: string): ChatQueueSnapshot;
   getCompletedChatQueueClaim(chatId: string): {
     readonly turnId: string;
@@ -312,6 +313,15 @@ export class ConversationStore implements ConversationStorePort {
   retryChatQueueClaim(chatId: string, claimId: string, turnId: string): ChatQueueSnapshot {
     this.recoverBeforeAccess(chatId);
     return this.queueStore().retry(chatId, claimId, turnId);
+  }
+
+  discardChatQueueClaim(chatId: string, claimId: string): ChatQueueSnapshot {
+    this.recoverBeforeAccess(chatId);
+    const queue = this.queueStore();
+    if (queue.get(chatId).retryRequired?.claimId !== claimId) {
+      throw new Error("The recovery claim changed before discard.");
+    }
+    return queue.complete(chatId, claimId);
   }
 
   clearChatQueue(chatId: string): ChatQueueSnapshot {

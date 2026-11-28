@@ -68,6 +68,7 @@ function chatActions(): ChatActions {
     removeQueued: vi.fn(),
     runQueuedCommand: vi.fn(),
     retryQueuedTurn: vi.fn(),
+    discardRetry: vi.fn(),
     loadEarlier: vi.fn(),
     retryHydration: vi.fn(),
     openNewConversation: vi.fn(),

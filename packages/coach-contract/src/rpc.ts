@@ -121,6 +121,7 @@ import {
 import {
   ChatQueueRunResultSchema,
   ChatQueueSnapshotSchema,
+  DiscardQueuedTurnRequestSchema,
   EnqueueChatMessageRequestSchema,
   GetChatQueueRequestSchema,
   RemoveQueuedChatMessageRequestSchema,
@@ -285,6 +286,7 @@ export const COACH_RPC_METHOD_NAMES = [
   "resumeChatQueue",
   "runQueuedCommand",
   "retryQueuedTurn",
+  "discardQueuedTurn",
   "resetSession",
   "hasSession",
   "getCoachDecision",
@@ -1428,54 +1430,13 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       params: ClearChatAttachmentDraftRequestSchema,
     })
     .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("enqueueChatMessage"),
-      params: EnqueueChatMessageRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("getChatQueue"),
-      params: GetChatQueueRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("removeQueuedChatMessage"),
-      params: RemoveQueuedChatMessageRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("resumeChatQueue"),
-      params: ResumeChatQueueRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("runQueuedCommand"),
-      params: RunQueuedCommandRequestSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("retryQueuedTurn"),
-      params: RetryQueuedTurnRequestSchema,
-    })
-    .strict(),
+  requestEnvelope("enqueueChatMessage", EnqueueChatMessageRequestSchema),
+  requestEnvelope("getChatQueue", GetChatQueueRequestSchema),
+  requestEnvelope("removeQueuedChatMessage", RemoveQueuedChatMessageRequestSchema),
+  requestEnvelope("resumeChatQueue", ResumeChatQueueRequestSchema),
+  requestEnvelope("runQueuedCommand", RunQueuedCommandRequestSchema),
+  requestEnvelope("retryQueuedTurn", RetryQueuedTurnRequestSchema),
+  requestEnvelope("discardQueuedTurn", DiscardQueuedTurnRequestSchema),
   z
     .object({
       jsonrpc: z.literal("2.0"),
@@ -2155,6 +2116,12 @@ export const COACH_RPC_METHOD_REGISTRY = {
     requestSchema: RetryQueuedTurnRequestSchema,
     responseSchema: ChatQueueRunResultSchema,
     eventSchema: TurnEventSchema,
+  },
+  discardQueuedTurn: {
+    wireName: "discardQueuedTurn",
+    requestSchema: DiscardQueuedTurnRequestSchema,
+    responseSchema: ChatQueueSnapshotSchema,
+    eventSchema: NoRpcEventSchema,
   },
   resetSession: {
     wireName: "resetSession",

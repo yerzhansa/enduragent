@@ -363,6 +363,11 @@ export async function launchDesktopFixture(input: {
         0,
       )) as Awaited<ReturnType<NonNullable<CoachEngine["retryQueuedTurn"]>>>;
     },
+    async discardQueuedTurn(request) {
+      return finalFrame(await invoke("discardQueuedTurn", request)) as Awaited<
+        ReturnType<NonNullable<CoachEngine["discardQueuedTurn"]>>
+      >;
+    },
     async getCoachDecision(request) {
       return finalFrame(await invoke("getCoachDecision", request)) as Awaited<
         ReturnType<CoachEngine["getCoachDecision"]>

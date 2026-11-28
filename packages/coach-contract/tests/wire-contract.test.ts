@@ -1150,6 +1150,7 @@ describe("coach request and event projection", () => {
       retryQueuedTurn: async () => ({
         snapshot: { schemaVersion: 1, revision: 2, items: [] },
       }),
+      discardQueuedTurn: async () => ({ schemaVersion: 1, revision: 3, items: [] }),
       resetSession: async () => ({ memoryFlushed: true }),
       hasSession: async () => ({ hasSession: false }),
       getCoachDecision: async () => ({ decision: null }),

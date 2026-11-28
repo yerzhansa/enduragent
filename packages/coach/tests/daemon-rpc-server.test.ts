@@ -855,6 +855,10 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
           calls.push(`runQueuedCommand:${chatId}`);
           return { snapshot: { schemaVersion: 1, revision: 2, items: [] } };
         },
+        discardQueuedTurn: async ({ chatId, claimId }) => {
+          calls.push(`discardQueuedTurn:${chatId}:${claimId}`);
+          return { schemaVersion: 1, revision: 3, items: [] };
+        },
         retryQueuedTurn: async ({ chatId }) => {
           calls.push(`retryQueuedTurn:${chatId}`);
           return { snapshot: { schemaVersion: 1, revision: 2, items: [] } };
@@ -983,6 +987,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         params: { chatId: "chat", queuedMessageId: "queued-1" },
       },
       { id: 40, method: "retryQueuedTurn", params: { chatId: "chat", claimId: "claim-1" } },
+      { id: 140, method: "discardQueuedTurn", params: { chatId: "chat", claimId: "claim-1" } },
       { id: 4, method: "getAthleteState", params: {} },
       { id: 41, method: "getPlanningReadModel", params: {} },
       { id: 42, method: "plan.list", params: {} },
@@ -1048,6 +1053,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       "resumeChatQueue:chat",
       "runQueuedCommand:chat",
       "retryQueuedTurn:chat",
+      "discardQueuedTurn:chat:claim-1",
       "getAthleteState",
       "getPlanningReadModel",
       "plan.list",

@@ -151,6 +151,34 @@ describe("ChatQueueStore", () => {
     expect(completed.retryRequired).toBeUndefined();
   });
 
+  it("discards only a retry-required claim and keeps the messages behind it", () => {
+    const root = mkdtempSync(join(tmpdir(), "chat-queue-discard-"));
+    roots.push(root);
+    const conversations = createConversationStore(root);
+    conversations.enqueueChatMessage("desktop", "submission-1", "First", "message-1");
+    conversations.enqueueChatMessage("desktop", "submission-2", "Second", "message-2");
+    conversations.claimChatQueue("desktop", "claim-1", "turn-1", ["message-1"]);
+
+    expect(() => conversations.discardChatQueueClaim("desktop", "claim-1")).toThrow(
+      /changed before discard/u,
+    );
+    conversations.requireChatQueueRetry("desktop", "claim-1");
+    expect(() => conversations.discardChatQueueClaim("desktop", "claim-2")).toThrow(
+      /changed before discard/u,
+    );
+
+    const discarded = conversations.discardChatQueueClaim("desktop", "claim-1");
+    expect(discarded.items.map((item) => item.text)).toEqual(["Second"]);
+    expect(discarded.retryRequired).toBeUndefined();
+    expect(createConversationStore(root).getChatQueue("desktop")).toMatchObject({
+      revision: discarded.revision,
+      items: [{ text: "Second" }],
+    });
+    expect(() => conversations.discardChatQueueClaim("desktop", "claim-1")).toThrow(
+      /changed before discard/u,
+    );
+  });
+
   it("reconciles a completed claimed turn without rerun and fences an incomplete claim", () => {
     const complete = store();
     complete.value.enqueue("desktop", "submission-1", "First", "message-1");

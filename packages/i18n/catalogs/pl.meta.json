@@ -12715,6 +12715,18 @@
     "setup.ai.switchModel": {
       "sourceHash": "39a9866d461c2de8ec3b943e98dd2d48541368a07ed2fabcc8cbe3f1810cf77d",
       "translatedBy": "model"
+    },
+    "chat.notice.discardMessage": {
+      "sourceHash": "eb1a70e39274bb762b5d7c1adb5debeea2b05e12af28207f21a375b596853273",
+      "translatedBy": "model"
+    },
+    "chat.notice.discardMessageLabel": {
+      "sourceHash": "f1bbf37e46cce32990d59b09d7df2353da4495a9afcb68ba130c74e25a34aafa",
+      "translatedBy": "model"
+    },
+    "chat.queued.waitingForRetry": {
+      "sourceHash": "8553b6c674d57eeea995a60d0678d7d2618a2176c57fdc7832060c53f06cb5d4",
+      "translatedBy": "model"
     }
   }
 }

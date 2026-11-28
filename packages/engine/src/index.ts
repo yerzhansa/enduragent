@@ -504,6 +504,14 @@ export function createCoachEngine(
       runQueue(request.chatId, "command", request.queuedMessageId, onEvent),
     retryQueuedTurn: (request, onEvent) =>
       runQueue(request.chatId, "retry", request.claimId, onEvent),
+    discardQueuedTurn: (request) =>
+      withQueueAuthority(request.chatId, async () =>
+        queuePort("discardChatQueueClaim").call(
+          input.ports.chatStore,
+          request.chatId,
+          request.claimId,
+        ),
+      ),
     getCoachDecision: (request) => agent.getCoachDecision(request),
     answerCoachDecision: (request, onEvent) => agent.answerCoachDecision(request, onEvent),
     skipCoachDecision: (request) => agent.skipCoachDecision(request),

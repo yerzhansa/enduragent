@@ -53,6 +53,7 @@ export interface ChatTranscriptMessage {
   readonly attachments?: readonly ChatSentAttachment[];
   readonly planReference?: PlanReferenceSelection;
   readonly planHandoff?: PlanHandoffSuggestion;
+  readonly stopped?: true;
 }
 
 export type ChatSentAttachment = Pick<
@@ -123,6 +124,7 @@ export type ChatAction =
   | { readonly type: "complete"; readonly requestKey: number }
   | { readonly type: "discard"; readonly requestKey: number }
   | { readonly type: "discard-submission"; readonly requestKey: number }
+  | { readonly type: "discard-recovery"; readonly turnId: string }
   | { readonly type: "interrupt"; readonly requestKey: number; readonly copy: string }
   | { readonly type: "retry-pending"; readonly requestKey: number }
   | { readonly type: "fail"; readonly requestKey: number; readonly copy: string }
@@ -379,13 +381,18 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             },
           };
         case "interrupted": {
-          const next = { ...active, draft: action.event.text };
+          const text = action.event.text;
+          const next = { ...active, draft: text };
           return {
             ...state,
             status: "interrupted",
             progress: CHAT_RESPONSE_STOPPED_COPY,
             activeTurn: next,
-            messages: updateAssistant(state, next, action.event.text, "interrupted"),
+            messages: state.messages.map((message) =>
+              message.id === active.assistantMessageId
+                ? { ...message, text, delivery: "interrupted", stopped: true }
+                : message,
+            ),
           };
         }
         case "tool-start":
@@ -435,6 +442,27 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
         ),
       };
     }
+    case "discard-recovery": {
+      const active = state.activeTurn;
+      const activeIds =
+        active !== null && (active.turnId === null || active.turnId === action.turnId)
+          ? [active.userMessageId, active.assistantMessageId]
+          : [];
+      const stopped = state.messages.some(
+        (message) => message.turnId === action.turnId && message.stopped === true,
+      );
+      return {
+        ...state,
+        status: "idle",
+        progress: null,
+        activeTurn: null,
+        messages: state.messages.filter((message) =>
+          message.turnId === action.turnId
+            ? stopped && (message.role === "athlete" || message.stopped === true)
+            : !activeIds.includes(message.id),
+        ),
+      };
+    }
     case "interrupt": {
       const active = current(state, action.requestKey);
       if (active === null) return state;
@@ -456,13 +484,22 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
           };
     }
     case "fail": {
-      const active = current(state, action.requestKey);
+      const claimTurnId = state.retryRequired?.turnId;
+      const bound =
+        current(state, action.requestKey)?.turnId === null && claimTurnId !== undefined
+          ? reduceChatState(state, {
+              type: "bind-turn",
+              requestKey: action.requestKey,
+              turnId: claimTurnId,
+            })
+          : state;
+      const active = current(bound, action.requestKey);
       if (active === null) return state;
       return {
-        ...state,
+        ...bound,
         status: "idle",
         progress: active.error === null ? action.copy : null,
-        messages: updateAssistant(state, active, visibleDraft(active.draft), "interrupted"),
+        messages: updateAssistant(bound, active, visibleDraft(active.draft), "interrupted"),
       };
     }
     case "queue-snapshot": {

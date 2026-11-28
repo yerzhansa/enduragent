@@ -1351,7 +1351,9 @@
       "feedbackSent": "Dzięki — otrzymaliśmy twoją notatkę.",
       "feedbackTooLong": "Zmniejsz notatkę do 4000 znaków lub mniej. Nic nie zostało wysłane.",
       "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę.",
-      "addCredits": "Dodaj środki"
+      "addCredits": "Dodaj środki",
+      "discardMessage": "Odrzuć",
+      "discardMessageLabel": "Odrzuć wiadomość"
     },
     "planChange": {
       "activePlan": "Aktywny plan",
@@ -1684,7 +1686,8 @@
       "removeLabel": "Usuń wiadomość {{number}} z kolejki",
       "retry": "Ponów przerwaną wiadomość",
       "run": "Uruchom polecenie",
-      "title": "Wiadomości w kolejce"
+      "title": "Wiadomości w kolejce",
+      "waitingForRetry": "Zostanie wysłana po ponowieniu lub odrzuceniu wcześniejszej wiadomości."
     },
     "slashPopup": {
       "choose": "wybierz",

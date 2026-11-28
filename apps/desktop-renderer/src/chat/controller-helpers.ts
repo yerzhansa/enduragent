@@ -253,6 +253,7 @@ export interface ChatController {
   retryQueuedTurn(claimId: string): Promise<void>;
   retryInterrupted(): Promise<void>;
   retry(): Promise<void>;
+  discardRetry(): Promise<void>;
   loadEarlier(): Promise<void>;
   retryHydration(): Promise<void>;
   retryDecision(): Promise<void>;
