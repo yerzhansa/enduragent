@@ -731,6 +731,8 @@ describe("Plan surface", () => {
         plan: { ...current.plan, coach: { ...current.plan.coach, status: "idle" } },
       })),
     );
+    expect(screen.getByRole("textbox", { name: "What would work better?" })).toBeVisible();
+    expect(box).toHaveAttribute("placeholder", "Finish your answer above");
     await user.click(screen.getByRole("button", { name: "Back", exact: true }));
     expect(box).toHaveAttribute("placeholder", "Reply to your coach…");
     expect(attach).toBeEnabled();

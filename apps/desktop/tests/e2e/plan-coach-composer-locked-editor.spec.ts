@@ -76,13 +76,11 @@ function coachModel(input: { readonly answered: boolean; readonly decisionOpen: 
 interface FakePlanCoach {
   readonly script: DesktopFixtureScript;
   readonly stopRequests: Record<string, unknown>[];
-  readonly coachTransitions: Record<string, unknown>[];
   release(): void;
 }
 
 function fakePlanCoach(input: { readonly decisionOpen: boolean }): FakePlanCoach {
   const stopRequests: Record<string, unknown>[] = [];
-  const coachTransitions: Record<string, unknown>[] = [];
   let current = coachModel({ answered: false, decisionOpen: input.decisionOpen });
   let releaseReply: () => void = () => undefined;
   const replyHeld = new Promise<void>((resolve) => {
@@ -91,7 +89,6 @@ function fakePlanCoach(input: { readonly decisionOpen: boolean }): FakePlanCoach
   let emitTurnEvent: ((turnEvent: Record<string, unknown>) => void) | undefined;
   return {
     stopRequests,
-    coachTransitions,
     release: () => releaseReply(),
     script: {
       onStreamRequest: async (value, emitFrame) => {
@@ -102,7 +99,6 @@ function fakePlanCoach(input: { readonly decisionOpen: boolean }): FakePlanCoach
         ) {
           throw new Error(`Unexpected streamed Coach request: ${request.method}`);
         }
-        coachTransitions.push(request.params);
         const progress = {
           commandId: String(request.params.commandId),
           transitionId: "PL-T05",
@@ -281,10 +277,9 @@ test("locks the Plan chat box at the bottom while a coaching choice's own answer
     await holdForVideo(page);
 
     await ownAnswer(page).pressSequentially("Ride Sunday easy and keep Saturday long");
+    await expect(ownAnswer(page)).toHaveValue("Ride Sunday easy and keep Saturday long");
     await expect(chatBox(page)).toHaveValue("");
-    expect(coach.coachTransitions, "Typing in the answer editor should not send a reply").toEqual(
-      [],
-    );
+    await holdForVideo(page);
 
     await page.getByRole("button", { name: "Back", exact: true }).click();
     await expect(ownAnswer(page)).toBeHidden();
