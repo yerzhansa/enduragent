@@ -3065,6 +3065,7 @@ describe("application section", () => {
       name: "Downloading update 1998.7.7",
     });
     expect(connectingBar).not.toHaveAttribute("aria-valuenow");
+    expect(connectingBar).toHaveAttribute("aria-valuetext", "Downloading update 1998.7.7");
     expect(connectingSection.getByRole("status")).toHaveTextContent("Downloading update 1998.7.7");
 
     act(() => {
@@ -3090,6 +3091,10 @@ describe("application section", () => {
     expect(activeBar).toHaveAttribute("aria-valuemin", "0");
     expect(activeBar).toHaveAttribute("aria-valuemax", "100");
     expect(activeBar).toHaveAttribute("aria-valuenow", "42");
+    expect(activeBar).toHaveAttribute(
+      "aria-valuetext",
+      "Downloading update 1998.7.7 — 42% (14.2 / 33.8 MB · 4.8 MB/s)",
+    );
     expect(activeSection.getByRole("status")).toHaveTextContent(
       "Downloading update 1998.7.7 — 25%",
     );
@@ -3126,6 +3131,7 @@ describe("application section", () => {
       name: "Preparing update 1998.7.7…",
     });
     expect(preparingBar).not.toHaveAttribute("aria-valuenow");
+    expect(preparingBar).toHaveAttribute("aria-valuetext", "Preparing update 1998.7.7…");
     expect(preparingSection.getByRole("status")).toHaveTextContent("Preparing update 1998.7.7…");
 
     act(() => {

@@ -259,9 +259,13 @@ export function advanceDownloadTransfer(
   info: Pick<ProgressInfo, "transferred"> & { readonly total?: number },
 ): boolean {
   if (!Number.isFinite(info.transferred) || info.transferred < 0) return false;
-  const nextTotal =
+  const roundedTotal =
     typeof info.total === "number" && Number.isFinite(info.total) && info.total > 0
-      ? info.total
+      ? Math.round(info.total)
+      : undefined;
+  const nextTotal =
+    roundedTotal !== undefined && Number.isSafeInteger(roundedTotal) && roundedTotal >= 1
+      ? roundedTotal
       : undefined;
   const totalChanged =
     nextTotal !== undefined &&

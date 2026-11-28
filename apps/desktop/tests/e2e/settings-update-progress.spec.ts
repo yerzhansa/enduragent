@@ -1,15 +1,5 @@
-import { spawn } from "node:child_process";
-import { readdir, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import {
-  expect,
-  test as base,
-  type Browser,
-  type BrowserContext,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+import { expect, test as base, type Browser, type Locator, type Page } from "@playwright/test";
 import {
   launchDesktopFixture,
   type DesktopFixtureScript,
@@ -20,8 +10,6 @@ import { desktopFixtureWindowHidden } from "../helpers/desktop-fixture-launch-ar
 const TOKEN = "u".repeat(43);
 const TARGET_VERSION = "0.8.0";
 const BYTES_PER_MEGABYTE = 1_048_576;
-const STEP_HOLD_MS = 1_400;
-const SOFT_ASSERT_TIMEOUT_MS = 800;
 
 interface ScriptRequest {
   readonly method: string;
@@ -42,7 +30,6 @@ interface DesktopUpdatePayload {
 interface UpdateProgressDesktop {
   readonly page: Page;
   readonly fixture: RunningDesktopFixture;
-  startRecording(): Promise<void>;
   publishUpdateState(payload: DesktopUpdatePayload): Promise<void>;
 }
 
@@ -178,88 +165,6 @@ function createScript(unexpected: string[]): DesktopFixtureScript {
   };
 }
 
-async function resolvePlaywrightFfmpeg(): Promise<string | undefined> {
-  const cacheDirectory =
-    process.platform === "darwin"
-      ? join(homedir(), "Library/Caches/ms-playwright")
-      : join(homedir(), ".cache/ms-playwright");
-  const entries = await readdir(cacheDirectory).catch(() => [] as string[]);
-  const folder = entries.find((entry) => entry.startsWith("ffmpeg-"));
-  if (folder === undefined) return undefined;
-  const binary =
-    process.platform === "darwin"
-      ? "ffmpeg-mac"
-      : process.platform === "win32"
-        ? "ffmpeg-win64.exe"
-        : "ffmpeg-linux";
-  return join(cacheDirectory, folder, binary);
-}
-
-async function recordScreencast(context: BrowserContext, page: Page) {
-  const session = await context.newCDPSession(page);
-  const frames: { readonly data: Buffer; readonly at: number }[] = [];
-  session.on("Page.screencastFrame", (event) => {
-    frames.push({ data: Buffer.from(event.data, "base64"), at: Date.now() });
-    void session
-      .send("Page.screencastFrameAck", { sessionId: event.sessionId })
-      .catch(() => undefined);
-  });
-  await session.send("Page.startScreencast", { format: "jpeg", quality: 85 });
-  return async (path: string): Promise<void> => {
-    const endedAt = Date.now();
-    await session.send("Page.stopScreencast").catch(() => undefined);
-    const firstFrame = frames[0];
-    const lastFrame = frames.at(-1);
-    if (firstFrame === undefined || lastFrame === undefined) return;
-    const ffmpeg = await resolvePlaywrightFfmpeg();
-    if (ffmpeg === undefined) return;
-    const encoder = spawn(
-      ffmpeg,
-      [
-        "-loglevel",
-        "error",
-        "-f",
-        "image2pipe",
-        "-framerate",
-        "10",
-        "-c:v",
-        "mjpeg",
-        "-i",
-        "pipe:0",
-        "-y",
-        "-an",
-        "-c:v",
-        "vp8",
-        "-b:v",
-        "2M",
-        "-deadline",
-        "realtime",
-        path,
-      ],
-      { stdio: ["pipe", "ignore", "ignore"] },
-    );
-    const done = new Promise<void>((resolve) => {
-      encoder.once("close", () => {
-        resolve();
-      });
-    });
-    const start = firstFrame.at;
-    const end = Math.max(endedAt, lastFrame.at + 400);
-    let index = 0;
-    for (let at = start; at <= end; at += 100) {
-      while (index + 1 < frames.length) {
-        const nextFrame = frames[index + 1];
-        if (nextFrame === undefined || nextFrame.at > at) break;
-        index += 1;
-      }
-      const frame = frames[index];
-      if (frame !== undefined) encoder.stdin.write(frame.data);
-    }
-    encoder.stdin.end();
-    await done;
-  };
-}
-
 async function readProgressBarMetrics(section: Locator): Promise<{
   readonly present: boolean;
   readonly ariaValueNow: string | null;
@@ -292,7 +197,6 @@ const test = base.extend<{ updateDesktop: UpdateProgressDesktop }>({
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
     let page: Page | undefined;
-    let stopScreencast: ((path: string) => Promise<void>) | undefined;
     try {
       fixture = await launchDesktopFixture({
         script: createScript(unexpected),
@@ -300,7 +204,7 @@ const test = base.extend<{ updateDesktop: UpdateProgressDesktop }>({
         width: 1180,
         height: 820,
         colorScheme: "light",
-        reducedMotion: false,
+        reducedMotion: true,
         hidden: desktopFixtureWindowHidden(process.env.PWDEBUG),
         inspectMain: true,
         routeChatAttachmentComposer: true,
@@ -325,14 +229,10 @@ const test = base.extend<{ updateDesktop: UpdateProgressDesktop }>({
       await expect(shell).toHaveAttribute("data-onboarding", "settled", { timeout: 30_000 });
       await expect(shell).toHaveAttribute("data-shell", "app");
       const activeFixture = fixture;
-      const activeContext = context;
       const activePage = page;
       await use({
         page: activePage,
         fixture: activeFixture,
-        async startRecording() {
-          stopScreencast = await recordScreencast(activeContext, activePage);
-        },
         async publishUpdateState(payload) {
           await activeFixture.evaluateMain(`
             const { createRequire } = process.getBuiltinModule("module");
@@ -347,7 +247,6 @@ const test = base.extend<{ updateDesktop: UpdateProgressDesktop }>({
       });
     } finally {
       const failed = testInfo.status !== testInfo.expectedStatus;
-      await stopScreencast?.(testInfo.outputPath("video.webm")).catch(() => undefined);
       if (page !== undefined) {
         await page
           .context()
@@ -377,12 +276,12 @@ const test = base.extend<{ updateDesktop: UpdateProgressDesktop }>({
 test("Settings Application shows live download progress, progress bar, and Preparing state", async ({
   updateDesktop,
 }) => {
-  const { page, startRecording, publishUpdateState } = updateDesktop;
+  const { page, publishUpdateState } = updateDesktop;
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   const applicationSection = page.locator('section[aria-label="Application"]');
   const progressBar = applicationSection.getByRole("progressbar");
+  const statusRegion = applicationSection.getByRole("status");
 
-  await startRecording();
   await navigation.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(applicationSection).toBeVisible();
   await page.getByRole("heading", { name: "Application", exact: true }).evaluate((heading) => {
@@ -394,7 +293,6 @@ test("Settings Application shows live download progress, progress bar, and Prepa
   await expect(
     applicationSection.getByRole("button", { name: "Check for updates", exact: true }),
   ).toBeEnabled();
-  await page.waitForTimeout(STEP_HOLD_MS);
 
   await publishUpdateState({ status: "downloading", version: TARGET_VERSION });
   await expect(applicationSection).toContainText(`Downloading update ${TARGET_VERSION}`);
@@ -404,20 +302,9 @@ test("Settings Application shows live download progress, progress bar, and Prepa
   });
   await expect(downloadingButton).toBeDisabled();
   await expect(downloadingButton).toHaveText("Downloading…");
-  await page.waitForTimeout(STEP_HOLD_MS);
-
+  await expect(progressBar).toBeVisible();
   await expect
-    .soft(
-      progressBar,
-      "Athlete should see an indeterminate progress bar in Settings Application while connecting to an update download",
-    )
-    .toBeVisible({ timeout: SOFT_ASSERT_TIMEOUT_MS });
-  const connectingMetrics = await readProgressBarMetrics(applicationSection);
-  expect
-    .soft(
-      connectingMetrics.ariaValueNow,
-      "Connecting progress bar should stay indeterminate without aria-valuenow",
-    )
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).ariaValueNow)
     .toBeNull();
 
   await publishUpdateState({
@@ -430,39 +317,18 @@ test("Settings Application shows live download progress, progress bar, and Prepa
       bytesPerSecond: Math.round(4.8 * BYTES_PER_MEGABYTE),
     },
   });
-  await page.waitForTimeout(STEP_HOLD_MS);
 
+  await expect(applicationSection).toContainText(
+    `Downloading update ${TARGET_VERSION} — 42% (14.2 / 33.8 MB · 4.8 MB/s)`,
+  );
+  await expect(progressBar).toHaveAttribute("aria-valuenow", "42");
   await expect
-    .soft(
-      applicationSection,
-      "Athlete should see live download percentage, MB transferred/total, and speed instead of a frozen Downloading label",
-    )
-    .toContainText(`Downloading update ${TARGET_VERSION} — 42% (14.2 / 33.8 MB · 4.8 MB/s)`, {
-      timeout: SOFT_ASSERT_TIMEOUT_MS,
-    });
-  await expect
-    .soft(progressBar, "Determinate progress bar should report 42% downloaded via aria-valuenow")
-    .toHaveAttribute("aria-valuenow", "42", { timeout: SOFT_ASSERT_TIMEOUT_MS });
-  const progress42Metrics = await readProgressBarMetrics(applicationSection);
-  expect
-    .soft(
-      progress42Metrics.fillWidthPercent,
-      "Determinate progress bar fill should visibly span roughly 42% of the track width",
-    )
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).fillWidthPercent)
     .toBeGreaterThanOrEqual(38);
-  expect
-    .soft(
-      progress42Metrics.fillWidthPercent,
-      "Determinate progress bar fill should visibly stay near 42% of the track width",
-    )
+  await expect
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).fillWidthPercent)
     .toBeLessThanOrEqual(46);
-  const statusAt42 = (await applicationSection.getByRole("status").textContent()) ?? "";
-  expect
-    .soft(
-      statusAt42,
-      "Screen-reader status should announce coarse 25% download milestones without spamming every update tick",
-    )
-    .toBe(`Downloading update ${TARGET_VERSION} — 25%`);
+  await expect(statusRegion).toHaveText(`Downloading update ${TARGET_VERSION} — 25%`);
 
   await publishUpdateState({
     status: "downloading",
@@ -474,66 +340,32 @@ test("Settings Application shows live download progress, progress bar, and Prepa
       bytesPerSecond: Math.round(5.8 * BYTES_PER_MEGABYTE),
     },
   });
-  await page.waitForTimeout(STEP_HOLD_MS);
 
+  await expect(applicationSection).toContainText(
+    `Downloading update ${TARGET_VERSION} — 84% (28.4 / 33.8 MB · 5.8 MB/s)`,
+  );
+  await expect(progressBar).toHaveAttribute("aria-valuenow", "84");
   await expect
-    .soft(
-      applicationSection,
-      "Athlete should see live download progress advance to 84% with updated MB and speed",
-    )
-    .toContainText(`Downloading update ${TARGET_VERSION} — 84% (28.4 / 33.8 MB · 5.8 MB/s)`, {
-      timeout: SOFT_ASSERT_TIMEOUT_MS,
-    });
-  await expect
-    .soft(progressBar, "Determinate progress bar should advance to 84% downloaded")
-    .toHaveAttribute("aria-valuenow", "84", { timeout: SOFT_ASSERT_TIMEOUT_MS });
-  const progress84Metrics = await readProgressBarMetrics(applicationSection);
-  expect
-    .soft(
-      progress84Metrics.fillWidthPercent,
-      "Determinate progress bar fill should visibly advance near 84% of the track width",
-    )
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).fillWidthPercent)
     .toBeGreaterThanOrEqual(80);
-  expect
-    .soft(
-      progress84Metrics.fillWidthPercent,
-      "Determinate progress bar fill should not overshoot 84% of the track width",
-    )
+  await expect
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).fillWidthPercent)
     .toBeLessThanOrEqual(88);
-  const statusAt84 = (await applicationSection.getByRole("status").textContent()) ?? "";
-  expect
-    .soft(statusAt84, "Screen-reader status should advance to the 75% milestone at 84% downloaded")
-    .toBe(`Downloading update ${TARGET_VERSION} — 75%`);
+  await expect(statusRegion).toHaveText(`Downloading update ${TARGET_VERSION} — 75%`);
 
   await publishUpdateState({ status: "preparing", version: TARGET_VERSION });
-  await page.waitForTimeout(STEP_HOLD_MS);
-
-  await expect
-    .soft(
-      applicationSection,
-      "Athlete should see a distinct Preparing update state after download transfer finishes",
-    )
-    .toContainText(`Preparing update ${TARGET_VERSION}…`, { timeout: SOFT_ASSERT_TIMEOUT_MS });
+  await expect(applicationSection).toContainText(`Preparing update ${TARGET_VERSION}…`);
   const preparingButton = applicationSection.getByRole("button", {
     name: `Preparing update ${TARGET_VERSION}…`,
     exact: true,
   });
+  await expect(preparingButton).toBeDisabled();
+  await expect(preparingButton).toHaveText("Preparing…");
+  await expect(progressBar).toBeVisible();
   await expect
-    .soft(preparingButton, "Preparing state should render a disabled Preparing… button")
-    .toBeDisabled({ timeout: SOFT_ASSERT_TIMEOUT_MS });
-  await expect
-    .soft(preparingButton, "Preparing action button should read Preparing…")
-    .toHaveText("Preparing…", { timeout: SOFT_ASSERT_TIMEOUT_MS });
-  await expect
-    .soft(progressBar, "Preparing state should keep showing an indeterminate progress bar")
-    .toBeVisible({ timeout: SOFT_ASSERT_TIMEOUT_MS });
-  const preparingMetrics = await readProgressBarMetrics(applicationSection);
-  expect
-    .soft(
-      preparingMetrics.ariaValueNow,
-      "Preparing progress bar should be indeterminate without aria-valuenow",
-    )
+    .poll(async () => (await readProgressBarMetrics(applicationSection)).ariaValueNow)
     .toBeNull();
+  await expect(statusRegion).toHaveText(`Preparing update ${TARGET_VERSION}…`);
 
   await publishUpdateState({ status: "downloaded", version: TARGET_VERSION });
   await expect(applicationSection).toContainText(`Restart to update to version ${TARGET_VERSION}`);
@@ -544,5 +376,4 @@ test("Settings Application shows live download progress, progress bar, and Prepa
   await expect(restartButton).toBeEnabled();
   await expect(restartButton).toHaveText("Restart to update");
   await expect(progressBar).toHaveCount(0);
-  await page.waitForTimeout(STEP_HOLD_MS);
 });

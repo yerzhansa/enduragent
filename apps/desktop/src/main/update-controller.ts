@@ -423,7 +423,12 @@ export function createDesktopUpdateController(input: {
         info,
         downloading.lastPublishedProgress?.percent ?? 0,
       );
-      if (progress === undefined) return;
+      if (progress === undefined) {
+        if (hadPublishedProgress && downloading.lastPublishedProgress === undefined) {
+          publish(currentState());
+        }
+        return;
+      }
       const timestamp = now();
       if (!shouldPublishProgress(downloading, progress, timestamp)) return;
       downloading.lastProgressPublishedAt = timestamp;

@@ -1402,4 +1402,86 @@ describe("desktop update controller", () => {
     download.resolve([]);
     await startup;
   });
+
+  it("publishes indeterminate downloading when fallback emits transferred bytes without a valid total and preserves monotonic progress edge cases", async () => {
+    const fake = fakeUpdater();
+    const download = deferred<string[]>();
+    vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.7.0"));
+    vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);
+    let currentTime = 10_000;
+    const subject = activeController(fake.updater, { now: () => currentTime });
+    const states: DesktopUpdateState[] = [];
+    subject.controller.subscribe((next) => states.push(next));
+
+    const startup = subject.controller.start();
+    await vi.waitFor(() => expect(fake.updater.downloadUpdate).toHaveBeenCalledOnce());
+
+    fake.emit("download-progress", {
+      transferred: 10_000_000,
+      total: 20_000_000,
+      percent: Number.NaN,
+      bytesPerSecond: 2_000_000,
+    });
+    expect(states.at(-1)).toEqual({
+      status: "downloading",
+      version: "0.7.0",
+      progress: {
+        percent: 50,
+        transferredBytes: 10_000_000,
+        totalBytes: 20_000_000,
+        bytesPerSecond: 2_000_000,
+      },
+    });
+
+    currentTime -= 500;
+    fake.emit("download-progress", {
+      transferred: 12_000_000,
+      total: 20_000_000,
+      percent: 45,
+      bytesPerSecond: 2_200_000,
+    });
+    expect(states.at(-1)).toEqual({
+      status: "downloading",
+      version: "0.7.0",
+      progress: {
+        percent: 50,
+        transferredBytes: 12_000_000,
+        totalBytes: 20_000_000,
+        bytesPerSecond: 2_200_000,
+      },
+    });
+
+    currentTime += DESKTOP_UPDATE_PROGRESS_THROTTLE_MS;
+    fake.emit("download-progress", {
+      transferred: 25_000_000,
+      total: 20_000_000,
+      percent: 125,
+      bytesPerSecond: 3_000_000,
+    });
+    expect(states.at(-1)).toEqual({
+      status: "downloading",
+      version: "0.7.0",
+      progress: {
+        percent: 100,
+        transferredBytes: 20_000_000,
+        totalBytes: 20_000_000,
+        bytesPerSecond: 3_000_000,
+      },
+    });
+
+    currentTime += 50;
+    fake.emit("download-progress", {
+      transferred: 65_536,
+      total: 0,
+      percent: 0,
+      bytesPerSecond: 1_000_000,
+    });
+    expect(subject.controller.state()).toEqual({ status: "downloading", version: "0.7.0" });
+    expect(states.at(-1)).toEqual({ status: "downloading", version: "0.7.0" });
+
+    fake.emit("update-downloaded", { version: "0.7.0" });
+    download.resolve([]);
+    await startup;
+    subject.controller.close();
+  });
 });

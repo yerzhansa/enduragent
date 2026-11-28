@@ -39,6 +39,7 @@
   @media (prefers-reduced-motion: reduce) {
     .update-progress-indeterminate {
       width: 100%;
+      animation: none;
       transform: translateX(0);
       opacity: 0.55;
     }
