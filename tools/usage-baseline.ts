@@ -1,26 +1,3 @@
-/**
- * usage:baseline — latency + cache-read + cost baseline over the usage ledger.
- *
- * Reads `<dataDir>/usage-ledger.jsonl` and prints a per-templateHash baseline
- * summary so a real >=3-day snapshot is one command. The ledger line shape is
- * owned by packages/core/src/usage-ledger.ts (UsageLedgerLine).
- *
- * Data-dir resolution (first match wins):
- *   1. --data-dir <path>
- *   2. CYCLING_COACH_HOME env-var
- *   3. getCoachHome("cycling-coach")   (its own legacy ~/.cycling-coach fallback)
- *
- * Percentile method: NEAREST-RANK (no interpolation). For a sorted ascending
- * sample of n values and p in [0,100], rank = clamp(ceil(p/100 * n), 1, n) and
- * the result is sorted[rank-1]. Deterministic and exactly reproducible; chosen
- * over linear interpolation so the baseline numbers are stable values drawn
- * from the observed sample rather than synthetic in-between values.
- *
- * Per-turn token/cost figures are the FINAL successful generation's, not a sum
- * across retry/compaction attempts (see usage-ledger.ts). This tool only reads
- * the live ledger; data rotated to usage-ledger.jsonl.1 at 10 MB is not read.
- */
-
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -32,22 +9,27 @@ import { priceInclusiveUsage } from "../packages/engine/src/usage-cost.js";
 const UNKNOWN_TEMPLATE = "unknown";
 const MIN_SPAN_DAYS = 3;
 
-// ─── CLI ────────────────────────────────────────────────────────────────
+export type OutcomeFilter = "ok" | "error" | "all";
 
 export interface CliArgs {
   dataDir?: string;
   kind: UsageLedgerLine["kind"];
   caller?: UsageLedgerLine["caller"] | "all";
+  outcome: OutcomeFilter;
   json: boolean;
 }
 
 const KIND_VALUES = new Set(["generate", "turn", "boot"]);
 const CALLER_VALUES = new Set(["chat", "flush", "compact", "all"]);
+const OUTCOME_VALUES: ReadonlySet<string> = new Set<OutcomeFilter>(["ok", "error", "all"]);
+const DEFAULT_OUTCOME: OutcomeFilter = "ok";
 
-// Accepts both `--flag=value` and `--flag value`. Flags: --data-dir, --kind,
-// --caller, --json.
+function isOutcomeFilter(value: string): value is OutcomeFilter {
+  return OUTCOME_VALUES.has(value);
+}
+
 export function parseCli(argv: readonly string[]): CliArgs {
-  const out: CliArgs = { kind: "turn", caller: "chat", json: false };
+  const out: CliArgs = { kind: "turn", caller: "chat", outcome: DEFAULT_OUTCOME, json: false };
   for (let i = 0; i < argv.length; i++) {
     const tok = argv[i];
     if (!tok.startsWith("--")) throw new Error(`unexpected positional arg: ${tok}`);
@@ -83,6 +65,14 @@ export function parseCli(argv: readonly string[]): CliArgs {
         out.caller = v as CliArgs["caller"];
         break;
       }
+      case "outcome": {
+        const v = takeValue();
+        if (!isOutcomeFilter(v)) {
+          throw new Error(`--outcome must be one of ok|error|all (got '${v}')`);
+        }
+        out.outcome = v;
+        break;
+      }
       case "json":
         if (inlineVal !== undefined) throw new Error("flag --json takes no value");
         out.json = true;
@@ -105,10 +95,6 @@ export function resolveDataDir(dataDirFlag: string | undefined): { dir: string; 
   return { dir: getCoachHome("cycling-coach"), source: 'getCoachHome("cycling-coach")' };
 }
 
-// ─── Parsing ──────────────────────────────────────────────────────────────
-
-// Parses JSONL, skipping blank lines and any line that fails to parse or lacks
-// a numeric ts / string kind (defensive: the ledger is a best-effort sink).
 export function parseLedger(raw: string): UsageLedgerLine[] {
   const out: UsageLedgerLine[] = [];
   for (const line of raw.split("\n")) {
@@ -132,24 +118,34 @@ export function parseLedger(raw: string): UsageLedgerLine[] {
   return out;
 }
 
+function outcomeOf(line: UsageLedgerLine): "ok" | "error" {
+  return line.outcome ?? "ok";
+}
+
+function latestRowPerTurn(lines: readonly UsageLedgerLine[]): UsageLedgerLine[] {
+  const latest = new Map<string, UsageLedgerLine>();
+  for (const l of lines) {
+    if (l.kind === "turn" && l.turnId !== undefined) latest.set(l.turnId, l);
+  }
+  return lines.filter(
+    (l) => l.kind !== "turn" || l.turnId === undefined || latest.get(l.turnId) === l,
+  );
+}
+
 export function selectLines(
   lines: readonly UsageLedgerLine[],
   kind: UsageLedgerLine["kind"],
   caller: CliArgs["caller"],
+  outcome: OutcomeFilter = DEFAULT_OUTCOME,
 ): UsageLedgerLine[] {
-  // Boot lines never carry a caller, so the caller filter is skipped for them;
-  // otherwise `--kind boot` with the default `--caller chat` would select none.
-  return lines.filter(
+  return latestRowPerTurn(lines).filter(
     (l) =>
       l.kind === kind &&
-      (kind === "boot" || caller === "all" || caller === undefined || l.caller === caller),
+      (kind === "boot" || caller === "all" || caller === undefined || l.caller === caller) &&
+      (outcome === "all" || outcomeOf(l) === outcome),
   );
 }
 
-// ─── Statistics ─────────────────────────────────────────────────────────
-
-// Nearest-rank percentile. p in [0,100]. Returns null for an empty sample.
-// Does NOT mutate the input. See the module header for the exact definition.
 export function percentile(values: readonly number[], p: number): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -162,14 +158,11 @@ export function mean(values: readonly number[]): number | null {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-// Guarded division: a zero/negative/NaN denominator yields null, never NaN/Inf.
 export function safeDiv(numerator: number, denominator: number): number | null {
   if (!Number.isFinite(denominator) || denominator <= 0) return null;
   const r = numerator / denominator;
   return Number.isFinite(r) ? r : null;
 }
-
-// ─── Aggregation ──────────────────────────────────────────────────────────
 
 export interface GroupSummary {
   templateHash: string;
@@ -182,17 +175,12 @@ export interface GroupSummary {
     max: number | null;
   };
   cacheRead: {
-    // mean / p50 of per-line cacheReadTokens/inputTokens (lines without a
-    // positive inputTokens are excluded — they cannot form a ratio).
     perLineRatioMean: number | null;
     perLineRatioP50: number | null;
-    // overall sum(cacheRead)/sum(input) across the group.
     overallRatio: number | null;
     ratioSampleSize: number;
   };
   cost: {
-    // Lines whose provider/model is not in the price catalog are skipped,
-    // NOT counted as 0.
     total: number;
     meanPerTurn: number | null;
     costedLines: number;
@@ -206,6 +194,7 @@ export interface Report {
   linesSelected: number;
   kind: string;
   caller: string;
+  outcome: OutcomeFilter;
   window: {
     oldestTs: number | null;
     newestTs: number | null;
@@ -276,9 +265,11 @@ export function buildReport(args: {
   raw: string;
   kind: UsageLedgerLine["kind"];
   caller: CliArgs["caller"];
+  outcome?: OutcomeFilter;
 }): Report {
+  const outcome = args.outcome ?? DEFAULT_OUTCOME;
   const all = parseLedger(args.raw);
-  const selected = selectLines(all, args.kind, args.caller);
+  const selected = selectLines(all, args.kind, args.caller, outcome);
 
   const tsValues = selected.map((l) => l.ts);
   const oldestTs = tsValues.length > 0 ? Math.min(...tsValues) : null;
@@ -300,7 +291,9 @@ export function buildReport(args: {
     else byHash.set(key, [l]);
   }
 
-  const groups = [...byHash.keys()].sort().map((hash) => summarizeGroup(hash, byHash.get(hash)!));
+  const groups = [...byHash.entries()]
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([hash, bucket]) => summarizeGroup(hash, bucket));
 
   return {
     ledgerPath: args.ledgerPath,
@@ -309,12 +302,11 @@ export function buildReport(args: {
     linesSelected: selected.length,
     kind: args.kind,
     caller: args.caller ?? "all",
+    outcome,
     window: { oldestTs, newestTs, spanDays, spanWarning },
     groups,
   };
 }
-
-// ─── Formatting ───────────────────────────────────────────────────────────
 
 function fmtNum(v: number | null, digits = 0): string {
   return v === null ? "—" : v.toFixed(digits);
@@ -333,7 +325,7 @@ export function formatHuman(report: Report): string {
   out.push(`usage:baseline`);
   out.push(`  ledger: ${report.ledgerPath}  (via ${report.dataDirSource})`);
   out.push(`  lines read: ${report.linesRead}  selected: ${report.linesSelected}`);
-  out.push(`  filter: kind=${report.kind} caller=${report.caller}`);
+  out.push(`  filter: kind=${report.kind} caller=${report.caller} outcome=${report.outcome}`);
   out.push(
     `  window: ${fmtIso(report.window.oldestTs)} .. ${fmtIso(report.window.newestTs)} ` +
       `(${report.window.spanDays === null ? "—" : report.window.spanDays.toFixed(2)} days)`,
@@ -362,8 +354,6 @@ export function formatHuman(report: Report): string {
   return out.join("\n");
 }
 
-// ─── Entry ────────────────────────────────────────────────────────────────
-
 export function run(argv: readonly string[]): number {
   const args = parseCli(argv);
   const { dir, source } = resolveDataDir(args.dataDir);
@@ -386,6 +376,7 @@ export function run(argv: readonly string[]): number {
     raw,
     kind: args.kind,
     caller: args.caller,
+    outcome: args.outcome,
   });
 
   if (args.json) {

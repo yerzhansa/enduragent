@@ -432,6 +432,8 @@ export type UsageCallOutcome = "ok" | "error";
 
 export type UsageErrorClass = FailureReason | "aborted";
 
+export type TurnErrorClass = UsageErrorClass | "budget";
+
 export interface UsageLedgerLine {
   readonly ts: number;
   readonly kind: "generate" | "turn" | "boot";
@@ -441,7 +443,7 @@ export interface UsageLedgerLine {
   readonly caller?: CallerRole;
   readonly turnId?: string;
   readonly outcome?: UsageCallOutcome;
-  readonly errorClass?: UsageErrorClass;
+  readonly errorClass?: TurnErrorClass;
   readonly templateHash?: string;
   readonly steps?: number;
   readonly inputTokens?: number;
@@ -459,6 +461,7 @@ export interface UsageLedgerLine {
 
 export interface UsagePort {
   append(line: UsageLedgerLine): void;
+  callsForTurn?(turnId: string): readonly UsageLedgerLine[];
 }
 
 export type FailureReason =
