@@ -10,6 +10,7 @@ import {
   isStableDesktopVersion,
 } from "./desktop-version.js";
 import { createSafeLog } from "./safe-log.js";
+import { createSafeUpdaterLogger } from "./updater-logger.js";
 import {
   DESKTOP_UPDATE_PROGRESS_THROTTLE_MS,
   advanceDownloadTransfer,
@@ -571,7 +572,7 @@ export function createDesktopUpdateController(input: {
       }
       if (isClosed()) return false;
       try {
-        loaded.logger = null;
+        loaded.logger = createSafeUpdaterLogger(log);
         loaded.autoDownload = false;
         loaded.autoInstallOnAppQuit = desktopUpdateAutoInstallOnAppQuit(platform);
         loaded.autoRunAppAfterInstall = true;

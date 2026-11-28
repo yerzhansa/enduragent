@@ -17,6 +17,7 @@ export interface MacosReleaseUpdaterMetadata {
   readonly provider: "generic";
   readonly url: string;
   readonly channel: "latest";
+  readonly useMultipleRangeRequest: false;
   readonly updaterCacheDirName: "@enduragentdesktop-updater";
 }
 
@@ -44,6 +45,7 @@ export interface MacosReleaseBuilderOptions {
         readonly provider: "generic";
         readonly url: string;
         readonly channel: "latest";
+        readonly useMultipleRangeRequest: false;
       },
     ];
     readonly mac: {
@@ -215,9 +217,7 @@ export function notarizeMacosDmg(
   credentials: NotarizationCredentialSelection,
   dependencies?: Pick<MacosReleaseDependencies, "notarize">,
 ): Promise<void>;
-export function prepareMacosReleaseKeychainBinding(
-  desktopRoot: string,
-): Promise<{
+export function prepareMacosReleaseKeychainBinding(desktopRoot: string): Promise<{
   readonly built: string;
   readonly staged: string;
 }>;

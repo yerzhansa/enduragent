@@ -9,6 +9,10 @@ import {
   WINDOWS_UPDATER_METADATA_MAX_BYTES,
   checkWindowsInstallerBlockmap,
 } from "./verify-windows-release.mjs";
+import {
+  safeDifferentialBlockmapVerificationMessage,
+  verifyDifferentialBlockmap,
+} from "./verify-differential-blockmap.mjs";
 
 const maximumPublisherNameCharacters = 512;
 const invalidMetadataMessage = `${WINDOWS_RELEASE_METADATA_NAME} is invalid`;
@@ -182,8 +186,20 @@ export function verifyWindowsUpdaterRoundTrip(input) {
 
   if (input.candidate.blockmap === undefined) fail("missing candidate installer blockmap");
   verifyBlockmap(input.candidate.blockmap, input.candidate.installer);
+  let differential = null;
   if (input.baseline.blockmap !== undefined) {
     verifyBlockmap(input.baseline.blockmap, input.baseline.installer);
+    try {
+      differential = verifyDifferentialBlockmap(input.baseline.blockmap, input.candidate.blockmap, {
+        oldArtifact: input.baseline.installer,
+        newArtifact: input.candidate.installer,
+      });
+    } catch (error) {
+      fail(
+        safeDifferentialBlockmapVerificationMessage(error) ??
+          "differential blockmap verification failed",
+      );
+    }
   }
 
   let feedUrl;
@@ -198,10 +214,12 @@ export function verifyWindowsUpdaterRoundTrip(input) {
       "feedUrl",
       "channel",
       "publisherName",
+      "useMultipleRangeRequest",
       "disableWebInstaller",
       "verifyUpdateCodeSignature",
     ]) ||
     input.preflight.channel !== "latest" ||
+    input.preflight.useMultipleRangeRequest !== false ||
     input.preflight.disableWebInstaller !== true ||
     input.preflight.verifyUpdateCodeSignature !== true
   ) {
@@ -214,6 +232,7 @@ export function verifyWindowsUpdaterRoundTrip(input) {
     feedUrl,
     channel: "latest",
     publisherName: input.preflight.publisherName,
+    useMultipleRangeRequest: false,
     disableWebInstaller: true,
     verifyUpdateCodeSignature: true,
   });
@@ -223,6 +242,7 @@ export function verifyWindowsUpdaterRoundTrip(input) {
     candidateInstallerName,
     candidateInstallerSha512: candidateInstaller.sha512,
     candidateInstallerSize: candidateInstaller.size,
+    differential,
     preflight,
     authenticode: "pending-w19",
   });

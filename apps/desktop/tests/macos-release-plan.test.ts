@@ -24,6 +24,7 @@ import {
   createMacosReleasePlan,
   macosReleaseEnvelopePath,
   notarizeMacosDmg,
+  parseMacosReleaseUpdaterMetadata,
   promoteMacosReleaseEnvelope,
   requireDeveloperIdIdentity,
   requireMacosBaselineApplication,
@@ -238,7 +239,12 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
       "version",
     ]);
     expect(plan.builderOptions.config.publish).toEqual([
-      { provider: "generic", url: feedUrl, channel: "latest" },
+      {
+        provider: "generic",
+        url: feedUrl,
+        channel: "latest",
+        useMultipleRangeRequest: false,
+      },
     ]);
     expect(plan.builderOptions.config.mac).toEqual({
       target: [
@@ -481,9 +487,7 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
       ),
     ).rejects.toBe(failure);
     expect(prepareKeychainBinding).toHaveBeenCalledOnce();
-    expect(prepareKeychainBinding).toHaveBeenCalledWith(
-      "/synthetic/repository/apps/desktop",
-    );
+    expect(prepareKeychainBinding).toHaveBeenCalledWith("/synthetic/repository/apps/desktop");
     expect(build).not.toHaveBeenCalled();
   });
 
@@ -664,9 +668,7 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
       prepareKeychainBinding.mock.invocationCallOrder[0]!,
     );
     expect(prepareKeychainBinding).toHaveBeenCalledOnce();
-    expect(prepareKeychainBinding).toHaveBeenCalledWith(
-      "/synthetic/repository/apps/desktop",
-    );
+    expect(prepareKeychainBinding).toHaveBeenCalledWith("/synthetic/repository/apps/desktop");
     expect(prepareKeychainBinding.mock.invocationCallOrder[0]).toBeLessThan(
       build.mock.invocationCallOrder[0]!,
     );
@@ -1622,5 +1624,52 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
     };
     expect(plan.version).toBe(manifest.version);
     expect(plan.version).not.toBe("0.0.1");
+  });
+
+  it("requires useMultipleRangeRequest: false in macOS release updater metadata", () => {
+    const canonical = [
+      "provider: generic",
+      `url: ${feedUrl}`,
+      "channel: latest",
+      "useMultipleRangeRequest: false",
+      `updaterCacheDirName: '${DESKTOP_UPDATER_CACHE_DIRECTORY}'`,
+      "",
+    ].join("\n");
+    expect(parseMacosReleaseUpdaterMetadata(canonical)).toEqual({
+      provider: "generic",
+      url: feedUrl,
+      channel: "latest",
+      useMultipleRangeRequest: false,
+      updaterCacheDirName: DESKTOP_UPDATER_CACHE_DIRECTORY,
+    });
+    for (const invalid of [
+      [
+        "provider: generic",
+        `url: ${feedUrl}`,
+        "channel: latest",
+        `updaterCacheDirName: '${DESKTOP_UPDATER_CACHE_DIRECTORY}'`,
+        "",
+      ].join("\n"),
+      [
+        "provider: generic",
+        `url: ${feedUrl}`,
+        "channel: latest",
+        "useMultipleRangeRequest: true",
+        `updaterCacheDirName: '${DESKTOP_UPDATER_CACHE_DIRECTORY}'`,
+        "",
+      ].join("\n"),
+      [
+        "provider: generic",
+        `url: ${feedUrl}`,
+        "channel: latest",
+        "useMultipleRangeRequest: 'false'",
+        `updaterCacheDirName: '${DESKTOP_UPDATER_CACHE_DIRECTORY}'`,
+        "",
+      ].join("\n"),
+    ]) {
+      expect(() => parseMacosReleaseUpdaterMetadata(invalid)).toThrow(
+        "release updater metadata is invalid",
+      );
+    }
   });
 });
