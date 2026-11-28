@@ -86,6 +86,7 @@ const imageDraftText = "Keep this recovery image for the next conversation.";
 const partialText = "I imported the synthetic ride and started reviewing";
 const completedText = "The synthetic ride is stored once in Training and ready for review.";
 const incompatibleModel = "synthetic-text-only";
+const syntheticOpenAiKey = "synthetic-openai-key";
 const activityFixturePath = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../packages/kernel-node/tests/fixtures/ingest/fallback-cycling.tcx",
@@ -1034,6 +1035,28 @@ async function readImageDraft(fixture: RunningDesktopFixture) {
   `);
 }
 
+async function storeSyntheticOpenAiKey(fixture: RunningDesktopFixture) {
+  return fixture.evaluate<{
+    readonly slot: string;
+    readonly status: string;
+    readonly runtimeReady: boolean;
+  }>(`
+    const configuration = await window.enduragentAuth.llmConfiguration();
+    if (configuration.active?.provider !== "openai") throw new Error("OpenAI route missing");
+    const result = await window.enduragentAuth.writeCredential({
+      slot: "openai",
+      value: ${JSON.stringify(syntheticOpenAiKey)},
+      selection: {
+        catalogRevision: configuration.catalogRevision,
+        provider: "openai",
+        model: configuration.active.model,
+        endpoint: { mode: "automatic" },
+      },
+    });
+    return { slot: result.slot, status: result.status, runtimeReady: result.runtimeReady === true };
+  `);
+}
+
 async function switchModelAndReadBlockedDraft(fixture: RunningDesktopFixture) {
   return fixture.evaluate<{
     readonly blocked: boolean;
@@ -1406,7 +1429,14 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
       });
       await captureQaEvidence(fixture, "05-restored-image-draft");
 
+      // The runtime now reports an OpenAI key, so the app's key store must hold one too.
+      // Without it Setup correctly asks for the missing key and Settings is unreachable.
       backend.exposeProviderSettings();
+      expect(await storeSyntheticOpenAiKey(fixture)).toEqual({
+        slot: "openai",
+        status: "configured",
+        runtimeReady: true,
+      });
       expect(await switchModelAndReadBlockedDraft(fixture)).toEqual({
         blocked: true,
         settingsActionCount: 1,

@@ -1372,6 +1372,98 @@ describe("chat view adapter", () => {
     ]);
   });
 
+  const stoppedAttempt = {
+    kind: "turn" as const,
+    turnId: "turn-retried",
+    completedAt: "1998-03-04T08:00:00.000Z",
+    athleteText: "Recheck the recovery ride.",
+    coachText: "The recovery ride stayed controlled until",
+    delivery: "interrupted" as const,
+  };
+  const retriedAttempt = {
+    kind: "turn" as const,
+    turnId: "turn-retried",
+    completedAt: "1998-03-04T08:05:00.000Z",
+    athleteText: "Recheck the recovery ride.",
+    coachText: "The recovery ride stayed controlled throughout.",
+  };
+
+  it.each([
+    ["before the page reloads", [stoppedAttempt]],
+    ["after the page reloads with the retried reply", [stoppedAttempt, retriedAttempt]],
+  ])(
+    "keeps a restored turn's athlete message and stopped reply beside its live retry %s",
+    (_label, entries) => {
+      const published: ChatSurfaceState[] = [];
+      const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+      let live = reduceChatState(EMPTY_CHAT_STATE, {
+        type: "submit",
+        requestKey: 1,
+        occurredAtMs: 0,
+        userMessage: "Recheck the recovery ride.",
+        userMessageId: "m1",
+        assistantMessageId: "m2",
+        includeUser: false,
+      });
+      live = reduceChatState(live, { type: "bind-turn", requestKey: 1, turnId: "turn-retried" });
+      live = reduceChatState(live, {
+        type: "event",
+        requestKey: 1,
+        event: {
+          type: "final-text",
+          turnId: "turn-retried",
+          text: "The recovery ride stayed controlled throughout.",
+        },
+      });
+      live = reduceChatState(live, { type: "complete", requestKey: 1 });
+
+      adapter.view.render(
+        { ...live, messages: mergeHydratedMessages([], live.messages, entries) },
+        controls({
+          hydration: {
+            status: "ready",
+            hasEarlier: false,
+            revision: 2,
+            change: "initial",
+            entries,
+          },
+        }),
+      );
+
+      const timelineMessages =
+        published
+          .at(-1)
+          ?.timeline.flatMap((item) => (item.kind === "message" ? [item.message] : [])) ?? [];
+      expect(
+        timelineMessages.map(({ turnId, role, text, historical }) => ({
+          turnId,
+          role,
+          text,
+          historical,
+        })),
+      ).toEqual([
+        {
+          turnId: "turn-retried",
+          role: "athlete",
+          text: "Recheck the recovery ride.",
+          historical: true,
+        },
+        {
+          turnId: "turn-retried",
+          role: "coach",
+          text: "The recovery ride stayed controlled until",
+          historical: true,
+        },
+        {
+          turnId: "turn-retried",
+          role: "coach",
+          text: "The recovery ride stayed controlled throughout.",
+          historical: false,
+        },
+      ]);
+    },
+  );
+
   it("derives the controls the port leaves optional", () => {
     const published: ChatSurfaceState[] = [];
     const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
