@@ -268,7 +268,7 @@ function choiceFromDecision(
 interface LiveTurns {
   readonly turnIds: ReadonlySet<string>;
   readonly sentTurnIds: ReadonlySet<string>;
-  readonly sentTexts: ReadonlySet<string>;
+  readonly retriedTexts: ReadonlyMap<string, string>;
   readonly coachReplies: ReadonlySet<string>;
 }
 
@@ -279,20 +279,28 @@ function coachReplyKey(turnId: string, delivery: string, text: string): string {
 function liveTurns(messages: readonly ChatMessageView[]): LiveTurns {
   const turnIds = new Set<string>();
   const sentTurnIds = new Set<string>();
-  const sentTexts = new Set<string>();
+  const retriedTexts = new Map<string, string>();
   const coachReplies = new Set<string>();
+  let lastSentText: string | undefined;
   for (const message of messages) {
-    if (message.historical || message.turnId === undefined) continue;
+    if (message.historical) continue;
+    if (message.role === "athlete") lastSentText = message.text;
+    if (message.turnId === undefined) continue;
     turnIds.add(message.turnId);
-    if (message.role === "athlete") {
-      sentTurnIds.add(message.turnId);
-      sentTexts.add(message.text);
+    if (message.role === "athlete") sentTurnIds.add(message.turnId);
+    if (message.role !== "coach") continue;
+    if (
+      lastSentText !== undefined &&
+      !sentTurnIds.has(message.turnId) &&
+      !retriedTexts.has(message.turnId)
+    ) {
+      retriedTexts.set(message.turnId, lastSentText);
     }
-    if (message.role === "coach" && hasVisibleText(message.text)) {
+    if (hasVisibleText(message.text)) {
       coachReplies.add(coachReplyKey(message.turnId, message.delivery, message.text));
     }
   }
-  return { turnIds, sentTurnIds, sentTexts, coachReplies };
+  return { turnIds, sentTurnIds, retriedTexts, coachReplies };
 }
 
 function historicalTimeline(
@@ -312,11 +320,9 @@ function historicalTimeline(
       if (live.sentTurnIds.has(entry.turnId)) continue;
       const attempt = (turnAttempts.get(entry.turnId) ?? 0) + 1;
       turnAttempts.set(entry.turnId, attempt);
-      const retriedFromLiveMessage =
-        live.turnIds.has(entry.turnId) && live.sentTexts.has(entry.athleteText);
       if (
         attempt === 1 &&
-        !retriedFromLiveMessage &&
+        live.retriedTexts.get(entry.turnId) !== entry.athleteText &&
         (hasVisibleText(entry.athleteText) || (entry.attachments?.length ?? 0) > 0)
       ) {
         timeline.push({

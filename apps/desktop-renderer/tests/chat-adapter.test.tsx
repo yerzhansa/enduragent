@@ -1474,59 +1474,97 @@ describe("chat view adapter", () => {
       }),
     );
     return (
-      published
-        .at(-1)
-        ?.timeline.flatMap((item) =>
-          item.kind === "message"
-            ? [
-                {
-                  role: item.message.role,
-                  text: item.message.text,
-                  historical: item.message.historical,
-                },
-              ]
-            : [],
-        ) ?? []
+      published.at(-1)?.timeline.flatMap((item) =>
+        item.kind === "message"
+          ? [
+              {
+                role: item.message.role,
+                text: item.message.text,
+                historical: item.message.historical,
+              },
+            ]
+          : [],
+      ) ?? []
     );
   }
 
-  it("shows a same-session retry under a new turn id once after the page reloads", () => {
+  it.each([
+    ["bound to the stopped turn", "turn-1"],
+    ["stopped before the coach named the turn", undefined],
+  ])(
+    "shows a same-session retry under a new turn id once after the page reloads, %s",
+    (_label, firstTurnId) => {
+      const firstTurn = firstTurnId === undefined ? {} : { turnId: firstTurnId };
+      const live: ChatState = {
+        ...EMPTY_CHAT_STATE,
+        messages: [
+          {
+            id: "m1",
+            ...firstTurn,
+            role: "athlete",
+            text: "Recheck the ride.",
+            delivery: "complete",
+          },
+          { id: "m2", ...firstTurn, role: "coach", text: "Stopped", delivery: "interrupted" },
+          { id: "m3", turnId: "turn-2", role: "coach", text: "Finished.", delivery: "complete" },
+        ],
+      };
+      const stoppedEntries: TranscriptPageEntry[] =
+        firstTurnId === undefined
+          ? []
+          : [
+              {
+                kind: "turn",
+                turnId: firstTurnId,
+                completedAt: "1998-03-04T08:00:00.000Z",
+                athleteText: "Recheck the ride.",
+                coachText: "Stopped",
+                delivery: "interrupted",
+              },
+            ];
+      const entries: TranscriptPageEntry[] = [
+        ...stoppedEntries,
+        {
+          kind: "turn",
+          turnId: "turn-2",
+          completedAt: "1998-03-04T08:05:00.000Z",
+          athleteText: "Recheck the ride.",
+          coachText: "Finished.",
+        },
+      ];
+
+      expect(renderTimeline(live, entries)).toEqual([
+        { role: "athlete", text: "Recheck the ride.", historical: false },
+        { role: "coach", text: "Stopped", historical: false },
+        { role: "coach", text: "Finished.", historical: false },
+      ]);
+    },
+  );
+
+  it("keeps a restored message when the athlete later sends the same words", () => {
     const live: ChatState = {
       ...EMPTY_CHAT_STATE,
       messages: [
-        {
-          id: "m1",
-          turnId: "turn-1",
-          role: "athlete",
-          text: "Recheck the ride.",
-          delivery: "complete",
-        },
-        { id: "m2", turnId: "turn-1", role: "coach", text: "Stopped", delivery: "interrupted" },
-        { id: "m3", turnId: "turn-2", role: "coach", text: "Finished.", delivery: "complete" },
+        { id: "m2", turnId: "turn-1", role: "coach", text: "Finished.", delivery: "complete" },
+        { id: "m3", turnId: "turn-3", role: "athlete", text: "Yes", delivery: "complete" },
+        { id: "m4", turnId: "turn-3", role: "coach", text: "Noted.", delivery: "complete" },
       ],
     };
-    const entries: TranscriptPageEntry[] = [
-      {
-        kind: "turn",
-        turnId: "turn-1",
-        completedAt: "1998-03-04T08:00:00.000Z",
-        athleteText: "Recheck the ride.",
-        coachText: "Stopped",
-        delivery: "interrupted",
-      },
-      {
-        kind: "turn",
-        turnId: "turn-2",
-        completedAt: "1998-03-04T08:05:00.000Z",
-        athleteText: "Recheck the ride.",
-        coachText: "Finished.",
-      },
-    ];
+    const stopped: TranscriptPageEntry = {
+      kind: "turn",
+      turnId: "turn-1",
+      completedAt: "1998-03-04T08:00:00.000Z",
+      athleteText: "Yes",
+      coachText: "Stopped",
+      delivery: "interrupted",
+    };
 
-    expect(renderTimeline(live, entries)).toEqual([
-      { role: "athlete", text: "Recheck the ride.", historical: false },
-      { role: "coach", text: "Stopped", historical: false },
+    expect(renderTimeline(live, [stopped])).toEqual([
+      { role: "athlete", text: "Yes", historical: true },
+      { role: "coach", text: "Stopped", historical: true },
       { role: "coach", text: "Finished.", historical: false },
+      { role: "athlete", text: "Yes", historical: false },
+      { role: "coach", text: "Noted.", historical: false },
     ]);
   });
 
