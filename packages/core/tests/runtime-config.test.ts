@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { persistedLlmBackgroundModels } from "../src/background-model-persistence.js";
-import { currentModelId, resolveRuntimeConfig, type LlmProvider } from "../src/runtime-config.js";
+import {
+  currentModelId,
+  droppedModel,
+  resolveRuntimeConfig,
+  type LlmProvider,
+} from "../src/runtime-config.js";
 
 describe("runtime configuration authority", () => {
   it("preserves same-provider custom fields for a credential-only patch", () => {
@@ -108,6 +113,16 @@ describe("runtime configuration authority", () => {
     expect(load("deepseek", "qwen/qwen3.8-max").model).toBe("qwen/qwen3.8-max");
     expect(load("deepseek", "constructor").model).toBe("constructor");
     expect(currentModelId("constructor", "name", undefined)).toBe("name");
+  });
+
+  it("names the replacement for a kept model the list dropped, and nothing for other ids", () => {
+    expect(droppedModel("anthropic", "claude-opus-5")).toEqual({ replacedBy: "claude-opus-5-5" });
+    expect(droppedModel("openrouter", "anthropic/claude-fable-5.1")).toEqual({ replacedBy: null });
+    expect(droppedModel("anthropic", "claude-opus-5-5")).toBeNull();
+    expect(droppedModel("anthropic", "athlete-typed-model")).toBeNull();
+    expect(droppedModel("deepseek", "deepseek-v4-flash")).toBeNull();
+    expect(droppedModel("anthropic", "constructor")).toBeNull();
+    expect(droppedModel("constructor", "name")).toBeNull();
   });
 
   it("keeps a retired model name the athlete sends to their own endpoint", () => {

@@ -820,8 +820,9 @@ describe("desktop onboarding IPC", () => {
     expect(result.active).toEqual({
       provider: "anthropic",
       model: "athlete-selected-model",
+      kind: "custom",
     });
-    expect(Object.keys(result.active).sort()).toEqual(["model", "provider"]);
+    expect(Object.keys(result.active).sort()).toEqual(["kind", "model", "provider"]);
     expect(JSON.stringify(result)).not.toMatch(/credential|api[_-]?key|path|error/i);
     await expect(
       subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, {} as IpcMainInvokeEvent),
@@ -869,9 +870,31 @@ describe("desktop onboarding IPC", () => {
     expect(result.active).toEqual({
       provider: "claude-cli",
       model: "athlete-selected-model",
+      kind: "custom",
     });
-    expect(Object.keys(result.active).sort()).toEqual(["model", "provider"]);
+    expect(Object.keys(result.active).sort()).toEqual(["kind", "model", "provider"]);
     expect(JSON.stringify(result)).not.toMatch(/credential|api[_-]?key|path|error/i);
+  });
+
+  it("says a saved model the list dropped is retired and names its listed replacement", async () => {
+    const subject = harness();
+    const snapshot = runtimeConfigSnapshot();
+    subject.getRuntimeConfig.mockResolvedValueOnce({
+      ...snapshot,
+      llm: { ...snapshot.llm, model: "claude-opus-5" },
+    });
+
+    const result = (await subject.invoke(
+      DESKTOP_LLM_CONFIGURATION_CHANNEL,
+      subject.trustedEvent,
+    )) as { readonly active: Record<string, unknown> };
+
+    expect(result.active).toEqual({
+      provider: "anthropic",
+      model: "claude-opus-5",
+      kind: "retired",
+      replacedBy: "claude-opus-5-5",
+    });
   });
 
   it("keeps the catalogue available with a null active selection when snapshotting fails", async () => {

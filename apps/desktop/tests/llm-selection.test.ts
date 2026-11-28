@@ -4,6 +4,8 @@ import {
   parseChatGptLlmSelection,
   parseClaudeCliLlmSelection,
   runtimeConfigurationForSelection,
+  savedModel,
+  type OnboardingLlmProviderConfiguration,
 } from "../src/main/llm-selection.js";
 
 describe("desktop claude-cli selection parsing", () => {
@@ -96,5 +98,81 @@ describe("desktop claude-cli lane eligibility", () => {
         ...(enabled === undefined ? {} : { enabled }),
       }),
     ).toBe(expected);
+  });
+});
+
+describe("the saved model the Coach answers with", () => {
+  const providers = [
+    {
+      provider: "anthropic",
+      defaultModel: "claude-sonnet-5-5",
+      models: [
+        { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+        { value: "claude-opus-5-5", label: "Claude Opus 5.5" },
+      ],
+    },
+    {
+      provider: "openrouter",
+      defaultModel: "z-ai/glm-5.3",
+      models: [{ value: "z-ai/glm-5.3", label: "GLM 5.3" }],
+      defaultBaseUrl: "https://openrouter.ai/api/v1",
+    },
+  ] as const satisfies readonly OnboardingLlmProviderConfiguration[];
+
+  it("is listed when the model list offers it", () => {
+    expect(savedModel(providers, "anthropic", "claude-opus-5-5")).toEqual({
+      provider: "anthropic",
+      model: "claude-opus-5-5",
+      kind: "listed",
+    });
+  });
+
+  it("is retired with its listed replacement when the list dropped a kept model", () => {
+    expect(savedModel(providers, "anthropic", "claude-opus-5")).toEqual({
+      provider: "anthropic",
+      model: "claude-opus-5",
+      kind: "retired",
+      replacedBy: "claude-opus-5-5",
+    });
+    expect(savedModel(providers, "openrouter", "z-ai/glm-5.2")).toEqual({
+      provider: "openrouter",
+      model: "z-ai/glm-5.2",
+      kind: "retired",
+      replacedBy: "z-ai/glm-5.3",
+    });
+  });
+
+  it("is retired with no replacement when the list offers none", () => {
+    expect(savedModel(providers, "openrouter", "anthropic/claude-fable-5.1")).toEqual({
+      provider: "openrouter",
+      model: "anthropic/claude-fable-5.1",
+      kind: "retired",
+      replacedBy: null,
+    });
+    expect(savedModel(providers, "anthropic", "claude-fable-5-1")).toEqual({
+      provider: "anthropic",
+      model: "claude-fable-5-1",
+      kind: "retired",
+      replacedBy: null,
+    });
+  });
+
+  it("is listed again when a newer list offers the dropped model", () => {
+    const relisted = [
+      {
+        ...providers[0],
+        models: [...providers[0].models, { value: "claude-opus-5", label: "Claude Opus 5" }],
+      },
+    ];
+    expect(savedModel(relisted, "anthropic", "claude-opus-5")).toMatchObject({ kind: "listed" });
+  });
+
+  it("is custom for a model the athlete typed or a provider the list leaves out", () => {
+    expect(savedModel(providers, "anthropic", "athlete-typed-model")).toEqual({
+      provider: "anthropic",
+      model: "athlete-typed-model",
+      kind: "custom",
+    });
+    expect(savedModel(providers, "codex-agent", "gpt-5.6-sol")).toMatchObject({ kind: "custom" });
   });
 });

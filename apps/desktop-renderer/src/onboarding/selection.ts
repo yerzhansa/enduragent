@@ -3,6 +3,7 @@ import type {
   OnboardingLlmEndpointSelection,
   OnboardingLlmProviderConfiguration,
   OnboardingLlmSelection,
+  SavedModel,
 } from "./bridge";
 import { CUSTOM_MODEL_SELECTION } from "./constants";
 import type { ChatGptStatus, CredentialSlotStatus, OnboardingErrorCode } from "./machine";
@@ -24,6 +25,40 @@ const ENDPOINT_MODES: readonly LlmSelectionDraft["endpointMode"][] = [
 
 export function parseEndpointMode(mode: string): LlmSelectionDraft["endpointMode"] | undefined {
   return ENDPOINT_MODES.find((candidate) => candidate === mode);
+}
+
+export type RetiredModel = Extract<SavedModel, { readonly kind: "retired" }>;
+
+export function retiredModel(
+  active: SavedModel | null,
+  provider: OnboardingLlmProviderConfiguration,
+): RetiredModel | null {
+  return active?.kind === "retired" && active.provider === provider.provider ? active : null;
+}
+
+export function offersModel(
+  provider: OnboardingLlmProviderConfiguration,
+  active: SavedModel | null,
+  model: string,
+): boolean {
+  return (
+    provider.models.some((option) => option.value === model) ||
+    retiredModel(active, provider)?.model === model
+  );
+}
+
+export function withSavedSelection<
+  State extends {
+    readonly providers: readonly OnboardingLlmProviderConfiguration[];
+    readonly active: SavedModel | null;
+  },
+>(state: State, selection: Pick<OnboardingLlmSelection, "provider" | "model">): State {
+  const { provider, model } = selection;
+  if (state.active?.provider === provider && state.active.model === model) return state;
+  const listed = state.providers.some(
+    (entry) => entry.provider === provider && entry.models.some((option) => option.value === model),
+  );
+  return { ...state, active: { provider, model, kind: listed ? "listed" : "custom" } };
 }
 
 export function draftForProvider(
@@ -61,7 +96,7 @@ export function initialLlmDraft(
   if (provider === undefined) return undefined;
   const active = configuration.active;
   const activeModel = active?.provider === provider.provider ? active.model : provider.defaultModel;
-  const knownModel = provider.models.some((model) => model.value === activeModel);
+  const knownModel = offersModel(provider, active, activeModel);
   return {
     catalogRevision: configuration.catalogRevision,
     provider,

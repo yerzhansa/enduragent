@@ -9,6 +9,7 @@ import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 import {
   COMPACT_MODEL_DEFAULTS,
   DEFAULT_MODELS,
+  DROPPED_MODELS,
   LLM_MODEL_CATALOGUE,
   RETIRED_MODEL_REPLACEMENTS,
 } from "../src/runtime-config.js";
@@ -128,6 +129,53 @@ describe("bundled model catalog seed", () => {
         expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
         if (provider === "deepseek" && retired === "deepseek-v4-flash") continue;
         expect(seedModel(provider, retired), `${provider} ${retired}`).toBeUndefined();
+      }
+    }
+  });
+
+  it("names a listed replacement for each kept model the bundled list dropped", () => {
+    const retired: Readonly<Record<string, Readonly<Record<string, string>>>> =
+      RETIRED_MODEL_REPLACEMENTS;
+    for (const [provider, dropped] of Object.entries(DROPPED_MODELS)) {
+      for (const [model, replacement] of Object.entries(dropped)) {
+        expect(seedModel(provider, model), `${provider} ${model}`).toBeUndefined();
+        expect(Object.hasOwn(retired[provider] ?? {}, model), `${provider} ${model}`).toBe(false);
+        if (replacement !== null) {
+          expect(seedModel(provider, replacement), `${provider} ${replacement}`).toBeDefined();
+        }
+      }
+    }
+  });
+
+  it("handles every id the revision 2 seed listed and revision 12 dropped", () => {
+    const droppedSinceRevision2 = {
+      anthropic: ["claude-opus-5", "claude-fable-5-1"],
+      openai: ["gpt-5.6-terra", "gpt-5.6-luna"],
+      google: ["gemini-3.1-pro-preview", "gemini-3.7-flash"],
+      qwen: ["qwen3.7-max", "qwen3.8-max"],
+      minimax: ["MiniMax-M2.7", "MiniMax-M2.7-highspeed"],
+      kimi: ["kimi-k2.6", "kimi-k2.7-code"],
+      zai: ["glm-5.2", "glm-4.7-flashx"],
+      openrouter: [
+        "z-ai/glm-5.2",
+        "openai/gpt-6-astra",
+        "anthropic/claude-fable-5.1",
+        "deepseek/deepseek-v4.1-flash",
+        "qwen/qwen3.8-max",
+        "moonshotai/kimi-k2.7-code",
+      ],
+    } as const;
+    const handled: Readonly<Record<string, Readonly<Record<string, unknown>>>>[] = [
+      DROPPED_MODELS,
+      RETIRED_MODEL_REPLACEMENTS,
+    ];
+    for (const [provider, models] of Object.entries(droppedSinceRevision2)) {
+      for (const model of models) {
+        expect(seedModel(provider, model), `${provider} ${model}`).toBeUndefined();
+        expect(
+          handled.some((table) => Object.hasOwn(table[provider] ?? {}, model)),
+          `${provider} ${model}`,
+        ).toBe(true);
       }
     }
   });

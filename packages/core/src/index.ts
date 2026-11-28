@@ -342,6 +342,7 @@ export {
   LLM_PROVIDERS,
   PROVIDER_BASE_URLS,
   contextWindowForModel,
+  droppedModel,
   isKeylessProvider,
   resolveLlmProvider,
   resolveRuntimeConfig,
