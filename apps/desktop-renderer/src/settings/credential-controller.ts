@@ -724,7 +724,7 @@ export function createCredentialSettingsController(input: {
           status: "error",
           kind: "load",
           announcement: deletedSetupRefreshFailedCopy(result),
-          repairCredential: credential,
+          repairCredential: content.repairCredential,
           recoveryAvailable: content.recoveryAvailable || target.runtimeState === "active",
           focus: { target: "feedback" },
         });
