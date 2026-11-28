@@ -97,7 +97,7 @@ import type { MemoryFlushOutcome } from "./memory-flush.js";
 import { evaluateSessionFreshness, shouldDeferDailyReset } from "./session-freshness.js";
 import { LLM } from "../llm.js";
 import { createIntentTranslator, type IntentTranslationPort } from "../intent-translation.js";
-import { usageFieldsFromResult } from "../llm-types.js";
+import { TurnUsageLedger, type TurnStatus } from "./turn-usage.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
 import { resolveUserTimezone, appendCurrentTimeLine, todayInTZ } from "../sport/user-time.js";
 import {
@@ -335,6 +335,7 @@ export class CoachAgent {
   readonly translateIntent: IntentTranslationPort["translateIntent"];
   private sport: Sport;
   private llm: LLM;
+  private readonly turnUsage: TurnUsageLedger;
   private flushLlm: LLM;
   private compactLlm: LLM;
   private compactContextWindowTokens: number;
@@ -366,8 +367,9 @@ export class CoachAgent {
     }
     this.sport = sport;
     this.config = config;
-    this.ports = ports;
-    this.llm = new LLM(config, ports, config.models.chat);
+    this.turnUsage = new TurnUsageLedger(ports.usage, config.models.chat, ports.logger);
+    this.ports = { ...ports, usage: this.turnUsage.port };
+    this.llm = new LLM(config, this.ports, config.models.chat);
     this.translateIntent = createIntentTranslator(this.llm).translateIntent;
     const profileKey = (profile: EngineConfig["models"]["chat"]): string =>
       JSON.stringify([profile.provider, profile.model]);
@@ -376,7 +378,7 @@ export class CoachAgent {
       const key = profileKey(profile);
       let lane = llmByModel.get(key);
       if (lane === undefined) {
-        lane = new LLM(config, ports, profile);
+        lane = new LLM(config, this.ports, profile);
         llmByModel.set(key, lane);
       }
       return lane;
@@ -919,6 +921,7 @@ export class CoachAgent {
           this.repairCoachDecisionSession(existingDecision);
         }
         const turnStart = this.ports.now();
+        this.turnUsage.begin(turnId);
         const emitEvent = (event: TurnEvent): void => {
           try {
             onEvent?.(event);
@@ -1114,6 +1117,23 @@ export class CoachAgent {
         let serverErrorAttempts = 0;
         let classifiedTerminalFailure: ClassifiedTurnFailure | undefined;
         let streamedText = "";
+        const finishTurn = (
+          status: TurnStatus,
+          templateHash = this.templateHashForChat(chatId, turnTools),
+        ): void => {
+          const durationMs = this.ports.now() - turnStart;
+          this.turnUsage.end(turnId, status, { ts: this.ports.now(), durationMs, templateHash });
+          this.emitTurnOutcome({
+            turnId,
+            chatId,
+            ...status,
+            overflowAttempts,
+            timeoutAttempts,
+            rateLimitAttempts,
+            duration_ms: this.ports.now() - turnStart,
+            compactions,
+          });
+        };
 
         const compactInTurn = async () => {
           const compacted = await summarizeInStages({
@@ -1228,16 +1248,7 @@ export class CoachAgent {
                 }
                 onDecision?.(decision);
                 emitEvent({ type: "decision-requested", turnId, chatId, decision });
-                this.emitTurnOutcome({
-                  turnId,
-                  chatId,
-                  ok: true,
-                  overflowAttempts,
-                  timeoutAttempts,
-                  rateLimitAttempts,
-                  duration_ms: this.ports.now() - turnStart,
-                  compactions,
-                });
+                finishTurn({ ok: true });
                 return "";
               }
 
@@ -1331,27 +1342,7 @@ export class CoachAgent {
                 }
               }
 
-              this.ports.usage.append({
-                ts: this.ports.now(),
-                kind: "turn",
-                caller: "chat",
-                provider: this.config.models.chat.provider,
-                model: this.config.models.chat.model,
-                durationMs: this.ports.now() - turnStart,
-                templateHash,
-                ...usageFieldsFromResult(result),
-              });
-
-              this.emitTurnOutcome({
-                turnId,
-                chatId,
-                ok: true,
-                overflowAttempts,
-                timeoutAttempts,
-                rateLimitAttempts,
-                duration_ms: this.ports.now() - turnStart,
-                compactions,
-              });
+              finishTurn({ ok: true }, templateHash);
 
               responseMessage = coachReplyMessage({
                 reply: effectiveText,
@@ -1431,17 +1422,7 @@ export class CoachAgent {
                     error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
                   }),
                 );
-                this.emitTurnOutcome({
-                  turnId,
-                  chatId,
-                  ok: false,
-                  error_class: failure,
-                  overflowAttempts,
-                  timeoutAttempts,
-                  rateLimitAttempts,
-                  duration_ms: this.ports.now() - turnStart,
-                  compactions,
-                });
+                finishTurn({ ok: false, error_class: failure });
                 emitEvent(
                   await this.createErrorEvent({
                     failure,
@@ -1612,33 +1593,13 @@ export class CoachAgent {
               coachText: streamedText,
               ...(turn?.attachments === undefined ? {} : { attachments: turn.attachments }),
             });
-            this.emitTurnOutcome({
-              turnId,
-              chatId,
-              ok: false,
-              error_class: "interrupted",
-              overflowAttempts,
-              timeoutAttempts,
-              rateLimitAttempts,
-              duration_ms: this.ports.now() - turnStart,
-              compactions,
-            });
+            finishTurn({ ok: false, error_class: "interrupted" }, templateHash);
             emitEvent({ type: "interrupted", turnId, chatId, text: streamedText });
             return streamedText;
           }
           const failure =
             classifiedTerminalFailure ?? classifyError(terminalErr, this.ports.classifyFailure);
-          this.emitTurnOutcome({
-            turnId,
-            chatId,
-            ok: false,
-            error_class: failure,
-            overflowAttempts,
-            timeoutAttempts,
-            rateLimitAttempts,
-            duration_ms: this.ports.now() - turnStart,
-            compactions,
-          });
+          finishTurn({ ok: false, error_class: failure });
           emitEvent(
             await this.createErrorEvent({
               failure,
@@ -1660,6 +1621,7 @@ export class CoachAgent {
           if (this.activeChatTurns.get(chatId) === activeTurn) {
             this.activeChatTurns.delete(chatId);
           }
+          this.turnUsage.discard(turnId);
         }
       }
     });
