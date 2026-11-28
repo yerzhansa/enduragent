@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e891369c",
+  "syncCommit": "9c2a7a96",
   "fingerprints": {
     "apps/desktop/src/main/update-controller.ts :: const canCheck =": "d35b14ac61fd",
     "apps/desktop/src/main/update-controller.ts :: const isCurrent =": "2fab6590ccf5",
@@ -9,9 +9,9 @@
     "apps/desktop/src/main/update-controller.ts :: const expireOperation =": "4af8b0e199ae",
     "apps/desktop/src/main/update-controller.ts :: const armReadinessWatch =": "6d17c94bd7cb",
     "apps/desktop/src/main/update-controller.ts :: const publishReady =": "4f384ead4395",
-    "apps/desktop/src/main/update-controller.ts :: const enterPreparing =": "016902e0da74",
-    "apps/desktop/src/main/update-state-machine.ts :: export function advanceDownloadTransfer(": "c866af1f3521",
-    "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "4caaafc646ad",
+    "apps/desktop/src/main/update-controller.ts :: const enterPreparing =": "be5a2cd44270",
+    "apps/desktop/src/main/update-state-machine.ts :: export function advanceDownloadTransfer(": "b1f425f1f82f",
+    "apps/desktop/src/main/update-controller.ts :: const beginDownload =": "26900387d736",
     "apps/desktop/src/main/update-controller.ts :: const runCheck =": "a76435e02ca7",
     "apps/desktop/src/main/update-controller.ts :: const initializeUpdater =": "0438b43b039c",
     "apps/desktop/src/main/update-controller.ts :: const check =": "c164e1357464",
@@ -30,11 +30,11 @@
     "apps/desktop/src/main/index.ts :: \"before-quit\"": "b9bc2104d60b",
     "apps/desktop-renderer/src/update/controller.ts :: let phase: RendererUpdatePhase =": "e7583c617b64",
     "apps/desktop-renderer/src/update/controller.ts :: const applyPushedState =": "67d3cfb509bd",
-    "apps/desktop-renderer/src/update/controller.ts :: const activate =": "e26a5ea59b96",
+    "apps/desktop-renderer/src/update/controller.ts :: const activate =": "da45d330ecf6",
     "apps/desktop-renderer/src/update/controller.ts :: async start() {": "2fc13232b898",
     "apps/desktop-renderer/src/state/adapters/update.ts :: export function createUpdateSettingsAdapter(": "48edc944e0e3",
     "apps/desktop-renderer/src/state/settings-slice.ts :: const EMPTY_UPDATE_SURFACE:": "19f9c2bcebf2",
     "apps/desktop-renderer/src/ui/sidebar/UpdateAvailableButton.tsx :: export function UpdateAvailableButton(": "741c20dff385",
-    "apps/desktop-renderer/src/ui/settings/ApplicationSection.tsx :: export function ApplicationSection(": "7b70eb6dbe41"
+    "apps/desktop-renderer/src/ui/settings/ApplicationSection.tsx :: export function ApplicationSection(": "ba849b2aef38"
   }
 }

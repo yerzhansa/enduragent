@@ -7,16 +7,16 @@ description: Model-check the desktop app's auto-update, download, macOS native p
 
 Tests check the event orders someone wrote down. This skill runs TLC 1.7.4 across every interleaving of the main update controller, version floor, macOS Squirrel readiness, quit coordinator, update IPC, and renderer update UI inside the bounds below.
 
-Sync commit: `e891369c`. Every model action and fingerprint in `references/coverage.json` was last confirmed at that commit.
+Sync commit: `9c2a7a96`. Every model action and fingerprint in `references/coverage.json` was last confirmed at that commit.
 
 ## When to run it
 
-Run the check before and after changing any file in the coverage table below. You can also run it directly. It exits 3 (`STALE`) and names every covered function whose fingerprint changed since `e891369c`.
+Run the check before and after changing any file in the coverage table below. You can also run it directly. It exits 3 (`STALE`) and names every covered function whose fingerprint changed since `9c2a7a96`.
 
 To inspect git history for covered files since the sync commit:
 
 ```bash
-git log --oneline e891369c..HEAD -- apps/desktop/src/main/update-controller.ts apps/desktop/src/main/update-state-machine.ts apps/desktop/src/main/quit-coordinator.ts apps/desktop/src/main/update-version-floor.ts apps/desktop/src/main/update-ipc.ts apps/desktop/src/main/index.ts apps/desktop-renderer/src/update/controller.ts apps/desktop-renderer/src/state/adapters/update.ts apps/desktop-renderer/src/state/settings-slice.ts apps/desktop-renderer/src/ui/sidebar/UpdateAvailableButton.tsx apps/desktop-renderer/src/ui/settings/ApplicationSection.tsx
+git log --oneline 9c2a7a96..HEAD -- apps/desktop/src/main/update-controller.ts apps/desktop/src/main/update-state-machine.ts apps/desktop/src/main/quit-coordinator.ts apps/desktop/src/main/update-version-floor.ts apps/desktop/src/main/update-ipc.ts apps/desktop/src/main/index.ts apps/desktop-renderer/src/update/controller.ts apps/desktop-renderer/src/state/adapters/update.ts apps/desktop-renderer/src/state/settings-slice.ts apps/desktop-renderer/src/ui/sidebar/UpdateAvailableButton.tsx apps/desktop-renderer/src/ui/settings/ApplicationSection.tsx
 ```
 
 ## Run
