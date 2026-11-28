@@ -268,22 +268,31 @@ function choiceFromDecision(
 interface LiveTurns {
   readonly turnIds: ReadonlySet<string>;
   readonly sentTurnIds: ReadonlySet<string>;
+  readonly sentTexts: ReadonlySet<string>;
   readonly coachReplies: ReadonlySet<string>;
+}
+
+function coachReplyKey(turnId: string, delivery: string, text: string): string {
+  return JSON.stringify([turnId, delivery, text]);
 }
 
 function liveTurns(messages: readonly ChatMessageView[]): LiveTurns {
   const turnIds = new Set<string>();
   const sentTurnIds = new Set<string>();
+  const sentTexts = new Set<string>();
   const coachReplies = new Set<string>();
   for (const message of messages) {
     if (message.historical || message.turnId === undefined) continue;
     turnIds.add(message.turnId);
-    if (message.role === "athlete") sentTurnIds.add(message.turnId);
+    if (message.role === "athlete") {
+      sentTurnIds.add(message.turnId);
+      sentTexts.add(message.text);
+    }
     if (message.role === "coach" && hasVisibleText(message.text)) {
-      coachReplies.add(JSON.stringify([message.turnId, message.text]));
+      coachReplies.add(coachReplyKey(message.turnId, message.delivery, message.text));
     }
   }
-  return { turnIds, sentTurnIds, coachReplies };
+  return { turnIds, sentTurnIds, sentTexts, coachReplies };
 }
 
 function historicalTimeline(
@@ -303,8 +312,11 @@ function historicalTimeline(
       if (live.sentTurnIds.has(entry.turnId)) continue;
       const attempt = (turnAttempts.get(entry.turnId) ?? 0) + 1;
       turnAttempts.set(entry.turnId, attempt);
+      const retriedFromLiveMessage =
+        live.turnIds.has(entry.turnId) && live.sentTexts.has(entry.athleteText);
       if (
         attempt === 1 &&
+        !retriedFromLiveMessage &&
         (hasVisibleText(entry.athleteText) || (entry.attachments?.length ?? 0) > 0)
       ) {
         timeline.push({
@@ -321,7 +333,8 @@ function historicalTimeline(
           },
         });
       }
-      if (live.coachReplies.has(JSON.stringify([entry.turnId, entry.coachText]))) continue;
+      const savedReply = coachReplyKey(entry.turnId, entry.delivery ?? "complete", entry.coachText);
+      if (live.coachReplies.has(savedReply)) continue;
       timeline.push({
         kind: "message",
         message: {
