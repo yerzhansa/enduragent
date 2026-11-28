@@ -209,10 +209,16 @@ describe("desktop update renderer controller", () => {
     );
   });
 
-  it("moves to failed when checkForUpdates rejects after checking or downloading pushes", async () => {
+  it("moves to failed when checkForUpdates rejects after checking, downloading, or preparing pushes", async () => {
     let rejectCheck: ((reason: unknown) => void) | undefined;
     const subject = setupController({ status: "idle" });
     vi.mocked(subject.bridge.checkForUpdates)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectCheck = reject;
+          }),
+      )
       .mockImplementationOnce(
         () =>
           new Promise((_resolve, reject) => {
@@ -239,6 +245,17 @@ describe("desktop update renderer controller", () => {
     await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledTimes(2));
     subject.publish({ status: "downloading", version: "1998.7.7" });
     rejectCheck?.(new Error("ipc dropped during download"));
+    await vi.waitFor(() =>
+      expect(subject.view.render).toHaveBeenLastCalledWith({
+        status: "failed",
+        stage: "download",
+      }),
+    );
+
+    subject.action();
+    await vi.waitFor(() => expect(subject.bridge.checkForUpdates).toHaveBeenCalledTimes(3));
+    subject.publish({ status: "preparing", version: "1998.7.7" });
+    rejectCheck?.(new Error("ipc dropped during preparation"));
     await vi.waitFor(() =>
       expect(subject.view.render).toHaveBeenLastCalledWith({
         status: "failed",
