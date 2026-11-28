@@ -2415,6 +2415,68 @@ describe("Plan operations", () => {
     ]);
   });
 
+  it("sends the messages waiting behind a discarded Plan claim from the queue", async () => {
+    const waitingQueue = {
+      schemaVersion: 1 as const,
+      revision: 3,
+      items: [
+        {
+          queuedMessageId: "queued-2",
+          submissionId: "submission-2",
+          text: "Keep Friday free.",
+          kind: "ordinary" as const,
+          position: 0,
+          restored: false,
+        },
+      ],
+    };
+    const resumeChatQueue = vi.fn(
+      async (_request: { readonly chatId: string }, onEvent?: (event: TurnEvent) => void) => {
+        onEvent?.({
+          type: "turn-start",
+          turnId: "turn-waiting",
+          chatId: `plan:${"0".repeat(25)}1`,
+        });
+        onEvent?.({ type: "final-text", turnId: "turn-waiting", text: "Friday stays free." });
+        return { snapshot: EMPTY_QUEUE, response: { text: "Friday stays free." } };
+      },
+    );
+    const chat = vi.fn(async () => ({ text: "This should come from the queue." }));
+    const coach = {
+      ...engine(),
+      chat,
+      getChatQueue: vi
+        .fn()
+        .mockResolvedValueOnce(EMPTY_QUEUE)
+        .mockResolvedValueOnce(waitingQueue)
+        .mockResolvedValue(EMPTY_QUEUE),
+      resumeChatQueue,
+    } as unknown as CoachEngine;
+    const operations = createPlanningOperations({ context, engine: coach, identity: identity() });
+    const started = await restoreLegacyConversation(operations);
+    if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
+    const conversationId = String(started.state.data.conversationId);
+
+    await expect(
+      operations.executePlanTransition?.({
+        transitionId: "PL-T05",
+        commandId: "command-2",
+        conversationId,
+        text: "Keep Friday free.",
+      }),
+    ).resolves.toMatchObject({ status: "completed" });
+    expect(resumeChatQueue).toHaveBeenCalledWith(
+      { chatId: `plan:${conversationId}` },
+      expect.any(Function),
+    );
+    expect(chat).not.toHaveBeenCalled();
+    await expect(
+      createPlanConversationRepository(store).readTurns(conversationId),
+    ).resolves.toMatchObject([
+      { athleteText: "Keep Friday free.", coachText: "Friday stays free." },
+    ]);
+  });
+
   it("routes a structured Proposal through review, provenance, revision, and approval", async () => {
     const planId = `${"0".repeat(25)}P`;
     const workoutId = `${"0".repeat(25)}Q`;

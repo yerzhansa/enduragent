@@ -30,6 +30,8 @@ import type { ChatSurfaceState } from "../chat-slice";
 import type { PlanSurfaceState, PlanTransitionState } from "../plan-slice";
 import { planReadModel } from "../plan-slice";
 import { createChatViewAdapter } from "./chat";
+import { createPlanCoachQueue } from "./plan-coach-queue";
+import { reportBestEffortAsync } from "../../chat/controller-helpers";
 
 export async function listPlans(clients: DesktopCoachClientProvider): Promise<ListPlansResult> {
   return (await clients.getClient()).call("plan.list", {});
@@ -91,6 +93,7 @@ export interface PlanViewAdapter {
   stopCoach(): void;
   removeQueuedCoachMessage(id: string): void;
   retryQueuedCoachTurn(claimId: string): void;
+  discardQueuedCoachTurn(claimId: string): void;
   answerCoachDecision(decisionId: string, answer: CoachDecisionAnswer): void;
   skipCoachDecision(decisionId: string): void;
   saveFtp(watts: number): void;
@@ -254,6 +257,7 @@ export function createPlanViewAdapter(input: {
     coachView.render(coachState, {
       newConversationDisabled: true,
       workBlocked: false,
+      queueMutationError: coachQueue.error(),
       decision: {
         value: coachDecision,
         phase: coachDecisionPhase,
@@ -345,6 +349,7 @@ export function createPlanViewAdapter(input: {
         });
       }
       if (next.state.scenarioId === "PL-S082" && next.state.planId !== null) {
+        const replacementPlanId = next.state.planId;
         const parsed = PlanActiveProjectionDataSchema.safeParse(next.state.data);
         const replacement = parsed.success ? parsed.data.replacement : undefined;
         if (replacement !== undefined && autoResumingReplacementId !== replacement.id) {
@@ -355,13 +360,14 @@ export function createPlanViewAdapter(input: {
               transitionId: "PL-T27",
               commandId: createCommandId(),
               planId: replacement.previousPlan.id,
-              replacementPlanId: next.state.planId!,
+              replacementPlanId,
               mode: "cleanup",
             });
           });
         }
       }
       if (next.state.planId !== null && active === null) {
+        const planId = next.state.planId;
         const parsed = PlanActiveProjectionDataSchema.safeParse(next.state.data);
         const review = parsed.success ? parsed.data.weeklyReview : undefined;
         if (
@@ -374,7 +380,7 @@ export function createPlanViewAdapter(input: {
             void execute({
               transitionId: "PL-T35",
               commandId: createCommandId(),
-              planId: next.state.planId!,
+              planId,
               weekStart: review.weekStart,
             });
           });
@@ -549,6 +555,18 @@ export function createPlanViewAdapter(input: {
     return true;
   };
 
+  const coachQueue = createPlanCoachQueue({
+    clients: input.clients,
+    chatId: () => currentCoachData()?.chatId ?? null,
+    state: () => coachState,
+    reduce: reduceCoach,
+    render: renderCoach,
+    send: (text) => submitCommand(text),
+    sending: () => active !== null || coachState.status === "streaming",
+    createSubmissionId: createMessageId,
+    disposed: () => disposed,
+  });
+
   const onCoachTurnEvent = (event: NonNullable<PlanProgressEvent["turnEvent"]>): void => {
     if (event.type === "turn-start") {
       const current = coachState.activeTurn;
@@ -649,55 +667,13 @@ export function createPlanViewAdapter(input: {
       });
     },
     async submitCoach(message) {
-      if (coachState.status === "streaming") {
-        const data = currentCoachData();
-        if (data === null || input.clients === undefined || !/\S/u.test(message)) return false;
-        try {
-          const client = await input.clients.getClient();
-          const snapshot = await client.call("enqueueChatMessage", {
-            chatId: data.chatId,
-            submissionId: createMessageId(),
-            text: message.trim(),
-          });
-          reduceCoach({ type: "queue-snapshot", snapshot });
-          return true;
-        } catch {
-          return false;
-        }
-      }
+      if (coachState.status === "streaming") return coachQueue.enqueue(message);
       return submitCommand(message);
     },
-    stopCoach() {
-      const data = currentCoachData();
-      const turnId = coachState.activeTurn?.turnId;
-      if (data === null || turnId === null || turnId === undefined || input.clients === undefined) {
-        return;
-      }
-      void input.clients
-        .getClient()
-        .then((client) => client.call("stopChat", { chatId: data.chatId, turnId }))
-        .catch(() => undefined);
-    },
-    removeQueuedCoachMessage(id) {
-      const data = currentCoachData();
-      if (data === null || input.clients === undefined) return;
-      void input.clients
-        .getClient()
-        .then((client) =>
-          client.call("removeQueuedChatMessage", { chatId: data.chatId, queuedMessageId: id }),
-        )
-        .then((snapshot) => reduceCoach({ type: "queue-snapshot", snapshot }))
-        .catch(() => undefined);
-    },
-    retryQueuedCoachTurn(claimId) {
-      const retry = coachState.retryRequired;
-      if (retry?.claimId !== claimId) return;
-      const text = coachState.queued
-        .filter((item) => retry.queuedMessageIds.includes(item.id))
-        .map((item) => item.text)
-        .join("\n\n");
-      submitCommand(text);
-    },
+    stopCoach: () => coachQueue.stop(),
+    removeQueuedCoachMessage: (id) => coachQueue.remove(id),
+    retryQueuedCoachTurn: (claimId) => coachQueue.retry(claimId),
+    discardQueuedCoachTurn: (claimId) => coachQueue.discard(claimId),
     answerCoachDecision(decisionId, answer) {
       const decision = coachDecision;
       if (decision?.decisionId !== decisionId) return;
@@ -806,14 +782,12 @@ export function createPlanViewAdapter(input: {
     },
     chooseCourseFile() {
       if (active !== null) return;
-      void input.bridge
-        .choosePlanRaceCourseFile()
-        .then((filePath) => {
-          if (disposed || filePath === null) return;
-          input.publishCoursePicker(false);
-          attachCourse(filePath, "require");
-        })
-        .catch(() => undefined);
+      void reportBestEffortAsync("plan-course-file-choice-failed", async () => {
+        const filePath = await input.bridge.choosePlanRaceCourseFile();
+        if (disposed || filePath === null) return;
+        input.publishCoursePicker(false);
+        attachCourse(filePath, "require");
+      });
     },
     continueWithoutCourse() {
       const data = currentCoachData();

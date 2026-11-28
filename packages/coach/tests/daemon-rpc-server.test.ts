@@ -3216,6 +3216,11 @@ describe.skipIf(!hasLoopback)("RPC authority boundaries", () => {
       resumed: true,
     }));
     const getChatQueue = vi.fn(async () => ({ schemaVersion: 1 as const, revision: 0, items: [] }));
+    const discardQueuedTurn = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      revision: 1,
+      items: [],
+    }));
     const getActivityAnalysis = vi.fn(operations.getActivityAnalysis!);
     const rpc = createCoachRpcServer({
       engine: engine({
@@ -3227,6 +3232,7 @@ describe.skipIf(!hasLoopback)("RPC authority boundaries", () => {
         skipCoachDecision,
         resumeCoachDecision,
         getChatQueue,
+        discardQueuedTurn,
       }),
       operations: { ...operations, getActivityAnalysis },
       token,
@@ -3335,6 +3341,20 @@ describe.skipIf(!hasLoopback)("RPC authority boundaries", () => {
       result: { schemaVersion: 1, revision: 0, items: [] },
     });
     expect(getChatQueue).toHaveBeenCalledWith({ chatId: planChatId });
+    id += 1;
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        method: "discardQueuedTurn",
+        params: { chatId: planChatId, claimId: "claim-1" },
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toMatchObject({
+      id,
+      result: { schemaVersion: 1, revision: 1, items: [] },
+    });
+    expect(discardQueuedTurn).toHaveBeenCalledWith({ chatId: planChatId, claimId: "claim-1" });
     id += 1;
     client.ws.send(
       JSON.stringify({

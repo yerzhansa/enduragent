@@ -26,6 +26,7 @@ function actions(): PlanActions {
     stopCoach: vi.fn(),
     removeQueuedCoachMessage: vi.fn(),
     retryQueuedCoachTurn: vi.fn(),
+    discardQueuedCoachTurn: vi.fn(),
     answerCoachDecision: vi.fn(),
     skipCoachDecision: vi.fn(),
     saveFtp: vi.fn(),
@@ -654,6 +655,74 @@ describe("Plan surface", () => {
     expect(planActions.removeQueuedCoachMessage).toHaveBeenCalledWith("queued-1");
     await user.click(screen.getByRole("button", { name: "Skip question" }));
     expect(planActions.skipCoachDecision).toHaveBeenCalledWith("decision-1");
+  });
+
+  it("offers Discard before Retry for a held Plan message, with or without messages waiting", async () => {
+    const user = userEvent.setup();
+    const planActions = actions();
+    const state = planReadModel({
+      lifecycle: "intake",
+      scenarioId: "PL-S017",
+      projection: "coach",
+      data: planCoachData(),
+    });
+    const retryRequired = {
+      claimId: "claim-1",
+      queuedMessageIds: ["queued-1"],
+      turnId: "turn-1",
+      status: "retry-required" as const,
+    };
+    const waiting = { id: "queued-2", text: "Keep Friday free.", command: false, restored: false };
+    const show = (coach: Partial<typeof EMPTY_PLAN_SURFACE.coach>) =>
+      useEnduragentStore.setState({
+        plan: {
+          ...EMPTY_PLAN_SURFACE,
+          hydration: { status: "ready", state },
+          lastReady: state,
+          coach: { ...EMPTY_PLAN_SURFACE.coach, retryRequired, ...coach },
+        },
+        planActions,
+      });
+    show({ queued: [waiting] });
+    render(<PlanView />);
+    const queue = screen.getByRole("region", { name: "Queued coach messages" });
+
+    expect(
+      within(queue)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Discard", "Retry interrupted message", "Remove"]);
+    expect(queue).toHaveTextContent("Sends after you retry or discard the earlier message.");
+    await user.click(within(queue).getByRole("button", { name: "Discard" }));
+    expect(planActions.discardQueuedCoachTurn).toHaveBeenCalledWith("claim-1");
+    await user.click(within(queue).getByRole("button", { name: "Retry interrupted message" }));
+    expect(planActions.retryQueuedCoachTurn).toHaveBeenCalledWith("claim-1");
+
+    act(() => show({ queued: [] }));
+    const held = screen.getByRole("region", { name: "Queued coach messages" });
+    expect(
+      within(held)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Discard", "Retry interrupted message"]);
+    expect(within(held).queryByRole("heading")).toBeNull();
+    expect(held).not.toHaveTextContent("Sends after you retry or discard the earlier message.");
+
+    act(() => show({ queued: [waiting], status: "streaming" }));
+    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+
+    act(() =>
+      show({
+        queued: [waiting],
+        queueMutationError: "We couldn’t remove that saved message. Try again.",
+      }),
+    );
+    expect(screen.getByRole("region", { name: "Queued coach messages" })).not.toHaveTextContent(
+      "Sends after you retry or discard the earlier message.",
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Queued coach messages" })).getByRole("status"),
+    ).toHaveTextContent("We couldn’t remove that saved message. Try again.");
   });
 
   it("returns an omitted-Course persistence failure to the Coach conversation", async () => {

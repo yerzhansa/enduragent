@@ -358,8 +358,8 @@ export function bootRenderer(): Disposer {
     stopCoach: () => planAdapter.stopCoach(),
     removeQueuedCoachMessage: (id) => planAdapter.removeQueuedCoachMessage(id),
     retryQueuedCoachTurn: (claimId) => planAdapter.retryQueuedCoachTurn(claimId),
-    answerCoachDecision: (decisionId, answer) =>
-      planAdapter.answerCoachDecision(decisionId, answer),
+    discardQueuedCoachTurn: (claimId) => planAdapter.discardQueuedCoachTurn(claimId),
+    answerCoachDecision: (id, answer) => planAdapter.answerCoachDecision(id, answer),
     skipCoachDecision: (decisionId) => planAdapter.skipCoachDecision(decisionId),
     saveFtp: (watts) => planAdapter.saveFtp(watts),
     refreshFtp: () => planAdapter.refreshFtp(),

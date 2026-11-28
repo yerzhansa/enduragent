@@ -827,6 +827,122 @@ describe("Plan view adapter", () => {
     });
   });
 
+  describe("discarding a held Plan message", () => {
+    const item = (id: string, text: string, position: number) => ({
+      queuedMessageId: id,
+      messageId: `message-${id}`,
+      submissionId: `submission-${id}`,
+      text,
+      kind: "ordinary" as const,
+      attachmentIds: [],
+      position,
+      restored: false,
+    });
+    const held = {
+      schemaVersion: 1 as const,
+      revision: 3,
+      items: [item("queued-1", "Keep Sunday free.", 0), item("queued-2", "Keep Friday free.", 1)],
+      retryRequired: {
+        claimId: "claim-1",
+        queuedMessageIds: ["queued-1"],
+        turnId: "turn-1",
+        status: "retry-required" as const,
+      },
+    };
+    const discarded = {
+      schemaVersion: 1 as const,
+      revision: 4,
+      items: [item("queued-2", "Keep Friday free.", 0)],
+    };
+    const coachTurn = {
+      transitionId: "PL-T05",
+      commandId: "coach-command",
+      conversationId: "00000000000000000000000001",
+    };
+    const setup = (discard: () => Promise<unknown>) => {
+      const call = vi.fn(async (method: string) =>
+        method === "discardQueuedTurn" ? discard() : { stopped: true },
+      );
+      const clients = {
+        getClient: async () => ({ call }),
+        reconnect: async () => ({ call }),
+        close: async () => undefined,
+      } as unknown as DesktopCoachClientProvider;
+      const initial = planReadModel({
+        lifecycle: "intake",
+        scenarioId: "PL-S017",
+        projection: "coach",
+        data: planCoachData({ queue: held }),
+      });
+      const subject = harness({
+        clients,
+        ids: ["coach-command"],
+        getPlanState: async () => ({ status: "ready", state: initial }),
+        executePlanTransition: () => new Promise(() => undefined),
+      });
+      subject.adapter.start();
+      return { call, subject };
+    };
+
+    it("drops the held message, then sends the waiting ones through PL-T05", async () => {
+      const { call, subject } = setup(async () => discarded);
+      await settle();
+      expect(subject.surface.coach.queued).toMatchObject([{ id: "queued-2" }]);
+
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await vi.waitFor(() => expect(subject.executePlanTransition).toHaveBeenCalledOnce());
+      expect(call).toHaveBeenCalledWith("discardQueuedTurn", {
+        chatId: "plan:00000000000000000000000001",
+        claimId: "claim-1",
+      });
+      expect(subject.executePlanTransition).toHaveBeenCalledWith({
+        ...coachTurn,
+        text: "Keep Friday free.",
+      });
+      expect(subject.surface.coach.retryRequired).toBeNull();
+      expect(subject.surface.coach.queued).toEqual([]);
+      expect(subject.surface.coach.messages.map((message) => message.text)).toContain(
+        "Keep Friday free.",
+      );
+    });
+
+    it("keeps the held message and says so when Coach cannot discard it", async () => {
+      const { subject } = setup(async () => {
+        throw new TypeError("Coach is offline");
+      });
+      await settle();
+
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await vi.waitFor(() =>
+        expect(subject.surface.coach.queueMutationError).toBe(
+          "We couldn’t remove that saved message. Try again.",
+        ),
+      );
+      expect(subject.surface.coach.retryRequired).toMatchObject({ claimId: "claim-1" });
+      expect(subject.executePlanTransition).not.toHaveBeenCalled();
+
+      subject.adapter.retryQueuedCoachTurn("claim-1");
+      await settle();
+      expect(subject.surface.coach.queueMutationError).toBeNull();
+      expect(subject.executePlanTransition).toHaveBeenCalledWith({
+        ...coachTurn,
+        text: "Keep Sunday free.",
+      });
+    });
+
+    it("ignores Discard while the held message is being retried", async () => {
+      const { call, subject } = setup(async () => discarded);
+      await settle();
+      subject.adapter.retryQueuedCoachTurn("claim-1");
+      await settle();
+
+      subject.adapter.discardQueuedCoachTurn("claim-1");
+      await settle();
+      expect(call).not.toHaveBeenCalledWith("discardQueuedTurn", expect.anything());
+      expect(subject.surface.coach.retryRequired).toMatchObject({ claimId: "claim-1" });
+    });
+  });
+
   it.each([
     { count: 1, projection: "workout" as const },
     { count: 2, projection: "attention" as const },
