@@ -1069,6 +1069,9 @@
       "unnamed": "Unnamed workout",
       "update": "Update workout \"{{name}}\" on {{date}} — {{detail}}"
     },
+    "refusal": {
+      "spendCapReached": "Today's model spend has reached your {{cap}} daily cap, so the coach didn't answer this message. To keep going today, raise the cap or switch it back to a warning in Settings › Spending."
+    },
     "workoutPreparation": {
       "failed": "I couldn't prepare this workout review. No changes were applied.",
       "prepared": "Your workout review is ready for approval.",

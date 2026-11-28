@@ -958,6 +958,7 @@ export type CatalogKey =
   | "coach.proposal.trainingLoad"
   | "coach.proposal.unnamed"
   | "coach.proposal.update"
+  | "coach.refusal.spendCapReached"
   | "coach.workoutPreparation.failed"
   | "coach.workoutPreparation.prepared"
   | "coach.workoutPreparation.savedInformationFailed"

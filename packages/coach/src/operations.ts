@@ -79,6 +79,7 @@ import {
   createLanguagePreferenceService,
   type LanguagePreferenceService,
 } from "./language-preference.js";
+import { sameHome } from "./same-home.js";
 
 export interface CreateCoachOperationsInput {
   readonly languagePreference?: LanguagePreferenceService;
@@ -129,15 +130,6 @@ export interface CoachOperationsDependencies {
   readonly importFiles?: typeof importFilesWithReport;
   readonly backfill?: typeof runIntervalsBackfillInWriter;
   readonly runtimeConfigurationDeadlineMs?: number;
-}
-
-function sameHome(left: AthleteHome, right: AthleteHome): boolean {
-  return (
-    left.root === right.root &&
-    left.storeDir === right.storeDir &&
-    left.archiveDir === right.archiveDir &&
-    left.configDir === right.configDir
-  );
 }
 
 function importedWorkoutKeys(report: ImportReport): readonly string[] {

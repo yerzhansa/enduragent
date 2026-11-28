@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TurnRefusalSchema } from "./spend.js";
 
 const DecisionIdSchema = z.string().min(1);
 
@@ -148,10 +149,10 @@ export const AnswerCoachDecisionRpcParamsSchema = z
 export type AnswerCoachDecisionRpcParams = z.infer<typeof AnswerCoachDecisionRpcParamsSchema>;
 
 export const AnswerCoachDecisionRpcResultSchema = z
-  .object({ decision: CoachDecisionReadModelSchema })
+  .object({ decision: CoachDecisionReadModelSchema, refusal: TurnRefusalSchema.optional() })
   .strict()
   .superRefine((value, context) => {
-    if (value.decision.status !== "answered") {
+    if (value.refusal === undefined && value.decision.status !== "answered") {
       context.addIssue({
         code: "custom",
         path: ["decision", "status"],
@@ -186,7 +187,11 @@ export const ResumeCoachDecisionRpcParamsSchema = z
 export type ResumeCoachDecisionRpcParams = z.infer<typeof ResumeCoachDecisionRpcParamsSchema>;
 
 export const ResumeCoachDecisionRpcResultSchema = z
-  .object({ decision: CoachDecisionReadModelSchema, resumed: z.boolean() })
+  .object({
+    decision: CoachDecisionReadModelSchema,
+    resumed: z.boolean(),
+    refusal: TurnRefusalSchema.optional(),
+  })
   .strict()
   .superRefine((value, context) => {
     if (value.decision.status !== "answered") {

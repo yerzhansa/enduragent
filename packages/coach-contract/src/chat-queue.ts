@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ChatResponseSchema } from "./engine.js";
+import { TurnRefusalSchema } from "./spend.js";
 import { CHAT_ATTACHMENT_LIMITS } from "./chat-attachment.js";
 
 const AttachmentIdsSchema = z
@@ -158,6 +159,10 @@ export const RetryQueuedTurnRequestSchema = z
 export type RetryQueuedTurnRequest = z.infer<typeof RetryQueuedTurnRequestSchema>;
 
 export const ChatQueueRunResultSchema = z
-  .object({ snapshot: ChatQueueSnapshotSchema, response: ChatResponseSchema.optional() })
+  .object({
+    snapshot: ChatQueueSnapshotSchema,
+    response: ChatResponseSchema.optional(),
+    refusal: TurnRefusalSchema.optional(),
+  })
   .strict();
 export type ChatQueueRunResult = z.infer<typeof ChatQueueRunResultSchema>;

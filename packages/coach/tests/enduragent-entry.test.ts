@@ -309,7 +309,7 @@ afterEach(async () => {
 
 describe("enduragent executable composition", () => {
   it("starts initial refresh through one authenticated control socket and closes it", async () => {
-    expect(PROTOCOL_VERSION).toBe(39);
+    expect(PROTOCOL_VERSION).toBe(40);
     const startInitialRefresh = vi.fn(async () => ({ status: "accepted" as const }));
     const close = vi.fn(async () => {});
     const openControl = vi.fn(async () => ({ startInitialRefresh, close }));

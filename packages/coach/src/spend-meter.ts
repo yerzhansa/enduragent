@@ -3,7 +3,9 @@ import { join } from "node:path";
 import {
   CACHING_UNAVAILABLE_DISCLOSURE,
   SetDailySpendCapRpcParamsSchema,
+  SpendCapModeSchema,
   SpendSummarySchema,
+  type SpendCapMode,
   type SpendRouteSummary,
   type SpendSummary,
 } from "@enduragent/coach-contract";
@@ -30,11 +32,21 @@ import { z } from "zod";
 
 export const DEFAULT_DAILY_SPEND_CAP_USD = 0.5;
 export const DAILY_SPEND_CAP_FILE = "daily-spend-cap.json";
-export const DAILY_SPEND_CAP_VERSION = 1;
+export const DAILY_SPEND_CAP_VERSION = 2;
+
+export interface DailySpendCap {
+  readonly dailyCapUsd: number;
+  readonly mode: SpendCapMode;
+}
+
+export const DEFAULT_DAILY_SPEND_CAP: DailySpendCap = {
+  dailyCapUsd: DEFAULT_DAILY_SPEND_CAP_USD,
+  mode: "warn",
+};
 
 export interface SpendMeterService {
   getSpendSummary(): Promise<SpendSummary>;
-  setDailySpendCap(dailyCapUsd: number): Promise<SpendSummary>;
+  setDailySpendCap(dailyCapUsd: number, mode?: SpendCapMode): Promise<SpendSummary>;
 }
 
 export interface CreateSpendMeterServiceInput {
@@ -45,12 +57,28 @@ export interface CreateSpendMeterServiceInput {
   readonly readUsageLedger?: (dataDir: string) => UsageLedgerReadResult;
 }
 
+const DailySpendCapV1Schema = z
+  .object({
+    version: z.literal(1),
+    dailyCapUsd: z.number().finite().positive(),
+  })
+  .strict();
+
 const DailySpendCapSchema = z
   .object({
     version: z.literal(DAILY_SPEND_CAP_VERSION),
     dailyCapUsd: z.number().finite().positive(),
+    mode: SpendCapModeSchema,
   })
   .strict();
+
+export function migrateDailySpendCap(raw: unknown): DailySpendCap | undefined {
+  const current = DailySpendCapSchema.safeParse(raw);
+  if (current.success) return { dailyCapUsd: current.data.dailyCapUsd, mode: current.data.mode };
+  const legacy = DailySpendCapV1Schema.safeParse(raw);
+  if (legacy.success) return { dailyCapUsd: legacy.data.dailyCapUsd, mode: "warn" };
+  return undefined;
+}
 
 interface MutableRoute {
   readonly provider: string;
@@ -197,11 +225,14 @@ function accruesToCap(line: UsageLedgerLine): boolean {
   return line.provider !== CLAUDE_CLI_PROVIDER || line.providerReportedCostUsd !== undefined;
 }
 
-function readDailyCap(path: string): number {
+function readDailyCap(path: string): DailySpendCap {
   try {
-    return DailySpendCapSchema.parse(JSON.parse(readFileSync(path, "utf8")) as unknown).dailyCapUsd;
+    return (
+      migrateDailySpendCap(JSON.parse(readFileSync(path, "utf8")) as unknown) ??
+      DEFAULT_DAILY_SPEND_CAP
+    );
   } catch {
-    return DEFAULT_DAILY_SPEND_CAP_USD;
+    return DEFAULT_DAILY_SPEND_CAP;
   }
 }
 
@@ -424,7 +455,7 @@ export function createSpendMeterService(input: CreateSpendMeterServiceInput): Sp
     if (localDate === undefined || formatter === undefined) {
       throw new TypeError("Spend date could not be resolved.");
     }
-    const dailyCapUsd = readDailyCap(capPath);
+    const { dailyCapUsd, mode: capMode } = readDailyCap(capPath);
     const revision = usageLedgerRevision(input.dataDir);
     let aggregate =
       revision !== undefined && cache?.localDate === localDate && cache.revision === revision
@@ -452,16 +483,21 @@ export function createSpendMeterService(input: CreateSpendMeterServiceInput): Sp
           : aggregate.spendComplete
             ? "below"
             : "unknown",
+      capMode,
     });
   };
 
   return {
     getSpendSummary: summarize,
-    async setDailySpendCap(dailyCapUsd) {
-      const parsed = SetDailySpendCapRpcParamsSchema.parse({ dailyCapUsd });
+    async setDailySpendCap(dailyCapUsd, mode) {
+      const parsed = SetDailySpendCapRpcParamsSchema.parse({
+        dailyCapUsd,
+        ...(mode === undefined ? {} : { mode }),
+      });
       await atomicWriteJson(capPath, {
         version: DAILY_SPEND_CAP_VERSION,
         dailyCapUsd: parsed.dailyCapUsd,
+        mode: parsed.mode ?? readDailyCap(capPath).mode,
       });
       return summarize();
     },

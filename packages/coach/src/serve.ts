@@ -68,15 +68,16 @@ export async function runCoachServe(
     });
     const owner = input.owner ?? "unmanaged-foreground";
     const scheduleInitialRefresh = (): void => {
-      const refresh = input.lifecycle.startInitialRefresh();
-      void refresh.catch(() => {});
+      void Promise.allSettled([
+        Promise.resolve().then(() => input.lifecycle.startInitialRefresh()),
+      ]);
     };
     const rpc = dependencies.createRpcServer({
       engine: input.lifecycle.engine,
       operations: input.lifecycle.operations,
       spend: {
         getSpendSummary: () => spendMeter.getSpendSummary(),
-        setDailySpendCap: ({ dailyCapUsd }) => spendMeter.setDailySpendCap(dailyCapUsd),
+        setDailySpendCap: ({ dailyCapUsd, mode }) => spendMeter.setDailySpendCap(dailyCapUsd, mode),
       },
       selfTestOperations: { selfTest: createPackagedSelfTestOperation() },
       telegram,
@@ -163,16 +164,12 @@ export async function runCoachServe(
         upgrade: rpc.handleUpgrade,
       });
     } catch (error) {
-      await quiesce().catch(() => {});
-      await rpc.close().catch(() => {});
-      await telegram.close().catch(() => {});
+      await Promise.allSettled([quiesce()]);
+      await Promise.allSettled([rpc.close()]);
+      await Promise.allSettled([telegram.close()]);
       throw error;
     }
-    if (!aborted && owner !== "app-supervised") {
-      try {
-        scheduleInitialRefresh();
-      } catch {}
-    }
+    if (!aborted && owner !== "app-supervised") scheduleInitialRefresh();
     if (!aborted) await Promise.race([abortPromise, rpc.shutdownRequested]);
     const cleanupErrors: unknown[] = [];
     try {

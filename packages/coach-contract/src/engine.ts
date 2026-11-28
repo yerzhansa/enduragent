@@ -1,4 +1,5 @@
 import { MessageSchema } from "./turn-event.js";
+import { TurnRefusalSchema } from "./spend.js";
 import { z } from "zod";
 import { LanguageTagSchema, LanguageSourceSchema } from "./language.js";
 import type { TurnEvent } from "./turn-event.js";
@@ -73,9 +74,7 @@ export const ChatRequestSchema = z
     message: z.string(),
     turn: z
       .object({
-        /** An opaque per-turn pace-anchor payload passed through to the engine. */
         resolvedCs: z.unknown().optional(),
-        /** Source labels of the reference snapshot the anchor was resolved from. */
         referenceProvenance: z.unknown().optional(),
         language: LanguageTagSchema.optional(),
         languageSource: LanguageSourceSchema.optional(),
@@ -92,6 +91,7 @@ export const ChatResponseSchema = z
     message: MessageSchema.optional(),
     decision: CoachDecisionReadModelSchema.optional(),
     planIntakePatch: PlanIntakePatchSchema.optional(),
+    refusal: TurnRefusalSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -152,18 +152,6 @@ export interface GetPlanDecisionIntakePatchRequest {
   readonly decisionId: string;
 }
 
-/**
- * The single seam between the coaching engine and every surface. In-process
- * consumers call the interface directly; the remote projection is JSON-RPC 2.0
- * over a loopback (127.0.0.1) WebSocket with RPC method names equal to these
- * property names (`chat`, `resetSession`, `hasSession`, `getAthleteState`) —
- * the RPC layer adds no naming layer of its own.
- *
- * Every method is Promise-returning even where today's engine method is
- * synchronous, because the same interface must project over RPC.
- * `getAthleteState` takes no request: the state is a per-athlete-home
- * singleton read.
- */
 export interface CoachEngine {
   chat(request: ChatRequest, onEvent?: (event: TurnEvent) => void): Promise<ChatResponse>;
   stopChat?(request: StopChatRequest): Promise<StopChatResponse>;
