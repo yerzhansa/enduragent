@@ -453,6 +453,7 @@
           "managed": "Disse adgangsoplysninger administreres uden for Indstillinger og kan ikke slettes her.",
           "notStored": "Disse adgangsoplysninger er ikke længere gemt. Genindlæs for at opdatere listen.",
           "reconcileFailed": "De gemte og aktive adgangsoplysningers tilstand kunne ikke afstemmes. Opret forbindelse igen, og genindlæs, før du prøver igen.",
+          "reconnecting": "Adgangsoplysningerne blev ikke slettet. Opretter forbindelse til træneren igen…",
           "refreshFailed": "Adgangsoplysninger slettet lokalt. Den aktuelle status kunne ikke opdateres.",
           "retained": "Adgangsoplysningerne er stadig gemt. Ingen sletning blev fuldført. Prøv igen.",
           "setupRefreshFailed": "Adgangsoplysninger slettet lokalt, men opsætningens status kunne ikke opdateres. Genindlæs adgangsoplysningernes status.",

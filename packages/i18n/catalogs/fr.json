@@ -453,6 +453,7 @@
           "managed": "Cette donnée d’authentification est gérée en dehors des Paramètres et ne peut pas être supprimée ici.",
           "notStored": "Cette donnée d’authentification n’est plus enregistrée. Recharge pour actualiser la liste.",
           "reconcileFailed": "Les données d’authentification enregistrées et actives n’ont pas pu être mises en cohérence. Reconnecte et recharge avant de réessayer.",
+          "reconnecting": "La donnée d’authentification n’a pas été supprimée. Reconnexion au coach…",
           "refreshFailed": "Donnée d’authentification supprimée localement. Son état actuel n’a pas pu être actualisé.",
           "retained": "La donnée d’authentification reste enregistrée. Aucune suppression n’a été effectuée. Réessaie.",
           "setupRefreshFailed": "Donnée d’authentification supprimée localement, mais l’état de la configuration n’a pas pu être actualisé. Recharge l’état des données d’authentification.",

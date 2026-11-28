@@ -453,6 +453,7 @@
           "managed": "Deze toegangsgegevens worden buiten Instellingen beheerd en kunnen hier niet worden verwijderd.",
           "notStored": "Die toegangsgegevens zijn niet meer opgeslagen. Laad opnieuw om de lijst te vernieuwen.",
           "reconcileFailed": "De opgeslagen en actieve status van de toegangsgegevens konden niet op elkaar worden afgestemd. Maak opnieuw verbinding en laad opnieuw voordat je het nogmaals probeert.",
+          "reconnecting": "De toegangsgegevens zijn niet verwijderd. Opnieuw verbinden met de coach…",
           "refreshFailed": "Toegangsgegevens lokaal verwijderd. De huidige status kon niet worden vernieuwd.",
           "retained": "De toegangsgegevens blijven opgeslagen. Het verwijderen is niet voltooid. Probeer het opnieuw.",
           "setupRefreshFailed": "Toegangsgegevens lokaal verwijderd, maar de configuratiestatus kon niet worden vernieuwd. Laad de status van de toegangsgegevens opnieuw.",

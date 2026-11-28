@@ -320,6 +320,8 @@ export function credentialFeedbackMessage(value: string): Message | null {
       return msg("settings.credentials.feedback.delete.reconcileFailed");
     case "The coach could not stop using this credential safely. It was not deleted.":
       return msg("settings.credentials.feedback.delete.stopFailed");
+    case "The credential was not deleted. Reconnecting to the coach…":
+      return msg("settings.credentials.feedback.delete.reconnecting");
     case "Saved credentials aren’t available. Reconnect and reload.":
       return msg("settings.credentials.feedback.unavailable");
     case "Confirm removal of all credentials.":

@@ -453,6 +453,7 @@
           "managed": "Questa credenziale è gestita al di fuori delle Impostazioni e non può essere eliminata qui.",
           "notStored": "Questa credenziale non è più memorizzata. Ricarica per aggiornare l’elenco.",
           "reconcileFailed": "Impossibile allineare lo stato della credenziale salvata con quello della credenziale attiva. Riconnetti e ricarica prima di riprovare.",
+          "reconnecting": "La credenziale non è stata eliminata. Riconnessione al coach…",
           "refreshFailed": "Credenziale eliminata localmente. Impossibile aggiornare lo stato attuale della credenziale.",
           "retained": "La credenziale rimane memorizzata. Nessuna eliminazione è stata completata. Riprova.",
           "setupRefreshFailed": "Credenziale eliminata localmente, ma impossibile aggiornare lo stato della configurazione. Ricarica lo stato delle credenziali.",

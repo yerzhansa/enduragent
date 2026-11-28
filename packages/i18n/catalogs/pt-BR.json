@@ -468,6 +468,7 @@
           "managed": "Esta credencial é gerenciada fora de Configurações e não pode ser excluída aqui.",
           "notStored": "Essa credencial não está mais armazenada. Recarregue para atualizar a lista.",
           "reconcileFailed": "Não foi possível conciliar os estados salvo e ativo da credencial. Reconecte e recarregue antes de tentar novamente.",
+          "reconnecting": "A credencial não foi excluída. Reconectando ao treinador…",
           "refreshFailed": "Credencial excluída localmente. Não foi possível atualizar o status atual da credencial.",
           "retained": "A credencial continua armazenada. Nenhuma exclusão foi concluída. Tente novamente.",
           "setupRefreshFailed": "Credencial excluída localmente, mas não foi possível atualizar o status de prontidão da configuração. Recarregue o status das credenciais.",
