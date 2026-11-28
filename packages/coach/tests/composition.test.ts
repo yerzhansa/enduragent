@@ -4478,7 +4478,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         provider: "anthropic" as const,
         model: "claude-sonnet-5",
         compactModel: "claude-haiku-4-5-20251001",
-        flushModel: "claude-opus-5",
+        flushModel: "claude-opus-5-5",
       },
     },
   ])("waits for the turn when the stored key is re-applied unchanged on $name", async ({ llm }) => {

@@ -858,8 +858,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             if (canPublish !== undefined && !canPublish()) throw new TypeError();
             setRuntimeState(slot, "active");
             return { status: "configured", runtimeReady: true };
-          } catch {
-            setRuntimeState(slot, "failed");
+          } catch (error) {
+            if (!(error instanceof CredentialRuntimeRefusal && error.reason === "busy-replying"))
+              setRuntimeState(slot, "failed");
             return { status: "refused", reason: "runtime-unavailable" };
           }
         }),

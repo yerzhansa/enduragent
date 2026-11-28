@@ -6,6 +6,7 @@ import { createIntervalsSignInRetry } from "../src/main/intervals-sign-in-retry.
 type Outcome =
   | "active"
   | "ownership-unavailable"
+  | "busy-replying"
   | "credential-required"
   | "coach-not-ready"
   | "vault-failed";
@@ -19,6 +20,7 @@ function subject(outcomes: Outcome[] = []) {
   const reapply = async (outcome: Outcome) => {
     if (outcome === "active") return "active" as const;
     if (outcome === "coach-not-ready") throw new TypeError();
+    if (outcome === "busy-replying") throw new CredentialRuntimeRefusal("busy-replying");
     throw outcome === "credential-required"
       ? new CredentialRuntimeRefusal("credential-required")
       : new CredentialRuntimeRefusal("ownership-unavailable");
@@ -102,6 +104,22 @@ describe("intervals.icu sign-in retry", () => {
 
     await vi.advanceTimersByTimeAsync(60 * MINUTE);
     expect(test.attempts).toEqual([15_000, 15_000 + MINUTE]);
+  });
+
+  it("keeps retrying when the coach is busy replying", async () => {
+    const test = subject(["busy-replying", "active"]);
+    await test.launchRefused();
+
+    await vi.advanceTimersByTimeAsync(60 * MINUTE);
+    expect(test.attempts).toEqual([15_000, 15_000 + MINUTE]);
+  });
+
+  it("schedules retries when the initial refusal is busy replying", async () => {
+    const test = subject(["active"]);
+    await test.launchRefused("busy-replying");
+
+    await vi.advanceTimersByTimeAsync(60 * MINUTE);
+    expect(test.attempts).toEqual([15_000]);
   });
 
   it("stops after a refusal that is not about the network", async () => {

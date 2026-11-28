@@ -236,7 +236,7 @@ describe("exit codes", () => {
 });
 
 describe("protocol version", () => {
-  it("is 37", () => {
+  it("is 38", () => {
     expect(PROTOCOL_VERSION).toBe(38);
   });
 

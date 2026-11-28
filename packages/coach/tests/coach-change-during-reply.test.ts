@@ -437,8 +437,11 @@ describe("llm-picker bug 3: deleting the active key while a reply streams", () =
 
       expect({ outcomeByDeadline: outcome, afterReply, keyStillActiveInCoach }).toEqual({
         outcomeByDeadline: "settled",
-        afterReply: expect.anything(),
-        keyStillActiveInCoach: expect.any(Boolean),
+        afterReply: {
+          kind: "answered",
+          value: { schemaVersion: 3, status: "refused", reason: "busy-replying" },
+        },
+        keyStillActiveInCoach: true,
       });
     } finally {
       provider.release();
