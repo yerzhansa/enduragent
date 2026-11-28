@@ -2444,10 +2444,10 @@
       "detail": "Language model spend against today’s cap",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send waits and goes out then.",
+        "detailEnforce": "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send in this app waits and goes out then.",
         "detailWarn": "Warn: the coach keeps answering and Chat shows a notice.",
         "enforce": "Stop",
-        "overshoot": "The cap is checked when a message starts, so one long reply can still go a little over it.",
+        "overshoot": "The cap is checked when a message starts, so one long reply can still go over it.",
         "title": "When today’s cap is reached",
         "warn": "Warn"
       },

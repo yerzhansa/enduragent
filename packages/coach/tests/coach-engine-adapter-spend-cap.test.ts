@@ -97,6 +97,7 @@ function summary(capMode: SpendCapMode, capStatus: SpendCapStatus): SpendSummary
 const ran: ChatQueueRunResult = { snapshot: emptyQueue, response: { text: "Ride easy." } };
 
 function harness(spendCap: SpendCapReader) {
+  const logger = { warn: vi.fn() };
   const turns = {
     chat: vi.fn<CoachEngine["chat"]>(async () => ({ text: "Ride easy." })),
     resumeChatQueue: vi.fn<NonNullable<CoachEngine["resumeChatQueue"]>>(async () => ran),
@@ -129,9 +130,9 @@ function harness(spendCap: SpendCapReader) {
       resolve: async () => ({ kind: "missing", refusal: "none" }) as never,
     },
     now: () => 0,
-    spendCap,
+    spendCap: { reader: spendCap, logger },
   });
-  return { engine, turns };
+  return { engine, turns, logger };
 }
 
 const reader = (value: SpendSummary): SpendCapReader => ({ getSpendSummary: async () => value });
@@ -219,13 +220,15 @@ describe("the spend cap at the coach engine adapter", () => {
   );
 
   it.each(calls)("$name runs the turn when the spend meter cannot be read", async (call) => {
-    const { engine, turns } = harness({
+    const unreadable = new Error("ledger unreadable");
+    const { engine, turns, logger } = harness({
       getSpendSummary: async () => {
-        throw new Error("ledger unreadable");
+        throw unreadable;
       },
     });
     await call.run(engine, "chat-1");
     expect(turns[call.name]).toHaveBeenCalledOnce();
+    expect(logger.warn).toHaveBeenCalledWith("spend_cap_read_failed", unreadable);
   });
 
   it.each(calls)(

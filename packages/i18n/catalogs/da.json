@@ -552,10 +552,10 @@
       "detail": "Sprogmodelforbrug i forhold til dagens grænse",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Stop: coachen svarer ikke på nye beskeder før i morgen, eller før du hæver grænsen. En besked, du sender, venter og bliver sendt til den tid.",
+        "detailEnforce": "Stop: coachen svarer ikke på nye beskeder før i morgen, eller før du hæver grænsen. En besked, du sender i appen, venter og bliver sendt til den tid.",
         "detailWarn": "Advar: coachen bliver ved med at svare, og Chat viser en besked.",
         "enforce": "Stop",
-        "overshoot": "Grænsen tjekkes, når en besked starter, så et langt svar kan stadig gå lidt over den.",
+        "overshoot": "Grænsen tjekkes, når en besked starter, så et langt svar kan stadig gå over den.",
         "title": "Når dagens grænse er nået",
         "warn": "Advar"
       },

@@ -552,10 +552,10 @@
       "detail": "Uitgaven aan taalmodellen ten opzichte van de limiet van vandaag",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Stoppen: de coach beantwoordt nieuwe berichten pas morgen weer of zodra je de limiet verhoogt. Een bericht dat je stuurt, wacht en gaat dan alsnog weg.",
+        "detailEnforce": "Stoppen: de coach beantwoordt nieuwe berichten pas morgen weer of zodra je de limiet verhoogt. Een bericht dat je in de app stuurt, wacht en gaat dan alsnog weg.",
         "detailWarn": "Waarschuwen: de coach blijft antwoorden en de chat toont een melding.",
         "enforce": "Stoppen",
-        "overshoot": "De limiet wordt gecontroleerd als een bericht begint, dus één lang antwoord kan er nog iets overheen gaan.",
+        "overshoot": "De limiet wordt gecontroleerd als een bericht begint, dus één lang antwoord kan er nog overheen gaan.",
         "title": "Als de limiet van vandaag is bereikt",
         "warn": "Waarschuwen"
       },

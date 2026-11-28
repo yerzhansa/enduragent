@@ -1033,7 +1033,7 @@
       "translatedBy": "model"
     },
     "settings.spend.mode.detailEnforce": {
-      "sourceHash": "27e01f136a8cbfb8dbd0ffae5e9a1d2d93ddf079816b88361cb22603c10f199c",
+      "sourceHash": "d8ebfd10be1b26588e851a80d7426a4f32a783fef6d8dd17a7948ca68d2a66b6",
       "translatedBy": "model"
     },
     "settings.spend.mode.detailWarn": {
@@ -1045,7 +1045,7 @@
       "translatedBy": "model"
     },
     "settings.spend.mode.overshoot": {
-      "sourceHash": "e47ed133281d15833a2dae70716f979d4382e613db26042a99fd9680be3ba40f",
+      "sourceHash": "e64861ba6db38126e8110dfdf79b1ab4fd59031e38515f7cb70debc51741cfd8",
       "translatedBy": "model"
     },
     "settings.spend.mode.title": {

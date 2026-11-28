@@ -552,10 +552,10 @@
       "detail": "Kielimallin kulutus suhteessa tämän päivän rajaan",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Pysäytä: valmentaja ei vastaa uusiin viesteihin ennen huomista tai ennen kuin nostat rajaa. Lähettämäsi viesti odottaa ja lähtee silloin.",
+        "detailEnforce": "Pysäytä: valmentaja ei vastaa uusiin viesteihin ennen huomista tai ennen kuin nostat rajaa. Sovelluksessa lähettämäsi viesti odottaa ja lähtee silloin.",
         "detailWarn": "Varoita: valmentaja vastaa edelleen, ja Chat näyttää ilmoituksen.",
         "enforce": "Pysäytä",
-        "overshoot": "Raja tarkistetaan, kun viesti alkaa, joten yksi pitkä vastaus voi silti ylittää sen hieman.",
+        "overshoot": "Raja tarkistetaan, kun viesti alkaa, joten yksi pitkä vastaus voi silti ylittää sen.",
         "title": "Kun tämän päivän raja täyttyy",
         "warn": "Varoita"
       },

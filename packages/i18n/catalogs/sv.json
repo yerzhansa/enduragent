@@ -553,10 +553,10 @@
       "detail": "Kostnader för språkmodellen jämfört med dagens gräns",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Stoppa: coachen svarar inte på nya meddelanden förrän i morgon eller tills du höjer gränsen. Ett meddelande du skickar väntar och går iväg då.",
+        "detailEnforce": "Stoppa: coachen svarar inte på nya meddelanden förrän i morgon eller tills du höjer gränsen. Ett meddelande du skickar i appen väntar och går iväg då.",
         "detailWarn": "Varna: coachen fortsätter att svara och chatten visar ett meddelande.",
         "enforce": "Stoppa",
-        "overshoot": "Gränsen kontrolleras när ett meddelande börjar, så ett långt svar kan ändå gå lite över den.",
+        "overshoot": "Gränsen kontrolleras när ett meddelande börjar, så ett långt svar kan ändå gå över den.",
         "title": "När dagens gräns är nådd",
         "warn": "Varna"
       },

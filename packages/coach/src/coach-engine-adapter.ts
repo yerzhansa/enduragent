@@ -59,13 +59,18 @@ export interface SpendCapReader {
   getSpendSummary(): Promise<SpendSummary>;
 }
 
+export interface SpendCapGuard {
+  readonly reader: SpendCapReader;
+  readonly logger: { warn(event: string, err?: unknown): void };
+}
+
 export interface CoachEngineAdapterInput {
   readonly coachLanguage: CoachLanguage;
   readonly backend: CoachEngine;
   readonly getAthleteState: () => Promise<AthleteState>;
   readonly cyclingFtpAnchorResolver: CyclingFtpAnchorResolver;
   readonly now: () => number;
-  readonly spendCap?: SpendCapReader;
+  readonly spendCap?: SpendCapGuard;
 }
 
 type SpendCapReading =
@@ -134,7 +139,10 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
   let english: Promise<Phrasebook> | undefined;
   const refusal = async (chatId: string): Promise<TurnRefusal | undefined> => {
     if (input.spendCap === undefined) return undefined;
-    const refused = spendCapRefusal(await readSpendCap(input.spendCap));
+    const reading = await readSpendCap(input.spendCap.reader);
+    if (reading.kind === "unreadable")
+      input.spendCap.logger.warn("spend_cap_read_failed", reading.error);
+    const refused = spendCapRefusal(reading);
     if (refused !== undefined && chatId.startsWith("plan:"))
       throw new SpendCapReachedError(refused);
     return refused;

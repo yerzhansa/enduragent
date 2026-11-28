@@ -1277,7 +1277,7 @@ export async function createLocalCoachComposition(
           getAthleteState: () => stateReader.getAthleteState(),
           cyclingFtpAnchorResolver,
           now,
-          spendCap: spendMeter,
+          spendCap: { reader: spendMeter, logger },
         }),
       };
     };

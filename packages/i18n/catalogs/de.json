@@ -552,10 +552,10 @@
       "detail": "Ausgaben für Sprachmodelle im Verhältnis zum heutigen Limit",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Stoppen: Der Coach beantwortet neue Nachrichten erst morgen wieder oder sobald du das Limit erhöhst. Eine Nachricht, die du sendest, wartet und geht dann raus.",
+        "detailEnforce": "Stoppen: Der Coach beantwortet neue Nachrichten erst morgen wieder oder sobald du das Limit erhöhst. Eine Nachricht, die du in der App sendest, wartet und geht dann raus.",
         "detailWarn": "Warnen: Der Coach antwortet weiter, und im Chat erscheint ein Hinweis.",
         "enforce": "Stoppen",
-        "overshoot": "Das Limit wird geprüft, wenn eine Nachricht beginnt. Eine lange Antwort kann es daher noch etwas überschreiten.",
+        "overshoot": "Das Limit wird geprüft, wenn eine Nachricht beginnt. Eine lange Antwort kann es daher noch überschreiten.",
         "title": "Wenn das heutige Limit erreicht ist",
         "warn": "Warnen"
       },

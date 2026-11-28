@@ -575,10 +575,10 @@
       "detail": "Gastos com modelos de linguagem em relação ao limite de hoje",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Parar: o coach não responde a novas mensagens até amanhã ou até você aumentar o limite. Uma mensagem que você enviar fica esperando e sai nesse momento.",
+        "detailEnforce": "Parar: o coach não responde a novas mensagens até amanhã ou até você aumentar o limite. Uma mensagem que você enviar no aplicativo fica esperando e sai nesse momento.",
         "detailWarn": "Avisar: o coach continua respondendo e o chat mostra um aviso.",
         "enforce": "Parar",
-        "overshoot": "O limite é verificado quando uma mensagem começa, então uma resposta longa ainda pode passar um pouco dele.",
+        "overshoot": "O limite é verificado quando uma mensagem começa, então uma resposta longa ainda pode passar dele.",
         "title": "Quando o limite de hoje for atingido",
         "warn": "Avisar"
       },

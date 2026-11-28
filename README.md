@@ -153,8 +153,8 @@ Details, model choices and kill switches: [docs/providers.md](./guides/providers
 A spend meter with a daily cap you set shows what the day cost before the invoice does. When the
 day reaches the cap, the coach either warns you and keeps answering (Warn, the default) or stops
 answering new messages until tomorrow (Stop); you choose in the desktop app's Settings › Spending.
-Stop is checked when a message starts, so one long reply can still go a little over the cap. It's
-a local estimate, not a billing control — set limits with your provider too.
+Stop is checked when a message starts, and one reply can make many model calls, so the day can
+still end over the cap. It's a local estimate, not a billing control — set limits with your provider too.
 
 ## Your data stays on your device
 

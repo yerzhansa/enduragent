@@ -575,10 +575,10 @@
       "detail": "Gastos com modelos de linguagem face ao limite de hoje",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Parar: o treinador não responde a novas mensagens até amanhã ou até aumentares o limite. Uma mensagem que envies fica à espera e segue nessa altura.",
+        "detailEnforce": "Parar: o treinador não responde a novas mensagens até amanhã ou até aumentares o limite. Uma mensagem que envies na aplicação fica à espera e segue nessa altura.",
         "detailWarn": "Avisar: o treinador continua a responder e o chat mostra um aviso.",
         "enforce": "Parar",
-        "overshoot": "O limite é verificado quando uma mensagem começa, por isso uma resposta longa ainda pode ultrapassá-lo um pouco.",
+        "overshoot": "O limite é verificado quando uma mensagem começa, por isso uma resposta longa ainda pode ultrapassá-lo.",
         "title": "Quando o limite de hoje for atingido",
         "warn": "Avisar"
       },

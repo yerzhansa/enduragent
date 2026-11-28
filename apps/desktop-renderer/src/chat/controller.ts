@@ -80,8 +80,8 @@ import {
   type PendingPlanningRequestCreate,
   type PlanCreationDiscardEvent,
   type QueuedRetry,
-  decisionFailureCopy,
   unansweredDrainAction,
+  unfinishedDecision,
 } from "./controller-helpers";
 import {
   newConversationEvidence,
@@ -1621,8 +1621,7 @@ export function createChatController(input: {
           return;
         }
         reduce({ type: "discard", requestKey });
-        decisionPhase = "recovering";
-        decisionError = decisionFailureCopy(result.refusal);
+        ({ phase: decisionPhase, error: decisionError } = unfinishedDecision(result));
       } catch {
         if (!current()) return;
         reduce({ type: "discard", requestKey });

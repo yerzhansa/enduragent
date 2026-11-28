@@ -560,10 +560,10 @@
       "detail": "Wydatki na model językowy względem dzisiejszego limitu",
       "minimumAmount": "{{amount}}+",
       "mode": {
-        "detailEnforce": "Zatrzymaj: trener nie odpowiada na nowe wiadomości do jutra albo do czasu, aż podniesiesz limit. Wysłana wiadomość czeka i zostanie wtedy wysłana.",
+        "detailEnforce": "Zatrzymaj: trener nie odpowiada na nowe wiadomości do jutra albo do czasu, aż podniesiesz limit. Wiadomość wysłana w aplikacji czeka i zostanie wtedy wysłana.",
         "detailWarn": "Ostrzegaj: trener dalej odpowiada, a czat pokazuje powiadomienie.",
         "enforce": "Zatrzymaj",
-        "overshoot": "Limit jest sprawdzany na początku wiadomości, więc jedna długa odpowiedź może go jeszcze trochę przekroczyć.",
+        "overshoot": "Limit jest sprawdzany na początku wiadomości, więc jedna długa odpowiedź może go jeszcze przekroczyć.",
         "title": "Gdy dzisiejszy limit zostanie osiągnięty",
         "warn": "Ostrzegaj"
       },

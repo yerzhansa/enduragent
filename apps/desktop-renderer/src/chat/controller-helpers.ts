@@ -139,6 +139,18 @@ export function decisionFailureCopy(refusal: TurnRefusal | undefined): string {
   return refusal === undefined ? CHAT_DECISION_FAILURE_COPY : spendCapRefusalCopy(refusal);
 }
 
+export function unfinishedDecision(result: {
+  readonly decision: CoachDecisionReadModel | null;
+  readonly refusal?: TurnRefusal;
+}): { readonly phase: "idle" | "recovering"; readonly error: string } {
+  const { decision, refusal } = result;
+  const saved = decision?.status === "answered" && decision.continuation.status === "pending";
+  return {
+    phase: refusal === undefined || saved ? "recovering" : "idle",
+    error: decisionFailureCopy(refusal),
+  };
+}
+
 export interface ChatAppendDelta {
   readonly messageId: string;
   readonly previousTextLength: number;

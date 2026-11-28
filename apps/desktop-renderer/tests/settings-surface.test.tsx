@@ -3298,7 +3298,7 @@ describe("spending", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "The cap is checked when a message starts, so one long reply can still go a little over it.",
+        "The cap is checked when a message starts, so one long reply can still go over it.",
       ),
     ).toBeInTheDocument();
 
@@ -3310,7 +3310,7 @@ describe("spending", () => {
     expect(warn).toHaveAttribute("aria-pressed", "false");
     expect(
       screen.getByText(
-        "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send waits and goes out then.",
+        "Stop: the coach doesn’t answer new messages until tomorrow or until you raise the cap. A message you send in this app waits and goes out then.",
       ),
     ).toBeInTheDocument();
 
