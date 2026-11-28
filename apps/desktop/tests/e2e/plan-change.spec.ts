@@ -174,7 +174,6 @@ const options = [
   "No hard training on a weekday",
   "Weekly duration cap",
   "Longest-Workout cap",
-  "Correct FTP",
   "Supporting Event",
 ];
 const confidence =
