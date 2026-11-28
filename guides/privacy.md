@@ -29,6 +29,36 @@ that preferences directory. It contains no athlete data, message content, creden
 configuration, hardware identifier, or feature activity. Set `ENDURAGENT_NO_USAGE_PING=1` before
 launch to disable it; disabled and unofficial builds create no heartbeat state.
 
+### Tracing (off by default)
+
+The coach can send OpenTelemetry traces of its turns to a collector you run, such as a local
+Jaeger. It is off unless the coach starts with both `ENDURAGENT_OTEL=1` and
+`OTEL_EXPORTER_OTLP_ENDPOINT` set to an `http://` or `https://` address, for example
+`http://localhost:4318`. When both are set, the coach sends OTLP over HTTP to
+`<endpoint>/v1/traces` and nowhere else. When either is missing, the tracing SDK is not loaded and
+nothing is sent. If the switch is on but the address is not usable, tracing stays off; a coach run
+from a terminal prints a warning there, while the apps' coach has no terminal to print to.
+
+The coach reads the two settings once, when it starts, and keeps them until it stops:
+
+- `enduragent ask --local` and the other `--local` commands run their own coach, so the variables
+  in that shell apply.
+- Without `--local`, the `enduragent` CLI hands turns to its background coach. A background coach
+  that is already running keeps the settings it started with, so set the variables before it
+  starts, and restart it to turn tracing on or off.
+- The Mac and Windows apps start their coach with the app's environment. On a Mac, a launch from
+  Finder or the Dock has neither variable. On Windows, the app inherits your user environment
+  variables, so setting both there turns tracing on for the app too.
+
+Each coach turn becomes one trace: a `coach.turn` span, an `llm.generate` span for each model call
+and a `tool.call` span for each tool the coach runs. A span carries the turn's random ID, the
+outcome and error class, the model provider and model, which part of the coach made the call, the
+attempt number, input and output token counts, the known cost in US dollars, durations, and tool
+names. A span never carries your messages, the coach's replies, tool arguments or results, error
+messages, memory, your chat ID, or your training data. Whoever runs the collector can read what is
+on the spans. If the collector cannot be reached, the coach gives up on that batch after about two
+seconds and carries on, with a warning when it runs in a terminal.
+
 ### /feedback
 
 `/feedback` is opt-in. Nothing is sent unless you run the command with a note. Telegram and Desktop

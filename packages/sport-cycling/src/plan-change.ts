@@ -7,6 +7,7 @@ import {
   rulesFor,
 } from "./creation-draft-builder.js";
 import { validateManualPlanFtp } from "./plan-ftp.js";
+import { workoutContent } from "./workout-steps.js";
 
 export type ScheduleIntent =
   | { kind: "weekday-duration"; day: number; minutes: number }
@@ -66,6 +67,17 @@ function changed(before: Workout, after: Workout): boolean {
     before.pinned !== after.pinned ||
     before.supportingEventId !== after.supportingEventId
   );
+}
+
+function refreshContent(draft: CreationDraft, after: CreationDraft): void {
+  const before = new Map(draft.weeks.flatMap((week) => week.workouts).map((w) => [w.id, w]));
+  for (const workout of after.weeks.flatMap((week) => week.workouts)) {
+    const prior = before.get(workout.id);
+    if (prior?.kind === workout.kind && prior.minutes === workout.minutes) continue;
+    const content = workoutContent(workout.kind, workout.minutes);
+    if (content === undefined) delete workout.content;
+    else workout.content = content;
+  }
 }
 
 function changeResult<Draft extends CreationDraft>(draft: Draft, after: Draft) {
@@ -269,6 +281,7 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
     }
     week.workouts = week.workouts.filter((workout) => workout.minutes > 0);
   }
+  refreshContent(draft, after);
   return changeResult(draft, after);
 }
 
@@ -386,6 +399,7 @@ export function applySupportingEventIntent<Draft extends CreationDraft>(input: {
   const after = structuredClone(draft);
   after.supportingEvents ??= [];
   const result = () => {
+    refreshContent(draft, after);
     const explanation = supportingEventWorkoutLimitExplanation(after);
     return explanation === null
       ? { status: "changed" as const, ...changeResult(draft, after) }

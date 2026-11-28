@@ -205,6 +205,53 @@ function intervalsCalendarAsMeasured() {
   return { client, events, create, update };
 }
 
+async function drainTwoWeeks(activated: Awaited<ReturnType<typeof activateSyntheticPlan>>) {
+  const { store, plan, newId, now } = activated;
+  const intervals = intervalsCalendarAsMeasured();
+  let today = 19980902;
+  const drain = createPlanCalendarDrain({
+    store,
+    calendar: createPlanMirrorCalendarAdapter(() => intervals.client),
+    calendarConnected: () => true,
+    identity: { newUlid: newId },
+    todayDateKey: () => today,
+    now,
+    logger: { warn: vi.fn() },
+  });
+  await createPlanCalendarOperations({
+    store,
+    todayDateKey: () => today,
+    now,
+    calendarConnected: () => true,
+    dateKeyOfMs: () => today,
+    changed: async () => undefined,
+    calendar: { mirror: createCalendarMirrorAdapter(() => null) },
+    identity: {
+      deviceId: async () => "calendar-test-device",
+      newUlid: () => "0".repeat(25) + "9",
+      hlcStamp: () => ({ physicalMs: 1, counter: 0 }),
+    },
+    applyChange: async () => {
+      throw new TypeError("Plan Change operations are not used here");
+    },
+  })["plan.calendar"]({
+    action: "approve-weeks",
+    planId: plan.id,
+    scope: { kind: "first-weeks" },
+  });
+
+  const appStart = () => drain.kick();
+  const scheduledRefresh = () => drain.kick();
+  const planList = () => drain.kick();
+  await appStart();
+  await scheduledRefresh();
+  await planList();
+  today = 19980903;
+  await scheduledRefresh();
+
+  return intervals;
+}
+
 describe("Plan Intervals calendar adapter", () => {
   it("uses provider external IDs as durable Plan workout identities", async () => {
     const list = vi.fn(async () => ({
@@ -329,53 +376,13 @@ describe("Plan Intervals calendar adapter", () => {
   });
 
   it.each([
-    ["Chat Plan Workouts", false],
+    ["Chat Plan Workouts with their content", false],
     ["draft builder Workouts whose described steps add up to a second more", true],
   ])("mirrors %s once and leaves them alone on later drain runs", async (_case, builderContent) => {
-    const { store, plan, newId, now } = await activateSyntheticPlan();
+    const activated = await activateSyntheticPlan();
+    const { store, plan } = activated;
     if (builderContent) await giveWorkoutsDraftBuilderContent(store, plan.id);
-    const intervals = intervalsCalendarAsMeasured();
-    let today = 19980902;
-    const drain = createPlanCalendarDrain({
-      store,
-      calendar: createPlanMirrorCalendarAdapter(() => intervals.client),
-      calendarConnected: () => true,
-      identity: { newUlid: newId },
-      todayDateKey: () => today,
-      now,
-      logger: { warn: vi.fn() },
-    });
-    await createPlanCalendarOperations({
-      store,
-      todayDateKey: () => today,
-      now,
-      calendarConnected: () => true,
-      dateKeyOfMs: () => today,
-      changed: async () => undefined,
-      calendar: { mirror: createCalendarMirrorAdapter(() => null) },
-      identity: {
-        deviceId: async () => "calendar-test-device",
-        newUlid: () => "0".repeat(25) + "9",
-        hlcStamp: () => ({ physicalMs: 1, counter: 0 }),
-      },
-      applyChange: async () => {
-        throw new TypeError("Plan Change operations are not used here");
-      },
-    })["plan.calendar"]({
-      action: "approve-weeks",
-      planId: plan.id,
-      scope: { kind: "first-weeks" },
-    });
-
-    const appStart = () => drain.kick();
-    const scheduledRefresh = () => drain.kick();
-    const planList = () => drain.kick();
-    await appStart();
-    await scheduledRefresh();
-    await planList();
-    today = 19980903;
-    await scheduledRefresh();
-
+    const intervals = await drainTwoWeeks(activated);
     const weekTwoEnd = trainingWeek(plan, 2).endDateKey;
     const inTheTwoWeeks = await store.get(
       "SELECT COUNT(*) AS count FROM plan_workout WHERE plan_id=? AND origin='coach' AND date_key BETWEEN 19980902 AND ?",
@@ -392,6 +399,38 @@ describe("Plan Intervals calendar adapter", () => {
       expect(body).not.toHaveProperty("uid");
       expect(body).not.toHaveProperty("workoutDoc");
     }
+  });
+
+  it("sends a Plan whose workouts carry content exactly as it sends the same Plan without it", async () => {
+    const withContent = await activateSyntheticPlan();
+    const rows = await withContent.store.all(
+      "SELECT id, structure_json FROM plan_workout WHERE plan_id=?",
+      [withContent.plan.id],
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows)
+      expect(JSON.parse(String(row.structure_json))).toHaveProperty("content");
+    const withoutContent = await activateSyntheticPlan();
+    for (const row of rows) {
+      const { content: _content, ...older } = JSON.parse(String(row.structure_json));
+      await withoutContent.store.run("UPDATE plan_workout SET structure_json=? WHERE id=?", [
+        JSON.stringify(older),
+        row.id,
+      ]);
+    }
+    const stripped = await withoutContent.store.all(
+      "SELECT structure_json FROM plan_workout WHERE plan_id=?",
+      [withoutContent.plan.id],
+    );
+    expect(stripped).toHaveLength(rows.length);
+    for (const row of stripped)
+      expect(JSON.parse(String(row.structure_json))).not.toHaveProperty("content");
+    const sent = await drainTwoWeeks(withContent);
+    const sentBefore = await drainTwoWeeks(withoutContent);
+    expect(sent.create.mock.calls.length).toBeGreaterThan(0);
+    expect(sent.create.mock.calls).toEqual(sentBefore.create.mock.calls);
+    expect(sent.update.mock.calls).toEqual([]);
+    for (const [body] of sent.create.mock.calls) expect(body).not.toHaveProperty("description");
   });
 
   it("sends and reads the Plan identity as intervals.icu's external_id on the wire", async () => {

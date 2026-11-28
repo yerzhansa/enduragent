@@ -1539,6 +1539,8 @@
       },
       "goalLabel": "Objetivo principal",
       "guidance": "Frequência cardíaca ou esforço percebido. Sem teste de FTP.",
+      "guidanceByFeel": "Metas por sensação até haver um FTP definido.",
+      "guidanceFtp": "Metas em % do teu FTP no intervals.icu.",
       "guidanceLabel": "Orientação",
       "improveFitness": "Melhorar a condição física",
       "inProgress": "Em curso",
@@ -2057,16 +2059,48 @@
       "workout": {
         "ask": "Pedir ao treinador para o alterar",
         "askDraft": "Por favor, altera «{{name}}» de {{day}}:",
+        "byFeel": "Metas por sensação até haver um FTP definido.",
         "close": "Fechar",
         "export": "Exportar os treinos deste dia",
+        "ftpLine": "As metas usam o FTP de {{watts}} W do intervals.icu.",
+        "load": "Carga ≈ {{load}}",
         "move": "Mover…",
         "moving": "A mover no intervals.icu",
         "onIntervals": "No intervals.icu",
         "onIntervalsYours": "No intervals.icu, com a tua alteração",
+        "part": {
+          "coolDown": "Arrefecimento",
+          "interval": "Intervalo",
+          "main": "Constante",
+          "recovery": "Leve",
+          "warmUp": "Aquecimento"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Só no plano, ainda não enviado",
         "planOnlyGoesOut": "Só no plano, envio a {{date}}",
         "planWorkout": "Treino do plano",
-        "today": "Hoje"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervalos, {{duration}} em ritmo leve depois de cada um",
+        "steps": "Passos",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Hoje",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Desenvolve a tua base aeróbica.",
+          "endurance": "Desenvolve resistência para dias longos.",
+          "recover": "Permite-te recuperar sem parar de mexer as pernas.",
+          "sustainedPower": "Desenvolve potência sustentada mesmo abaixo do teu limiar."
+        },
+        "whyTitle": "Porquê este treino",
+        "zone": {
+          "endurance": "Resistência",
+          "recovery": "Recuperação",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {

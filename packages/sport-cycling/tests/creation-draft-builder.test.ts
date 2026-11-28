@@ -14,6 +14,7 @@ import {
   type CreationDraftInput,
 } from "../src/creation-draft-builder.js";
 import type { CommitmentRule } from "../src/commitments.js";
+import { workoutContent } from "../src/workout-steps.js";
 
 function input(): CreationDraftInput {
   return {
@@ -479,5 +480,36 @@ describe("creation draft builder", () => {
         power: null,
         guidance: "Use comfortable perceived effort or your known heart-rate guidance",
       });
+    expect(JSON.stringify(first)).not.toMatch(/"(watts?|powerWatts|ftpWatts|cadence)"/u);
+  });
+
+  it("gives every non-event workout its steps as % of FTP, at builder version 3", () => {
+    const value = input();
+    value.answers.availability.weeklyHoursLimit = 10;
+    value.answers.goal = { kind: "event", name: "Local ride", date: eventDate(4) };
+    const draft = build(value);
+    expect(draft.builderVersion).toBe("3");
+    const workouts = draft.weeks.flatMap((week) => week.workouts);
+    expect(new Set(workouts.map((workout) => workout.kind))).toEqual(
+      new Set(["hard", "endurance", "long", "easy", "event"]),
+    );
+    for (const workout of workouts) {
+      if (workout.kind === "event") expect(workout).not.toHaveProperty("content");
+      else expect(workout.content).toEqual(workoutContent(workout.kind, workout.minutes));
+    }
+    expect(workouts.find((workout) => workout.kind === "hard")?.content).toMatchObject({
+      zone: "sweet-spot",
+      why: "sustained-power",
+    });
+  });
+
+  it("keeps content in step with minutes shortened by confirmed limits", () => {
+    const value = input();
+    value.answers.availability.longestWorkoutHours = 0.5;
+    const workouts = build(value).weeks.flatMap((week) => week.workouts);
+    expect(workouts.every((workout) => workout.minutes <= 30)).toBe(true);
+    for (const workout of workouts) {
+      expect(workout.content).toEqual(workoutContent(workout.kind, workout.minutes));
+    }
   });
 });

@@ -525,6 +525,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       eventSources: { read: () => this.readSyncedEventCandidates() },
       legacyPlan: async () => this.options.legacy ?? null,
       calendarConnected,
+      ftp: { athleteId: () => "i1998" },
       today: () => this.civilDate,
       todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
       now: () => this.instant,

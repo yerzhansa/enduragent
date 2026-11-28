@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import type { PlanCalendarRead } from "../../calendar/grid";
 import { WorkoutArchiveExportControl } from "../training/TrainingExportControls";
 import { useCalendarText, type CalendarText } from "./calendar-text";
+import { WorkoutContentDetail, WorkoutContentMeta } from "./WorkoutContent";
 
 type Say = ReturnType<typeof usePhrasebook>["say"];
 
@@ -136,11 +137,15 @@ export function WorkoutSheet(props: {
       </h2>
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-ink-2">
         {workout.durationS === null ? null : <span>{text.duration(workout.durationS)}</span>}
+        {workout.content === undefined ? null : <WorkoutContentMeta content={workout.content} />}
         <span className="inline-flex items-center gap-1.25" data-workout-copy={workout.copy.kind}>
           <CopyIcon line={line} />
           <span className={line.tone === "muted" ? undefined : TONE[line.tone]}>{line.text}</span>
         </span>
       </div>
+      {workout.content === undefined ? null : (
+        <WorkoutContentDetail content={workout.content} ftp={read.ftp} />
+      )}
       <div className="flex flex-wrap gap-2">
         {props.canMove ? (
           <Button type="button" variant="outline" onClick={props.onMove}>

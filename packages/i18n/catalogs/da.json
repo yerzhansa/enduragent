@@ -1539,6 +1539,8 @@
       },
       "goalLabel": "Hovedmål",
       "guidance": "Puls eller oplevet anstrengelse. Ingen FTP-test.",
+      "guidanceByFeel": "Målværdier efter fornemmelse, indtil en FTP er sat.",
+      "guidanceFtp": "Målværdier som % af din FTP i intervals.icu.",
       "guidanceLabel": "Træningsstyring",
       "improveFitness": "Forbedr din fitness",
       "inProgress": "I gang",
@@ -2057,16 +2059,48 @@
       "workout": {
         "ask": "Bed træneren om at ændre den",
         "askDraft": "Ændr venligst “{{name}}” {{day}}:",
+        "byFeel": "Målværdier efter fornemmelse, indtil en FTP er sat.",
         "close": "Luk",
         "export": "Eksportér dagens træninger",
+        "ftpLine": "Målværdierne bruger FTP {{watts}} W fra intervals.icu.",
+        "load": "Træningsbelastning ≈ {{load}}",
         "move": "Flyt…",
         "moving": "Flyttes i intervals.icu",
         "onIntervals": "På intervals.icu",
         "onIntervalsYours": "På intervals.icu, med din ændring",
+        "part": {
+          "coolDown": "Nedkøling",
+          "interval": "Interval",
+          "main": "Jævnt",
+          "recovery": "Roligt",
+          "warmUp": "Opvarmning"
+        },
+        "percent": "{{percent}} %",
+        "percentRamp": "{{from}} → {{to}} %",
+        "percentRange": "{{low}}–{{high}} %",
         "planOnly": "Kun i træningsplanen, ikke sendt endnu",
         "planOnlyGoesOut": "Kun i træningsplanen, sendes {{date}}",
         "planWorkout": "Træning i træningsplanen",
-        "today": "I dag"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervaller, {{duration}} roligt efter hvert",
+        "steps": "Trin",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "I dag",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Opbygger din aerobe base.",
+          "endurance": "Opbygger udholdenhed til lange dage.",
+          "recover": "Du restituerer og holder benene i gang.",
+          "sustainedPower": "Opbygger vedvarende effekt lige under din tærskel."
+        },
+        "whyTitle": "Hvorfor denne træning",
+        "zone": {
+          "endurance": "Udholdenhed",
+          "recovery": "Restitution",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {

@@ -1539,6 +1539,8 @@
       },
       "goalLabel": "Hauptziel",
       "guidance": "Herzfrequenz oder wahrgenommene Anstrengung. Kein FTP-Test.",
+      "guidanceByFeel": "Zielwerte nach Gefühl, bis eine FTP festgelegt ist.",
+      "guidanceFtp": "Zielwerte in % deiner FTP in intervals.icu.",
       "guidanceLabel": "Steuerung",
       "improveFitness": "Fitness verbessern",
       "inProgress": "In Bearbeitung",
@@ -2057,16 +2059,48 @@
       "workout": {
         "ask": "Den Coach bitten, es zu ändern",
         "askDraft": "Bitte ändere „{{name}}“ am {{day}}:",
+        "byFeel": "Zielwerte nach Gefühl, bis eine FTP festgelegt ist.",
         "close": "Schließen",
         "export": "Trainings dieses Tages exportieren",
+        "ftpLine": "Zielwerte verwenden FTP {{watts}} W aus intervals.icu.",
+        "load": "Trainingsbelastung ≈ {{load}}",
         "move": "Verschieben…",
         "moving": "Wird in intervals.icu verschoben",
         "onIntervals": "In intervals.icu",
         "onIntervalsYours": "In intervals.icu, mit deiner Änderung",
+        "part": {
+          "coolDown": "Cooldown",
+          "interval": "Intervall",
+          "main": "Gleichmäßig",
+          "recovery": "Locker",
+          "warmUp": "Aufwärmen"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Nur im Plan, noch nicht gesendet",
         "planOnlyGoesOut": "Nur im Plan, wird am {{date}} gesendet",
         "planWorkout": "Plan-Training",
-        "today": "Heute"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervalle, danach jeweils {{duration}} locker",
+        "steps": "Schritte",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Heute",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Baut deine aerobe Grundlage auf.",
+          "endurance": "Baut Ausdauer für lange Tage auf.",
+          "recover": "Du erholst dich und hältst die Beine in Bewegung.",
+          "sustainedPower": "Baut Dauerleistung knapp unter deiner Schwelle auf."
+        },
+        "whyTitle": "Warum dieses Training",
+        "zone": {
+          "endurance": "Ausdauer",
+          "recovery": "Erholung",
+          "sweetSpot": "Sweet Spot"
+        }
       }
     },
     "details": {

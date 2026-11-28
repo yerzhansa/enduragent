@@ -281,7 +281,7 @@ for (const appearance of [
         .filter({ has: scenario.page.locator("summary", { hasText: "How this Plan was built" }) });
       await expect(disclosure).not.toHaveAttribute("open", "");
       await disclosure.locator("summary").click();
-      await expect(disclosure).toContainText("Heart rate or perceived effort. No FTP test.");
+      await expect(disclosure).toContainText("Targets by feel until an FTP is set.");
       await disclosure.locator("summary").click();
       for (const week of first.draft.weeks) {
         await expect(scenario.page.getByText(new RegExp(`^Week ${week.number} ·`))).toHaveCount(1);
@@ -290,9 +290,14 @@ for (const appearance of [
           .getByRole("listitem");
         await expect(rows).toHaveCount(week.workouts.length);
         for (const [index, workout] of week.workouts.entries()) {
-          await expect(rows.nth(index)).toContainText(
-            `${workout.name} · ${workout.minutes} min · ${workout.guidance}`,
-          );
+          if (workout.content === undefined) {
+            await expect(rows.nth(index)).toContainText(
+              `${workout.name} · ${workout.minutes} min · ${workout.guidance}`,
+            );
+          } else {
+            await expect(rows.nth(index)).toContainText(`${workout.name} · ${workout.minutes} min`);
+            await expect(rows.nth(index)).not.toContainText(workout.guidance);
+          }
         }
       }
       await expect(scenario.page.getByText("Priority 1 · Undated", { exact: true })).toHaveCount(4);

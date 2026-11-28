@@ -1539,6 +1539,8 @@
       },
       "goalLabel": "Huvudmål",
       "guidance": "Puls eller upplevd ansträngning. Inget FTP-test.",
+      "guidanceByFeel": "Målvärden efter känsla tills en FTP är inställd.",
+      "guidanceFtp": "Målvärden som % av din FTP i intervals.icu.",
       "guidanceLabel": "Vägledning",
       "improveFitness": "Förbättra konditionen",
       "inProgress": "Pågår",
@@ -2424,16 +2426,48 @@
       "workout": {
         "ask": "Be tränaren att ändra det",
         "askDraft": "Ändra ”{{name}}” på {{day}}:",
+        "byFeel": "Målvärden efter känsla tills en FTP är inställd.",
         "close": "Stäng",
         "export": "Exportera dagens träningspass",
+        "ftpLine": "Målvärdena använder FTP {{watts}} W från intervals.icu.",
+        "load": "Belastning ≈ {{load}}",
         "move": "Flytta…",
         "moving": "Flyttas i intervals.icu",
         "onIntervals": "På intervals.icu",
         "onIntervalsYours": "På intervals.icu, med din ändring",
+        "part": {
+          "coolDown": "Nedvarvning",
+          "interval": "Intervall",
+          "main": "Jämnt",
+          "recovery": "Lugnt",
+          "warmUp": "Uppvärmning"
+        },
+        "percent": "{{percent}}%",
+        "percentRamp": "{{from}} → {{to}}%",
+        "percentRange": "{{low}}–{{high}}%",
         "planOnly": "Bara i planen, inte skickat än",
         "planOnlyGoesOut": "Bara i planen, skickas {{date}}",
         "planWorkout": "Träningspass i planen",
-        "today": "Idag"
+        "repeat": "{{times}} × {{duration}}",
+        "repeatDetail": "Intervaller, {{duration}} lugnt efter varje",
+        "steps": "Steg",
+        "targetWatts": "{{percent}} · {{watts}}",
+        "today": "Idag",
+        "watts": "{{watts}} W",
+        "wattsRamp": "{{from}} → {{to}} W",
+        "wattsRange": "{{low}}–{{high}} W",
+        "why": {
+          "aerobicBase": "Bygger din aeroba bas.",
+          "endurance": "Bygger uthållighet för långa dagar.",
+          "recover": "Du återhämtar dig och håller benen i rörelse.",
+          "sustainedPower": "Bygger uthållig effekt strax under din tröskel."
+        },
+        "whyTitle": "Varför det här passet",
+        "zone": {
+          "endurance": "Uthållighet",
+          "recovery": "Återhämtning",
+          "sweetSpot": "Sweet spot"
+        }
       }
     },
     "details": {

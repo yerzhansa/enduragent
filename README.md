@@ -178,6 +178,12 @@ and a random installation UUID — no athlete data, messages, or credentials. Se
 it off. Manual commands never initiate telemetry; Desktop update checks remain separate and go
 to `https://updates.enduragent.icu/`.
 
+Tracing is separate and off by default. Only when the coach starts with both `ENDURAGENT_OTEL=1`
+and `OTEL_EXPORTER_OTLP_ENDPOINT` set does it send OpenTelemetry traces of its turns, including
+turns you start by hand, and only to that endpoint. The spans carry token counts, cost, outcomes
+and durations, never your messages, replies, tool data or training data
+([guides/privacy.md](./guides/privacy.md#tracing-off-by-default)).
+
 Full policy: [enduragent.icu/privacy.html](https://enduragent.icu/privacy.html).
 
 ## Pricing

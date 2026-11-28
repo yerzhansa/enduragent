@@ -1,10 +1,13 @@
-import type {
-  PlanCalendarActivity,
-  PlanCalendarCopy,
-  PlanCalendarOutcome,
-  PlanCalendarRpcResult,
-  PlanCalendarWeek,
-  PlanCalendarWorkout,
+import {
+  PlanWorkoutContentSchema,
+  type PlanCalendarActivity,
+  type PlanCalendarCopy,
+  type PlanCalendarCurrentFtp,
+  type PlanCalendarOutcome,
+  type PlanCalendarRpcResult,
+  type PlanCalendarWeek,
+  type PlanCalendarWorkout,
+  type PlanWorkoutContent,
 } from "@enduragent/coach-contract";
 import {
   icuFingerprintParts,
@@ -33,6 +36,7 @@ import {
   type SqlStore,
 } from "@enduragent/kernel/store";
 import { createLegacyPlanRepository } from "@enduragent/kernel-node/planning";
+import { readOneFtp } from "./one-ftp.js";
 import { movesByYou, workoutMovable } from "./plan-calendar-move.js";
 import { phaseForWeek } from "./plan-phase.js";
 import { readReplacing, sendsFrom } from "./plan-calendar-replace.js";
@@ -53,6 +57,23 @@ export interface PlanCalendarReadDeps {
   readonly todayDateKey: number;
   readonly calendarConnected: boolean;
   readonly dateKeyOfMs: (ms: number) => number;
+  readonly athleteId: string | null;
+}
+
+function contentOf(structureJson: string): { readonly content?: PlanWorkoutContent } {
+  const structure: unknown = JSON.parse(structureJson);
+  const content =
+    typeof structure === "object" && structure !== null && "content" in structure
+      ? PlanWorkoutContentSchema.safeParse(structure.content)
+      : null;
+  return content?.success === true ? { content: content.data } : {};
+}
+
+async function currentFtp(deps: PlanCalendarReadDeps): Promise<PlanCalendarCurrentFtp | null> {
+  const { current } = await readOneFtp(deps.store, deps.athleteId);
+  return current === null
+    ? null
+    : { watts: current.watts, dateKey: deps.dateKeyOfMs(current.setAtMs) };
 }
 
 function copyView(copy: IcuCopy): PlanCalendarCopy {
@@ -252,6 +273,7 @@ async function readInside(
     todayDateKey: deps.todayDateKey,
     calendarConnected: deps.calendarConnected,
     weekDelivery,
+    ftp: await currentFtp(deps),
   };
   const plan =
     typeof active?.plan_id === "string"
@@ -308,6 +330,7 @@ async function readInside(
         todayDateKey: deps.todayDateKey,
       }),
       movedByYou: movedByYouOf(moves.get(workout.id), workout.dateKey),
+      ...contentOf(workout.structureJson),
     };
   });
   const delivery = await readWeekDelivery(mirror, plan.id);

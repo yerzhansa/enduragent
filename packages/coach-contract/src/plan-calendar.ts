@@ -4,6 +4,7 @@ import {
   PlanCalendarFtpReadSchema,
   PlanCalendarRideFtpSchema,
 } from "./plan-calendar-ftp.js";
+import { PlanWorkoutContentSchema } from "./plan-workout-content.js";
 
 const UlidSchema = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/u);
 const DateKeySchema = z.number().int().min(10101).max(99991231);
@@ -224,9 +225,15 @@ export const PlanCalendarWorkoutSchema = z
     doneS: SecondsSchema,
     movable: z.boolean(),
     movedByYou: z.object({ fromDateKey: DateKeySchema }).strict().nullable(),
+    content: PlanWorkoutContentSchema.optional(),
   })
   .strict();
 export type PlanCalendarWorkout = z.infer<typeof PlanCalendarWorkoutSchema>;
+
+export const PlanCalendarCurrentFtpSchema = z
+  .object({ watts: z.number().int().min(1).max(9_999), dateKey: DateKeySchema })
+  .strict();
+export type PlanCalendarCurrentFtp = z.infer<typeof PlanCalendarCurrentFtpSchema>;
 
 export const PlanCalendarWeekStatusSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("passed") }).strict(),
@@ -529,6 +536,7 @@ export const PlanCalendarRpcResultSchema = z.discriminatedUnion("status", [
       plan: PlanCalendarPlanSchema.nullable(),
       replacing: PlanCalendarReplacingSchema.nullable(),
       activities: z.array(PlanCalendarActivitySchema).max(1_000),
+      ftp: PlanCalendarCurrentFtpSchema.nullable(),
     })
     .strict(),
 ]);

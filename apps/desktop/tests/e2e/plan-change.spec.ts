@@ -13,6 +13,7 @@ import {
   type PlanCreationDraft,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
+import { workoutContent } from "@enduragent/sport-cycling";
 import { launchDesktopFixture, type RunningDesktopFixture } from "../helpers/desktop-fixture.js";
 import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
 
@@ -258,6 +259,12 @@ function weekday(workout: PlanChangeWorkout): number | null {
   return workout.date === null ? null : new Date(`${workout.date}T12:00:00Z`).getUTCDay() || 7;
 }
 
+function withContent(workout: PlanChangeWorkout): PlanChangeWorkout {
+  const { content: _stale, ...rest } = workout;
+  const content = workoutContent(workout.kind, workout.minutes);
+  return PlanChangeWorkoutSchema.parse(content === undefined ? rest : { ...rest, content });
+}
+
 function expectedChange(draft: PlanCreationDraft, intent: PlanChangeIntent) {
   const diff: PlanChangeModel["diff"] = [];
   const weeks = draft.weeks.map((week) => {
@@ -285,6 +292,7 @@ function expectedChange(draft: PlanCreationDraft, intent: PlanChangeIntent) {
           if (before.minutes > intent.minutes) after = { ...before, minutes: intent.minutes };
           break;
       }
+      if (after !== null && after !== before) after = withContent(after);
       if (after !== before) diff.push({ workoutId: before.id, before, after });
       return after === null ? [] : [after];
     });
