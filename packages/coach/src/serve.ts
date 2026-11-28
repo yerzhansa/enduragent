@@ -68,7 +68,9 @@ export async function runCoachServe(
     });
     const owner = input.owner ?? "unmanaged-foreground";
     const scheduleInitialRefresh = (): void => {
-      void Promise.allSettled([input.lifecycle.startInitialRefresh()]);
+      void Promise.allSettled([
+        new Promise<void>((resolve) => resolve(input.lifecycle.startInitialRefresh())),
+      ]);
     };
     const rpc = dependencies.createRpcServer({
       engine: input.lifecycle.engine,
