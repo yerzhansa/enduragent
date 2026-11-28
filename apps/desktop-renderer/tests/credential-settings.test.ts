@@ -103,7 +103,7 @@ function createSubject(input: {
   readonly openSetup?: () => void;
   readonly claudeCli?: () => Promise<ClaudeCliStatus>;
   readonly onDeleted?: () => Promise<void> | void;
-  readonly onReconciled?: () => Promise<void> | void;
+  readonly onReconciled?: (moveFocus: boolean) => Promise<void> | void;
   readonly credentialMutationsBlocked?: () => boolean;
   readonly recovery?: CredentialRecoveryStatus;
   readonly loadRecoveryStatus?: () => Promise<CredentialRecoveryStatus>;
