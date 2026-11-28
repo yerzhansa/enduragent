@@ -964,11 +964,17 @@ describe("setup card", () => {
   });
 
   async function openRetiredAnthropic(user: UserEvent, replacedBy: string | null) {
-    const bridge = coldBridge();
-    bridge.llmConfiguration.mockResolvedValue({
-      ...TEST_LLM_CONFIGURATION,
-      active: { provider: "anthropic", model: "claude-sonnet-4", kind: "retired", replacedBy },
+    return openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "claude-sonnet-4",
+      kind: "retired",
+      replacedBy,
     });
+  }
+
+  async function openSavedAnthropic(user: UserEvent, active: OnboardingLlmConfiguration["active"]) {
+    const bridge = coldBridge();
+    bridge.llmConfiguration.mockResolvedValue({ ...TEST_LLM_CONFIGURATION, active });
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },
     ]);
@@ -980,6 +986,36 @@ describe("setup card", () => {
     await openApiKeyPanel(user);
     return { bridge, wizard, apiKey: within(panel("api-key") as HTMLElement) };
   }
+
+  it("shows a listed saved model in Advanced without the retired note", async () => {
+    const user = userEvent.setup();
+    const { wizard, apiKey } = await openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      kind: "listed",
+    });
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("Claude Sonnet 4.6");
+    expect(document.querySelector("#onboarding-custom-model")).toBeNull();
+    expect(apiKey.queryByText(/no longer on the model list/u)).toBeNull();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+    wizard.controller.dispose();
+  });
+
+  it("shows a typed saved model in Advanced as Other without the retired note", async () => {
+    const user = userEvent.setup();
+    const { wizard, apiKey } = await openSavedAnthropic(user, {
+      provider: "anthropic",
+      model: "athlete/typed-model",
+      kind: "custom",
+    });
+
+    expect(control("onboarding-llm-model")).toHaveTextContent("Other model…");
+    expect(control<HTMLInputElement>("onboarding-custom-model").value).toBe("athlete/typed-model");
+    expect(apiKey.queryByText(/no longer on the model list/u)).toBeNull();
+    expect(apiKey.queryByRole("button", { name: /^Switch to/u })).toBeNull();
+    wizard.controller.dispose();
+  });
 
   it("names a retired saved model in Advanced and switches only when asked", async () => {
     const user = userEvent.setup();
