@@ -428,7 +428,6 @@
     "apps/desktop-renderer/src/settings/telegram-controller.ts": 862,
     "apps/desktop-renderer/src/state/adapters/plan.ts": 1479,
     "apps/desktop-renderer/src/ui/chat/PlanChangeCards.tsx": 924,
-    "apps/desktop-renderer/src/ui/chat/PlanCreationQuestionCard.tsx": 920,
     "apps/desktop-renderer/src/ui/plan/PlanView.tsx": 5206,
     "apps/desktop-renderer/src/ui/training/RideReview.tsx": 1016,
     "apps/desktop/scripts/test-packaged-telegram.ts": 1742,
