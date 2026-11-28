@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { onboardingCredentialMutationsBlocked } from "../src/boot";
+import { onboardingCredentialMutationsBlocked } from "../src/state/onboarding-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { SetupPanel } from "../src/ui/onboarding/OnboardingWizard";
 import { mountWizard, primaryButton, resetOnboardingStore, testBridge } from "./onboarding-harness";
