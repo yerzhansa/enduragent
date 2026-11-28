@@ -529,4 +529,38 @@ describe("summary and memory model choice across coach model changes", () => {
       await restarted.close();
     }
   }, 120_000);
+
+  it("moves summaries to Luna after an upgrade from an OpenAI Sol config.yaml saved by main", async () => {
+    const home = await freshHome();
+    await writeFile(
+      join(home.configDir, "config.yaml"),
+      "llm:\n  provider: openai\n  model: gpt-6.2-sol\n  compact_model: gpt-6.2-sol\n",
+    );
+    const reloaded = loadConfig(home.configDir, { defaultDataDir: home.root });
+    const { seen, decorator } = recordingProvider(() => LONG_REPLY);
+    const restarted = await compose(
+      home,
+      { ...reloaded, llm: { ...reloaded.llm, apiKey: "synthetic-openai-key" } },
+      { modelTransportDecorator: decorator },
+    );
+    try {
+      await expect(
+        restarted.operations.configureRuntime({
+          llm: { model: "gpt-6-luna", catalog_snapshot: bundledAcceptedCatalog().snapshot },
+        }),
+      ).resolves.toMatchObject({ status: "applied" });
+      await chatUntilCompaction(restarted, seen);
+      expect({
+        chat: modelsFor(seen, "chat"),
+        flush: modelsFor(seen, "flush"),
+        compact: modelsFor(seen, "compact"),
+      }).toEqual({
+        chat: ["gpt-6-luna"],
+        flush: ["gpt-6-luna"],
+        compact: ["gpt-6-luna"],
+      });
+    } finally {
+      await restarted.close();
+    }
+  }, 120_000);
 });
