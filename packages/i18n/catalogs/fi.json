@@ -1246,6 +1246,7 @@
         "wed": "ke"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Aiempi luonnoksesi palautuu tämän muutoksen jälkeen.",
       "durationLimit": "Keston yläraja minuutteina",
       "editorTitle": "Mitä pitää muuttaa?",
       "events": "Muut tapahtumat",

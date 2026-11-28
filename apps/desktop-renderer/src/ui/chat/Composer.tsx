@@ -26,12 +26,17 @@ import { SlashPopup } from "./SlashPopup";
 export interface ComposerHandle {
   focus(): void;
   reset(): void;
+  replace(text: string): void;
   sending(): string | null;
 }
 
 export function Composer(props: {
   readonly handle: RefObject<ComposerHandle | null>;
   readonly draftMemory?: RefObject<string>;
+  readonly draftSetAside?: boolean;
+  readonly draftSetAsideRef?: RefObject<boolean>;
+  readonly planChangeDraftRevision?: number | null;
+  readonly onPlanChangeDraftSubmitted?: (revision: number) => string | null;
   readonly inputId?: string;
   readonly hidden?: boolean;
   readonly leadingAction?: ReactNode;
@@ -94,7 +99,7 @@ export function Composer(props: {
   const active = selected < matches.length ? selected : 0;
 
   useEffect(() => {
-    if (props.surface !== undefined) return;
+    if (props.surface !== undefined || props.draftSetAside === true) return;
     const restored = attachmentSurface?.draft;
     if (restored === undefined || restored === null) return;
     const revision = `${restored.updatedAt}:${restored.text}`;
@@ -106,12 +111,13 @@ export function Composer(props: {
     input.value = restored.text;
     if (props.draftMemory !== undefined) props.draftMemory.current = restored.text;
     setDraft(restored.text);
-  }, [attachmentSurface, props.draftMemory, props.surface]);
+  }, [attachmentSurface, props.draftMemory, props.draftSetAside, props.surface]);
 
   useEffect(
     () => () => {
       if (
         props.surface === undefined &&
+        props.draftSetAsideRef?.current !== true &&
         textarea.current !== null &&
         useEnduragentStore.getState().chat.composerStatus === null
       ) {
@@ -119,7 +125,7 @@ export function Composer(props: {
       }
       saveTimer.cancel();
     },
-    [actions, props.surface, saveTimer],
+    [actions, props.draftSetAsideRef, props.surface, saveTimer],
   );
 
   useImperativeHandle(
@@ -137,6 +143,15 @@ export function Composer(props: {
         }
         if (props.draftMemory !== undefined) props.draftMemory.current = "";
         setDraft("");
+        setSelected(0);
+        setDismissed(false);
+      },
+      replace(text: string) {
+        saveTimer.cancel();
+        const input = textarea.current;
+        if (input !== null) input.value = text;
+        if (props.draftMemory !== undefined) props.draftMemory.current = text;
+        setDraft(text);
         setSelected(0);
         setDismissed(false);
       },
@@ -161,23 +176,33 @@ export function Composer(props: {
     const value = input.value;
     if (!/\S/u.test(value) && (surface !== undefined || attachmentIds.length === 0)) return;
     saveTimer.cancel();
-    if (surface === undefined) actions?.saveAttachmentDraftText(value);
+    const draftSetAside = props.draftSetAsideRef?.current === true;
+    const submittedPlanChangeRevision = props.planChangeDraftRevision ?? null;
+    if (surface === undefined && !draftSetAside) actions?.saveAttachmentDraftText(value);
     setSubmitting(true);
     inFlight.current = value;
     try {
       const acknowledged = await send(value);
       if (!acknowledged) return;
+      const restored =
+        submittedPlanChangeRevision === null
+          ? null
+          : (props.onPlanChangeDraftSubmitted?.(submittedPlanChangeRevision) ?? null);
       if (input.value === value) {
-        input.value = "";
+        const next = restored ?? "";
+        input.value = next;
         if (
           props.draftMemory !== undefined &&
           (input === textarea.current || props.draftMemory.current === value)
         ) {
-          props.draftMemory.current = "";
+          props.draftMemory.current = next;
         }
-        setDraft("");
+        setDraft(next);
         setSelected(0);
         setDismissed(false);
+        if (surface === undefined && restored !== null) {
+          actions?.saveAttachmentDraftText(restored);
+        }
       }
     } catch {
       input.focus();
@@ -342,6 +367,7 @@ export function Composer(props: {
             saveTimer.schedule(() => {
               if (
                 props.surface === undefined &&
+                props.draftSetAsideRef?.current !== true &&
                 useEnduragentStore.getState().chat.composerStatus === null
               ) {
                 actions?.saveAttachmentDraftText(value);

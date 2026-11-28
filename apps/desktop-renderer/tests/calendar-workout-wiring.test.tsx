@@ -40,7 +40,10 @@ describe("asking the coach from a workout card", () => {
     const test = start();
     useEnduragentStore.getState().calendarWorkoutActions?.open(PLAN_ID, workoutId(1));
     useEnduragentStore.getState().calendarWorkoutActions?.askCoach(DRAFT);
-    expect(useEnduragentStore.getState().composerPrefill).toMatchObject({ text: DRAFT });
+    expect(useEnduragentStore.getState().composerPrefill).toMatchObject({
+      text: DRAFT,
+      mode: "plan-change",
+    });
     expect(test.changeInChat).toHaveBeenCalledOnce();
     expect(test.saveAttachmentDraftText).not.toHaveBeenCalled();
     expect(test.submit).not.toHaveBeenCalled();

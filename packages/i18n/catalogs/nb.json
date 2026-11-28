@@ -1246,6 +1246,7 @@
         "wed": "ons."
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Det tidligere utkastet ditt kommer tilbake etter denne endringen.",
       "durationLimit": "Varighetsgrense i minutter",
       "editorTitle": "Hva må endres?",
       "events": "Delmålarrangementer",

@@ -11355,6 +11355,10 @@
     "plan.calendar.move.swappedOn_other": {
       "sourceHash": "44a40e24e60d75f3170943edda002445974d39ec699cde20164c517cffe359a8",
       "translatedBy": "model"
+    },
+    "chat.planChange.draftSetAside": {
+      "sourceHash": "f56f2d18a7a962cff75e7500ad7bf5a62311ef49e40dcef7ccc81553f0ff68fa",
+      "translatedBy": "model"
     }
   }
 }

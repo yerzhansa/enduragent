@@ -1246,6 +1246,7 @@
         "wed": "wo"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Je eerdere concept komt terug na deze wijziging.",
       "durationLimit": "Maximale duur in minuten",
       "editorTitle": "Wat moet er veranderen?",
       "events": "Aanvullende evenementen",

@@ -1236,6 +1236,7 @@
         "wed": "周三"
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "此更改完成后，你之前的草稿会恢复。",
       "durationLimit": "时长上限（分钟）",
       "editorTitle": "需要更改什么？",
       "events": "辅助赛事",

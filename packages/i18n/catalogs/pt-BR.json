@@ -1246,6 +1246,7 @@
         "wed": "qua."
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Seu rascunho anterior volta depois desta alteração.",
       "durationLimit": "Limite de duração em minutos",
       "editorTitle": "O que precisa mudar?",
       "events": "Eventos secundários",

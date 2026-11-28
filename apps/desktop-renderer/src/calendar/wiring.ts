@@ -109,7 +109,7 @@ export function startCalendar(
     },
   });
   const workout = createWorkoutCardController({
-    prefillComposer: (text) => store.getState().requestComposerPrefill(text),
+    prefillComposer: (text) => store.getState().requestComposerPrefill(text, "plan-change"),
     openChangeInChat: () => {
       const library = store.getState().planLibraryActions;
       if (library === null) store.getState().setActiveView("chat");

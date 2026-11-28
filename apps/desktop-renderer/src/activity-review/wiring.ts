@@ -1,6 +1,7 @@
 import type { PlanCalendarRideDecision } from "@enduragent/coach-contract";
 import type { DesktopCoachClientProvider } from "../coach-client";
 import { localTodayDateKey } from "../calendar/dates";
+import { planChangePendingCheck } from "../state/chat-slice";
 import type { EnduragentState, useEnduragentStore } from "../state/store";
 import { createActivityReviewController } from "./controller";
 import { createRideReviewController } from "./review-controller";
@@ -16,6 +17,14 @@ function shownRideId(state: EnduragentState): string | null {
 }
 
 function askCoach(store: typeof useEnduragentStore, draft: string): void {
+  const state = store.getState();
+  if (
+    state.planChange.textRouting &&
+    !state.planChange.busy &&
+    planChangePendingCheck(state.planChange, state.planLibrary.value) === null
+  ) {
+    state.chatActions?.backFromPlanChangeEditor();
+  }
   store.getState().requestComposerPrefill(draft);
   store.getState().setActiveView("chat");
 }

@@ -293,6 +293,7 @@ export type CatalogKey =
   | "chat.planChange.day.tue"
   | "chat.planChange.day.wed"
   | "chat.planChange.difference"
+  | "chat.planChange.draftSetAside"
   | "chat.planChange.durationLimit"
   | "chat.planChange.editorTitle"
   | "chat.planChange.eventValue"

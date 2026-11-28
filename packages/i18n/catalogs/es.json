@@ -1246,6 +1246,7 @@
         "wed": "mié."
       },
       "difference": "{{before}} → {{after}}",
+      "draftSetAside": "Tu borrador anterior volverá después de este cambio.",
       "durationLimit": "Duración máxima en minutos",
       "editorTitle": "¿Qué necesitas cambiar?",
       "events": "Eventos secundarios",

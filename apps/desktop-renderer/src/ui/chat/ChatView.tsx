@@ -46,6 +46,10 @@ import {
 
 const COMPACT_CHAT_WIDTH = 900;
 
+type PlanChangeDraftState =
+  | { readonly kind: "none" }
+  | { readonly kind: "clean"; readonly earlierDraft: string | null; readonly revision: number };
+
 function pendingElement(
   conversation: HTMLElement,
   part: "card" | "heading" | "source",
@@ -80,6 +84,17 @@ export function ChatView(): ReactElement {
   const composerDraft = useRef("");
   const prefilled = useRef<string | null>(null);
   const [composerKey, setComposerKey] = useState(0);
+  const [planChangeDraft, setPlanChangeDraftState] = useState<PlanChangeDraftState>({
+    kind: "none",
+  });
+  const planChangeDraftRef = useRef<PlanChangeDraftState>(planChangeDraft);
+  const draftSetAsideRef = useRef(false);
+  const planChangeDraftRevision = useRef(0);
+  const setPlanChangeDraft = useCallback((next: PlanChangeDraftState): void => {
+    planChangeDraftRef.current = next;
+    draftSetAsideRef.current = next.kind === "clean" && next.earlierDraft !== null;
+    setPlanChangeDraftState(next);
+  }, []);
   const [contextOpen, setContextOpen] = useState(true);
   const [contextDrawerOpen, setContextDrawerOpen] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -90,6 +105,7 @@ export function ChatView(): ReactElement {
   const [navigatingKey, setNavigatingKey] = useState<PendingNavigation["key"] | null>(null);
   const activeView = useEnduragentStore((state) => state.activeView);
   const status = useEnduragentStore((state) => state.chat.status);
+  const resetPhase = useEnduragentStore((state) => state.chat.resetPhase);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
   const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
   const composerStatus = useEnduragentStore((state) => state.chat.composerStatus);
@@ -110,6 +126,9 @@ export function ChatView(): ReactElement {
   const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const decision = useEnduragentStore((state) => state.chat.decision);
   const planLibrary = useEnduragentStore((state) => state.planLibrary.value);
+  const planChangeOpen = useEnduragentStore((state) => state.planChange.open);
+  const planChangeTextRouting = useEnduragentStore((state) => state.planChange.textRouting);
+  const planChangePlanId = useEnduragentStore((state) => state.planChange.planId);
   const planChangeNotice = useEnduragentStore((state) => state.planChange.notice);
   const planChangeFocusRequest = useEnduragentStore((state) => state.planChange.focusRequest);
   const planChangeBusy = useEnduragentStore((state) => state.planChange.busy);
@@ -125,17 +144,94 @@ export function ChatView(): ReactElement {
       (planChangeOpenForActivePlan(state.planChange, state.planLibrary.value) ||
         planChangePendingInLibrary(state.planLibrary.value)),
   );
+  const applyComposerDraft = useCallback(
+    (next: string, persist: boolean): void => {
+      composerDraft.current = next;
+      if (composer.current !== null) {
+        composer.current.replace(next);
+        if (persist) actions?.saveAttachmentDraftText(next);
+      } else {
+        prefilled.current = persist ? next : null;
+        setComposerKey((key) => key + 1);
+      }
+    },
+    [actions],
+  );
+  const restorePlanChangeDraft = useCallback((): void => {
+    const current = planChangeDraftRef.current;
+    if (current.kind !== "clean") return;
+    const next = current.earlierDraft ?? "";
+    setPlanChangeDraft({ kind: "none" });
+    applyComposerDraft(next, true);
+  }, [applyComposerDraft, setPlanChangeDraft]);
+  const cancelPlanChange = useCallback((): void => {
+    if (planChangeBusy) return;
+    actions?.backFromPlanChangeEditor();
+    restorePlanChangeDraft();
+    composer.current?.focus();
+  }, [actions, planChangeBusy, restorePlanChangeDraft]);
+  const onPlanChangeDraftSubmitted = useCallback(
+    (revision: number): string | null => {
+      const current = planChangeDraftRef.current;
+      if (current.kind !== "clean" || current.revision !== revision) return null;
+      setPlanChangeDraft({ kind: "none" });
+      return current.earlierDraft;
+    },
+    [setPlanChangeDraft],
+  );
+  const activePlanId = planLibrary?.active?.planId ?? null;
+  const planChangeRouting =
+    planChangeOpen &&
+    planChangeTextRouting &&
+    (planChangePlanId === null || planChangePlanId === activePlanId);
+  const wasPlanChangeRouting = useRef(planChangeRouting);
+  useEffect(() => {
+    const wasRouting = wasPlanChangeRouting.current;
+    wasPlanChangeRouting.current = planChangeRouting;
+    if (resetPhase === "resetting") {
+      if (planChangeDraftRef.current.kind !== "none") {
+        setPlanChangeDraft({ kind: "none" });
+      }
+      return;
+    }
+    if (wasRouting && !planChangeRouting) {
+      restorePlanChangeDraft();
+    }
+  }, [planChangeRouting, resetPhase, restorePlanChangeDraft, setPlanChangeDraft]);
   useEffect(() => {
     if (prefill === null) return;
     clearPrefill(prefill.revision);
     const inFlight = composer.current?.sending() ?? null;
     const current = composerDraft.current === inFlight ? "" : composerDraft.current;
-    if (current.trimEnd().endsWith(prefill.text)) return;
-    const next = current.trim().length === 0 ? prefill.text : `${current}\n\n${prefill.text}`;
-    composerDraft.current = next;
-    prefilled.current = next;
-    setComposerKey((key) => key + 1);
-  }, [prefill, clearPrefill]);
+    if (prefill.mode === "plan-change") {
+      const entering = planChangeDraftRef.current.kind === "none";
+      const earlierDraft =
+        planChangeDraftRef.current.kind === "clean"
+          ? planChangeDraftRef.current.earlierDraft
+          : current.trim().length > 0
+            ? current
+            : null;
+      const revision = planChangeDraftRevision.current + 1;
+      planChangeDraftRevision.current = revision;
+      setPlanChangeDraft({ kind: "clean", earlierDraft, revision });
+      if (entering && earlierDraft !== null) actions?.saveAttachmentDraftText(earlierDraft);
+      applyComposerDraft(prefill.text, earlierDraft === null);
+      return;
+    }
+    const base =
+      planChangeDraftRef.current.kind === "clean"
+        ? (planChangeDraftRef.current.earlierDraft ?? "")
+        : current;
+    if (planChangeDraftRef.current.kind === "clean") {
+      setPlanChangeDraft({ kind: "none" });
+    }
+    if (base.trimEnd().endsWith(prefill.text)) {
+      if (base !== current) applyComposerDraft(base, true);
+      return;
+    }
+    const next = base.trim().length === 0 ? prefill.text : `${base}\n\n${prefill.text}`;
+    applyComposerDraft(next, true);
+  }, [prefill, clearPrefill, actions, applyComposerDraft, setPlanChangeDraft]);
   useEffect(() => {
     const next = prefilled.current;
     if (next === null) return;
@@ -331,6 +427,17 @@ export function ChatView(): ReactElement {
     };
   }, [actions, hasEarlier, hydrationStatus, updatePendingNavigation, workBlocked]);
 
+  const hasSetAsideDraft =
+    planChangeDraft.kind === "clean" && planChangeDraft.earlierDraft !== null;
+  const planChangeBarVisible =
+    !decisionCustomOpen &&
+    !planCreationEditorOpen &&
+    !planChangeEditorOpen &&
+    (hasSetAsideDraft ||
+      (planChangeRouting &&
+        !planChangeSurfaceEditorOpen &&
+        !planChangeCheckPending &&
+        !hasPendingPlanChange));
   const contextExpanded = compact ? contextDrawerOpen : contextOpen;
   const toggleContext = (): void => {
     if (compact) setContextDrawerOpen(true);
@@ -480,6 +587,27 @@ export function ChatView(): ReactElement {
                   </p>
                 )}
               </div>
+              {planChangeBarVisible ? (
+                <div
+                  className="flex items-center justify-between gap-inset px-3.5 pb-inset"
+                  data-plan-change-composer-bar=""
+                >
+                  <p className="m-0 text-xs leading-4 text-ink-2" role="status" aria-live="polite">
+                    {hasSetAsideDraft
+                      ? say("chat.planChange.draftSetAside")
+                      : say("chat.planChange.title")}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    disabled={planChangeBusy}
+                    onClick={cancelPlanChange}
+                  >
+                    {say("common.cancel")}
+                  </Button>
+                </div>
+              ) : null}
             </div>
             <div className="composer-shell grid max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] rounded-card border border-line-2 bg-surface shadow-elev-2 transition-[border-color,box-shadow] duration-120 motion-reduce:transition-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
               <div className="composer-adjacent min-h-0 overflow-y-auto border-b border-line [scrollbar-width:none] overscroll-contain empty:hidden">
@@ -487,7 +615,17 @@ export function ChatView(): ReactElement {
                 <QueuedMessages />
               </div>
               {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
-                <Composer key={composerKey} handle={composer} draftMemory={composerDraft} />
+                <Composer
+                  key={composerKey}
+                  handle={composer}
+                  draftMemory={composerDraft}
+                  draftSetAside={hasSetAsideDraft}
+                  draftSetAsideRef={draftSetAsideRef}
+                  planChangeDraftRevision={
+                    planChangeDraft.kind === "clean" ? planChangeDraft.revision : null
+                  }
+                  onPlanChangeDraftSubmitted={onPlanChangeDraftSubmitted}
+                />
               )}
             </div>
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">
@@ -499,6 +637,7 @@ export function ChatView(): ReactElement {
       </div>
       <NewConversationDialog
         onComposerReset={() => {
+          setPlanChangeDraft({ kind: "none" });
           composer.current?.reset();
         }}
       />
