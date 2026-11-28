@@ -17,7 +17,7 @@ import {
   planChangePendingInLibrary,
 } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
-import { Button } from "@enduragent/ui";
+import { Button, cn } from "@enduragent/ui";
 import {
   Dialog,
   DialogContent,
@@ -106,6 +106,13 @@ export function ChatView(): ReactElement {
   const resetPhase = useEnduragentStore((state) => state.chat.resetPhase);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
   const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
+  const newConversationCheck = useEnduragentStore((state) => state.chat.newConversationCheck);
+  const newConversationStatus =
+    resetPhase === "uncertain"
+      ? say("chat.notice.newConversationUncertain")
+      : announcementMessage === null
+        ? (announcement ?? "")
+        : say(announcementMessage);
   const composerStatus = useEnduragentStore((state) => state.chat.composerStatus);
   const composerStatusMessage =
     composerStatus === null ? null : chatFeedbackMessage(composerStatus);
@@ -561,13 +568,33 @@ export function ChatView(): ReactElement {
           <div className="composer-wrap z-2 row-start-3 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
             <div className="composer-feedback empty:hidden">
               <div className="chat-notice-host empty:hidden">
-                <p
-                  className="new-conversation-status m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
-                  role="status"
-                  aria-live="polite"
+                <div
+                  className={cn(
+                    "flex items-center justify-between gap-inset",
+                    newConversationStatus === "" ? undefined : "px-3.5 pb-inset",
+                  )}
                 >
-                  {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
-                </p>
+                  <p
+                    className="new-conversation-status m-0 text-sm text-ink-2"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {newConversationStatus}
+                  </p>
+                  {newConversationCheck === "hidden" ? null : (
+                    <Button
+                      type="button"
+                      className="shrink-0 text-ink-2 hover:text-ink"
+                      variant="ghost"
+                      size="xs"
+                      disabled={newConversationCheck === "busy"}
+                      focusableWhenDisabled
+                      onClick={() => actions?.checkNewConversation()}
+                    >
+                      {say("chat.notice.checkNewConversation")}
+                    </Button>
+                  )}
+                </div>
                 {composerStatus === null ? null : (
                   <p
                     className="composer-send-hold m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"

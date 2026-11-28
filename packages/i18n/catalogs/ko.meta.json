@@ -3288,6 +3288,14 @@
       "sourceHash": "215fe82d0f11fd97b21219f0f5f2508fba24b9b9b1c9e854e7491dbdea38d9be",
       "translatedBy": "model"
     },
+    "chat.notice.newConversationNotStarted": {
+      "sourceHash": "7aad8b6bdeee86e677f2293d5cbe4b4c86ad3720d018a558bc327e48c9121831",
+      "translatedBy": "model"
+    },
+    "chat.notice.checkNewConversation": {
+      "sourceHash": "fb7099ad8e818d42eceefe0d97c824fd54ddb0eeef54c263ec72c77d39198ac9",
+      "translatedBy": "model"
+    },
     "chat.notice.planningRequestFailure": {
       "sourceHash": "c474b428c7c7ecc1c4bad9a275838ae8896f8328839e69d1ac705aa9c0ae0f97",
       "translatedBy": "model"

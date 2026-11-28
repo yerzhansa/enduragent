@@ -1311,6 +1311,8 @@
       "newConversationMemoryWarning": "Nuova conversazione iniziata. Alcuni dettagli recenti potrebbero non essere stati salvati nella memoria del coach.",
       "newConversationSuccess": "Nuova conversazione iniziata.",
       "newConversationUncertain": "Impossibile confermare se la nuova conversazione è iniziata. La conversazione visibile è conservata.",
+      "newConversationNotStarted": "La nuova conversazione non è iniziata. La conversazione non è cambiata.",
+      "checkNewConversation": "Controlla di nuovo",
       "planningRequestFailure": "Il piano non ha potuto ricevere questa richiesta. La richiesta è conservata e il piano non è cambiato.",
       "planningRequestLoadFailure": "Impossibile controllare le richieste salvate per il piano. Riconnetti e riprova.",
       "protocolFailure": "Impossibile verificare la risposta del coach. Riprova.",

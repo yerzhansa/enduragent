@@ -1311,6 +1311,8 @@
       "newConversationMemoryWarning": "Uusi keskustelu aloitettu. Joitakin viimeaikaisia tietoja ei ehkä tallennettu valmentajan muistiin.",
       "newConversationSuccess": "Uusi keskustelu aloitettu.",
       "newConversationUncertain": "Uuden keskustelun alkamista ei voitu vahvistaa. Näkyvä keskustelusi säilyy.",
+      "newConversationNotStarted": "Uutta keskustelua ei aloitettu. Keskustelusi on ennallaan.",
+      "checkNewConversation": "Tarkista uudelleen",
       "planningRequestFailure": "Suunnitelma ei voinut vastaanottaa tätä pyyntöä. Pyyntösi säilyy, eikä suunnitelmassa muuttunut mikään.",
       "planningRequestLoadFailure": "Tallennettuja suunnitelmapyyntöjä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "protocolFailure": "Valmentajan vastausta ei voitu varmistaa. Yritä uudelleen.",

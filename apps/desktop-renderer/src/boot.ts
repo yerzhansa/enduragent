@@ -508,6 +508,7 @@ export function bootRenderer(): Disposer {
     openNewConversation: () => void chatController.openNewConversation(),
     cancelNewConversation: () => chatController.cancelNewConversation(),
     confirmNewConversation: () => void chatController.confirmNewConversation(),
+    checkNewConversation: () => void chatController.checkNewConversation(),
     retryFirstSync: () => void firstSyncController.retry(),
     answerDecision: (decisionId, answer) => void chatController.answerDecision(decisionId, answer),
     skipDecision: (decisionId) => void chatController.skipDecision(decisionId),

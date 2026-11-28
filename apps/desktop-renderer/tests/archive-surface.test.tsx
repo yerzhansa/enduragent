@@ -73,6 +73,7 @@ function chatActions(): ChatActions {
     openNewConversation: vi.fn(),
     cancelNewConversation: vi.fn(),
     confirmNewConversation: vi.fn(),
+    checkNewConversation: vi.fn(),
     retryFirstSync: vi.fn(),
     openOpenRouterCredits: vi.fn(),
     answerDecision: vi.fn(),

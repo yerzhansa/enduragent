@@ -1300,6 +1300,8 @@
       "newConversationMemoryWarning": "已开始新对话。部分近期细节可能未保存到教练记忆。",
       "newConversationSuccess": "已开始新对话。",
       "newConversationUncertain": "无法确认是否已开始新对话。当前显示的对话已保留。",
+      "newConversationNotStarted": "新对话未开始。你的对话没有变化。",
+      "checkNewConversation": "重新检查",
       "planningRequestFailure": "计划无法接收此请求。请求已保留，计划未发生变化。",
       "planningRequestLoadFailure": "无法检查已保存的计划请求。请重新连接后重试。",
       "protocolFailure": "无法验证教练回复。请重试。",

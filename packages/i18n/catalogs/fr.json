@@ -1311,6 +1311,8 @@
       "newConversationMemoryWarning": "Nouvelle conversation commencée. Certains détails récents n’ont peut-être pas été enregistrés dans la mémoire du coach.",
       "newConversationSuccess": "Nouvelle conversation commencée.",
       "newConversationUncertain": "Impossible de confirmer si la nouvelle conversation a commencé. Ta conversation visible est conservée.",
+      "newConversationNotStarted": "La nouvelle conversation n’a pas commencé. Ta conversation est inchangée.",
+      "checkNewConversation": "Vérifier à nouveau",
       "planningRequestFailure": "Plan n’a pas pu recevoir cette demande. Ta demande est conservée et rien n’a changé dans Plan.",
       "planningRequestLoadFailure": "Impossible de vérifier les demandes de plan enregistrées. Reconnecte et réessaie.",
       "protocolFailure": "La réponse du coach n’a pas pu être vérifiée. Réessaie.",

@@ -1311,6 +1311,8 @@
       "newConversationMemoryWarning": "En ny samtale er startet. Nogle af de seneste detaljer er muligvis ikke gemt i trænerens hukommelse.",
       "newConversationSuccess": "En ny samtale er startet.",
       "newConversationUncertain": "Vi kunne ikke bekræfte, om den nye samtale blev startet. Din synlige samtale bliver bevaret.",
+      "newConversationNotStarted": "Den nye samtale blev ikke startet. Din samtale er uændret.",
+      "checkNewConversation": "Kontrollér igen",
       "planningRequestFailure": "Plan kunne ikke modtage denne anmodning. Din anmodning bliver bevaret, og intet er ændret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke kontrollere gemte anmodninger til Plan. Opret forbindelse igen, og prøv igen.",
       "protocolFailure": "Trænerens svar kunne ikke bekræftes. Prøv igen.",

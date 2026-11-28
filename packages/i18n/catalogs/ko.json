@@ -1300,6 +1300,8 @@
       "newConversationMemoryWarning": "새 대화를 시작했습니다. 최근 내용 중 일부가 코치 기억에 저장되지 않았을 수 있습니다.",
       "newConversationSuccess": "새 대화를 시작했습니다.",
       "newConversationUncertain": "새 대화가 시작되었는지 확인하지 못했습니다. 화면의 대화는 유지됩니다.",
+      "newConversationNotStarted": "새 대화가 시작되지 않았습니다. 대화는 그대로입니다.",
+      "checkNewConversation": "다시 확인",
       "planningRequestFailure": "계획에서 이 요청을 받지 못했습니다. 요청은 유지되며 계획은 변경되지 않았습니다.",
       "planningRequestLoadFailure": "저장된 계획 요청을 확인하지 못했습니다. 다시 연결하고 시도하세요.",
       "protocolFailure": "코칭 답변을 검증하지 못했습니다. 다시 시도하세요.",

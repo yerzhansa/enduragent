@@ -1311,6 +1311,8 @@
       "newConversationMemoryWarning": "Ett nytt samtal har startats. Vissa nya uppgifter kanske inte har sparats i tränarens minne.",
       "newConversationSuccess": "Ett nytt samtal har startats.",
       "newConversationUncertain": "Det gick inte att bekräfta om det nya samtalet startades. Ditt synliga samtal finns kvar.",
+      "newConversationNotStarted": "Det nya samtalet startades inte. Ditt samtal är oförändrat.",
+      "checkNewConversation": "Kontrollera igen",
       "planningRequestFailure": "Plan kunde inte ta emot förfrågan. Din förfrågan finns kvar och inget ändrades i Plan.",
       "planningRequestLoadFailure": "Det gick inte att kontrollera sparade planförfrågningar. Anslut på nytt och försök igen.",
       "protocolFailure": "Tränarens svar kunde inte verifieras. Försök igen.",

@@ -164,7 +164,7 @@ class AttachmentLifecycleBackend {
   private engine: CoachEngine | undefined;
   private activeModel = "gpt-5.6-sol";
   private runtimeProvider: "codex-agent" | "openai" = "codex-agent";
-  private failNextClear = false;
+  private failingClears = 0;
   private instant = Date.UTC(1998, 7, 24, 8);
   private engineIdSequence = 0;
   private attachmentIdSequence = 0;
@@ -303,8 +303,8 @@ class AttachmentLifecycleBackend {
         }
         if (request.method === "clearChatAttachmentDraft") {
           this.clearCalls += 1;
-          if (this.failNextClear) {
-            this.failNextClear = false;
+          if (this.failingClears > 0) {
+            this.failingClears -= 1;
             throw new Error("synthetic draft clear uncertainty");
           }
           return response(await this.requireComposer().clear(String(request.params.chatId)));
@@ -535,8 +535,8 @@ class AttachmentLifecycleBackend {
     await this.requireAttachments().saveDraftText(chatId, imageDraftText);
   }
 
-  failDraftClearOnce(): void {
-    this.failNextClear = true;
+  failDraftClears(count: number): void {
+    this.failingClears = count;
   }
 
   exposeProviderSettings(): void {
@@ -1118,6 +1118,7 @@ async function resetAndReadUncertain(fixture: RunningDesktopFixture) {
     readonly imageCount: number;
     readonly draft: string;
     readonly newChatAriaDisabled: string | null;
+    readonly checkAgainEnabled: boolean;
   }>(`
     const activityName = ${JSON.stringify(activityName)};
     const imageName = ${JSON.stringify(imageName)};
@@ -1152,8 +1153,15 @@ async function resetAndReadUncertain(fixture: RunningDesktopFixture) {
     }
     if (!(confirm instanceof HTMLButtonElement)) throw new Error("reset confirmation missing");
     confirm.click();
+    const checkAgain = () =>
+      [...document.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Check again",
+      );
     const resetDeadline = Date.now() + 20000;
-    while (!document.body.textContent?.includes(uncertainty) && Date.now() < resetDeadline) {
+    while (
+      !(checkAgain() instanceof HTMLButtonElement && !checkAgain().disabled) &&
+      Date.now() < resetDeadline
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     const composer = document.querySelector("textarea#message");
@@ -1172,6 +1180,7 @@ async function resetAndReadUncertain(fixture: RunningDesktopFixture) {
       ).length,
       draft: composer.value,
       newChatAriaDisabled: currentNewChat.getAttribute("aria-disabled"),
+      checkAgainEnabled: checkAgain() instanceof HTMLButtonElement && !checkAgain().disabled,
     };
   `);
 }
@@ -1413,13 +1422,14 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
       });
       await captureQaEvidence(fixture, "06-incompatible-model-blocked");
 
-      backend.failDraftClearOnce();
+      backend.failDraftClears(2);
       expect(await resetAndReadUncertain(fixture)).toEqual({
         uncertaintyVisible: true,
         activityTranscriptCount: 1,
         imageCount: 1,
         draft: imageDraftText,
         newChatAriaDisabled: "true",
+        checkAgainEnabled: true,
       });
       expect(await backend.snapshot()).toMatchObject({
         draft: {
@@ -1429,7 +1439,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         transcript: [],
         training: { count: 1, sport: "cycling", localDateKey: 19980704 },
         activityStatus: "sent",
-        clearCalls: 1,
+        clearCalls: 2,
       });
       await captureQaEvidence(fixture, "07-reset-uncertainty-preserved");
 
@@ -1453,7 +1463,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         transcript: [],
         queue: { count: 0, retryRequired: false },
         coachCalls: 2,
-        clearCalls: 2,
+        clearCalls: 3,
       });
       await captureQaEvidence(fixture, "09-reset-success-cleared");
 

@@ -4,7 +4,7 @@ import {
   type ChatView,
   type ChatViewControls,
   type PlanCreationDiscardEvent,
-} from "../../chat/controller";
+} from "../../chat/controller-helpers";
 import type { ChatState, WireMessage } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,
@@ -664,6 +664,7 @@ export function createChatViewAdapter(input: {
           ? CHAT_SEND_CONNECTING_COPY
           : null,
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
+      newConversationCheck: controls?.newConversationCheck ?? "hidden",
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,
       announcement: state.session.announcement,

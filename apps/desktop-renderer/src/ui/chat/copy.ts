@@ -56,6 +56,8 @@ export function chatFeedbackMessage(value: string): Message | null {
       return msg("chat.notice.newConversationMemoryWarning");
     case "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.":
       return msg("chat.notice.newConversationUncertain");
+    case "The new conversation didn’t start. Your conversation is unchanged.":
+      return msg("chat.notice.newConversationNotStarted");
     case "Coach is working…":
       return msg("chat.notice.working");
     case "Checking your training data…":

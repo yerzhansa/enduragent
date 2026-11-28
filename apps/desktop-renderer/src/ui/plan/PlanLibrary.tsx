@@ -5,7 +5,7 @@ import { chatFeedbackMessage } from "../chat/copy";
 import { usePlanDate } from "./plan-date";
 import type { LegacyPlanSummary, ListPlansResult, PlanSummary } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
-import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";
+import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller-helpers";
 import { Button } from "@enduragent/ui";
 import { PlanCard } from "./plan-card";
 import {

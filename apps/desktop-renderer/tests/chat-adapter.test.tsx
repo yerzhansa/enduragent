@@ -8,7 +8,7 @@ import {
   CHAT_SEND_CONNECTING_COPY,
   type ChatView,
   type ChatViewControls,
-} from "../src/chat/controller";
+} from "../src/chat/controller-helpers";
 import { mergeHydratedMessages } from "../src/chat/hydration";
 import { createChatViewAdapter } from "../src/state/adapters/chat";
 import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "../src/state/chat-slice";
@@ -159,6 +159,7 @@ describe("chat view adapter", () => {
       composerPlaceholder: "Message your coach",
       composerStatus: null,
       newConversationUnavailable: false,
+      newConversationCheck: "hidden",
       resetPhase: "idle",
       resetCount: 0,
       announcement: null,

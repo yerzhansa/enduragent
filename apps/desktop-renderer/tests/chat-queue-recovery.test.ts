@@ -7,11 +7,11 @@ import type {
 } from "@enduragent/coach-contract";
 import type { CoachClient, CoachClientCallOptions } from "@enduragent/coach-client";
 import { CoachClientDisconnectedError } from "@enduragent/coach-client";
+import { createChatController } from "../src/chat/controller";
 import {
   CHAT_QUEUE_REMOVE_FAILURE_COPY,
-  createChatController,
   type ChatViewControls,
-} from "../src/chat/controller";
+} from "../src/chat/controller-helpers";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import type { ChatState } from "../src/turn-state";
 
