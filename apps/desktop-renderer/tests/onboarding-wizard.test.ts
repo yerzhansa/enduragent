@@ -265,8 +265,7 @@ describe("desktop onboarding wizard", () => {
     expect(wizard).not.toContain("focus-visible:outline");
     expect(wizard).not.toContain("SETUP_DISCLAIMER");
     expect(wizard).toContain('aria-live="polite"');
-    expect(aiRow).toContain("CHATGPT_SIGN_IN_LABEL");
-    expect(aiRow).toContain("CHATGPT_PHASE_COPY");
+    expect(aiRow).toContain("chatGptPanelMessages");
     expect(aiRow).toContain("CHATGPT_PANEL_HINT");
     expect(card).toContain("[&>*+*]:border-t");
     expect(card).toContain("[&>*:first-child]:rounded-t-xl");

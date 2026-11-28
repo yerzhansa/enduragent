@@ -3,6 +3,7 @@ import { usePhrasebook } from "@enduragent/i18n/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
+  onboardingCredentialMutationActive,
   setupStatusKnown,
   type OnboardingActions,
   type OnboardingSurfaceState,
@@ -120,11 +121,8 @@ export function TrainingRow(props: {
   );
   const repairRequired = repairRequiredCredential(credentialSettings) !== null;
   const controlsDisabled =
-    busy ||
-    surface.loading ||
-    surface.loadUnavailable ||
+    onboardingCredentialMutationActive(surface) ||
     credentialChangesBlocked(credentialSettings, settingsMutating);
-  const importing = surface.rideImport.status === "running";
   const recovery = useIntervalsRecovery(surface);
   const { connected, rejected, retrySavedKeysShown: retryable } = recovery;
   const signInWorking = wizard.credentialRuntimeStatus["intervals-icu"] === "active";
@@ -191,7 +189,7 @@ export function TrainingRow(props: {
   );
 
   const connect = (): void => {
-    if (actions === null || controlsDisabled || importing) return;
+    if (actions === null || controlsDisabled) return;
     setConnectPhase("connecting");
     actions.connectTrainingData();
   };
@@ -208,7 +206,7 @@ export function TrainingRow(props: {
             data-setup-trigger="training"
             variant="default"
             size="sm"
-            disabled={controlsDisabled || importing}
+            disabled={controlsDisabled}
             {...(open ? { "aria-controls": panelId } : {})}
             onClick={connect}
           >
@@ -314,7 +312,7 @@ export function TrainingRow(props: {
                 type="button"
                 variant="default"
                 size="sm"
-                disabled={controlsDisabled || importing}
+                disabled={controlsDisabled}
                 onClick={connect}
               >
                 {say(phaseCopy === null ? TRAINING_SIGN_IN_LABEL : phaseCopy.status)}
@@ -327,7 +325,7 @@ export function TrainingRow(props: {
               variant="link"
               size="sm"
               className={SETUP_LINK_BUTTON}
-              disabled={controlsDisabled || importing}
+              disabled={controlsDisabled}
               onClick={() => {
                 actions?.chooseImportFiles();
               }}
@@ -359,7 +357,7 @@ export function TrainingRow(props: {
               variant="link"
               size="sm"
               className={SETUP_LINK_BUTTON}
-              disabled={controlsDisabled || importing}
+              disabled={controlsDisabled}
               onClick={() => {
                 if (actions === null) return;
                 setConnectPhase("connecting");

@@ -21,10 +21,13 @@ export interface CredentialSlotStatus {
   readonly runtimeState: CredentialRuntimeState | null;
 }
 
-export interface ChatGptStatus {
-  readonly state: "configured" | "absent";
-  readonly runtimeReady: boolean;
-}
+export type ChatGptStatus =
+  | { readonly state: "configured" | "absent"; readonly runtimeReady: boolean }
+  | {
+      readonly state: "configured";
+      readonly runtimeReady: false;
+      readonly reason: "sign-in-expired";
+    };
 
 export type ChatGptLoginPhase = "idle" | "waiting-for-browser" | "completing-sign-in";
 
@@ -38,7 +41,8 @@ export type ChatGptUiPhase =
   | "activating-coach"
   | "ready"
   | "login-failed"
-  | "activation-failed";
+  | "activation-failed"
+  | "sign-in-expired";
 
 export interface ChatGptLoginProgress {
   readonly operationId: string;
@@ -105,7 +109,7 @@ export interface OnboardingState {
   readonly credentialRuntimeStatus: Readonly<
     Record<DesktopCredentialSlot, CredentialRuntimeState | null>
   >;
-  readonly chatGptCredentialState: "absent" | "stored";
+  readonly chatGptCredentialState: "absent" | "stored" | "expired";
   readonly chatGptRuntimeState: ChatGptRuntimeState;
   readonly chatGptLoginPhase: ChatGptLoginPhase;
   readonly chatGptOperationId: string | null;
@@ -121,6 +125,11 @@ export interface OnboardingCompletion {
   readonly providerConfigured: true;
   readonly trainingDataConfigured: true;
   readonly requiresProviderSync: boolean;
+}
+
+function chatGptCredentialState(status: ChatGptStatus): OnboardingState["chatGptCredentialState"] {
+  if ("reason" in status) return "expired";
+  return status.state === "configured" ? "stored" : "absent";
 }
 
 function statusRecord<T>(initial: T): Record<DesktopCredentialSlot, T> {
@@ -145,7 +154,7 @@ export function createOnboardingState(
     step: "coach-keys",
     credentialStatus,
     credentialRuntimeStatus,
-    chatGptCredentialState: chatGptStatus.state === "configured" ? "stored" : "absent",
+    chatGptCredentialState: chatGptCredentialState(chatGptStatus),
     chatGptRuntimeState:
       chatGptStatus.state === "configured" && chatGptStatus.runtimeReady ? "ready" : "inactive",
     chatGptLoginPhase: "idle",
@@ -162,7 +171,7 @@ export function createOnboardingState(
 export function withChatGptStatus(state: OnboardingState, status: ChatGptStatus): OnboardingState {
   return {
     ...state,
-    chatGptCredentialState: status.state === "configured" ? "stored" : "absent",
+    chatGptCredentialState: chatGptCredentialState(status),
     chatGptRuntimeState:
       status.state === "configured" && status.runtimeReady ? "ready" : "inactive",
     chatGptLoginPhase: "idle",
@@ -278,7 +287,12 @@ export function chatGptUiPhase(state: OnboardingState): ChatGptUiPhase {
     if (state.chatGptRuntimeState === "failed") return "activation-failed";
     return "signed-in";
   }
-  return state.chatGptRefusal === null ? "idle" : "login-failed";
+  if (state.chatGptRefusal !== null) return "login-failed";
+  return state.chatGptCredentialState === "expired" ? "sign-in-expired" : "idle";
+}
+
+export function chatGptOperationActive(state: OnboardingState): boolean {
+  return state.chatGptLoginPhase !== "idle" || state.chatGptRuntimeState === "activating";
 }
 
 export function chatGptSignedIn(state: OnboardingState): boolean {

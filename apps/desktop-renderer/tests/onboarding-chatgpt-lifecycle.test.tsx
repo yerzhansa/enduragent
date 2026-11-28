@@ -12,6 +12,7 @@ import {
   panel,
   resetOnboardingStore,
   rowState,
+  rowSubtitle,
   testBridge,
 } from "./onboarding-harness";
 
@@ -335,6 +336,75 @@ describe("ChatGPT onboarding lifecycle", () => {
       chatGptRuntimeState: "ready",
     });
     expect(rowState("ai")).toBe("ready");
+    wizard.controller.dispose();
+  });
+
+  it("offers a fresh browser sign-in when the stored ChatGPT sign-in was rejected", async () => {
+    const paint = manualPaintScheduler();
+    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.chatGptStatus.mockResolvedValue({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+    const wizard = mountWizard({
+      bridge,
+      createOperationId: () => "sign-in-again-operation",
+      afterPaint: paint.schedule,
+    });
+    await wizard.open();
+
+    expect(rowState("ai")).toBe("pending");
+    expect(rowSubtitle("ai")).toBe("Powers your coach · sign-in expired, sign in again");
+    expectChatGptPhase(
+      "sign-in-expired",
+      "Your ChatGPT sign-in expired. Sign in again to keep coaching.",
+    );
+
+    act(() => {
+      wizard.controller.selectProvider("openai-codex");
+    });
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with ChatGPT" }));
+    await flushAsyncWork();
+    expect(bridge.chatGptLogin).toHaveBeenCalledOnce();
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+    expectChatGptPhase("signed-in", "Signed in");
+
+    act(() => {
+      paint.runNext();
+    });
+    await flushAsyncWork();
+    expect(bridge.applyLlmSelection).toHaveBeenCalledOnce();
+    expect(rowState("ai")).toBe("ready");
+    wizard.controller.dispose();
+  });
+
+  it("shows a ChatGPT sign-in rejected after setup opened once its status is refreshed", async () => {
+    const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.credentialStatuses.mockResolvedValue([
+      { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+    ]);
+    const wizard = mountWizard({ bridge });
+    await wizard.open();
+    expect(rowState("ai")).toBe("ready");
+    expect(useEnduragentStore.getState().onboarding.completionRequired).toBe(false);
+
+    bridge.chatGptStatus.mockResolvedValue({
+      state: "configured",
+      runtimeReady: false,
+      reason: "sign-in-expired",
+    });
+    act(() => {
+      wizard.controller.refreshSignInStatus();
+    });
+    await flushAsyncWork();
+
+    expect(rowState("ai")).toBe("pending");
+    expect(rowSubtitle("ai")).toBe("Powers your coach · sign-in expired, sign in again");
+    expect(screen.getByRole("button", { name: "Sign in with ChatGPT" })).toBeEnabled();
+    expect(useEnduragentStore.getState().onboarding.completionRequired).toBe(false);
     wizard.controller.dispose();
   });
 });

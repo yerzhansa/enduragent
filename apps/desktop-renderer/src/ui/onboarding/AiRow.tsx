@@ -1,6 +1,7 @@
 import { providerLabelMessage } from "../settings/copy";
 import {
   aiRowMessageCopy,
+  chatGptPanelMessages,
   claudeCliIdentityMessage,
   claudeCliNoteMessage,
   modelHintMessage,
@@ -24,7 +25,7 @@ import {
   type OnboardingSurfaceState,
 } from "../../onboarding/controller";
 import { chatGptReady, chatGptSignedIn, chatGptUiPhase } from "../../onboarding/machine";
-import { openRouterSignInBusy } from "../../onboarding/openrouter-sign-in";
+import { setupOperationRunning } from "../../onboarding/setup-operation";
 import {
   apiKeyProviders,
   errorSection,
@@ -54,12 +55,8 @@ import {
   API_KEY_PANEL_HINT,
   CHATGPT_CANCEL_LABEL,
   CHATGPT_CANCEL_SIGN_IN_LABEL,
-  CHATGPT_ACTIVATION_FAILURE_COPY,
   CHATGPT_PANEL_HINT,
-  CHATGPT_PHASE_COPY,
   CHATGPT_REFUSAL_COPY,
-  CHATGPT_RETRY_ACTIVATION_LABEL,
-  CHATGPT_SIGN_IN_LABEL,
   CLAUDE_CLI_RECHECK_LABEL,
   ERROR_COPY,
   SETUP_LANE_LABELS,
@@ -116,11 +113,13 @@ export function AiRow(props: {
       : nonTelegramSettingsMutationActive(state.settings),
   );
   const repairRequired = repairRequiredCredential(credentialSettings) !== null;
-  const controlsDisabled =
-    busy ||
+  const setupBlocked =
     surface.loading ||
     surface.loadUnavailable ||
     credentialChangesBlocked(credentialSettings, settingsMutating);
+  const controlsDisabled = setupBlocked || setupOperationRunning(surface);
+  const openRouterControlsDisabled =
+    setupBlocked || setupOperationRunning(surface, "openrouter-sign-in");
   const provider = draft?.provider.provider ?? null;
   const parsedDraft = llmSelectionFromDraft(draft ?? undefined);
   const chatGptIsReady = chatGptReady(wizard);
@@ -156,11 +155,11 @@ export function AiRow(props: {
     draftIsActive || showsActiveProviderOutsideCatalogue || (picked === null && idleProviderReady);
   const chatGptPhase = chatGptUiPhase(wizard);
   const chatGptStored = chatGptSignedIn(wizard);
+  const chatGptOnFile = wizard.chatGptCredentialState !== "absent";
   const chatGptLoginPending =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in";
   const chatGptActivating = chatGptPhase === "activating-coach";
   const openRouter = surface.openRouter;
-  const openRouterBusy = openRouterSignInBusy(openRouter);
   const openRouterStored = wizard.credentialStatus.openrouter === "configured";
   const previousOpenRouterPhase = useRef(openRouter.signIn.phase);
   const closePanel = (): void => {
@@ -222,7 +221,7 @@ export function AiRow(props: {
     (provider !== null &&
       isKeylessProvider(provider) &&
       provider !== "codex-agent" &&
-      (provider !== "openai-codex" || chatGptStored)) ||
+      (provider !== "openai-codex" || chatGptOnFile)) ||
     DESKTOP_CREDENTIAL_SLOTS.some(
       (slot) => slot === provider && wizard.credentialStatus[slot] === "configured",
     );
@@ -242,7 +241,7 @@ export function AiRow(props: {
       : idleProvider,
   );
   const autoChatGptPanel =
-    panelLane === null && provider === "openai-codex" && chatGptStored && !chatGptIsReady;
+    panelLane === null && provider === "openai-codex" && chatGptOnFile && !chatGptIsReady;
   const openRouterConnected = ready && lane === "openrouter";
   const autoOpenRouterPanel =
     panelLane === null &&
@@ -369,29 +368,12 @@ export function AiRow(props: {
   };
 
   const login = (): void => {
-    if (actions === null || controlsDisabled || chatGptLoginPending || chatGptActivating) return;
+    if (actions === null || controlsDisabled) return;
     actions.startChatGptLogin();
   };
 
-  const chatGptPrimaryLabel = chatGptLoginPending
-    ? say(CHATGPT_PHASE_COPY[chatGptPhase])
-    : chatGptActivating
-      ? say(CHATGPT_PHASE_COPY["activating-coach"])
-      : chatGptStored && !chatGptIsReady
-        ? say(CHATGPT_RETRY_ACTIVATION_LABEL)
-        : say(CHATGPT_SIGN_IN_LABEL);
-  const chatGptStatusCopy =
-    chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in"
-      ? say(CHATGPT_PHASE_COPY[chatGptPhase])
-      : chatGptPhase === "signed-in"
-        ? say(CHATGPT_PHASE_COPY["signed-in"])
-        : chatGptPhase === "activating-coach"
-          ? say("setup.ai.chatgptActivating")
-          : chatGptPhase === "ready"
-            ? say(CHATGPT_PHASE_COPY.ready)
-            : chatGptPhase === "activation-failed"
-              ? say(CHATGPT_ACTIVATION_FAILURE_COPY)
-              : null;
+  const chatGptPanel = chatGptPanelMessages(chatGptPhase, chatGptStored && !chatGptIsReady);
+  const chatGptProblem = chatGptPhase === "activation-failed" || chatGptPhase === "sign-in-expired";
 
   return (
     <>
@@ -423,7 +405,7 @@ export function AiRow(props: {
                 <Menu.Trigger
                   ref={triggerRef}
                   data-setup-trigger="ai"
-                  disabled={controlsDisabled || chatGptActivating || openRouterBusy}
+                  disabled={controlsDisabled}
                   aria-label={
                     hasDisplayedProvider ? say(AI_TRIGGER_LABELS.set) : say(AI_TRIGGER_LABELS.unset)
                   }
@@ -529,9 +511,7 @@ export function AiRow(props: {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={
-                    chatGptLoginPending ? surface.loading : controlsDisabled || chatGptActivating
-                  }
+                  disabled={chatGptLoginPending ? surface.loading : controlsDisabled}
                   {...(chatGptLoginPending
                     ? { "aria-label": say(CHATGPT_CANCEL_SIGN_IN_LABEL) }
                     : { "aria-label": say(CHATGPT_CANCEL_LABEL) })}
@@ -547,25 +527,25 @@ export function AiRow(props: {
                 type="button"
                 variant="default"
                 size="sm"
-                disabled={controlsDisabled || chatGptLoginPending || chatGptActivating}
+                disabled={controlsDisabled}
                 onClick={() => {
                   if (chatGptStored) actions?.retryChatGptActivation();
                   else login();
                 }}
               >
-                {chatGptPrimaryLabel}
+                {say(chatGptPanel.action)}
               </Button>
             </div>
           </div>
-          {chatGptStatusCopy === null ? null : (
+          {chatGptPanel.status === null ? null : (
             <p
-              className={`mt-[7px] text-xs ${chatGptPhase === "activation-failed" ? "text-danger" : "text-ink-2"}`}
+              className={`mt-[7px] text-xs ${chatGptProblem ? "text-danger" : "text-ink-2"}`}
               role="status"
               aria-live="polite"
               aria-atomic="true"
               data-chatgpt-phase={chatGptPhase}
             >
-              {chatGptStatusCopy}
+              {say(chatGptPanel.status)}
             </p>
           )}
           {wizard.chatGptRefusal !== null ? (
@@ -584,7 +564,7 @@ export function AiRow(props: {
             connected: openRouterConnected,
             picked: panelLane === "openrouter",
           })}
-          controlsDisabled={controlsDisabled}
+          controlsDisabled={openRouterControlsDisabled}
           onRevert={() => revert()}
           onPasteKey={pasteKeyInstead}
         />

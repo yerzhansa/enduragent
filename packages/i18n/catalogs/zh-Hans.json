@@ -865,6 +865,7 @@
         "activation": "为教练提供 AI · 已登录 · 需要启用",
         "apiKey": "为教练提供 AI · 添加密钥即可完成",
         "chatgpt": "为教练提供 AI · 登录即可完成",
+        "chatgptExpired": "为教练提供 AI · 登录已过期，请重新登录",
         "checkingClaude": "为教练提供 AI · 正在检查 {{claudeCode}} 登录状态",
         "claude": "为教练提供 AI · 请在终端登录以完成",
         "openrouterCredits": "已登录 · 在 {{openrouter}} 添加额度后即可收到回复"
@@ -893,6 +894,7 @@
         "completingSignIn": "正在完成登录…",
         "ready": "已就绪",
         "signedIn": "已登录",
+        "signInExpired": "{{chatgpt}} 登录已过期。请重新登录以继续使用教练。",
         "waitingForBrowser": "正在等待浏览器…"
       },
       "refusal": {

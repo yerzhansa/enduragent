@@ -870,6 +870,7 @@
         "activation": "Betreibt deinen Coach · Angemeldet · Aktivierung erforderlich",
         "apiKey": "Betreibt deinen Coach · Zum Abschließen Schlüssel hinzufügen",
         "chatgpt": "Betreibt deinen Coach · Zum Abschließen anmelden",
+        "chatgptExpired": "Betreibt deinen Coach · Anmeldung abgelaufen, melde dich erneut an",
         "checkingClaude": "Betreibt deinen Coach · {{claudeCode}}-Anmeldung wird geprüft",
         "claude": "Betreibt deinen Coach · Zum Abschließen im Terminal anmelden",
         "openrouterCredits": "Angemeldet · Guthaben bei {{openrouter}} aufladen, um Antworten zu erhalten"
@@ -898,6 +899,7 @@
         "completingSignIn": "Anmeldung wird abgeschlossen…",
         "ready": "Bereit",
         "signedIn": "Angemeldet",
+        "signInExpired": "Deine {{chatgpt}}-Anmeldung ist abgelaufen. Melde dich erneut an, um mit deinem Coach weiterzumachen.",
         "waitingForBrowser": "Warten auf den Browser…"
       },
       "refusal": {

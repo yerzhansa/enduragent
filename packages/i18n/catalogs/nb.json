@@ -870,6 +870,7 @@
         "activation": "Driver treneren din · pålogget · må aktiveres",
         "apiKey": "Driver treneren din · legg til en nøkkel for å fullføre",
         "chatgpt": "Driver treneren din · logg på for å fullføre",
+        "chatgptExpired": "Driver treneren din · påloggingen er utløpt, logg på igjen",
         "checkingClaude": "Driver treneren din · sjekker {{claudeCode}}-pålogging",
         "claude": "Driver treneren din · logg på fra en terminal for å fullføre",
         "openrouterCredits": "Pålogget · legg til kreditter hos {{openrouter}} for å få svar"
@@ -898,6 +899,7 @@
         "completingSignIn": "Fullfører pålogging…",
         "ready": "Klar",
         "signedIn": "Pålogget",
+        "signInExpired": "{{chatgpt}}-påloggingen din er utløpt. Logg på igjen for å fortsette med treneren din.",
         "waitingForBrowser": "Venter på nettleseren…"
       },
       "refusal": {

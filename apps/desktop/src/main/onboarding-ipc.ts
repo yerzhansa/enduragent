@@ -283,7 +283,9 @@ function minimizeSelection(value: OnboardingLlmSelectionResult): OnboardingLlmSe
 }
 
 function minimizeChatGptStatus(value: ChatGptStatus): ChatGptStatus {
-  return { state: value.state, runtimeReady: value.runtimeReady };
+  return "reason" in value
+    ? { state: value.state, runtimeReady: value.runtimeReady, reason: value.reason }
+    : { state: value.state, runtimeReady: value.runtimeReady };
 }
 
 function minimizeClaudeCliStatus(value: ClaudeCliStatus): ClaudeCliStatus {

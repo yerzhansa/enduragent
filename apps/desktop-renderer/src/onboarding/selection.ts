@@ -16,6 +16,16 @@ export interface LlmSelectionDraft {
   readonly customEndpoint: string;
 }
 
+const ENDPOINT_MODES: readonly LlmSelectionDraft["endpointMode"][] = [
+  "automatic",
+  "default",
+  "custom",
+];
+
+export function parseEndpointMode(mode: string): LlmSelectionDraft["endpointMode"] | undefined {
+  return ENDPOINT_MODES.find((candidate) => candidate === mode);
+}
+
 export function draftForProvider(
   provider: OnboardingLlmProviderConfiguration,
   catalogRevision: number,
