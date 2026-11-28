@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { PlanCoachProjectionDataSchema, PlanReadModelSchema } from "@enduragent/coach-contract";
 import {
   chatRpcDefault,
@@ -7,6 +7,7 @@ import {
   type ChatRpcRequest,
 } from "../helpers/hidden-chat-app.js";
 import { createPlanQaHydratedModel } from "../helpers/plan-qa-live.js";
+import { emptyPlanLibrary } from "../../../desktop-renderer/tests/plan-fixtures.js";
 
 const TOKEN = "plan-chat-discard-held-message-e2e-01234567";
 const CHAT_ID = "plan:00000000000000000000000001";
@@ -39,6 +40,10 @@ interface TurnContext {
   readonly turnId: string;
   readonly text: string;
   emit(event: Record<string, unknown>): void;
+}
+
+async function holdForVideo(page: Page): Promise<void> {
+  await page.waitForTimeout(1_000);
 }
 
 function deferred(): { readonly promise: Promise<void>; resolve(): void } {
@@ -156,6 +161,8 @@ function createPlanCoach() {
         switch (request.method) {
           case "getPlanState":
             return rpcReply({ status: "ready", state: model() });
+          case "plan.list":
+            return rpcReply(emptyPlanLibrary());
           case "getChatQueue":
             return planChat ? rpcReply(snapshot()) : chatRpcDefault(request);
           case "enqueueChatMessage": {
@@ -246,12 +253,14 @@ test("a stopped Plan chat message can be discarded so the messages queued after 
     await composer.fill(WAITING_MESSAGE);
     await composer.press("Enter");
     await expect(queue.getByText(WAITING_MESSAGE)).toBeVisible();
+    await holdForVideo(page);
 
     await page.getByRole("button", { name: "Stop responding" }).click();
     await expect(retry).toBeVisible();
     await expect(queue.getByText(WAITING_MESSAGE)).toBeVisible();
     await expect(page.getByText(HELD_PARTIAL)).toBeVisible();
     await still("held");
+    await holdForVideo(page);
 
     await expect
       .soft(
@@ -283,6 +292,7 @@ test("a stopped Plan chat message can be discarded so the messages queued after 
     await expect(page.getByText(HELD_MESSAGE, { exact: true })).toBeVisible();
     await expect(page.getByText(HELD_PARTIAL)).toBeVisible();
     await still("discarded");
+    await holdForVideo(page);
   } finally {
     await app.close();
   }
