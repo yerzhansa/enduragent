@@ -29,3 +29,4 @@ export * from "./athlete-feedback.js";
 export * from "./plan-calendar.js";
 export * from "./plan-calendar-ftp.js";
 export * from "./plan-workout-guidance.js";
+export * from "./plan-workout-content.js";

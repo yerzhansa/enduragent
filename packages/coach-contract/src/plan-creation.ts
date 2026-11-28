@@ -5,6 +5,7 @@ import {
   answerCheckResultSchema,
   pendingAnswerCheckSchema,
 } from "./answer-check.js";
+import { PlanCreationDraftWorkoutSchema } from "./plan-workout-content.js";
 import { TrainingExportCivilDateSchema } from "./training-export.js";
 
 const PlanCreationUlidSchema = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/u);
@@ -623,20 +624,6 @@ export const SupportingEventSchema = z
   })
   .strict();
 export type SupportingEvent = z.infer<typeof SupportingEventSchema>;
-
-const PlanCreationDraftWorkoutSchema = z
-  .object({
-    id: z.string().min(1).max(128),
-    name: z.string().min(1).max(512),
-    kind: z.enum(["hard", "endurance", "long", "easy", "event"]),
-    date: PlanCreationCivilDateSchema.nullable(),
-    minutes: z.number().positive().max(1440),
-    pinned: z.boolean(),
-    guidance: z.string().min(1).max(512),
-    supportingEventId: z.string().min(1).max(128).optional(),
-    power: z.number().int().min(1).max(9_999).nullable(),
-  })
-  .strict();
 
 export const PlanCreationDraftSchema = z
   .object({
