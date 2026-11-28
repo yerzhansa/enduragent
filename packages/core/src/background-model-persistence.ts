@@ -78,7 +78,9 @@ function explicitSlotsSavedByOlderVersion(
     beforeAstraModel !== undefined
       ? { compact: compactModel === beforeAstraModel, flush: flushModel === beforeAstraModel }
       : {
-          compact: compactModel !== undefined && choices.compact.kind !== "explicit",
+          compact:
+            compactModel !== undefined &&
+            (compactModel === model || choices.compact.kind !== "explicit"),
           flush: flushModel === model,
         };
   return {
