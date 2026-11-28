@@ -71,13 +71,6 @@ export {
   WARM_UP_PERCENT,
   workoutContent,
 } from "./workout-steps.js";
-export type {
-  StepSession,
-  WorkoutBlock,
-  WorkoutContent,
-  WorkoutStep,
-  WorkoutTarget,
-} from "./workout-steps.js";
 export {
   applyScheduleIntent,
   applySupportingEventIntent,
