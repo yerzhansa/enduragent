@@ -53,6 +53,11 @@ describe("CI cost contract", () => {
     expect(native).toContain("tests/onboarding-first-run.integration.test.ts");
     expect(native).toContain("tests/spend-meter.integration.test.ts");
     expect(native).toContain("tests/chat-panels.integration.test.ts");
+    expect(native).toContain("tests/chat-attachment-lifecycle.integration.test.ts");
+    expect(native).toContain("tests/chat-queue-relaunch.integration.test.ts");
+    expect(native).toContain("tests/chat-recovery-relaunch.integration.test.ts");
+    expect(native).toContain("tests/chat-decision-continuation.integration.test.ts");
+    expect(native).toContain("tests/chat-plan-request-relaunch.integration.test.ts");
     expect(native).toContain("Test Desktop E2E on macOS");
     expect(native).toContain("test:e2e");
     expect(native).toContain("desktop-e2e-macos-artifacts");
