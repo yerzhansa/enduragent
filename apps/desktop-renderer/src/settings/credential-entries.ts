@@ -1,7 +1,13 @@
+import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
-import type { DesktopCredentialId } from "../onboarding/bridge";
-import type { ChatGptStatus, CredentialSlotStatus } from "../onboarding/machine";
-import { isNonCredentialProvider } from "./provider-status-rows";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
+import type { CredentialRecoveryStatus, DesktopCredentialId } from "../onboarding/bridge";
+import type { ChatGptStatus, ClaudeCliStatus, CredentialSlotStatus } from "../onboarding/machine";
+import {
+  isNonCredentialProvider,
+  providerStatusesFrom,
+  type ProviderStatusEntry,
+} from "./provider-status-rows";
 
 export type CredentialKind = "Provider API key" | "ChatGPT profile" | "Training account key";
 
@@ -116,4 +122,62 @@ export function entriesFrom(
     const entry = entries.get(credential);
     return entry === undefined ? [] : [entry];
   });
+}
+
+export interface LoadedCredentialEntries {
+  readonly entries: readonly CredentialSettingsEntry[];
+  readonly providerStatuses: readonly ProviderStatusEntry[];
+  readonly recovery: CredentialRecoveryStatus;
+}
+
+export function createCredentialEntriesReader(input: {
+  readonly clients: DesktopCoachClientProvider;
+  readonly loadStatuses: () => Promise<readonly CredentialSlotStatus[]>;
+  readonly loadChatGptStatus: () => Promise<ChatGptStatus>;
+  readonly loadRecoveryStatus?: () => Promise<CredentialRecoveryStatus>;
+  readonly loadClaudeCliStatus?: () => Promise<ClaudeCliStatus>;
+}): () => Promise<LoadedCredentialEntries> {
+  let reconnectRequired = false;
+  let failedClient: DesktopCoachClient | undefined;
+  const runtimeClient = async (): Promise<DesktopCoachClient> => {
+    if (!reconnectRequired) return input.clients.getClient();
+    const client =
+      failedClient === undefined
+        ? await input.clients.getClient()
+        : await input.clients.reconnect(failedClient);
+    reconnectRequired = false;
+    failedClient = undefined;
+    return client;
+  };
+  return async () => {
+    const client = await runtimeClient();
+    try {
+      const [statuses, chatGpt, runtime, recovery] = await Promise.all([
+        input.loadStatuses(),
+        input.loadChatGptStatus(),
+        client.call("getRuntimeConfig", {}),
+        input.loadRecoveryStatus?.() ??
+          Promise.resolve({ state: "ready" as const, unverifiedEnvelopes: 0 }),
+      ]);
+      const loadClaudeCli = input.loadClaudeCliStatus;
+      const claudeCli =
+        loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
+          ? "not-loaded"
+          : await loadClaudeCli().catch(() => "not-loaded" as const);
+      return {
+        entries: entriesFrom(statuses, chatGpt, runtime),
+        providerStatuses: providerStatusesFrom(
+          runtime,
+          claudeCli === "not-loaded" ? null : claudeCli,
+        ),
+        recovery,
+      };
+    } catch (error) {
+      if (error instanceof CoachClientDisconnectedError) {
+        reconnectRequired = true;
+        failedClient = client;
+      }
+      throw error;
+    }
+  };
 }

@@ -1,13 +1,17 @@
-import { CoachClientDisconnectedError } from "@enduragent/coach-client";
-import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClientProvider } from "../coach-client";
 import type {
   CredentialDeleteResult,
   CredentialRecoveryStatus,
   CredentialResetResult,
   DesktopCredentialId,
 } from "../onboarding/bridge";
+import { DESKTOP_CREDENTIAL_SLOTS } from "../onboarding/constants";
 import type { ChatGptStatus, ClaudeCliStatus, CredentialSlotStatus } from "../onboarding/machine";
-import { entriesFrom, PROVIDER_NAMES, type CredentialSettingsEntry } from "./credential-entries";
+import {
+  createCredentialEntriesReader,
+  PROVIDER_NAMES,
+  type CredentialSettingsEntry,
+} from "./credential-entries";
 import {
   deleteCancelledCopy,
   deleteConfirmCopy,
@@ -26,7 +30,7 @@ import {
   repairRetrying,
   type CredentialRepair,
 } from "./credential-repair";
-import { providerStatusesFrom, type ProviderStatusEntry } from "./provider-status-rows";
+import type { ProviderStatusEntry } from "./provider-status-rows";
 
 export {
   belongsInPrimaryAiRow,
@@ -173,8 +177,6 @@ export function createCredentialSettingsController(input: {
   let disposed = false;
   let operation: Promise<void> | undefined;
   let activeResetOperation: symbol | undefined;
-  let reconnectRequired = false;
-  let failedClient: DesktopCoachClient | undefined;
 
   const render = (state: CredentialSettingsState): void => {
     currentState = state;
@@ -182,52 +184,7 @@ export function createCredentialSettingsController(input: {
     input.view.render(state);
   };
 
-  const runtimeClient = async (): Promise<DesktopCoachClient> => {
-    if (!reconnectRequired) return input.clients.getClient();
-    const client =
-      failedClient === undefined
-        ? await input.clients.getClient()
-        : await input.clients.reconnect(failedClient);
-    reconnectRequired = false;
-    failedClient = undefined;
-    return client;
-  };
-
-  const loadEntries = async (): Promise<{
-    readonly entries: readonly CredentialSettingsEntry[];
-    readonly providerStatuses: readonly ProviderStatusEntry[];
-    readonly recovery: CredentialRecoveryStatus;
-  }> => {
-    const client = await runtimeClient();
-    try {
-      const [statuses, chatGpt, runtime, recovery] = await Promise.all([
-        input.loadStatuses(),
-        input.loadChatGptStatus(),
-        client.call("getRuntimeConfig", {}),
-        input.loadRecoveryStatus?.() ??
-          Promise.resolve({ state: "ready" as const, unverifiedEnvelopes: 0 }),
-      ]);
-      const loadClaudeCli = input.loadClaudeCliStatus;
-      const claudeCli =
-        loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
-          ? "not-loaded"
-          : await loadClaudeCli().catch(() => "not-loaded" as const);
-      return {
-        entries: entriesFrom(statuses, chatGpt, runtime),
-        providerStatuses: providerStatusesFrom(
-          runtime,
-          claudeCli === "not-loaded" ? null : claudeCli,
-        ),
-        recovery,
-      };
-    } catch (error) {
-      if (error instanceof CoachClientDisconnectedError) {
-        reconnectRequired = true;
-        failedClient = client;
-      }
-      throw error;
-    }
-  };
+  const loadEntries = createCredentialEntriesReader(input);
 
   const startLoad = (retryRecovery = false, quiet = false): Promise<void> => {
     if (disposed || operation !== undefined) return operation ?? Promise.resolve();
@@ -249,12 +206,7 @@ export function createCredentialSettingsController(input: {
     const feedbackFocus: CredentialSettingsFocus =
       repair === null && !resetUncertain ? null : { target: "feedback" };
     const operationGeneration = ++generation;
-    const superseded = (): boolean => {
-      if (disposed) return true;
-      if (generation === operationGeneration) return false;
-      if (repairRetrying(pendingCredentialRepair(currentState))) repairRetry.schedule();
-      return true;
-    };
+    const superseded = (): boolean => disposed || generation !== operationGeneration;
     if (!quiet)
       render({
         status: "loading",
@@ -267,11 +219,18 @@ export function createCredentialSettingsController(input: {
     const pending = (async () => {
       try {
         if (retryRecovery) await input.retryCredentialRecovery?.();
-        if (retrying) await input.retryFailedCredentials?.();
-        const loaded = await loadEntries();
+        const stillFailed = (entries: readonly CredentialSettingsEntry[]): boolean =>
+          entries.some(
+            (entry) => entry.credential === repairCredential && entry.runtimeState === "failed",
+          );
+        let loaded = await loadEntries();
+        if (retrying && stillFailed(loaded.entries)) {
+          await input.retryFailedCredentials?.();
+          loaded = await loadEntries();
+        }
         if (superseded()) return;
         const repaired = loaded.entries.find((entry) => entry.credential === repairCredential);
-        if (retrying && repairCredential !== null && repaired?.runtimeState === "failed") {
+        if (retrying && repairCredential !== null && stillFailed(loaded.entries)) {
           render(
             closed
               ? { status: "closed", repairCredential }
@@ -313,9 +272,7 @@ export function createCredentialSettingsController(input: {
               },
         );
       } catch {
-        if (superseded()) return;
-        if (retrying) repairRetry.schedule();
-        if (retrying && quiet) return;
+        if (superseded() || (retrying && quiet)) return;
         render({
           status: "error",
           kind: "load",
@@ -329,11 +286,14 @@ export function createCredentialSettingsController(input: {
           focus: feedbackFocus,
         });
       }
-    })().finally(() => {
-      if (operation === pending) operation = undefined;
-    });
+    })().finally(() => settle(pending));
     operation = pending;
     return pending;
+  };
+
+  const settle = (pending: Promise<void>): void => {
+    if (operation === pending) operation = undefined;
+    if (!disposed && repairRetrying(pendingCredentialRepair(currentState))) repairRetry.schedule();
   };
 
   const repairRetry = createCredentialRepairRetry({
@@ -408,6 +368,7 @@ export function createCredentialSettingsController(input: {
     if (
       disposed ||
       operation !== undefined ||
+      repairRetrying(pendingCredentialRepair(currentState)) ||
       currentState.resetUncertain === true ||
       input.credentialMutationsBlocked?.()
     ) {
@@ -560,7 +521,7 @@ export function createCredentialSettingsController(input: {
     })().finally(() => {
       releaseMutation();
       if (activeResetOperation === resetOperation) activeResetOperation = undefined;
-      if (operation === pending) operation = undefined;
+      settle(pending);
     });
     operation = pending;
     return pending;
@@ -658,6 +619,7 @@ export function createCredentialSettingsController(input: {
       if (disposed || generation !== operationGeneration) return;
       if (result.status === "refused") {
         const diverged = result.reason === "runtime-state-diverged";
+        const retrying = diverged && DESKTOP_CREDENTIAL_SLOTS.some((slot) => slot === credential);
         releaseMutation();
         render({
           status: "error",
@@ -666,13 +628,16 @@ export function createCredentialSettingsController(input: {
           entries,
           providerStatuses,
           confirmation: null,
-          announcement: diverged ? RECONNECTING_ANNOUNCEMENT : refusalCopy(result.reason),
+          announcement: retrying ? RECONNECTING_ANNOUNCEMENT : refusalCopy(result.reason),
           recovery,
-          repairCredential: diverged ? { retrying: credential } : content.repairCredential,
+          repairCredential: retrying
+            ? { retrying: credential }
+            : diverged
+              ? credential
+              : content.repairCredential,
           recoveryAvailable: content.recoveryAvailable || diverged,
           focus: diverged ? { target: "feedback" } : { target: "delete", credential },
         });
-        if (diverged) repairRetry.schedule();
         return;
       }
       try {
@@ -714,7 +679,7 @@ export function createCredentialSettingsController(input: {
       });
     })().finally(() => {
       releaseMutation();
-      if (operation === pending) operation = undefined;
+      settle(pending);
     });
     operation = pending;
     return pending;

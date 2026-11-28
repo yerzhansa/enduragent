@@ -52,7 +52,7 @@ export function createCredentialRepairRetry(input: {
   };
   return {
     schedule() {
-      if (state.status === "following") clearTimeout(state.timer);
+      if (state.status === "following" && state.timer !== undefined) return;
       const following =
         state.status === "following"
           ? state

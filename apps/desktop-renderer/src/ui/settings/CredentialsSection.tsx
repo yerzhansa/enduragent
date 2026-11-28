@@ -312,6 +312,7 @@ export function CredentialSettingsFeedback(): ReactElement | null {
     recovery?.state === "unavailable";
   const canReset =
     recovery !== undefined &&
+    !reconnecting &&
     (repairRequired !== null || recovery.state !== "ready" || recovery.unverifiedEnvelopes > 0);
   const announcementMessages = credentialFeedbackMessages(
     "announcement" in state ? state.announcement : "",

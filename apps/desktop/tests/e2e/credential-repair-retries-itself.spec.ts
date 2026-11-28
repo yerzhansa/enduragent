@@ -21,6 +21,7 @@ const OUTAGE_MS = 5_000;
 const RELOAD_NOTICE = "Saved credential status needs to be reloaded before setup can continue.";
 const RELOAD_BUTTON = "Reload credential status";
 const NOT_DELETED = "The coach could not stop using this credential safely. It was not deleted.";
+const RECONNECTING = "The credential was not deleted. Reconnecting to the coach…";
 
 interface ScriptRequest {
   readonly method: string;
@@ -368,6 +369,11 @@ test("after the coach drops a key delete, the app reconciles by itself once the 
   const shell = page.locator("[data-shell]");
   await finishSetupWithAnthropicKey(page);
   await deleteAnthropicKeyDuringOutage(page, coach);
+  await expect(
+    page.getByText(RECONNECTING),
+    "While the coach is unreachable, Settings says the key was not deleted and that it is reconnecting",
+  ).toBeVisible();
+  expect(coach.outageOver, "The coach is still unreachable when the message shows").toBe(false);
   await page.waitForTimeout(1_500);
   await page.screenshot({ path: testInfo.outputPath("during-outage.png") });
 
